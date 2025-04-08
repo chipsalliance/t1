@@ -56,7 +56,14 @@ object T1 extends SerializableModuleElaborator {
         chainingSize,
         vrfBankSize,
         vrfRamType,
-        VFUInstantiateParameter.parse(vLen = vLen, dLen = dLen, preset = vfuInstantiateParameter, fp = fp, zvbb = zvbb, chainingSize=chainingSize)
+        VFUInstantiateParameter.parse(
+          vLen = vLen,
+          dLen = dLen,
+          preset = vfuInstantiateParameter,
+          fp = fp,
+          zvbb = zvbb,
+          chainingSize = chainingSize
+        )
       )
     }
   }

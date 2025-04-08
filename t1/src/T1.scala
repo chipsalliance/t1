@@ -369,7 +369,7 @@ class T1Probe(parameter: T1Parameter) extends Bundle {
   // write queue enq for mask unit
   val writeQueueEnqVec:   Vec[ValidIO[UInt]]             = Vec(parameter.laneNumber, Valid(UInt(parameter.instructionIndexBits.W)))
   // mask unit instruction valid
-  val instructionValid:   UInt                           = UInt((parameter.chainingSize * 2).W)
+  val instructionValid:   UInt                           = UInt(parameter.chaining1HBits.W)
   // instruction index for check rd
   val responseCounter:    UInt                           = UInt(parameter.instructionIndexBits.W)
   // probes

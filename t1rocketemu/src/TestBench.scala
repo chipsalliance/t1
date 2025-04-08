@@ -280,7 +280,7 @@ class TestBench(val parameter: T1RocketTileParameter)
   )
 
   // t1 vrf scoreboard
-  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * parameter.t1Parameter.chainingSize) { _ =>
+  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(parameter.t1Parameter.chaining1HBits) { _ =>
     RegInit(0.U.asTypeOf(Valid(UInt(16.W))))
   }
   vrfWriteScoreboard.foreach(scoreboard => dontTouch(scoreboard))
@@ -288,7 +288,7 @@ class TestBench(val parameter: T1RocketTileParameter)
     (laneProbes.map(laneProbe => laneProbe.instructionValid) :+
       lsuProbe.lsuInstructionValid :+ t1Probe.instructionValid).reduce(_ | _)
   val scoreboardEnq    =
-    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * parameter.t1Parameter.chainingSize).W))
+    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U(parameter.t1Parameter.chaining1HBits.W))
   vrfWriteScoreboard.zipWithIndex.foreach { case (scoreboard, tag) =>
     val writeEnq: UInt = VecInit(
       // vrf write from lane
