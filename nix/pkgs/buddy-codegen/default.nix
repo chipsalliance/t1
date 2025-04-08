@@ -21,9 +21,7 @@ stdenv.mkDerivation {
   buildInputs = [
     libpng
     argparse
-    (buddy-mlir.override {
-      enableI32MallocFix = false;
-    })
+    buddy-mlir
   ];
 
   env.NIX_CFLAGS_COMPILE = toString [

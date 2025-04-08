@@ -1,4 +1,5 @@
 {
+  lib,
   cmake,
   ninja,
   llvmPackages_17,
@@ -6,23 +7,28 @@
   fetchurl,
   python3,
   callPackage,
-  enableI32MallocFix ? true,
 }:
 let
   stdenv = llvmPackages_17.stdenv;
   bintools = llvmPackages_17.bintools;
 
-  buddy-llvm = callPackage ./buddy-llvm.nix { inherit stdenv python3 enableI32MallocFix; };
+  buddy-llvm = callPackage ./buddy-llvm.nix { inherit stdenv python3; };
   self = stdenv.mkDerivation {
     pname = "buddy-mlir";
     version = "unstable-2024-07-18";
 
     src = fetchFromGitHub {
-      owner = "buddy-compiler";
+      owner = "WuXintong123";
       repo = "buddy-mlir";
-      rev = "c57584a0e3c38e938a3902320f62b202ced84996";
-      hash = "sha256-IBsShnkaA0qPkEMbkkSjUMWXnDGW/CrTeiSSLLttlXk=";
+      rev = "6586555adf921371906fe908293714bff4d92b24";
+      hash = "sha256-NDdj72oNhIKcU7cOw+RDzPrjKLIUVY63TDUrJ2DzYL0=";
     };
+
+    postPatch = ''
+      sed -i \
+        's|link_directories(''${LLVM_BINARY_DIR}/tools/mlir/|link_directories(''${LLVM_BINARY_DIR}/|' \
+        midend/python/CMakeLists.txt
+    '';
 
     nativeBuildInputs = [
       cmake
@@ -34,8 +40,8 @@ let
     ];
 
     cmakeFlags = [
-      "-DMLIR_DIR=${buddy-llvm.dev}/lib/cmake/mlir"
-      "-DLLVM_DIR=${buddy-llvm.dev}/lib/cmake/llvm"
+      "-DMLIR_DIR=${buddy-llvm}/lib/cmake/mlir"
+      "-DLLVM_DIR=${buddy-llvm}/lib/cmake/llvm"
       "-DLLVM_MAIN_SRC_DIR=${buddy-llvm.src}/llvm"
       "-DBUDDY_MLIR_ENABLE_PYTHON_PACKAGES=ON"
       "-DCMAKE_BUILD_TYPE=Release"
@@ -54,7 +60,7 @@ let
     postFixup = ''
       mkdir -p $out/lib/python${python3.pythonVersion}/site-packages
       cp -vr $out/python_packages/buddy $out/lib/python${python3.pythonVersion}/site-packages/
-      cp -vr ${buddy-llvm}/python_packages/mlir_core/mlir $out/lib/python${python3.pythonVersion}/site-packages/
+      cp -vr ${buddy-llvm.lib}/python_packages/mlir_core/mlir $out/lib/python${python3.pythonVersion}/site-packages/
     '';
 
     passthru = {
