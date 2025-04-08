@@ -443,6 +443,6 @@
   "rvv_bench.memset": 509966,
   "rvv_bench.mergelines": 795847,
   "rvv_bench.poly1305": 45624,
-  "rvv_bench.strlen": 529066,
-  "rvv_bench.utf8_count": 2753737
+  "rvv_bench.strlen": 529066
 }
+
