@@ -56,7 +56,7 @@ let
 
               for llvmir in ''${translateArtifacts[@]}; do
                 echo "Compiling $llvmir"
-                buddy-llc "$llvmir" \
+                llc "$llvmir" \
                   -mtriple=riscv32 \
                   -target-abi=ilp32f \
                   -mattr=+m,+f,+zve32f \
