@@ -62,19 +62,79 @@ void conv2d(int32_t *restrict output_, int32_t const *restrict img_,
 #define VDATA __attribute((section(".vdata")))
 #define VBASS __attribute((section(".vbss")))
 
-// size of image is padded to (H+K-1, W+K-1)
+#define DEFINE_CONV(name, OH, OW, CO, CI, K) \
+  const int name##_OH = (OH); \
+  const int name##_OW = (OW); \
+  const int name##_CO = (CO); \
+  const int name##_CI = (CI); \
+  const int name##_K = (K); \
+  VDATA int32_t name##_input[(CI)*((OH)+(K)-1)*((OW)+(K)-1)]; \
+  VDATA int32_t name##_output[(CO)*(OH)*(OW)]; \
+  VDATA int32_t name##_kernel[(CO)*(CI)*(K)*(K)];
+
+#define RUN_CONV(name) conv2d(name##_output, name##_input, name##_kernel, name##_OH, name##_OW, name##_CO, name##_CI, name##_K)
 
 // CONV1: O[224, 224, 64], W[64, 3, 7, 7]
-VDATA int32_t conv1_img[64*230*230];
-VDATA int32_t conv1_output[64*224*224];
-VDATA int32_t conv1_kernel[64*3*7*7];
+// VDATA int32_t conv1_img[3*230*230];
+// VDATA int32_t conv1_output[64*224*224];
+// VDATA int32_t conv1_kernel[64*3*7*7];
 
-// CONV2: ...
+DEFINE_CONV(conv1, 112, 112, 64, 3, 7)
+
+DEFINE_CONV(conv2, 56, 56, 64, 64, 3)
+DEFINE_CONV(conv3, 56, 56, 64, 64, 3)
+
+DEFINE_CONV(conv4, 56, 56, 64, 64, 3)
+DEFINE_CONV(conv5, 56, 56, 64, 64, 3)
+
+DEFINE_CONV(conv6, 28, 28, 128, 64, 3)
+DEFINE_CONV(conv7, 28, 28, 128, 128, 3)
+// +
+DEFINE_CONV(conv8, 28, 28, 128, 64, 3)
+
+DEFINE_CONV(conv9, 28, 28, 128, 128, 3)
+DEFINE_CONV(conv10, 28, 28, 128, 128, 3)
+
+
+DEFINE_CONV(conv11, 14, 14, 256, 128, 3)
+DEFINE_CONV(conv12, 14, 14, 256, 256, 3)
+// +
+DEFINE_CONV(conv13, 14, 14, 256, 128, 3)
+
+DEFINE_CONV(conv14, 14, 14, 256, 256, 3)
+DEFINE_CONV(conv15, 14, 14, 256, 256, 3)
+
+
+DEFINE_CONV(conv16, 7, 7, 512, 256, 3)
+DEFINE_CONV(conv17, 7, 7, 512, 512, 3)
+// +
+DEFINE_CONV(conv18, 7, 7, 512, 256, 3)
+
+DEFINE_CONV(conv19, 7, 7, 512, 512, 3)
+DEFINE_CONV(conv20, 7, 7, 512, 512, 3)
+
 
 int test() {
-  conv2d(conv1_output, conv1_img, conv1_kernel, 224, 224, 64, 3, 7);
-
-  // conv2d(...)
+  RUN_CONV(conv1);
+  RUN_CONV(conv2);
+  RUN_CONV(conv3);
+  RUN_CONV(conv4);
+  RUN_CONV(conv5);
+  RUN_CONV(conv6);
+  RUN_CONV(conv7);
+  RUN_CONV(conv8);
+  RUN_CONV(conv9);
+  RUN_CONV(conv10);
+  RUN_CONV(conv11);
+  RUN_CONV(conv12);
+  RUN_CONV(conv13);
+  RUN_CONV(conv14);
+  RUN_CONV(conv15);
+  RUN_CONV(conv16);
+  RUN_CONV(conv17);
+  RUN_CONV(conv18);
+  RUN_CONV(conv19);
+  RUN_CONV(conv20);
 
   return 0;
 }
