@@ -24,6 +24,10 @@ let
       hash = "sha256-NDdj72oNhIKcU7cOw+RDzPrjKLIUVY63TDUrJ2DzYL0=";
     };
 
+    patches = [
+      ../patches/buddy-mlir/00-fix-splat-op.patch
+    ];
+
     postPatch = ''
       sed -i \
         's|link_directories(''${LLVM_BINARY_DIR}/tools/mlir/|link_directories(''${LLVM_BINARY_DIR}/|' \

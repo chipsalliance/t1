@@ -1,0 +1,59 @@
+--- a/frontend/Python/ops/linalg.py	1970-01-01 08:00:01.000000000 +0800
++++ b/frontend/Python/ops/linalg.py	1970-01-01 08:00:01.000000000 +0800
+@@ -1166,7 +1166,7 @@
+     element = mlir_element_attr_get(dtype, 0.0)
+     attr = ir.DenseElementsAttr.get_splat(tensor_type, element)
+     matmul_result_buffer = arith.ConstantOp(tensor_type, attr).result
+-    op = linalg.matmul(input1, input2, outs=[matmul_result_buffer])
++    op = linalg.matmul(input1, input2, outputs=[matmul_result_buffer])
+     return op
+ 
+ 
+@@ -1186,7 +1186,7 @@
+     element = mlir_element_attr_get(dtype, 0.0)
+     attr = ir.DenseElementsAttr.get_splat(tensor_type, element)
+     result_buffer = arith.ConstantOp(tensor_type, attr).result
+-    op = linalg.matmul_transpose_b(input1, input2, outs=[result_buffer])
++    op = linalg.matmul_transpose_b(input1, input2, outputs=[result_buffer])
+     return op
+ 
+ 
+@@ -1854,9 +1854,9 @@
+     output = tensor.EmptyOp(output_shape, mlir_dtype)
+ 
+     if not isinstance(input2.type, ir.RankedTensorType):
+-        input2 = tensor.SplatOp(tensor_type, input2).result
++        input2 = tensor.SplatOp(tensor_type, input2, []).result
+     if not isinstance(input3.type, ir.RankedTensorType):
+-        input3 = tensor.SplatOp(tensor_type, input3).result
++        input3 = tensor.SplatOp(tensor_type, input3, []).result
+ 
+     generic_map = ir.AffineMap.get_permutation(
+         [i for i in range(len(output_shape))]
+@@ -2038,7 +2038,7 @@
+     input_shape = ir.RankedTensorType(input_tensor.type).shape
+     tensor_type = ir.RankedTensorType.get(input_shape, input_dtype)
+     scalar = arith.ConstantOp(input_dtype, node.args[1])
+-    rhs = tensor.SplatOp(tensor_type, scalar)
++    rhs = tensor.SplatOp(tensor_type, scalar, [])
+     if str(input_dtype).find("i") != -1:
+         cmp_op = arith.CmpIOp(4, input_tensor, rhs)
+     else:
+@@ -2069,7 +2069,7 @@
+     tensor_type = ir.RankedTensorType.get(input_shape, input_dtype)
+ 
+     scalar = arith.ConstantOp(input_dtype, node.args[1])
+-    rhs = tensor.SplatOp(tensor_type, scalar)
++    rhs = tensor.SplatOp(tensor_type, scalar, [])
+ 
+     if str(input_dtype).find("i") != -1:
+         cmp_op = arith.CmpIOp(5, input_tensor, rhs)
+@@ -2390,7 +2390,7 @@
+         scalar = arith.ConstantOp(input_dtype, float(node.args[1]))
+     else:
+         scalar = arith.ConstantOp(input_dtype, node.args[1])
+-    rhs = tensor.SplatOp(tensor_type, scalar)
++    rhs = tensor.SplatOp(tensor_type, scalar, [])
+     if str(input_dtype).find("i") != -1:
+         cmp_op = arith.CmpIOp(0, input_tensor, rhs)
+     else:
