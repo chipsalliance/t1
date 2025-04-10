@@ -59,14 +59,7 @@ class ReduceAdder(val parameter: ReduceAdderParameter)
 
   adder.io.a   := subOperation0
   adder.io.b   := subOperation1
-  adder.io.cin := Mux1H(
-    vSew1H,
-    Seq(
-      operation2,
-      operation2(1) ## operation2(1) ## operation2(0) ## operation2(0),
-      Fill(4, operation2(0))
-    )
-  )
+  adder.io.cin := operation2
   adder.io.sew := UIntToOH(request.vSew)
 
   val adderResult = adder.io.z
