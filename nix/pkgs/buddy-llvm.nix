@@ -12,19 +12,24 @@ let
     ps.pybind11
     ps.pyyaml
     ps.ml-dtypes
+    ps.nanobind
   ]);
 in
 stdenv.mkDerivation rec {
   name = "llvm-for-buddy-mlir";
-  version = "6c59f0e1b0fb56c909ad7c9aad4bde37dc006ae0";
+  version = "3bd3e06f3fe418e24af65457877f40cee0544f9d";
   src = fetchFromGitHub {
     owner = "llvm";
     repo = "llvm-project";
     rev = version;
-    hash = "sha256-bMJJ2q1hSh7m0ewclHOmIe7lOHv110rz/P7D3pw8Uiw=";
+    hash = "sha256-JSquIeA14dXKXO6E8v0HV36fA/+bZypJKkcGMvPxxHI=";
   };
 
   requiredSystemFeatures = [ "big-parallel" ];
+
+  patches = [
+    ../patches/llvm/fix-vector-convert.patch
+  ];
 
   propagatedBuildInputs = [
     pythonEnv
@@ -66,6 +71,7 @@ stdenv.mkDerivation rec {
 
     # move all lib files to $lib except lib/cmake
     moveToOutput "lib" "$lib"
+    moveToOutput "python_packages" "$lib"
     moveToOutput "lib/cmake" "$dev"
     moveToOutput "src" "$dev"
 

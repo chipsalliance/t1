@@ -25,6 +25,7 @@ let
             nativeBuildInputs = [
               buddy-mlir.pyenv
               buddy-mlir
+              buddy-mlir.llvm
             ];
 
             src = sourcePath;
@@ -41,7 +42,7 @@ let
 
               for mlir in ''${optArtifacts[@]}; do
                 echo "Translating $mlir"
-                buddy-translate --buddy-to-llvmir "$mlir" -o "$mlir.ll"
+                mlir-translate --mlir-to-llvmir "$mlir" -o "$mlir.ll"
 
                 translateArtifacts+=("$mlir.ll")
               done
@@ -55,10 +56,10 @@ let
 
               for llvmir in ''${translateArtifacts[@]}; do
                 echo "Compiling $llvmir"
-                buddy-llc "$llvmir" \
+                llc "$llvmir" \
                   -mtriple=riscv32 \
                   -target-abi=ilp32f \
-                  -mattr=+m,+f,+zve32f \
+                  -mattr=+m,+f,+zvl4096b,+zve32f \
                   --filetype=obj \
                   -o "$llvmir.o"
 

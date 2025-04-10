@@ -1609,8 +1609,8 @@ class Rocket(val parameter: RocketParameter)
       t1XRDRetireQueue.deq.ready := (!(wbWxd || (dmemResponseReplay && dmemResponseXpu)) || !vectorTryToWriteRd) && (!(dmemResponseReplay && dmemResponseFpu) || !vectorTryToWriteFP)
 
       when(t1XRDRetireQueue.deq.fire && vectorTryToWriteRd) {
-        longlatencyWdata    := t1.retire.rd.bits.rdData
-        longlatencyWaddress := t1.retire.rd.bits.rdAddress
+        longlatencyWdata    := t1XRDRetireQueue.deq.bits.rdData
+        longlatencyWaddress := t1XRDRetireQueue.deq.bits.rdAddress
         longLatencyWenable  := true.B
       }
       io.fpu.foreach { fpu =>
