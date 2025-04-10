@@ -33,6 +33,50 @@ object Main:
 
     def read(strs: Seq[String]) = Right(os.Path(strs.head, os.pwd))
 
+  def copyFix(
+    from:            os.Path,
+    to:              os.Path,
+    followLinks:     Boolean = true,
+    replaceExisting: Boolean = false,
+    copyAttributes:  Boolean = false,
+    createFolders:   Boolean = false,
+    mergeFolders:    Boolean = false
+  ): Unit = {
+    import java.nio.file.{Path => _, _}
+    if (createFolders && to.segmentCount != 0) then os.makeDir.all(to / os.up)
+    val opts1 =
+      if (followLinks) then Array[CopyOption]()
+      else Array[CopyOption](LinkOption.NOFOLLOW_LINKS)
+    val opts2 =
+      if (replaceExisting) then Array[CopyOption](StandardCopyOption.REPLACE_EXISTING)
+      else Array[CopyOption]()
+    val opts3 =
+      if (copyAttributes) then Array[CopyOption](StandardCopyOption.COPY_ATTRIBUTES)
+      else Array[CopyOption]()
+    require(
+      !to.startsWith(from),
+      s"Can't copy a directory into itself: $to is inside $from"
+    )
+
+    def copyOne(p: os.Path): Unit = {
+      val target = to / p.relativeTo(from)
+      if (
+        mergeFolders
+        && os.isDir(p, followLinks)
+        && os.isDir(target, followLinks)
+      )
+      then {
+        // nothing to do
+      } else {
+        Files.copy(p.wrapped, target.wrapped, (opts1 ++ opts2 ++ opts3)*)
+        os.perms.set(target, "rwxr-xr-x")
+      }
+    }
+
+    copyOne(from)
+    if (os.stat(from, followLinks = followLinks).isDir) then for (p <- os.walk(from)) copyOne(p)
+  }
+
   def resolveNixPath(attr: String, extraArgs: Seq[String] = Seq()): String =
     Logger.trace(s"Running nix build ${attr}")
     val args = Seq(
@@ -45,7 +89,24 @@ object Main:
     ) ++ extraArgs
     os.proc(args).call().out.trim()
 
-  def resolveTestPath(
+  def resolvePackage(pkgAttr: String, forceX86: Boolean = false): String =
+    val attrRoot =
+      if (forceX86) then ".#legacyPackages.x86_64-linux."
+      else ".#"
+
+    attrRoot + pkgAttr
+  end resolvePackage
+
+  def resolveTestAttr(
+    ip:       String,
+    config:   String,
+    caseName: String,
+    forceX86: Boolean = false
+  ): String =
+    resolvePackage(s"t1.${config}.${ip}.cases.${caseName}", forceX86)
+  end resolveTestAttr
+
+  def resolveTestElfPath(
     ip:       String,
     config:   String,
     caseName: String,
@@ -54,25 +115,7 @@ object Main:
     val casePath = os.Path(caseName, os.pwd)
     if (os.exists(casePath)) then return casePath
 
-    val caseAttrRoot =
-      if (forceX86) then ".#legacyPackages.x86_64-linux."
-      else ".#"
-
-    val nixStorePath = resolveNixPath(
-      s"${caseAttrRoot}t1.${config}.${ip}.cases.${caseName}"
-    )
-    val filePath     = os.Path(nixStorePath)
-
-    filePath
-  end resolveTestPath
-
-  def resolveTestElfPath(
-    ip:       String,
-    config:   String,
-    caseName: String,
-    forceX86: Boolean = false
-  ): os.Path =
-    val testPath    = resolveTestPath(ip, config, caseName, forceX86)
+    val testPath    = os.Path(resolveNixPath(resolveTestAttr(ip, config, caseName, forceX86)))
     val elfFilePath = testPath / "bin" / s"${caseName}.elf"
 
     elfFilePath
@@ -84,7 +127,7 @@ object Main:
     caseName: String,
     forceX86: Boolean = false
   ): os.Path =
-    val testPath      = resolveTestPath(ip, config, caseName, forceX86)
+    val testPath      = os.Path(resolveNixPath(resolveTestAttr(ip, config, caseName, forceX86)))
     val coverFilePath = testPath / s"${caseName}.cover"
 
     coverFilePath
@@ -110,7 +153,8 @@ object Main:
   end resolveTestBenchPath
 
   def prepareOutputDir(
-    outputDir: String
+    outputDir: String,
+    prefix:    String
   ): os.Path =
     val outputPath  = os.Path(outputDir, os.pwd)
     val currentDate = java.time.LocalDateTime
@@ -118,7 +162,7 @@ object Main:
       .format(
         java.time.format.DateTimeFormatter.ofPattern("yy-MM-dd-HH-mm-ss")
       )
-    val resultPath  = outputPath / "all" / currentDate
+    val resultPath  = outputPath / "all" / (prefix + "-" + currentDate)
 
     os.makeDir.all(resultPath)
 
@@ -166,33 +210,33 @@ object Main:
       name = "ip",
       short = 'i',
       doc = "IP type for emulator, Eg. t1emu, t1rocketemu"
-    ) ip:             Option[String],
+    ) ip:              Option[String],
     @arg(
       name = "emu",
       short = 'e',
       doc = "Type for emulator, Eg. vcs-emu, verilator-emu-trace"
-    ) emuType:        Option[String],
+    ) emuType:         Option[String],
     @arg(
       name = "config",
       short = 'c',
       doc = "configuration name"
-    ) config:         Option[String],
+    ) config:          Option[String],
     @arg(
       name = "verbose",
       short = 'v',
       doc = "set loglevel to debug"
-    ) verbose:        Flag = Flag(false),
+    ) verbose:         Flag = Flag(false),
     @arg(
       name = "out-dir",
       doc = "path to save wave file and perf result file"
-    ) outDir:         Option[String] = None,
+    ) outDir:          Option[String] = None,
     @arg(
       doc = "Cross compile RISC-V test case with x86-64 host tools"
-    ) forceX86:       Boolean = false,
+    ) forceX86:        Boolean = false,
     @arg(
       name = "dry-run",
       doc = "Print the final emulator command line and exit"
-    ) dryRun:         Flag = Flag(false),
+    ) dryRun:          Flag = Flag(false),
     @arg(
       name = "disable-dramsim3",
       doc = "DRAM simulation is enable by default, set this flag to disable it"
@@ -200,8 +244,8 @@ object Main:
     @arg(
       name = "timeout",
       doc = "Specify maximum cycle count limit"
-    ) timeout:        Option[Int] = None,
-    leftOver:         Leftover[String]
+    ) timeout:         Option[Int] = None,
+    leftOver:          Leftover[String]
   ): Unit =
     if leftOver.value.isEmpty then Logger.fatal("No test case name")
     val caseName = leftOver.value.head
@@ -233,7 +277,10 @@ object Main:
 
     val caseElfPath   = resolveTestElfPath(finalIp.get, finalConfig.get, caseName, forceX86)
     val caseCoverPath = resolveTestCoverPath(finalIp.get, finalConfig.get, caseName, forceX86)
-    val outputPath    = prepareOutputDir(outDir.getOrElse("t1-sim-result"))
+    val outputPath    = prepareOutputDir(
+      outDir.getOrElse("t1-sim-result"),
+      s"${finalIp.get}-${finalConfig.get}-${finalEmuType.get}-${caseName}"
+    )
     val emulator      = resolveTestBenchPath(finalIp.get, finalConfig.get, finalEmuType.get)
 
     val leftOverArguments = leftOver.value.dropWhile(arg => arg != "--")
@@ -246,6 +293,15 @@ object Main:
     val dramSim3Config = os.pwd / "difftest" / "config" / "dramsim3-config.ini"
     val dramSim3Output = outputPath / "dramsim3"
     os.makeDir.all(dramSim3Output)
+
+    val caseSrcPath = os.Path(resolveNixPath(resolveTestAttr(finalIp.get, finalConfig.get, caseName) + ".src"))
+    copyFix(caseSrcPath, outputPath / "src")
+
+    val objdump    = os.Path(
+      resolveNixPath(resolvePackage("pkgsCross.riscv32-embedded.buildPackages.gcc.out"))
+    ) / "bin" / "riscv32-none-elf-objdump"
+    val caseDisasm = os.proc(objdump.toString, "-d", caseElfPath).call().out.trim()
+    os.write.over(outputPath / (caseName + ".objdump"), caseDisasm)
 
     val svLibName   = os
       .proc(
