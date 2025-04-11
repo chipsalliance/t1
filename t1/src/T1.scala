@@ -353,7 +353,7 @@ case class T1Parameter(
     name = "main"
   )
   def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
-  def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
+  def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0, 1)
 
   require(isPow2(laneNumber))
 }

@@ -115,7 +115,8 @@ object TestBench extends SerializableModuleElaborator {
           preset = vfuInstantiateParameter,
           fp = fp,
           zvbb = zvbb,
-          chainingSize = chainingSize
+          chainingSize = chainingSize,
+          laneScale = laneScale,
         )
       )
     }

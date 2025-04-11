@@ -18,7 +18,7 @@ object LaneFloatParam {
   implicit def rw: upickle.default.ReadWriter[LaneFloatParam] = upickle.default.macroRW
 }
 
-case class LaneFloatParam(eLen: Int, latency: Int, laneScale: Int = 2)
+case class LaneFloatParam(eLen: Int, latency: Int, laneScale: Int)
     extends VFUParameter
     with SerializableModuleParameter {
   val datapathWidth: Int       = eLen * laneScale
