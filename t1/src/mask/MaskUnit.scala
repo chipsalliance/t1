@@ -70,7 +70,7 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
   )
   val readResult:        Vec[ValidIO[UInt]]                = Flipped(Vec(parameter.laneNumber, Valid(UInt(parameter.datapathWidth.W))))
   val writeRD:           ValidIO[UInt]                     = Valid(UInt(parameter.datapathWidth.W))
-  val lastReport:        UInt                              = Output(UInt((2 * parameter.chainingSize).W))
+  val lastReport:        UInt                              = Output(UInt(parameter.chaining1HBits.W))
   val laneMaskInput:     Vec[UInt]                         = Output(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
   val laneMaskSelect:    Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(parameter.laneParam.maskGroupSizeBits.W)))
   val laneMaskSewSelect: Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(2.W)))
@@ -165,7 +165,8 @@ class MaskUnit(val parameter: T1Parameter)
   // mask update & select
   // lane
   // TODO: uarch doc for the regroup
-  val regroupV0: Seq[UInt] = Seq(4, 2, 1).map { groupSize =>
+  val regroupV0: Seq[UInt] = Seq(4, 2, 1).map { singleSize =>
+    val groupSize = singleSize * (parameter.datapathWidth / parameter.eLen)
     VecInit(
       cutUInt(v0.asUInt, groupSize)
         .grouped(parameter.laneNumber)
@@ -995,7 +996,7 @@ class MaskUnit(val parameter: T1Parameter)
   val compressUnit = Instantiate(new MaskCompress(compressParam))
   val reduceUnit   = Instantiate(
     new MaskReduce(
-      MaskReduceParameter(parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)
+      MaskReduceParameter(parameter.eLen, parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)
     )
   )
   omInstance.reduceUnitIn := reduceUnit.io.om.asAnyClassType

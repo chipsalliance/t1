@@ -234,9 +234,16 @@ class TestBench(val parameter: T1RocketTileParameter)
 
   // t1 vrf write
   laneVrfProbes.zipWithIndex.foreach { case (lane, i) =>
+    val datapathWidth = parameter.t1Parameter.datapathWidth.U(32.W)
+
+    val vrfOffsetInBytes  = parameter.vLen.U(32.W) / 8.U(32.W) * lane.requestVd
+    val laneOffsetInBytes =
+      parameter.dLen.U(32.W) / 8.U(32.W) * lane.requestOffset + datapathWidth / 8.U(32.W) * i.U(32.W)
+
+    val vrfIdx = vrfOffsetInBytes + laneOffsetInBytes
     when(lane.valid)(
       printf(
-        cf"""{"event":"VrfWrite","issue_idx":${lane.requestInstruction},"vd":${lane.requestVd},"offset":${lane.requestOffset},"mask":"${lane.requestMask}%x","data":"${lane.requestData}%x","lane":$i,"cycle":${simulationTime}}\n"""
+        cf"""{"event":"VrfWrite","issue_idx":${lane.requestInstruction},"vrf_idx":${vrfIdx},"mask":"${lane.requestMask}%x","data":"${lane.requestData}%x","cycle":${simulationTime}}\n"""
       )
     )
   }
@@ -273,7 +280,7 @@ class TestBench(val parameter: T1RocketTileParameter)
   )
 
   // t1 vrf scoreboard
-  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * parameter.t1Parameter.chainingSize) { _ =>
+  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(parameter.t1Parameter.chaining1HBits) { _ =>
     RegInit(0.U.asTypeOf(Valid(UInt(16.W))))
   }
   vrfWriteScoreboard.foreach(scoreboard => dontTouch(scoreboard))
@@ -281,7 +288,7 @@ class TestBench(val parameter: T1RocketTileParameter)
     (laneProbes.map(laneProbe => laneProbe.instructionValid) :+
       lsuProbe.lsuInstructionValid :+ t1Probe.instructionValid).reduce(_ | _)
   val scoreboardEnq    =
-    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * parameter.t1Parameter.chainingSize).W))
+    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U(parameter.t1Parameter.chaining1HBits.W))
   vrfWriteScoreboard.zipWithIndex.foreach { case (scoreboard, tag) =>
     val writeEnq: UInt = VecInit(
       // vrf write from lane

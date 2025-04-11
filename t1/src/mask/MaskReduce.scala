@@ -34,7 +34,7 @@ object MaskReduceParameter {
   implicit def rw: upickle.default.ReadWriter[MaskReduceParameter] = upickle.default.macroRW
 }
 
-case class MaskReduceParameter(datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean)
+case class MaskReduceParameter(eLen: Int, datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean)
     extends SerializableModuleParameter
 
 class MaskReduceInterface(parameter: MaskReduceParameter) extends Bundle {
@@ -86,7 +86,7 @@ class MaskReduce(val parameter: MaskReduceParameter)
   val nextFoldCount: Bool = eew1H(0) && !reqWiden
 
   // reduce function unit
-  val adder:       Instance[ReduceAdder]          = Instantiate(new ReduceAdder(ReduceAdderParameter(parameter.datapathWidth)))
+  val adder:       Instance[ReduceAdder]          = Instantiate(new ReduceAdder(ReduceAdderParameter(parameter.eLen)))
   val logicUnit:   Instance[LaneLogic]            = Instantiate(new LaneLogic(LaneLogicParameter(parameter.datapathWidth)))
   // option unit for flot reduce
   val floatAdder:  Option[Instance[FloatAdder]]   =
@@ -98,7 +98,7 @@ class MaskReduce(val parameter: MaskReduceParameter)
   // init reg
   val reduceInit:     UInt = RegInit(0.U(parameter.datapathWidth.W))
   val reduceResult:   UInt = Wire(UInt(parameter.datapathWidth.W))
-  val crossFoldCount: UInt = RegInit(0.U(log2Ceil(parameter.laneNumber).W))
+  val crossFoldCount: UInt = RegInit(0.U(log2Ceil(parameter.laneNumber * parameter.datapathWidth / parameter.eLen).W))
   val lastFoldCount:  Bool = RegInit(false.B)
   val updateResult:   Bool = Wire(Bool())
   val sourceValid:    Bool = Wire(Bool())
@@ -116,8 +116,7 @@ class MaskReduce(val parameter: MaskReduceParameter)
   val NotAdd:     Bool = reqReg.uop(1)
   val widen:      Bool = reqReg.uop === "b001".U || reqReg.uop(2, 1) === "b11".U
   val floatAdd:   Bool = floatType && !NotAdd
-  // eew1HReg(0) || (eew1HReg(1) && !widen)
-  val needFold:   Bool = false.B
+  val needFold:   Bool = (eew1HReg(0) || (eew1HReg(1) && !widen)) && !pop
   val writeEEW:   UInt = Mux(pop, 2.U, reqReg.eew + widen)
   val writeEEW1H: UInt = UIntToOH(writeEEW)(2, 0)
   val writeMask:  UInt = Fill(2, writeEEW1H(2)) ## !writeEEW1H(0) ## true.B
@@ -200,7 +199,7 @@ class MaskReduce(val parameter: MaskReduceParameter)
 
   // result update
   when(updateResult) {
-    reduceInit := reduceResult & updateMask
+    reduceInit := reduceResult
   }
 
   when(stateLast) {

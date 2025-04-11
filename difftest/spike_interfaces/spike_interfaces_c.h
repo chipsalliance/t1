@@ -14,8 +14,8 @@ typedef struct spike_processor_t spike_processor_t;
 typedef struct spike_state_t spike_state_t;
 
 void spike_register_callback(void *ffi_target, ffi_callback callback);
-spike_t *spike_new(const char *set, const char *lvl,
-                   size_t lane_number);
+spike_t *spike_new(const char *set, const char *lvl, size_t lane_number,
+                   size_t datapath_width);
 const char *proc_disassemble(spike_processor_t *proc);
 void proc_reset(spike_processor_t *proc);
 spike_processor_t *spike_get_proc(spike_t *spike);

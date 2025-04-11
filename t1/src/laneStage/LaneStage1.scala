@@ -113,7 +113,8 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   val readRequestQueueSizeBeforeCheck: Int = 4
   val readRequestQueueSizeAfterCheck:  Int = 4
   val dataQueueSize:                   Int = 4
-  val vrfReadEntryType = new VRFReadQueueEntry(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits)
+  val vrfReadEntryType =
+    new VRFReadQueueEntry(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.chainingSize)
 
   // read request queue for vs1 vs2 vd
   val queueAfterCheck1:  QueueIO[VRFReadQueueEntry] =
@@ -386,7 +387,10 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   dequeue.bits.bordersForMaskLogic := pipeQueue.deq.bits.bordersForMaskLogic
 
   dequeue.bits.maskForFilter :=
-    (FillInterleaved(4, pipeQueue.deq.bits.maskNotMaskedElement) | pipeQueue.deq.bits.maskForMaskInput) &
+    (FillInterleaved(
+      parameter.datapathWidth / 8,
+      pipeQueue.deq.bits.maskNotMaskedElement
+    ) | pipeQueue.deq.bits.maskForMaskInput) &
       pipeQueue.deq.bits.boundaryMaskCorrection
   // All required data is ready
   val dataQueueValidVec: Seq[Bool] =

@@ -15,7 +15,8 @@ import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 @instantiable
 class VrfReadPipe(parameter: LaneParameter, arbitrate: Boolean = false) extends Module {
 
-  val enqEntryType: VRFReadQueueEntry              = new VRFReadQueueEntry(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits)
+  val enqEntryType: VRFReadQueueEntry              =
+    new VRFReadQueueEntry(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.chainingSize)
   // for vs2 | vd
   @public
   val enqueue:      DecoupledIO[VRFReadQueueEntry] = IO(Flipped(Decoupled(enqEntryType)))
