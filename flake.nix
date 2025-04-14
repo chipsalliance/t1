@@ -79,9 +79,18 @@
           treefmt = {
             projectRootFile = "flake.nix";
             settings.on-unmatched = "debug";
-            programs.nixfmt.enable = true;
-            programs.scalafmt.enable = true;
-            programs.rustfmt.enable = true;
+            programs = {
+              nixfmt.enable = true;
+              scalafmt.enable = true;
+              rustfmt.enable = true;
+            };
+            settings.formatter = {
+              nixfmt.excludes = [ "*/generated.nix" ];
+              scalafmt.includes = [
+                "*.sc"
+                "*.mill"
+              ];
+            };
           };
         };
     };

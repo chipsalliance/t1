@@ -114,23 +114,23 @@ trait T1RocketEmulatorModule extends ScalaModule with HasChisel {
 trait ElaboratorModule extends ScalaModule with HasChisel {
   def generators:       Seq[ScalaModule]
   def circtInstallPath: T[os.Path]
-  def mlirInstallPath: T[os.Path]
+  def mlirInstallPath:  T[os.Path]
   override def moduleDeps = super.moduleDeps ++ generators
   def mainargsIvy: Dep
   override def ivyDeps      = T(super.ivyDeps() ++ Seq(mainargsIvy))
   override def javacOptions = T(super.javacOptions() ++ Seq("--enable-preview", "--release", "21"))
-  def libraryPaths = Task(Seq(mlirInstallPath() / "lib", circtInstallPath() / "lib").map(PathRef(_)))
+  def libraryPaths          = Task(Seq(mlirInstallPath() / "lib", circtInstallPath() / "lib").map(PathRef(_)))
   override def forkArgs: T[Seq[String]] = T(
     super.forkArgs() ++ Seq(
       "--enable-native-access=ALL-UNNAMED",
-      "--enable-preview",
+      "--enable-preview"
     )
   )
 }
 
 trait OMReaderModule extends ScalaModule {
   def circtInstallPath: T[os.Path]
-  def mlirInstallPath: T[os.Path]
+  def mlirInstallPath:  T[os.Path]
 
   def omlibIvy:    Dep
   def oslibIvy:    Dep
@@ -138,11 +138,11 @@ trait OMReaderModule extends ScalaModule {
 
   override def ivyDeps      = T(super.ivyDeps() ++ Seq(mainargsIvy, oslibIvy, omlibIvy))
   override def javacOptions = T(super.javacOptions() ++ Seq("--enable-preview", "--release", "21"))
-  def libraryPaths = Task(Seq(mlirInstallPath() / "lib", circtInstallPath() / "lib").map(PathRef(_)))
+  def libraryPaths          = Task(Seq(mlirInstallPath() / "lib", circtInstallPath() / "lib").map(PathRef(_)))
   override def forkArgs: T[Seq[String]] = T(
     super.forkArgs() ++ Seq(
       "--enable-native-access=ALL-UNNAMED",
-      "--enable-preview",
+      "--enable-preview"
     )
   )
 }

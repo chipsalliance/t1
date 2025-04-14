@@ -5,20 +5,20 @@ import mill.scalalib._
 import mill.scalalib.publish._
 
 object v {
-  val scala = "2.13.16"
+  val scala               = "2.13.16"
   val chiselCrossVersions = Map(
-    "snapshot" -> (ivy"org.chipsalliance::chisel:0.0.0+0-no-vcs-SNAPSHOT", ivy"org.chipsalliance:::chisel-plugin:0.0.0+0-no-vcs-SNAPSHOT"),
+    "snapshot" -> (
+      ivy"org.chipsalliance::chisel:0.0.0+0-no-vcs-SNAPSHOT",
+      ivy"org.chipsalliance:::chisel-plugin:0.0.0+0-no-vcs-SNAPSHOT"
+    )
   )
-  val scalatest = ivy"org.scalatest::scalatest:3.2.0"
-  val scalapar = ivy"org.scala-lang.modules::scala-parallel-collections:1.0.4"
+  val scalatest           = ivy"org.scalatest::scalatest:3.2.0"
+  val scalapar            = ivy"org.scala-lang.modules::scala-parallel-collections:1.0.4"
 }
 
 object hardfloat extends Cross[Hardfloat](v.chiselCrossVersions.keys.toSeq)
 
-trait Hardfloat
-  extends common.HardfloatModule
-    with HardfloatPublishModule
-    with Cross.Module[String] {
+trait Hardfloat extends common.HardfloatModule with HardfloatPublishModule with Cross.Module[String] {
 
   override def scalaVersion = T(v.scala)
 
@@ -35,9 +35,7 @@ trait Hardfloat
 
 object hardfloatdut extends Cross[HardfloatDut](v.chiselCrossVersions.keys.toSeq)
 
-trait HardfloatDut
-  extends common.HardfloatTestModule
-    with Cross.Module[String] {
+trait HardfloatDut extends common.HardfloatTestModule with Cross.Module[String] {
 
   override def scalaVersion = T(v.scala)
 
@@ -57,7 +55,6 @@ trait HardfloatDut
 
   def scalaparIvy = v.scalapar
 }
-
 
 trait HardfloatPublishModule extends PublishModule {
   def pomSettings = PomSettings(
