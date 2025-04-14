@@ -36,6 +36,8 @@
           projectRootFile = "flake.nix";
           settings.on-unmatched = "debug";
           programs.nixfmt.enable = true;
+          programs.scalafmt.enable = true;
+          programs.rustfmt.enable = true;
         };
       in
       {
