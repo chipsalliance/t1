@@ -24,7 +24,6 @@ rec {
   libspike = final.callPackage ./pkgs/libspike.nix { };
   libspike_interfaces = final.callPackage ../difftest/spike_interfaces { };
 
-  # DynamoCompiler doesn't support python 3.12+ yet
   buddy-mlir =
     let
       pkgSrc = final.fetchFromGitHub {
