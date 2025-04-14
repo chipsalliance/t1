@@ -39,13 +39,13 @@ class FPToInt(val parameter: FPToIntParameter)
   val minFLen: Int = parameter.minFLen
   val fLen:    Int = parameter.fLen
   val xLen:    Int = parameter.xLen
-  val helper      = new FPUHelper(minFLen, fLen, xLen)
-  val maxExpWidth = helper.maxExpWidth
-  val maxSigWidth = helper.maxSigWidth
-  val floatTypes  = helper.floatTypes
-  val maxType     = helper.maxType
-  val minXLen     = helper.minXLen
-  val nIntTypes   = helper.nIntTypes
+  val helper                            = new FPUHelper(minFLen, fLen, xLen)
+  val maxExpWidth                       = helper.maxExpWidth
+  val maxSigWidth                       = helper.maxSigWidth
+  val floatTypes                        = helper.floatTypes
+  val maxType                           = helper.maxType
+  val minXLen                           = helper.minXLen
+  val nIntTypes                         = helper.nIntTypes
   def ieee(x: UInt, t: FType = maxType) = helper.ieee(x, t)
 
   val in    = RegEnable(io.in.bits, io.in.valid)

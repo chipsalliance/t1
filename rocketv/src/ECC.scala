@@ -31,7 +31,7 @@ abstract class Code {
     * despite uncorrected == corrected == x.
     */
   def encode(x: UInt, poison: Bool = false.B): UInt
-  def decode(x: UInt): Decoding
+  def decode(x: UInt):                         Decoding
 
   /** Copy the bits in x to the right bit positions in an encoded word, so that x === decode(swizzle(x)).uncorrected;
     * but don't generate the other code bits, so decode(swizzle(x)).error might be true. For codes for which this
@@ -44,14 +44,14 @@ class IdentityCode extends Code {
   def canDetect  = false
   def canCorrect = false
 
-  def width(w0:         Int) = w0
-  def eccIndices(width: Int) = Seq.empty[Int]
+  def width(w0:         Int)                  = w0
+  def eccIndices(width: Int)                  = Seq.empty[Int]
   def encode(x: UInt, poison: Bool = false.B) = {
     require(poison.isLit && poison.litValue == 0, "IdentityCode can not be poisoned")
     x
   }
-  def swizzle(x: UInt) = x
-  def decode(y: UInt) = new Decoding {
+  def swizzle(x:        UInt)                 = x
+  def decode(y: UInt)                         = new Decoding {
     def uncorrected   = y
     def corrected     = y
     def correctable   = false.B
@@ -63,11 +63,11 @@ class ParityCode extends Code {
   def canDetect  = true
   def canCorrect = false
 
-  def width(w0:      Int) = w0 + 1
-  def eccIndices(w0: Int) = Seq(w0)
+  def width(w0:      Int)                          = w0 + 1
+  def eccIndices(w0: Int)                          = Seq(w0)
   def encode(x:      UInt, poison: Bool = false.B) = Cat(x.xorR ^ poison, x)
-  def swizzle(x:     UInt) = Cat(false.B, x)
-  def decode(y: UInt) = new Decoding {
+  def swizzle(x:     UInt)                         = Cat(false.B, x)
+  def decode(y: UInt)                              = new Decoding {
     val uncorrected   = y(y.getWidth - 2, 0)
     val corrected     = uncorrected
     val correctable   = false.B
@@ -169,13 +169,13 @@ class SECDEDCode extends Code {
   private val sec = new SECCode
   private val par = new ParityCode
 
-  def width(k: Int) = sec.width(k) + 1
-  def eccIndices(w0: Int)                     = {
+  def width(k:   Int)                           = sec.width(k) + 1
+  def eccIndices(w0: Int)                       = {
     (0 until width(w0)).collect {
       case i if i >= w0 => i
     }
   }
-  def encode(x: UInt, poison: Bool = false.B) = {
+  def encode(x: UInt, poison: Bool = false.B)   = {
     // toggling two bits ensures the error is uncorrectable
     // to ensure corrected == uncorrected, we pick one redundant
     // bit from SEC (the highest); correcting it does not affect
@@ -185,8 +185,8 @@ class SECDEDCode extends Code {
     val toggle_hi = toggle_lo << (sec.width(x.getWidth) - 1)
     par.encode(sec.encode(x)) ^ toggle_hi
   }
-  def swizzle(x: UInt) = par.swizzle(sec.swizzle(x))
-  def decode(x: UInt)                         = new Decoding {
+  def swizzle(x: UInt)                          = par.swizzle(sec.swizzle(x))
+  def decode(x: UInt)                           = new Decoding {
     val secdec = sec.decode(x(x.getWidth - 2, 0))
     val pardec = par.decode(x)
 
@@ -203,7 +203,7 @@ object ErrGen {
     require(width > 0 && f >= 0 && log2Up(width) + f <= 16)
     UIntToOH(LFSR(16)(log2Up(width) + f - 1, 0))(width - 1, 0)
   }
-  def apply(x: UInt, f: Int): UInt = x ^ apply(x.getWidth, f)
+  def apply(x: UInt, f: Int):    UInt = x ^ apply(x.getWidth, f)
 }
 
 trait CanHaveErrors extends Bundle {
@@ -218,7 +218,7 @@ case class ECCParams(
 
 object Code {
   def fromString(s: Option[String]): Code = fromString(s.getOrElse("none"))
-  def fromString(s: String): Code = s.toLowerCase match {
+  def fromString(s: String):         Code = s.toLowerCase match {
     case "none"     => new IdentityCode
     case "identity" => new IdentityCode
     case "parity"   => new ParityCode

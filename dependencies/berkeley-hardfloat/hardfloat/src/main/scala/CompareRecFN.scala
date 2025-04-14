@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -39,45 +38,43 @@ package hardfloat
 
 import chisel3._
 
-class CompareRecFN(expWidth: Int, sigWidth: Int) extends RawModule
-{
-    val io = IO(new Bundle {
-        val a = Input(Bits((expWidth + sigWidth + 1).W))
-        val b = Input(Bits((expWidth + sigWidth + 1).W))
-        val signaling = Input(Bool())
-        val lt = Output(Bool())
-        val eq = Output(Bool())
-        val gt = Output(Bool())
-        val exceptionFlags = Output(Bits(5.W))
-    })
+class CompareRecFN(expWidth: Int, sigWidth: Int) extends RawModule {
+  val io = IO(new Bundle {
+    val a              = Input(Bits((expWidth + sigWidth + 1).W))
+    val b              = Input(Bits((expWidth + sigWidth + 1).W))
+    val signaling      = Input(Bool())
+    val lt             = Output(Bool())
+    val eq             = Output(Bool())
+    val gt             = Output(Bool())
+    val exceptionFlags = Output(Bits(5.W))
+  })
 
-    val rawA = rawFloatFromRecFN(expWidth, sigWidth, io.a)
-    val rawB = rawFloatFromRecFN(expWidth, sigWidth, io.b)
+  val rawA = rawFloatFromRecFN(expWidth, sigWidth, io.a)
+  val rawB = rawFloatFromRecFN(expWidth, sigWidth, io.b)
 
-    val ordered = ! rawA.isNaN && ! rawB.isNaN
-    val bothInfs  = rawA.isInf  && rawB.isInf
-    val bothZeros = rawA.isZero && rawB.isZero
-    val eqExps = (rawA.sExp === rawB.sExp)
-    val common_ltMags =
-        (rawA.sExp < rawB.sExp) || (eqExps && (rawA.sig < rawB.sig))
-    val common_eqMags = eqExps && (rawA.sig === rawB.sig)
+  val ordered       = !rawA.isNaN && !rawB.isNaN
+  val bothInfs      = rawA.isInf && rawB.isInf
+  val bothZeros     = rawA.isZero && rawB.isZero
+  val eqExps        = (rawA.sExp === rawB.sExp)
+  val common_ltMags =
+    (rawA.sExp < rawB.sExp) || (eqExps && (rawA.sig < rawB.sig))
+  val common_eqMags = eqExps && (rawA.sig === rawB.sig)
 
-    val ordered_lt =
-        ! bothZeros &&
-            ((rawA.sign && ! rawB.sign) ||
-                 (! bothInfs &&
-                      ((rawA.sign && ! common_ltMags && ! common_eqMags) ||
-                           (! rawB.sign && common_ltMags))))
-    val ordered_eq =
-        bothZeros || ((rawA.sign === rawB.sign) && (bothInfs || common_eqMags))
+  val ordered_lt =
+    !bothZeros &&
+      ((rawA.sign && !rawB.sign) ||
+        (!bothInfs &&
+          ((rawA.sign && !common_ltMags && !common_eqMags) ||
+            (!rawB.sign && common_ltMags))))
+  val ordered_eq =
+    bothZeros || ((rawA.sign === rawB.sign) && (bothInfs || common_eqMags))
 
-    val invalid =
-        isSigNaNRawFloat(rawA) || isSigNaNRawFloat(rawB) ||
-            (io.signaling && ! ordered)
+  val invalid =
+    isSigNaNRawFloat(rawA) || isSigNaNRawFloat(rawB) ||
+      (io.signaling && !ordered)
 
-    io.lt := ordered && ordered_lt
-    io.eq := ordered && ordered_eq
-    io.gt := ordered && ! ordered_lt && ! ordered_eq
-    io.exceptionFlags := invalid ## 0.U(4.W)
+  io.lt             := ordered && ordered_lt
+  io.eq             := ordered && ordered_eq
+  io.gt             := ordered && !ordered_lt && !ordered_eq
+  io.exceptionFlags := invalid ## 0.U(4.W)
 }
-

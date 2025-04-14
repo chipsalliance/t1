@@ -53,7 +53,8 @@ object TableGenerator extends App {
       .cross(opList)
       .map { case ((op0, op1), op) =>
         BitPat(toBinary(op.value)) ## BitPat(op0) ## BitPat(op1) -> BitPat(op.op(op0, op1))
-      } toList
+      }
+      .toList
   }
 
   object LaneDecodeTable {
@@ -170,7 +171,7 @@ object TableGenerator extends App {
         toBinary(groupId, 2)
       ) -> BitPat(toBinary(index, 2)) ## BitPat(toBinary(mask, 4))
     }
-    val res: TruthTable = TruthTable(table, BitPat.dontCare(6))
+    val res:          TruthTable             = TruthTable(table, BitPat.dontCare(6))
   }
 
   def toBinary(i: Int, digits: Int = 3): String = {

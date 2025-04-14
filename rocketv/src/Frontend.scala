@@ -340,20 +340,20 @@ class Frontend(val parameter: FrontendParameter)
         (!fq.io.mask(fq.io.mask.getWidth - 1) && (!s1_valid && !s2_valid))
     val s0_valid        = io.nonDiplomatic.cpu.req.valid || s0_fq_has_space
     s1_valid := s0_valid
-    val s1_pc          = Reg(UInt(vaddrBitsExtended.W))
+    val s1_pc = Reg(UInt(vaddrBitsExtended.W))
     val s1_speculative = Reg(Bool())
     // TODO: make it Const
     def alignPC(pc: UInt): UInt = ~(~pc | (coreInstBytes - 1).U)
-    val s2_pc                 = RegInit(UInt(vaddrBitsExtended.W), alignPC(io.resetVector))
-    val s2_btb_resp_valid     = if (usingBTB) Reg(Bool()) else false.B
-    val s2_btb_resp_bits      = Reg(new BTBResp(vaddrBits, entries, fetchWidth, bhtHistoryLength, bhtCounterLength))
-    val s2_btb_taken          = s2_btb_resp_valid && s2_btb_resp_bits.taken
-    val s2_tlb_resp           = Reg(tlb.io.resp.cloneType)
-    val s2_xcpt               = s2_tlb_resp.ae.inst || s2_tlb_resp.pf.inst || s2_tlb_resp.gf.inst
-    val s2_speculative        = RegInit(false.B)
+    val s2_pc = RegInit(UInt(vaddrBitsExtended.W), alignPC(io.resetVector))
+    val s2_btb_resp_valid = if (usingBTB) Reg(Bool()) else false.B
+    val s2_btb_resp_bits = Reg(new BTBResp(vaddrBits, entries, fetchWidth, bhtHistoryLength, bhtCounterLength))
+    val s2_btb_taken = s2_btb_resp_valid && s2_btb_resp_bits.taken
+    val s2_tlb_resp = Reg(tlb.io.resp.cloneType)
+    val s2_xcpt = s2_tlb_resp.ae.inst || s2_tlb_resp.pf.inst || s2_tlb_resp.gf.inst
+    val s2_speculative = RegInit(false.B)
     val s2_partial_insn_valid = RegInit(false.B)
-    val s2_partial_insn       = Reg(UInt(coreInstBits.W))
-    val wrong_path            = RegInit(false.B)
+    val s2_partial_insn = Reg(UInt(coreInstBits.W))
+    val wrong_path = RegInit(false.B)
 
     val s1_base_pc: UInt = ~(~s1_pc | (fetchBytes - 1).U)
     val ntpc            = s1_base_pc + fetchBytes.U
@@ -486,35 +486,35 @@ class Frontend(val parameter: FrontendParameter)
 
       def scanInsns(idx: Int, prevValid: Bool, prevBits: UInt, prevTaken: Bool): Bool = {
         def insnIsRVC(bits: UInt) = bits(1, 0) =/= 3.U
-        val prevRVI       = prevValid && !insnIsRVC(prevBits)
-        val valid         = fq.io.enq.bits.mask(idx) && !prevRVI
-        val bits          =
+        val prevRVI               = prevValid && !insnIsRVC(prevBits)
+        val valid                 = fq.io.enq.bits.mask(idx) && !prevRVI
+        val bits                  =
           if (coreInstBits * (idx + 1) == coreInstBits * idx) 0.U
           else
             fq.io.enq.bits.data(coreInstBits * (idx + 1) - 1, coreInstBits * idx)
-        val rvc           = insnIsRVC(bits)
-        val rviBits       = Cat(bits, prevBits)
-        val rviBranch     = rviBits(6, 0) === Instructions.BEQ.value.U(6, 0)
-        val rviJump       = rviBits(6, 0) === Instructions.JAL.value.U(6, 0)
-        val rviJALR       = rviBits(6, 0) === Instructions.JALR.value.U(6, 0)
-        val rviReturn     = rviJALR && !rviBits(7) && BitPat("b00?01") === rviBits(19, 15)
-        val rviCall       = (rviJALR || rviJump) && rviBits(7)
-        val rvcBranch     = bits === Instructions.C_BEQZ || bits === Instructions.C_BNEZ
-        val rvcJAL        = (xLen == 32).B && bits === Instructions32.C_JAL
-        val rvcJump       = bits === Instructions.C_J || rvcJAL
-        val rvcImm        = Mux(bits(14), new RVCDecoder(bits, xLen).bImm.asSInt, new RVCDecoder(bits, xLen).jImm.asSInt)
-        val rvcJR         = bits === Instructions.C_MV && bits(6, 2) === 0.U
-        val rvcReturn     = rvcJR && BitPat("b00?01") === bits(11, 7)
-        val rvcJALR       = bits === Instructions.C_ADD && bits(6, 2) === 0.U
-        val rvcCall       = rvcJAL || rvcJALR
-        val rviImm        = Mux(rviBits(3), ImmGen(ImmGen.IMM_UJ, rviBits), ImmGen(ImmGen.IMM_SB, rviBits))
-        val predict_taken = BHTResp.taken(s2_btb_resp_bits.bht) /*|| force_taken*/
-        val taken         =
+        val rvc                   = insnIsRVC(bits)
+        val rviBits               = Cat(bits, prevBits)
+        val rviBranch             = rviBits(6, 0) === Instructions.BEQ.value.U(6, 0)
+        val rviJump               = rviBits(6, 0) === Instructions.JAL.value.U(6, 0)
+        val rviJALR               = rviBits(6, 0) === Instructions.JALR.value.U(6, 0)
+        val rviReturn             = rviJALR && !rviBits(7) && BitPat("b00?01") === rviBits(19, 15)
+        val rviCall               = (rviJALR || rviJump) && rviBits(7)
+        val rvcBranch             = bits === Instructions.C_BEQZ || bits === Instructions.C_BNEZ
+        val rvcJAL                = (xLen == 32).B && bits === Instructions32.C_JAL
+        val rvcJump               = bits === Instructions.C_J || rvcJAL
+        val rvcImm                = Mux(bits(14), new RVCDecoder(bits, xLen).bImm.asSInt, new RVCDecoder(bits, xLen).jImm.asSInt)
+        val rvcJR                 = bits === Instructions.C_MV && bits(6, 2) === 0.U
+        val rvcReturn             = rvcJR && BitPat("b00?01") === bits(11, 7)
+        val rvcJALR               = bits === Instructions.C_ADD && bits(6, 2) === 0.U
+        val rvcCall               = rvcJAL || rvcJALR
+        val rviImm                = Mux(rviBits(3), ImmGen(ImmGen.IMM_UJ, rviBits), ImmGen(ImmGen.IMM_SB, rviBits))
+        val predict_taken         = BHTResp.taken(s2_btb_resp_bits.bht) /*|| force_taken*/
+        val taken                 =
           prevRVI && (rviJump || rviJALR || rviBranch && predict_taken) ||
             valid && (rvcJump || rvcJALR || rvcJR || rvcBranch && predict_taken)
-        val predictReturn = btb.io.ras_head.valid && (prevRVI && rviReturn || valid && rvcReturn)
-        val predictJump   = prevRVI && rviJump || valid && rvcJump
-        val predictBranch = predict_taken && (prevRVI && rviBranch || valid && rvcBranch)
+        val predictReturn         = btb.io.ras_head.valid && (prevRVI && rviReturn || valid && rvcReturn)
+        val predictJump           = prevRVI && rviJump || valid && rvcJump
+        val predictBranch         = predict_taken && (prevRVI && rviBranch || valid && rvcBranch)
 
         when(s2_valid && s2_btb_resp_valid && s2_btb_resp_bits.bridx === idx.U && valid && !rvc) {
           // The BTB has predicted that the middle of an RVI instruction is

@@ -446,7 +446,7 @@ package object rtl {
     vfus
   }
 
-  def UIntToOH1(x: UInt, width: Int): UInt = (~((-1).S(width.W).asUInt << x)).asUInt(width - 1, 0)
+  def UIntToOH1(x: UInt, width: Int):                                             UInt = (~((-1).S(width.W).asUInt << x)).asUInt(width - 1, 0)
   def numBeats1(maxTransferSize: Int, beatBytes: Int)(size: UInt, hasData: Bool): UInt = {
     val decode = (UIntToOH1(size, log2Ceil(maxTransferSize)) >> log2Ceil(beatBytes)).asUInt
     Mux(hasData, decode, 0.U)

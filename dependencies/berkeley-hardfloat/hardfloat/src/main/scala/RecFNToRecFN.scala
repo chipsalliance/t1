@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -40,50 +39,51 @@ package hardfloat
 import chisel3._
 import consts._
 
-class
-    RecFNToRecFN(
-        inExpWidth: Int, inSigWidth: Int, outExpWidth: Int, outSigWidth: Int)
-    extends chisel3.RawModule
-{
-    val io = IO(new Bundle {
-        val in = Input(Bits((inExpWidth + inSigWidth + 1).W))
-        val roundingMode   = Input(UInt(3.W))
-        val detectTininess = Input(UInt(1.W))
-        val out = Output(Bits((outExpWidth + outSigWidth + 1).W))
-        val exceptionFlags = Output(Bits(5.W))
-    })
+class RecFNToRecFN(
+  inExpWidth:  Int,
+  inSigWidth:  Int,
+  outExpWidth: Int,
+  outSigWidth: Int)
+    extends chisel3.RawModule {
+  val io = IO(new Bundle {
+    val in             = Input(Bits((inExpWidth + inSigWidth + 1).W))
+    val roundingMode   = Input(UInt(3.W))
+    val detectTininess = Input(UInt(1.W))
+    val out            = Output(Bits((outExpWidth + outSigWidth + 1).W))
+    val exceptionFlags = Output(Bits(5.W))
+  })
 
-    //------------------------------------------------------------------------
-    //------------------------------------------------------------------------
-    val rawIn = rawFloatFromRecFN(inExpWidth, inSigWidth, io.in);
+  // ------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
+  val rawIn = rawFloatFromRecFN(inExpWidth, inSigWidth, io.in);
 
-    if ((inExpWidth == outExpWidth) && (inSigWidth <= outSigWidth)) {
+  if ((inExpWidth == outExpWidth) && (inSigWidth <= outSigWidth)) {
 
-        //--------------------------------------------------------------------
-        //--------------------------------------------------------------------
-        io.out            := io.in<<(outSigWidth - inSigWidth)
-        io.exceptionFlags := isSigNaNRawFloat(rawIn) ## 0.U(4.W)
+    // --------------------------------------------------------------------
+    // --------------------------------------------------------------------
+    io.out            := io.in << (outSigWidth - inSigWidth)
+    io.exceptionFlags := isSigNaNRawFloat(rawIn) ## 0.U(4.W)
 
-    } else {
+  } else {
 
-        //--------------------------------------------------------------------
-        //--------------------------------------------------------------------
-        val roundAnyRawFNToRecFN =
-            Module(
-                new RoundAnyRawFNToRecFN(
-                        inExpWidth,
-                        inSigWidth,
-                        outExpWidth,
-                        outSigWidth,
-                        flRoundOpt_sigMSBitAlwaysZero
-                    ))
-        roundAnyRawFNToRecFN.io.invalidExc     := isSigNaNRawFloat(rawIn)
-        roundAnyRawFNToRecFN.io.infiniteExc    := false.B
-        roundAnyRawFNToRecFN.io.in             := rawIn
-        roundAnyRawFNToRecFN.io.roundingMode   := io.roundingMode
-        roundAnyRawFNToRecFN.io.detectTininess := io.detectTininess
-        io.out            := roundAnyRawFNToRecFN.io.out
-        io.exceptionFlags := roundAnyRawFNToRecFN.io.exceptionFlags
-    }
+    // --------------------------------------------------------------------
+    // --------------------------------------------------------------------
+    val roundAnyRawFNToRecFN =
+      Module(
+        new RoundAnyRawFNToRecFN(
+          inExpWidth,
+          inSigWidth,
+          outExpWidth,
+          outSigWidth,
+          flRoundOpt_sigMSBitAlwaysZero
+        )
+      )
+    roundAnyRawFNToRecFN.io.invalidExc     := isSigNaNRawFloat(rawIn)
+    roundAnyRawFNToRecFN.io.infiniteExc    := false.B
+    roundAnyRawFNToRecFN.io.in             := rawIn
+    roundAnyRawFNToRecFN.io.roundingMode   := io.roundingMode
+    roundAnyRawFNToRecFN.io.detectTininess := io.detectTininess
+    io.out                                 := roundAnyRawFNToRecFN.io.out
+    io.exceptionFlags                      := roundAnyRawFNToRecFN.io.exceptionFlags
+  }
 }
-

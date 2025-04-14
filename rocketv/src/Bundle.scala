@@ -119,10 +119,10 @@ class BPControl(xLen: Int, useBPWatch: Boolean) extends Bundle {
 object TExtra {
   def mvalueBits(xLen: Int, mcontextWidth: Int): Int = if (xLen == 32) mcontextWidth.min(6) else mcontextWidth.min(13)
   def svalueBits(xLen: Int, scontextWidth: Int): Int = if (xLen == 32) scontextWidth.min(16) else scontextWidth.min(34)
-  def mselectPos(xLen: Int): Int = if (xLen == 32) 25 else 50
-  def mvaluePos(xLen:  Int): Int = mselectPos(xLen) + 1
-  def sselectPos: Int = 0
-  def svaluePos:  Int = 2
+  def mselectPos(xLen: Int):                     Int = if (xLen == 32) 25 else 50
+  def mvaluePos(xLen:  Int):                     Int = mselectPos(xLen) + 1
+  def sselectPos:                                Int = 0
+  def svaluePos:                                 Int = 2
 }
 
 class TExtra(xLen: Int, mcontextWidth: Int, scontextWidth: Int) extends Bundle {
@@ -348,7 +348,7 @@ object PMP {
   private def UIntToOH1(x: UInt, width: Int): UInt = ~((-1).S(width.W).asUInt << x)(width - 1, 0)
 
   // For PMPReg
-  def reset(pmp: PMP): Unit = {
+  def reset(pmp: PMP):                                            Unit = {
     pmp.cfg.a := 0.U
     pmp.cfg.l := 0.U
   }
@@ -359,18 +359,18 @@ object PMP {
       val mask = ((BigInt(1) << (log2Ceil(pmpGranularity) - PMP.lgAlign)) - 1).U
       Mux(napot(pmp), pmp.addr | (mask >> 1), ~(~pmp.addr | mask))
     }
-  def napot(pmp: PMP) = pmp.cfg.a(1)
-  def napot(pmp:       PMPReg) = pmp.cfg.a(1)
-  def torNotNAPOT(pmp: PMP) = pmp.cfg.a(0)
-  def tor(pmp:         PMP) = !napot(pmp) && torNotNAPOT(pmp)
-  def cfgLocked(pmp:   PMP) = pmp.cfg.l
-  def addrLocked(pmp:  PMP, next: PMP) = cfgLocked(pmp) || cfgLocked(next) && tor(next)
+  def napot(pmp:             PMP) = pmp.cfg.a(1)
+  def napot(pmp:             PMPReg) = pmp.cfg.a(1)
+  def torNotNAPOT(pmp:       PMP) = pmp.cfg.a(0)
+  def tor(pmp:               PMP) = !napot(pmp) && torNotNAPOT(pmp)
+  def cfgLocked(pmp:         PMP) = pmp.cfg.l
+  def addrLocked(pmp:        PMP, next:           PMP) = cfgLocked(pmp) || cfgLocked(next) && tor(next)
   // PMP
-  def computeMask(pmp: PMP, pmpGranularity: Int): UInt = {
+  def computeMask(pmp: PMP, pmpGranularity: Int):                 UInt = {
     val base = Cat(pmp.addr, pmp.cfg.a(0)) | ((pmpGranularity - 1).U >> lgAlign)
     Cat(base & ~(base + 1.U), ((1 << lgAlign) - 1).U)
   }
-  private def comparand(pmp: PMP, pmpGranularity: Int): UInt = ~(~(pmp.addr << lgAlign) | (pmpGranularity - 1).U)
+  private def comparand(pmp: PMP, pmpGranularity: Int):           UInt = ~(~(pmp.addr << lgAlign) | (pmpGranularity - 1).U)
 
   private def pow2Match(pmp: PMP, x: UInt, lgSize: UInt, lgMaxSize: Int, pmpGranularity: Int): Bool = {
     def eval(a: UInt, b: UInt, m: UInt) = ((a ^ b) & ~m) === 0.U
@@ -1312,7 +1312,7 @@ object TLBEntry {
     tlbEntry.data(idx)  := entry.asUInt
   }
 
-  def invalidate(tlbEntry: TLBEntry): Unit = { tlbEntry.valid.foreach(_ := false.B) }
+  def invalidate(tlbEntry: TLBEntry):                         Unit = { tlbEntry.valid.foreach(_ := false.B) }
   def invalidate(tlbEntry: TLBEntry, virtual: Bool):          Unit = {
     for ((v, e) <- tlbEntry.valid.zip(entry_data(tlbEntry)))
       when(tlbEntry.tag_v === virtual) { v := false.B }

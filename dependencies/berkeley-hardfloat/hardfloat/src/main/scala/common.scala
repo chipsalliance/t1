@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -40,45 +39,42 @@ package hardfloat
 import chisel3._
 
 object consts {
-    /*------------------------------------------------------------------------
+  /*------------------------------------------------------------------------
     | For rounding to integer values, rounding mode 'odd' rounds to minimum
     | magnitude instead, same as 'minMag'.
-    *------------------------------------------------------------------------*/
-    def round_near_even   = "b000".U(3.W)
-    def round_minMag      = "b001".U(3.W)
-    def round_min         = "b010".U(3.W)
-    def round_max         = "b011".U(3.W)
-    def round_near_maxMag = "b100".U(3.W)
-    def round_odd         = "b110".U(3.W)
-    /*------------------------------------------------------------------------
-    *------------------------------------------------------------------------*/
-    def tininess_beforeRounding = 0.U
-    def tininess_afterRounding  = 1.U
-    /*------------------------------------------------------------------------
-    *------------------------------------------------------------------------*/
-    def flRoundOpt_sigMSBitAlwaysZero  = 1
-    def flRoundOpt_subnormsAlwaysExact = 2
-    def flRoundOpt_neverUnderflows     = 4
-    def flRoundOpt_neverOverflows      = 8
-    /*------------------------------------------------------------------------
-    *------------------------------------------------------------------------*/
-    def divSqrtOpt_twoBitsPerCycle     = 16
+   *------------------------------------------------------------------------*/
+  def round_near_even                = "b000".U(3.W)
+  def round_minMag                   = "b001".U(3.W)
+  def round_min                      = "b010".U(3.W)
+  def round_max                      = "b011".U(3.W)
+  def round_near_maxMag              = "b100".U(3.W)
+  def round_odd                      = "b110".U(3.W)
+  /*------------------------------------------------------------------------
+   *------------------------------------------------------------------------*/
+  def tininess_beforeRounding        = 0.U
+  def tininess_afterRounding         = 1.U
+  /*------------------------------------------------------------------------
+   *------------------------------------------------------------------------*/
+  def flRoundOpt_sigMSBitAlwaysZero  = 1
+  def flRoundOpt_subnormsAlwaysExact = 2
+  def flRoundOpt_neverUnderflows     = 4
+  def flRoundOpt_neverOverflows      = 8
+  /*------------------------------------------------------------------------
+   *------------------------------------------------------------------------*/
+  def divSqrtOpt_twoBitsPerCycle     = 16
 }
 
-class RawFloat(val expWidth: Int, val sigWidth: Int) extends Bundle
-{
-    val isNaN: Bool = Bool()              // overrides all other fields
-    val isInf: Bool = Bool()              // overrides 'isZero', 'sExp', and 'sig'
-    val isZero: Bool = Bool()              // overrides 'sExp' and 'sig'
-    val sign: Bool = Bool()
-    val sExp: SInt = SInt((expWidth + 2).W)
-    val sig: UInt = UInt((sigWidth + 1).W)   // 2 m.s. bits cannot both be 0
+class RawFloat(val expWidth: Int, val sigWidth: Int) extends Bundle {
+  val isNaN:  Bool = Bool()                 // overrides all other fields
+  val isInf:  Bool = Bool()                 // overrides 'isZero', 'sExp', and 'sig'
+  val isZero: Bool = Bool()                 // overrides 'sExp' and 'sig'
+  val sign:   Bool = Bool()
+  val sExp:   SInt = SInt((expWidth + 2).W)
+  val sig:    UInt = UInt((sigWidth + 1).W) // 2 m.s. bits cannot both be 0
 
 }
 
 //*** CHANGE THIS INTO A '.isSigNaN' METHOD OF THE 'RawFloat' CLASS:
-object isSigNaNRawFloat
-{
-    def apply(in: RawFloat): Bool = in.isNaN && !in.sig(in.sigWidth - 2)
+object isSigNaNRawFloat {
+  def apply(in: RawFloat): Bool = in.isNaN && !in.sig(in.sigWidth - 2)
 }
-

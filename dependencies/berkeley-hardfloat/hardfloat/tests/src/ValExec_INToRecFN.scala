@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -40,84 +39,78 @@ package hardfloat.test
 import hardfloat._
 import chisel3._
 
-class
-    ValExec_UINToRecFN(intWidth: Int, expWidth: Int, sigWidth: Int)
-    extends Module
-{
-    val io = IO(new Bundle {
-        val in = Input(Bits(intWidth.W))
-        val roundingMode   = Input(UInt(3.W))
-        val detectTininess = Input(UInt(1.W))
+class ValExec_UINToRecFN(intWidth: Int, expWidth: Int, sigWidth: Int) extends Module {
+  val io = IO(new Bundle {
+    val in             = Input(Bits(intWidth.W))
+    val roundingMode   = Input(UInt(3.W))
+    val detectTininess = Input(UInt(1.W))
 
-        val expected = new Bundle {
-            val out = Input(Bits((expWidth + sigWidth).W))
-            val exceptionFlags = Input(Bits(5.W))
-            val recOut = Output(Bits((expWidth + sigWidth + 1).W))
-        }
+    val expected = new Bundle {
+      val out            = Input(Bits((expWidth + sigWidth).W))
+      val exceptionFlags = Input(Bits(5.W))
+      val recOut         = Output(Bits((expWidth + sigWidth + 1).W))
+    }
 
-        val actual = new Bundle {
-            val out = Output(Bits((expWidth + sigWidth + 1).W))
-            val exceptionFlags = Output(Bits(5.W))
-        }
+    val actual = new Bundle {
+      val out            = Output(Bits((expWidth + sigWidth + 1).W))
+      val exceptionFlags = Output(Bits(5.W))
+    }
 
-        val check = Output(Bool())
-        val pass = Output(Bool())
-    })
+    val check = Output(Bool())
+    val pass  = Output(Bool())
+  })
 
-    val iNToRecFN = Module(new INToRecFN(intWidth, expWidth, sigWidth))
-    iNToRecFN.io.signedIn := false.B
-    iNToRecFN.io.in := io.in
-    iNToRecFN.io.roundingMode   := io.roundingMode
-    iNToRecFN.io.detectTininess := io.detectTininess
+  val iNToRecFN = Module(new INToRecFN(intWidth, expWidth, sigWidth))
+  iNToRecFN.io.signedIn       := false.B
+  iNToRecFN.io.in             := io.in
+  iNToRecFN.io.roundingMode   := io.roundingMode
+  iNToRecFN.io.detectTininess := io.detectTininess
 
-    io.expected.recOut := recFNFromFN(expWidth, sigWidth, io.expected.out)
+  io.expected.recOut := recFNFromFN(expWidth, sigWidth, io.expected.out)
 
-    io.actual.out := iNToRecFN.io.out
-    io.actual.exceptionFlags := iNToRecFN.io.exceptionFlags
+  io.actual.out            := iNToRecFN.io.out
+  io.actual.exceptionFlags := iNToRecFN.io.exceptionFlags
 
-    io.check := true.B
-    io.pass :=
-        equivRecFN(expWidth, sigWidth, io.actual.out, io.expected.recOut) &&
-        (io.actual.exceptionFlags === io.expected.exceptionFlags)
+  io.check := true.B
+  io.pass  :=
+    equivRecFN(expWidth, sigWidth, io.actual.out, io.expected.recOut) &&
+      (io.actual.exceptionFlags === io.expected.exceptionFlags)
 }
 
-class
-    ValExec_INToRecFN(intWidth: Int, expWidth: Int, sigWidth: Int)
-    extends Module
-{
-    val io = IO(new Bundle {
-        val in = Input(Bits(intWidth.W))
-        val roundingMode   = Input(UInt(3.W))
-        val detectTininess = Input(UInt(1.W))
+class ValExec_INToRecFN(intWidth: Int, expWidth: Int, sigWidth: Int) extends Module {
+  val io = IO(new Bundle {
+    val in             = Input(Bits(intWidth.W))
+    val roundingMode   = Input(UInt(3.W))
+    val detectTininess = Input(UInt(1.W))
 
-        val expected = new Bundle {
-            val out = Input(Bits((expWidth + sigWidth).W))
-            val exceptionFlags = Input(Bits(5.W))
-            val recOut = Output(Bits((expWidth + sigWidth + 1).W))
-        }
+    val expected = new Bundle {
+      val out            = Input(Bits((expWidth + sigWidth).W))
+      val exceptionFlags = Input(Bits(5.W))
+      val recOut         = Output(Bits((expWidth + sigWidth + 1).W))
+    }
 
-        val actual = new Bundle {
-            val out = Output(Bits((expWidth + sigWidth + 1).W))
-            val exceptionFlags = Output(Bits(5.W))
-        }
+    val actual = new Bundle {
+      val out            = Output(Bits((expWidth + sigWidth + 1).W))
+      val exceptionFlags = Output(Bits(5.W))
+    }
 
-        val check = Output(Bool())
-        val pass = Output(Bool())
-    })
+    val check = Output(Bool())
+    val pass  = Output(Bool())
+  })
 
-    val iNToRecFN = Module(new INToRecFN(intWidth, expWidth, sigWidth))
-    iNToRecFN.io.signedIn := true.B
-    iNToRecFN.io.in := io.in
-    iNToRecFN.io.roundingMode   := io.roundingMode
-    iNToRecFN.io.detectTininess := io.detectTininess
+  val iNToRecFN = Module(new INToRecFN(intWidth, expWidth, sigWidth))
+  iNToRecFN.io.signedIn       := true.B
+  iNToRecFN.io.in             := io.in
+  iNToRecFN.io.roundingMode   := io.roundingMode
+  iNToRecFN.io.detectTininess := io.detectTininess
 
-    io.expected.recOut := recFNFromFN(expWidth, sigWidth, io.expected.out)
+  io.expected.recOut := recFNFromFN(expWidth, sigWidth, io.expected.out)
 
-    io.actual.out := iNToRecFN.io.out
-    io.actual.exceptionFlags := iNToRecFN.io.exceptionFlags
+  io.actual.out            := iNToRecFN.io.out
+  io.actual.exceptionFlags := iNToRecFN.io.exceptionFlags
 
-    io.check := true.B
-    io.pass :=
-        equivRecFN(expWidth, sigWidth, io.actual.out, io.expected.recOut) &&
-        (io.actual.exceptionFlags === io.expected.exceptionFlags)
+  io.check := true.B
+  io.pass  :=
+    equivRecFN(expWidth, sigWidth, io.actual.out, io.expected.recOut) &&
+      (io.actual.exceptionFlags === io.expected.exceptionFlags)
 }

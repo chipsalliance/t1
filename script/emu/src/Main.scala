@@ -61,10 +61,10 @@ object Main:
     def copyOne(p: os.Path): Unit = {
       val target = to / p.relativeTo(from)
       if (
-        mergeFolders
-        && os.isDir(p, followLinks)
-        && os.isDir(target, followLinks)
-      )
+          mergeFolders
+          && os.isDir(p, followLinks)
+          && os.isDir(target, followLinks)
+        )
       then {
         // nothing to do
       } else {

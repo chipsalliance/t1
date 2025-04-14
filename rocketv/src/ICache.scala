@@ -903,8 +903,8 @@ class ICache(val parameter: ICacheParameter)
     io.itimAXI
       .map(axi =>
         axi.ar.valid || axi.aw.valid || axi.w.valid // tl.a.valid
-          || axi.r.valid                            // tl.d.valid
-          || s1_slaveValid || s2_slaveValid || s3_slaveValid
+        || axi.r.valid                              // tl.d.valid
+        || s1_slaveValid || s2_slaveValid || s3_slaveValid
       )
       .getOrElse(false.B) || // ITIM
       s1_valid || s2_valid || refill_valid || send_hint || hint_outstanding // I$

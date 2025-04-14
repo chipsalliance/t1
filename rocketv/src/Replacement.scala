@@ -10,32 +10,32 @@ import chisel3.util._
 import chisel3.util.random.LFSR
 
 abstract class ReplacementPolicy {
-  def nBits:  Int
-  def perSet: Boolean
-  def way:    UInt
-  def miss:   Unit
-  def hit:    Unit
-  def access(touch_way:  UInt):             Unit
-  def access(touch_ways: Seq[Valid[UInt]]): Unit
-  def state_read: UInt
-  def get_next_state(state: UInt, touch_way: UInt): UInt
-  def get_next_state(state: UInt, touch_ways: Seq[Valid[UInt]]): UInt = {
+  def nBits:                                                      Int
+  def perSet:                                                     Boolean
+  def way:                                                        UInt
+  def miss:                                                       Unit
+  def hit:                                                        Unit
+  def access(touch_way:      UInt):                               Unit
+  def access(touch_ways:     Seq[Valid[UInt]]):                   Unit
+  def state_read:                                                 UInt
+  def get_next_state(state:  UInt, touch_way: UInt):              UInt
+  def get_next_state(state: UInt, touch_ways: Seq[Valid[UInt]]):  UInt = {
     touch_ways.foldLeft(state)((prev, touch_way) => Mux(touch_way.valid, get_next_state(prev, touch_way.bits), prev))
   }
-  def get_replace_way(state: UInt): UInt
+  def get_replace_way(state: UInt):                               UInt
 }
 
 object Random {
-  def apply(mod: Int, random: UInt): UInt = {
+  def apply(mod: Int, random: UInt):   UInt = {
     if (isPow2(mod)) random(log2Ceil(mod) - 1, 0)
     else PriorityEncoder(partition(apply(1 << log2Up(mod * 8), random), mod))
   }
-  def apply(mod: Int): UInt = apply(mod, randomizer)
-  def oneHot(mod: Int, random: UInt): UInt = {
+  def apply(mod:  Int):                UInt = apply(mod, randomizer)
+  def oneHot(mod: Int, random: UInt):  UInt = {
     if (isPow2(mod)) UIntToOH(random(log2Up(mod) - 1, 0))
     else VecInit(PriorityEncoderOH(partition(apply(1 << log2Up(mod * 8), random), mod))).asUInt
   }
-  def oneHot(mod: Int): UInt = oneHot(mod, randomizer)
+  def oneHot(mod: Int):                UInt = oneHot(mod, randomizer)
 
   private def randomizer                          = LFSR(16)
   private def partition(value: UInt, slices: Int) =
@@ -59,30 +59,30 @@ class RandomReplacement(n_ways: Int) extends ReplacementPolicy {
   private val lfsr = LFSR(nBits, replace)
   def state_read   = WireDefault(lfsr)
 
-  def way  = Random(n_ways, lfsr)
-  def miss = replace := true.B
-  def hit  = {}
-  def access(touch_way:      UInt) = {}
-  def access(touch_ways:     Seq[Valid[UInt]]) = {}
+  def way                                           = Random(n_ways, lfsr)
+  def miss                                          = replace := true.B
+  def hit                                           = {}
+  def access(touch_way:      UInt)                  = {}
+  def access(touch_ways:     Seq[Valid[UInt]])      = {}
   def get_next_state(state:  UInt, touch_way: UInt) = 0.U // DontCare
-  def get_replace_way(state: UInt) = way
+  def get_replace_way(state: UInt)                  = way
 }
 
 abstract class SeqReplacementPolicy {
-  def access(set:   UInt): Unit
+  def access(set:   UInt):                                  Unit
   def update(valid: Bool, hit: Bool, set: UInt, way: UInt): Unit
-  def way: UInt
+  def way:                                                  UInt
 }
 
 abstract class SetAssocReplacementPolicy {
   def access(set:  UInt, touch_way:       UInt):             Unit
   def access(sets: Seq[UInt], touch_ways: Seq[Valid[UInt]]): Unit
-  def way(set:     UInt): UInt
+  def way(set:     UInt):                                    UInt
 }
 
 class SeqRandom(n_ways: Int) extends SeqReplacementPolicy {
-  val logic = new RandomReplacement(n_ways)
-  def access(set: UInt) = {}
+  val logic                                                = new RandomReplacement(n_ways)
+  def access(set: UInt)                                    = {}
   def update(valid: Bool, hit: Bool, set: UInt, way: UInt) = {
     when(valid && !hit) { logic.miss }
   }

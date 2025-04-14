@@ -11,9 +11,9 @@ import chisel3.util.experimental.decode.{QMCMinimizer, TruthTable}
 // compatibility layer.
 object DecodeLogic {
   // TODO This should be a method on BitPat
-  private def hasDontCare(bp: BitPat): Boolean = bp.mask.bitCount != bp.width
+  private def hasDontCare(bp: BitPat):       Boolean = bp.mask.bitCount != bp.width
   // Pads BitPats that are safe to pad (no don't cares), errors otherwise
-  private def padBP(bp: BitPat, width: Int): BitPat = {
+  private def padBP(bp: BitPat, width: Int): BitPat  = {
     if (bp.width == width) bp
     else {
       require(!hasDontCare(bp), s"Cannot pad '$bp' to '$width' bits because it has don't cares")

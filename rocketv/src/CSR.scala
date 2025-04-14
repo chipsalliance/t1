@@ -184,7 +184,7 @@ case class CSRParameter(
   val ADDRSZ = 12
   def pgIdxBits: Int = 12
 
-  def modeLSB: Int = 8
+  def modeLSB:          Int  = 8
   def mode(addr: Int):  Int  = (addr >> modeLSB) % (1 << PRV.SZ)
   def mode(addr: UInt): UInt = addr(modeLSB + PRV.SZ - 1, modeLSB)
 
@@ -349,24 +349,24 @@ class CSR(val parameter: CSRParameter)
   val usingSupervisor = parameter.usingSupervisor
   val usingVM         = parameter.usingVM
   val nLocalInterrupts: Int = parameter.nLocalInterrupts
-  val usingNMI               = parameter.usingNMI
-  val usingFPU               = parameter.usingFPU
-  val usingMulDiv            = parameter.usingMulDiv
-  val usingAtomics           = parameter.usingAtomics
-  val usingUser              = parameter.usingUser
-  val vaddrBitsExtended      = parameter.vaddrBitsExtended
-  val maxSVAddrBits          = parameter.maxSVAddrBits
-  val nBreakpoints           = parameter.nBreakpoints
-  val mtvecInit              = parameter.mtvecInit
-  val nPerfCounters          = parameter.nPerfCounters
-  val maxPAddrBits           = parameter.maxPAddrBits
-  val pgIdxBits              = parameter.pgIdxBits
-  val enableCommitLog        = parameter.enableCommitLog
-  val usingDebug             = parameter.usingDebug
-  val minPgLevels            = parameter.minPgLevels
-  val pgLevels               = parameter.pgLevels
-  val mtvecWritable          = parameter.mtvecWritable
-  def pgLevelsToMode(i: Int) = (xLen, i) match {
+  val usingNMI                                   = parameter.usingNMI
+  val usingFPU                                   = parameter.usingFPU
+  val usingMulDiv                                = parameter.usingMulDiv
+  val usingAtomics                               = parameter.usingAtomics
+  val usingUser                                  = parameter.usingUser
+  val vaddrBitsExtended                          = parameter.vaddrBitsExtended
+  val maxSVAddrBits                              = parameter.maxSVAddrBits
+  val nBreakpoints                               = parameter.nBreakpoints
+  val mtvecInit                                  = parameter.mtvecInit
+  val nPerfCounters                              = parameter.nPerfCounters
+  val maxPAddrBits                               = parameter.maxPAddrBits
+  val pgIdxBits                                  = parameter.pgIdxBits
+  val enableCommitLog                            = parameter.enableCommitLog
+  val usingDebug                                 = parameter.usingDebug
+  val minPgLevels                                = parameter.minPgLevels
+  val pgLevels                                   = parameter.pgLevels
+  val mtvecWritable                              = parameter.mtvecWritable
+  def pgLevelsToMode(i: Int)                     = (xLen, i) match {
     case (32, 2)                     => 1
     case (64, x) if x >= 3 && x <= 6 => x + 5
   }
@@ -375,30 +375,30 @@ class CSR(val parameter: CSRParameter)
     fiom := new_envcfg.fiom // only FIOM is writable currently
   }
   object CSR {
-    val busErrorIntCause  = parameter.busErrorIntCause
+    val busErrorIntCause = parameter.busErrorIntCause
     val debugTriggerCause = parameter.debugTriggerCause
-    val firstHPM          = parameter.firstHPM
-    val hpmWidth          = parameter.hpmWidth
-    val debugIntCause     = parameter.debugIntCause
-    val rnmiIntCause      = parameter.rnmiIntCause
-    val rnmiBEUCause      = parameter.rnmiBEUCause
-    val nHPM              = parameter.nHPM
-    val firstHPE          = parameter.firstHPE
-    val firstMHPC         = parameter.firstMHPC
-    val firstHPC          = parameter.firstHPC
-    val firstMHPCH        = parameter.firstMHPCH
-    val firstHPCH         = parameter.firstHPCH
-    val maxPMPs           = parameter.maxPMPs
-    val N                 = parameter.N
-    val S                 = parameter.S
-    val C                 = parameter.C
-    val W                 = parameter.W
-    val I                 = parameter.I
+    val firstHPM = parameter.firstHPM
+    val hpmWidth = parameter.hpmWidth
+    val debugIntCause = parameter.debugIntCause
+    val rnmiIntCause = parameter.rnmiIntCause
+    val rnmiBEUCause = parameter.rnmiBEUCause
+    val nHPM = parameter.nHPM
+    val firstHPE = parameter.firstHPE
+    val firstMHPC = parameter.firstMHPC
+    val firstHPC = parameter.firstHPC
+    val firstMHPCH = parameter.firstMHPCH
+    val firstHPCH = parameter.firstHPCH
+    val maxPMPs = parameter.maxPMPs
+    val N = parameter.N
+    val S = parameter.S
+    val C = parameter.C
+    val W = parameter.W
+    val I = parameter.I
     def mode(addr: Int):  Int  = (addr >> modeLSB) % (1 << PRV.SZ)
     def mode(addr: UInt): UInt = addr(modeLSB + PRV.SZ - 1, modeLSB)
-    val modeLSB   = parameter.modeLSB
-    val firstCtr  = parameter.firstCtr
-    val nCtr      = parameter.nCtr
+    val modeLSB = parameter.modeLSB
+    val firstCtr = parameter.firstCtr
+    val nCtr = parameter.nCtr
     val firstCtrH = parameter.firstCtrH
   }
   object coreParams {
@@ -900,7 +900,7 @@ class CSR(val parameter: CSRParameter)
     read_mapping += CSRs.senvcfg    -> reg_senvcfg.asUInt
   }
 
-  val pmpCfgPerCSR = xLen / new PMPConfig().getWidth
+  val pmpCfgPerCSR        = xLen / new PMPConfig().getWidth
   def pmpCfgIndex(i: Int) = (xLen / 32) * (i / pmpCfgPerCSR)
   if (reg_pmp.nonEmpty) {
     require(reg_pmp.size <= CSR.maxPMPs)
@@ -1022,7 +1022,7 @@ class CSR(val parameter: CSRParameter)
 
     def decodeAny(m: mutable.LinkedHashMap[Int, Bits]): Bool =
       m.map { case (k: Int, _: Bits) => addr === k.U }.reduce(_ || _)
-    def decodeFast(s: Seq[Int]): Bool = DecodeLogic(addr, s.map(_.U), (read_mapping -- s).keys.toList.map(_.U))
+    def decodeFast(s: Seq[Int]):                        Bool = DecodeLogic(addr, s.map(_.U), (read_mapping -- s).keys.toList.map(_.U))
 
     val _ :: is_break :: is_ret :: _ :: is_wfi :: is_sfence :: is_hfence_vvma :: is_hfence_gvma :: is_hlsv :: Nil =
       DecodeLogic(io_dec.inst, decode_table(0)._2.map(x => X), decode_table).map(_.asBool)
@@ -1650,7 +1650,7 @@ class CSR(val parameter: CSRParameter)
     reg_scontext.foreach { r => when(decoded_addr(CSRs.scontext)) { r := wdata } }
     if (reg_pmp.nonEmpty) for (((pmp, next), i) <- (reg_pmp.zip(reg_pmp.tail :+ reg_pmp.last)).zipWithIndex) {
       require(xLen % pmp.cfg.getWidth == 0)
-      def cfgLocked(pmpReg:  PMPReg) = pmpReg.cfg.l
+      def cfgLocked(pmpReg:  PMPReg)               = pmpReg.cfg.l
       def addrLocked(pmpReg: PMPReg, next: PMPReg) = pmpReg.cfg.l
 
       when(decoded_addr(CSRs.pmpcfg0 + pmpCfgIndex(i)) && !cfgLocked(pmp)) {
@@ -1822,8 +1822,8 @@ class CSR(val parameter: CSRParameter)
     if (coreParams.mcontextWidth == 0) bpx.mselect := false.B
     if (coreParams.scontextWidth == 0) bpx.sselect := false.B
   }
-  for (bp  <- reg_bp.drop(nBreakpoints))
-    bp := 0.U.asTypeOf(new BP(xLen, useBPWatch, vaddrBits, coreParams.mcontextWidth, coreParams.scontextWidth))
+  for (bp <- reg_bp.drop(nBreakpoints))
+    bp                               := 0.U.asTypeOf(new BP(xLen, useBPWatch, vaddrBits, coreParams.mcontextWidth, coreParams.scontextWidth))
   for (pmp <- reg_pmp) {
     pmp.cfg.res := 0.U
     def resetPMP(pmp: PMPReg): Unit = {
@@ -1866,11 +1866,11 @@ class CSR(val parameter: CSRParameter)
       when(decoded_addr(lo)) { ctr.assign(wdata(ctr.width - 1, 0)) }
     }
   }
-  def andNot(x: UInt, y: UInt): UInt = x & ~(y | (x & 0.U))
-  def formEPC(x: UInt): UInt = ~(~x | (if (usingCompressed) 1.U else 3.U))
-  def readEPC(x: UInt): UInt = ~(~x | Mux(reg_misa('c' - 'a'), 1.U, 3.U))
-  def formTVec(x: UInt): UInt =
+  def andNot(x:          UInt, y: UInt): UInt = x & ~(y | (x & 0.U))
+  def formEPC(x:         UInt):          UInt = ~(~x | (if (usingCompressed) 1.U else 3.U))
+  def readEPC(x:         UInt):          UInt = ~(~x | Mux(reg_misa('c' - 'a'), 1.U, 3.U))
+  def formTVec(x: UInt):                 UInt =
     andNot(x, Mux(x(0), ((((BigInt(1) << mtvecInterruptAlign) - 1) << mtvecBaseAlign) | 2).U, 2.U))
-  def isaStringToMask(s: String): Int  = s.map(x => 1 << (x - 'A')).foldLeft(0)(_ | _)
-  def formFS(fs:         UInt):   UInt = if (coreParams.haveFSDirty) fs else Fill(2, fs.orR)
+  def isaStringToMask(s: String):        Int  = s.map(x => 1 << (x - 'A')).foldLeft(0)(_ | _)
+  def formFS(fs:         UInt):          UInt = if (coreParams.haveFSDirty) fs else Fill(2, fs.orR)
 }

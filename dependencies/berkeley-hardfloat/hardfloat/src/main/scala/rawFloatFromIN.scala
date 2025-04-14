@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -40,30 +39,26 @@ package hardfloat
 import chisel3._
 import chisel3.util._
 
-object rawFloatFromIN
-{
-    def apply(signedIn: Bool, in: Bits): RawFloat =
-    {
-        val expWidth = log2Up(in.getWidth) + 1
+object rawFloatFromIN {
+  def apply(signedIn: Bool, in: Bits): RawFloat = {
+    val expWidth    = log2Up(in.getWidth) + 1
 //*** CHANGE THIS; CAN BE VERY LARGE:
-        val extIntWidth = 1<<(expWidth - 1)
+    val extIntWidth = 1 << (expWidth - 1)
 
-        val sign = signedIn && in(in.getWidth - 1)
-        val absIn = Mux(sign, -in.asUInt, in.asUInt)
-        val extAbsIn = (0.U(extIntWidth.W) ## absIn)(extIntWidth - 1, 0)
-        val adjustedNormDist = countLeadingZeros(extAbsIn)
-        val sig =
-            (extAbsIn<<adjustedNormDist)(
-                extIntWidth - 1, extIntWidth - in.getWidth)
+    val sign             = signedIn && in(in.getWidth - 1)
+    val absIn            = Mux(sign, -in.asUInt, in.asUInt)
+    val extAbsIn         = (0.U(extIntWidth.W) ## absIn)(extIntWidth - 1, 0)
+    val adjustedNormDist = countLeadingZeros(extAbsIn)
+    val sig              =
+      (extAbsIn << adjustedNormDist)(extIntWidth - 1, extIntWidth - in.getWidth)
 
-        val out = Wire(new RawFloat(expWidth, in.getWidth))
-        out.isNaN  := false.B
-        out.isInf  := false.B
-        out.isZero := ! sig(in.getWidth - 1)
-        out.sign   := sign
-        out.sExp   := (2.U(2.W) ## ~adjustedNormDist(expWidth - 2, 0)).zext
-        out.sig    := sig
-        out
-    }
+    val out = Wire(new RawFloat(expWidth, in.getWidth))
+    out.isNaN  := false.B
+    out.isInf  := false.B
+    out.isZero := !sig(in.getWidth - 1)
+    out.sign   := sign
+    out.sExp   := (2.U(2.W) ## ~adjustedNormDist(expWidth - 2, 0)).zext
+    out.sig    := sig
+    out
+  }
 }
-

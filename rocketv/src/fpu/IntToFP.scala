@@ -46,10 +46,10 @@ class IntToFP(val parameter: IntToFPParameter)
   val minXLen: Int = parameter.minXLen
   val xLen:    Int = parameter.xLen
   val helper = new FPUHelper(minFLen: Int, fLen: Int, xLen: Int)
-  def recode(x: UInt, tag: UInt) = helper.recode(x, tag)
-  val nIntTypes:  Int        = helper.nIntTypes
-  val floatTypes: Seq[FType] = helper.floatTypes
-  def sanitizeNaN(x: UInt, t: FType) = helper.sanitizeNaN(x, t)
+  def recode(x:      UInt, tag: UInt) = helper.recode(x, tag)
+  val nIntTypes:       Int        = helper.nIntTypes
+  val floatTypes:      Seq[FType] = helper.floatTypes
+  def sanitizeNaN(x: UInt, t:   FType) = helper.sanitizeNaN(x, t)
 
   val in  = Pipe(io.in)
   val tag = in.bits.fpuControl.typeTagIn

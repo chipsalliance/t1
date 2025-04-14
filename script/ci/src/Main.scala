@@ -94,7 +94,7 @@ object Main:
         cargo.updated(cargo.indexOf(smallest), smallest.cons(elem))
 
     // For unprocessed data, just split them into subset that have equal size
-    if unProcessedData.nonEmpty then
+    if unProcessedData.nonEmpty then {
       val chunkSize  = unProcessedData.length.toDouble / bucketSize.toDouble
       val cargoFinal = unProcessedData
         .grouped(math.ceil(chunkSize).toInt)
@@ -106,7 +106,7 @@ object Main:
           cargo.updated(idx, newBucket)
 
       cargoFinal.map(_.buffer.mkString(";")).toSeq
-    else cargoStaged.map(_.buffer.mkString(";")).toSeq
+    } else cargoStaged.map(_.buffer.mkString(";")).toSeq
   end scheduleTasks
 
   // Turn Seq( "A;B", "C;D" ) to GitHub Action matrix style json: { "include": [ { "jobs": "A;B", id: 1 }, { "jobs": "C;D", id: 2 } ] }
@@ -263,7 +263,7 @@ object Main:
     @arg(
       name = "case-dir",
       doc = "Specify cases directory, listed under .github/"
-    ) caseDir:              String = "designs",
+    ) caseDir:             String = "designs"
   ) =
     os.write.over(
       os.Path(cycleUpdateFilePath, os.pwd),
@@ -272,7 +272,7 @@ object Main:
 
     if urgReportFilePath.nonEmpty then os.write(os.Path(urgReportFilePath.get, os.pwd), "# Coverage report\n")
 
-      os.walk(os.pwd / ".github" / caseDir)
+    os.walk(os.pwd / ".github" / caseDir)
       .filter(_.last == s"${top}.json")
       .foreach: file =>
         val config      = file.segments.toSeq.reverse.apply(1)

@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -40,18 +39,17 @@ package hardfloat.test
 import hardfloat._
 import chisel3._
 
-class ValExec_fNFromRecFN(expWidth: Int, sigWidth: Int) extends Module
-{
-    val io = IO(new Bundle {
-        val a = Input(Bits((expWidth + sigWidth).W))
-        val out = Output(Bits((expWidth + sigWidth).W))
-        val check = Output(Bool())
-        val pass = Output(Bool())
-    })
+class ValExec_fNFromRecFN(expWidth: Int, sigWidth: Int) extends Module {
+  val io = IO(new Bundle {
+    val a     = Input(Bits((expWidth + sigWidth).W))
+    val out   = Output(Bits((expWidth + sigWidth).W))
+    val check = Output(Bool())
+    val pass  = Output(Bool())
+  })
 
-    io.out :=
-        fNFromRecFN(expWidth, sigWidth, recFNFromFN(expWidth, sigWidth, io.a))
+  io.out :=
+    fNFromRecFN(expWidth, sigWidth, recFNFromFN(expWidth, sigWidth, io.a))
 
-    io.check := true.B
-    io.pass := (io.out === io.a)
+  io.check := true.B
+  io.pass  := (io.out === io.a)
 }

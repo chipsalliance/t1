@@ -39,14 +39,14 @@ class FPToFP(val parameter: FPToFPParameter)
   override protected def implicitClock: Clock = io.clock
   override protected def implicitReset: Reset = io.reset
 
-  val fLen       = parameter.fLen
-  val minFLen    = parameter.minFLen
-  val xLen       = parameter.xLen
-  val latency    = parameter.latency
-  val helper     = new FPUHelper(minFLen, fLen, xLen)
-  val maxType    = helper.maxType
-  val floatTypes = helper.floatTypes
-  def typeTag(t:     FType) = helper.typeTag(t)
+  val fLen                           = parameter.fLen
+  val minFLen                        = parameter.minFLen
+  val xLen                           = parameter.xLen
+  val latency                        = parameter.latency
+  val helper                         = new FPUHelper(minFLen, fLen, xLen)
+  val maxType                        = helper.maxType
+  val floatTypes                     = helper.floatTypes
+  def typeTag(t:     FType)          = helper.typeTag(t)
   def sanitizeNaN(x: UInt, t: FType) = helper.sanitizeNaN(x, t)
 
   val in = Pipe(io.in)

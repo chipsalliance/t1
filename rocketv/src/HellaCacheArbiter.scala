@@ -131,8 +131,8 @@ class HellaCacheArbiter(val parameter: HellaCacheArbiterParameter)
 
     io.mem.keep_clock_enabled := io.requestor.map(_.keep_clock_enabled).reduce(_ || _)
 
-    io.mem.req.valid          := io.requestor.map(_.req.valid).reduce(_ || _)
-    io.requestor(0).req.ready := io.mem.req.ready
+    io.mem.req.valid            := io.requestor.map(_.req.valid).reduce(_ || _)
+    io.requestor(0).req.ready   := io.mem.req.ready
     for (i <- 1 until n)
       io.requestor(i).req.ready := io.requestor(i - 1).req.ready && !io.requestor(i - 1).req.valid
 

@@ -61,6 +61,7 @@ class VectorAdder64 extends Module {
   def cgen(pg: (Bool, Bool), cin: Bool) = pg._2 || (pg._1 && cin)
 
   def bk8(leaf: Seq[(Bool, Bool)]): Seq[(Bool, Bool)] = leaf match {
+
     /** match to 8 bits fan-in */
     case Seq((p0, g0), (p1, g1), (p2, g2), (p3, g3), (p4, g4), (p5, g5), (p6, g6), (p7, g7)) => {
       val layer0 = Seq(

@@ -466,8 +466,8 @@ class HellaCache(val parameter: HellaCacheParameter)
   val reset       = io.reset
   val pma_checker = pmaChecker
 
-  val tECC = cacheParams.tagCode
-  val dECC = cacheParams.dataCode
+  val tECC       = cacheParams.tagCode
+  val dECC       = cacheParams.dataCode
   require(subWordBits % eccBits == 0, "subWordBits must be a multiple of eccBits")
   require(eccBytes == 1 || !dECC.isInstanceOf[IdentityCode])
   require(cacheParams.silentDrop || cacheParams.acquireBeforeRelease, "!silentDrop requires acquireBeforeRelease")
@@ -604,18 +604,18 @@ class HellaCache(val parameter: HellaCacheParameter)
     val s1_waw_hazard  = Wire(Bool())
 
     val s_ready :: s_voluntary_writeback :: s_voluntary_write_meta :: s_voluntary_aw :: Nil = Enum(4)
-    val supports_flush                                                                      = outer.flushOnFenceI || coreParams.haveCFlush
-    val flushed                                                                             = RegInit(true.B)
-    val flushing                                                                            = RegInit(false.B)
-    val flushing_req                                                                        = Reg(chiselTypeOf(s1_req))
-    val cached_grant_wait                                                                   = RegInit(false.B)
-    val resetting                                                                           = RegInit(false.B)
-    val flushCounter                                                                        = RegInit((nSets * (nWays - 1)).U(log2Ceil(nSets * nWays).W))
-    val release_ack_wait                                                                    = RegInit(false.B)
-    val release_ack_addr                                                                    = Reg(UInt(paddrBits.W))
-    val release_state                                                                       = RegInit(s_ready)
-    val refill_way                                                                          = Reg(UInt())
-    val any_pstore_valid                                                                    = Wire(Bool())
+    val supports_flush = outer.flushOnFenceI || coreParams.haveCFlush
+    val flushed = RegInit(true.B)
+    val flushing = RegInit(false.B)
+    val flushing_req = Reg(chiselTypeOf(s1_req))
+    val cached_grant_wait = RegInit(false.B)
+    val resetting = RegInit(false.B)
+    val flushCounter = RegInit((nSets * (nWays - 1)).U(log2Ceil(nSets * nWays).W))
+    val release_ack_wait = RegInit(false.B)
+    val release_ack_addr = Reg(UInt(paddrBits.W))
+    val release_state = RegInit(s_ready)
+    val refill_way = Reg(UInt())
+    val any_pstore_valid = Wire(Bool())
     def isOneOf(x: UInt, s: Seq[UInt]): Bool = VecInit(s.map(x === _)).asUInt.orR
 
     val inWriteback = release_state === s_voluntary_writeback
@@ -930,36 +930,36 @@ class HellaCache(val parameter: HellaCacheParameter)
     when(s2_valid_not_killed && lrscValid) { lrscCount := lrscBackoff.U }
 
     // don't perform data correction if it might clobber a recent store
-    val s2_correct                 =
+    val s2_correct                           =
       s2_data_error && !any_pstore_valid && !RegNext(any_pstore_valid || s2_valid) && usingDataScratchpad.B
     // pending store buffer
-    val s2_valid_correct           = s2_valid_hit_pre_data_ecc_and_waw && s2_correct && !io.cpu.s2_kill
-    def s2_store_valid_pre_kill    = s2_valid_hit && s2_write && !s2_sc_fail
-    def s2_store_valid             = s2_store_valid_pre_kill && !io.cpu.s2_kill
-    val pstore1_cmd                = RegEnable(s1_req.cmd, s1_valid_not_nacked && s1_write)
-    val pstore1_addr               = RegEnable(s1_vaddr, s1_valid_not_nacked && s1_write)
-    val pstore1_data               = RegEnable(io.cpu.s1_data.data, s1_valid_not_nacked && s1_write)
-    val pstore1_way                = RegEnable(s1_hit_way, s1_valid_not_nacked && s1_write)
-    val pstore1_mask               = RegEnable(s1_mask, s1_valid_not_nacked && s1_write)
-    val pstore1_storegen_data      = WireDefault(pstore1_data)
-    val pstore1_rmw                = usingRMW.B && RegEnable(needsRead(s1_req), s1_valid_not_nacked && s1_write)
-    val pstore1_merge_likely       = s2_valid_not_nacked_in_s1 && s2_write && s2_store_merge
-    val pstore1_merge              = s2_store_valid && s2_store_merge
-    val pstore2_valid              = RegInit(false.B)
-    val pstore_drain_opportunistic =
+    val s2_valid_correct                     = s2_valid_hit_pre_data_ecc_and_waw && s2_correct && !io.cpu.s2_kill
+    def s2_store_valid_pre_kill              = s2_valid_hit && s2_write && !s2_sc_fail
+    def s2_store_valid                       = s2_store_valid_pre_kill && !io.cpu.s2_kill
+    val pstore1_cmd                          = RegEnable(s1_req.cmd, s1_valid_not_nacked && s1_write)
+    val pstore1_addr                         = RegEnable(s1_vaddr, s1_valid_not_nacked && s1_write)
+    val pstore1_data                         = RegEnable(io.cpu.s1_data.data, s1_valid_not_nacked && s1_write)
+    val pstore1_way                          = RegEnable(s1_hit_way, s1_valid_not_nacked && s1_write)
+    val pstore1_mask                         = RegEnable(s1_mask, s1_valid_not_nacked && s1_write)
+    val pstore1_storegen_data                = WireDefault(pstore1_data)
+    val pstore1_rmw                          = usingRMW.B && RegEnable(needsRead(s1_req), s1_valid_not_nacked && s1_write)
+    val pstore1_merge_likely                 = s2_valid_not_nacked_in_s1 && s2_write && s2_store_merge
+    val pstore1_merge                        = s2_store_valid && s2_store_merge
+    val pstore2_valid                        = RegInit(false.B)
+    val pstore_drain_opportunistic           =
       !(io.cpu.req.valid && likelyNeedsRead(io.cpu.req.bits)) && !(s1_valid && s1_waw_hazard)
-    val pstore_drain_on_miss       = releaseInFlight || RegNext(io.cpu.s2_nack)
-    val pstore1_held               = RegInit(false.B)
-    val pstore1_valid_likely       = s2_valid && s2_write || pstore1_held
+    val pstore_drain_on_miss                 = releaseInFlight || RegNext(io.cpu.s2_nack)
+    val pstore1_held                         = RegInit(false.B)
+    val pstore1_valid_likely                 = s2_valid && s2_write || pstore1_held
     def pstore1_valid_not_rmw(s2_kill: Bool) = s2_valid_hit_pre_data_ecc && s2_write && !s2_kill || pstore1_held
-    val pstore1_valid = s2_store_valid || pstore1_held
+    val pstore1_valid                        = s2_store_valid || pstore1_held
     any_pstore_valid := pstore1_held || pstore2_valid
-    val pstore_drain_structural          = pstore1_valid_likely && pstore2_valid && ((s1_valid && s1_write) || pstore1_rmw)
+    val pstore_drain_structural              = pstore1_valid_likely && pstore2_valid && ((s1_valid && s1_write) || pstore1_rmw)
     assert(pstore1_rmw || pstore1_valid_not_rmw(io.cpu.s2_kill) === pstore1_valid)
     ccover(pstore_drain_structural, "STORE_STRUCTURAL_HAZARD", "D$ read-modify-write structural hazard")
     ccover(pstore1_valid && pstore_drain_on_miss, "STORE_DRAIN_ON_MISS", "D$ store buffer drain on miss")
     ccover(s1_valid_not_nacked && s1_waw_hazard, "WAW_HAZARD", "D$ write-after-write hazard")
-    def should_pstore_drain(truly: Bool) = {
+    def should_pstore_drain(truly: Bool)     = {
       val s2_kill = truly && io.cpu.s2_kill
       !pstore1_merge_likely &&
       (usingRMW.B && pstore_drain_structural ||
@@ -967,20 +967,20 @@ class HellaCache(val parameter: HellaCacheParameter)
           s2_kill
         ) && !pstore1_rmw) || pstore2_valid) && (pstore_drain_opportunistic || pstore_drain_on_miss)))
     }
-    val pstore_drain                     = should_pstore_drain(true.B)
+    val pstore_drain                         = should_pstore_drain(true.B)
     pstore1_held := (s2_store_valid && !s2_store_merge || pstore1_held) && pstore2_valid && !pstore_drain
-    val advance_pstore1 = (pstore1_valid || s2_valid_correct) && (pstore2_valid === pstore_drain)
+    val advance_pstore1                      = (pstore1_valid || s2_valid_correct) && (pstore2_valid === pstore_drain)
     pstore2_valid := pstore2_valid && !pstore_drain || advance_pstore1
-    val pstore2_addr          = RegEnable(Mux(s2_correct, s2_vaddr, pstore1_addr), advance_pstore1)
-    val pstore2_way           = RegEnable(Mux(s2_correct, s2_hit_way, pstore1_way), advance_pstore1)
-    val pstore2_storegen_data = VecInit({
+    val pstore2_addr                         = RegEnable(Mux(s2_correct, s2_vaddr, pstore1_addr), advance_pstore1)
+    val pstore2_way                          = RegEnable(Mux(s2_correct, s2_hit_way, pstore1_way), advance_pstore1)
+    val pstore2_storegen_data                = VecInit({
       for (i <- 0 until wordBytes)
         yield RegEnable(
           pstore1_storegen_data(8 * (i + 1) - 1, 8 * i),
           advance_pstore1 || pstore1_merge && pstore1_mask(i)
         )
     }).asUInt
-    val pstore2_storegen_mask = {
+    val pstore2_storegen_mask                = {
       val mask = Reg(UInt(wordBytes.W))
       when(advance_pstore1 || pstore1_merge) {
         val mergedMask = pstore1_mask | Mux(pstore1_merge, mask, 0.U)
@@ -1002,10 +1002,10 @@ class HellaCache(val parameter: HellaCacheParameter)
                          pstore2_valid && wordMatch && idxMatch && tagMatch
                        })
     dataArb.io.in(0).valid := should_pstore_drain(false.B)
-    dataArb.io.in(0).bits.write    := pstore_drain
-    dataArb.io.in(0).bits.addr     := Mux(pstore2_valid, pstore2_addr, pstore1_addr)
-    dataArb.io.in(0).bits.way_en   := Mux(pstore2_valid, pstore2_way, pstore1_way)
-    dataArb.io.in(0).bits.wdata    := encodeData(
+    dataArb.io.in(0).bits.write := pstore_drain
+    dataArb.io.in(0).bits.addr := Mux(pstore2_valid, pstore2_addr, pstore1_addr)
+    dataArb.io.in(0).bits.way_en := Mux(pstore2_valid, pstore2_way, pstore1_way)
+    dataArb.io.in(0).bits.wdata := encodeData(
       Fill(rowWords, Mux(pstore2_valid, pstore2_storegen_data, pstore1_data)),
       false.B
     )
@@ -1020,7 +1020,7 @@ class HellaCache(val parameter: HellaCacheParameter)
       )
       FillInterleaved(wordBytes / subWordBytes, wordMask) & Fill(rowBytes / wordBytes, eccMask)
     }
-    dataArb.io.in(0).bits.eccMask  := eccMask(Mux(pstore2_valid, pstore2_storegen_mask, pstore1_mask))
+    dataArb.io.in(0).bits.eccMask := eccMask(Mux(pstore2_valid, pstore2_storegen_mask, pstore1_mask))
 
     // store->load RAW hazard detection
     def s1Depends(addr: UInt, mask: UInt) =
@@ -1688,12 +1688,12 @@ class HellaCache(val parameter: HellaCacheParameter)
   } // leaving gated-clock domain
   val dcacheImpl = withClock(gated_clock) { new DCacheModuleImpl }
 
-  def encodeData(x: UInt, poison: Bool) =
+  def encodeData(x: UInt, poison: Bool)    =
     VecInit(grouped(x, eccBits).map(dECC.encode(_, if (dECC.canDetect) poison else false.B))).asUInt
-  def dummyEncodeData(x:    UInt) = VecInit(grouped(x, eccBits).map(dECC.swizzle)).asUInt
-  def decodeData(x:         UInt) = grouped(x, dECC.width(eccBits)).map(dECC.decode)
-  def eccMask(byteMask:     UInt) = VecInit(grouped(byteMask, eccBytes).map(_.orR)).asUInt
-  def eccByteMask(byteMask: UInt) = FillInterleaved(eccBytes, eccMask(byteMask))
+  def dummyEncodeData(x:    UInt)          = VecInit(grouped(x, eccBits).map(dECC.swizzle)).asUInt
+  def decodeData(x:         UInt)          = grouped(x, dECC.width(eccBits)).map(dECC.decode)
+  def eccMask(byteMask:     UInt)          = VecInit(grouped(byteMask, eccBytes).map(_.orR)).asUInt
+  def eccByteMask(byteMask: UInt)          = FillInterleaved(eccBytes, eccMask(byteMask))
 
   def likelyNeedsRead(req: HellaCacheReq): Bool = {
     // req.cmd.isOneOf(M_XWR, M_PFW)
@@ -1729,7 +1729,7 @@ class HellaCache(val parameter: HellaCacheParameter)
     !usingVM || tagLSB <= pgIdxBits,
     s"D$$ set size must not exceed ${1 << (pgIdxBits - 10)} KiB; got ${(nSets * cacheBlockBytes) >> 10} KiB"
   )
-  def tagLSB: Int = untagBits
+  def tagLSB:            Int  = untagBits
   def probeIdx(b: UInt): UInt = b(idxMSB, idxLSB)
 }
 
