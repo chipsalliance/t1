@@ -96,6 +96,7 @@ let
       stdenv = rv32-stdenv;
 
       mlir = casesSelf.callPackage ./mlir { };
+      iree-mlir = casesSelf.callPackage ./iree-mlir { };
       intrinsic = casesSelf.callPackage ./intrinsic { };
       asm = casesSelf.callPackage ./asm { };
       perf = casesSelf.callPackage ./perf { };
@@ -112,6 +113,7 @@ let
   scopeStripped = {
     inherit (scope)
       mlir
+      iree-mlir
       intrinsic
       asm
       perf
