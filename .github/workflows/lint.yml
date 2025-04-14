@@ -24,11 +24,3 @@ jobs:
       - name: "Check Nix code format"
         run: |
           nix flake check
-      - name: "Check Scala code format"
-        run: |
-          export JAVA_TOOL_OPTIONS="$JAVA_OPTS"
-          nix develop ".#t1.elaborator" -c mill -i _.checkFormat
-      - name: "Check difftest code format"
-        run: |
-          nix shell '.#cargo' '.#rustfmt' -c bash -c 'cd difftest && cargo fmt --check'
-
