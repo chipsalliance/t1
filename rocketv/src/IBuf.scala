@@ -183,14 +183,14 @@ class IBuf(val parameter: IBufParameter)
   }
 
   def shiftInsnLeft(in: UInt, dist: UInt): UInt = {
-    val r = in.getWidth / coreInstBits
+    val r    = in.getWidth / coreInstBits
     require(in.getWidth % coreInstBits == 0)
     val data = Cat(Fill((1 << (log2Ceil(r) + 1)) - r, in >> (r - 1) * coreInstBits), in)
     data << (dist << log2Ceil(coreInstBits))
   }
 
   def shiftInsnRight(in: UInt, dist: UInt): UInt = {
-    val r = in.getWidth / coreInstBits
+    val r    = in.getWidth / coreInstBits
     require(in.getWidth % coreInstBits == 0)
     val data = Cat(Fill((1 << (log2Ceil(r) + 1)) - r, in >> (r - 1) * coreInstBits), in)
     data >> (dist << log2Ceil(coreInstBits))

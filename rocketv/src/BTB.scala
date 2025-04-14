@@ -120,7 +120,7 @@ class BTB(val parameter: BTBParameter)
   val cfiType = Reg(Vec(entries, UInt(CFIType.width.W)))
   val brIdx   = Reg(Vec(entries, UInt(log2Up(fetchWidth).W)))
 
-  private def page(addr: UInt) = addr >> matchBits
+  private def page(addr: UInt)      = addr >> matchBits
   private def pageMatch(addr: UInt) = {
     val p = page(addr)
     pageValid & VecInit(pages.map(_ === p)).asUInt

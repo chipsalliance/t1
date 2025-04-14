@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -40,37 +39,36 @@ package hardfloat
 import chisel3._
 import consts._
 
-class INToRecFN(intWidth: Int, expWidth: Int, sigWidth: Int) extends RawModule
-{
-    override def desiredName = s"INToRecFN_i${intWidth}_e${expWidth}_s${sigWidth}"
-    val io = IO(new Bundle {
-        val signedIn = Input(Bool())
-        val in = Input(Bits(intWidth.W))
-        val roundingMode   = Input(UInt(3.W))
-        val detectTininess = Input(UInt(1.W))
-        val out = Output(Bits((expWidth + sigWidth + 1).W))
-        val exceptionFlags = Output(Bits(5.W))
-    })
+class INToRecFN(intWidth: Int, expWidth: Int, sigWidth: Int) extends RawModule {
+  override def desiredName = s"INToRecFN_i${intWidth}_e${expWidth}_s${sigWidth}"
+  val io                   = IO(new Bundle {
+    val signedIn       = Input(Bool())
+    val in             = Input(Bits(intWidth.W))
+    val roundingMode   = Input(UInt(3.W))
+    val detectTininess = Input(UInt(1.W))
+    val out            = Output(Bits((expWidth + sigWidth + 1).W))
+    val exceptionFlags = Output(Bits(5.W))
+  })
 
-    //------------------------------------------------------------------------
-    //------------------------------------------------------------------------
-    val intAsRawFloat = rawFloatFromIN(io.signedIn, io.in);
+  // ------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
+  val intAsRawFloat = rawFloatFromIN(io.signedIn, io.in);
 
-    val roundAnyRawFNToRecFN =
-        Module(
-            new RoundAnyRawFNToRecFN(
-                    intAsRawFloat.expWidth,
-                    intWidth,
-                    expWidth,
-                    sigWidth,
-                    flRoundOpt_sigMSBitAlwaysZero | flRoundOpt_neverUnderflows
-                ))
-    roundAnyRawFNToRecFN.io.invalidExc     := false.B
-    roundAnyRawFNToRecFN.io.infiniteExc    := false.B
-    roundAnyRawFNToRecFN.io.in             := intAsRawFloat
-    roundAnyRawFNToRecFN.io.roundingMode   := io.roundingMode
-    roundAnyRawFNToRecFN.io.detectTininess := io.detectTininess
-    io.out            := roundAnyRawFNToRecFN.io.out
-    io.exceptionFlags := roundAnyRawFNToRecFN.io.exceptionFlags
+  val roundAnyRawFNToRecFN =
+    Module(
+      new RoundAnyRawFNToRecFN(
+        intAsRawFloat.expWidth,
+        intWidth,
+        expWidth,
+        sigWidth,
+        flRoundOpt_sigMSBitAlwaysZero | flRoundOpt_neverUnderflows
+      )
+    )
+  roundAnyRawFNToRecFN.io.invalidExc     := false.B
+  roundAnyRawFNToRecFN.io.infiniteExc    := false.B
+  roundAnyRawFNToRecFN.io.in             := intAsRawFloat
+  roundAnyRawFNToRecFN.io.roundingMode   := io.roundingMode
+  roundAnyRawFNToRecFN.io.detectTininess := io.detectTininess
+  io.out                                 := roundAnyRawFNToRecFN.io.out
+  io.exceptionFlags                      := roundAnyRawFNToRecFN.io.exceptionFlags
 }
-

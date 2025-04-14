@@ -33,7 +33,6 @@ import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
   *     not in cacheline tags -- save bandwidth in A Channel -- save bandwidth in L2 Cache(improve efficiency in cache
   *     directory) -- save request queue size in L2(less back pressure on bus) -- use PutPartial mask for masked store
   *     -- burst will block other memory requests until it is finished(this is limited by TileLink)
-  *
   *   - memory request hazard detection for multiple instructions -- unit stride without segment: instruction order,
   *     base address per instruction, current mask group index, mask inside mask group -- unit stride with segment:
   *     instruction order, base address per instruction, nf per instruction, current mask group index, mask inside mask

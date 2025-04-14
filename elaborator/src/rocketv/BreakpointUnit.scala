@@ -8,7 +8,7 @@ import org.chipsalliance.rocketv.{BreakpointUnit, BreakpointUnitParameter}
 
 object BreakpointUnit extends SerializableModuleElaborator {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
-    def shortName = "path"
+    def shortName               = "path"
     def read(strs: Seq[String]) = Right(os.Path(strs.head, os.pwd))
   }
 

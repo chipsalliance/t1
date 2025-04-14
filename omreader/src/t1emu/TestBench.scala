@@ -31,7 +31,7 @@ class TestBench(mlirbc: Array[Byte]) extends OMReader(mlirbc, "TestBench_Class")
   val march = t1.obj("march")
 
   override def json = write(TestBenchOM(vlen, dlen, instructions, extensions, march))
-  
+
 end TestBench
 
 object TestBench:

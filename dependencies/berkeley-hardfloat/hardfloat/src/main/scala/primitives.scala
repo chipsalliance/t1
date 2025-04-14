@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -42,86 +41,76 @@ import chisel3.util._
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
-object lowMask
-{
-    def apply(in: UInt, topBound: BigInt, bottomBound: BigInt): UInt =
-    {
-        require(topBound != bottomBound)
-        val numInVals = BigInt(1)<<in.getWidth
-        if (topBound < bottomBound) {
-            lowMask(~in, numInVals - 1 - topBound, numInVals - 1 - bottomBound)
-        } else if (numInVals > 64 /* Empirical */) {
-            // For simulation performance, we should avoid generating
-            // exteremely wide shifters, so we divide and conquer.
-            // Empirically, this does not impact synthesis QoR.
-            val mid = numInVals / 2
-            val msb = in(in.getWidth - 1)
-            val lsbs = in(in.getWidth - 2, 0)
-            if (mid < topBound) {
-                if (mid <= bottomBound) {
-                    Mux(msb,
-                        lowMask(lsbs, topBound - mid, bottomBound - mid),
-                        0.U
-                    )
-                } else {
-                    Mux(msb,
-                        lowMask(lsbs, topBound - mid, 0) ## ((BigInt(1)<<(mid - bottomBound).toInt) - 1).U,
-                        lowMask(lsbs, mid, bottomBound)
-                    )
-                }
-            } else {
-                ~Mux(msb, 0.U, ~lowMask(lsbs, topBound, bottomBound))
-            }
+object lowMask {
+  def apply(in: UInt, topBound: BigInt, bottomBound: BigInt): UInt = {
+    require(topBound != bottomBound)
+    val numInVals = BigInt(1) << in.getWidth
+    if (topBound < bottomBound) {
+      lowMask(~in, numInVals - 1 - topBound, numInVals - 1 - bottomBound)
+    } else if (numInVals > 64 /* Empirical */ ) {
+      // For simulation performance, we should avoid generating
+      // exteremely wide shifters, so we divide and conquer.
+      // Empirically, this does not impact synthesis QoR.
+      val mid  = numInVals / 2
+      val msb  = in(in.getWidth - 1)
+      val lsbs = in(in.getWidth - 2, 0)
+      if (mid < topBound) {
+        if (mid <= bottomBound) {
+          Mux(msb, lowMask(lsbs, topBound - mid, bottomBound - mid), 0.U)
         } else {
-            val shift = (BigInt(-1)<<numInVals.toInt).S>>in
-            Reverse(
-                shift(
-                    (numInVals - 1 - bottomBound).toInt,
-                    (numInVals - topBound).toInt
-                )
-            )
+          Mux(
+            msb,
+            lowMask(lsbs, topBound - mid, 0) ## ((BigInt(1) << (mid - bottomBound).toInt) - 1).U,
+            lowMask(lsbs, mid, bottomBound)
+          )
         }
+      } else {
+        ~Mux(msb, 0.U, ~lowMask(lsbs, topBound, bottomBound))
+      }
+    } else {
+      val shift = (BigInt(-1) << numInVals.toInt).S >> in
+      Reverse(
+        shift(
+          (numInVals - 1 - bottomBound).toInt,
+          (numInVals - topBound).toInt
+        )
+      )
     }
+  }
 }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
-object countLeadingZeros
-{
-    def apply(in: UInt): UInt = PriorityEncoder(in.asBools.reverse)
+object countLeadingZeros {
+  def apply(in: UInt): UInt = PriorityEncoder(in.asBools.reverse)
 }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
-object orReduceBy2
-{
-    def apply(in: UInt): UInt =
-    {
-        val reducedWidth = (in.getWidth + 1)>>1
-        val reducedVec = Wire(Vec(reducedWidth, Bool()))
-        for (ix <- 0 until reducedWidth - 1) {
-            reducedVec(ix) := in(ix * 2 + 1, ix * 2).orR
-        }
-        reducedVec(reducedWidth - 1) :=
-            in(in.getWidth - 1, (reducedWidth - 1) * 2).orR
-        reducedVec.asUInt
+object orReduceBy2 {
+  def apply(in: UInt): UInt = {
+    val reducedWidth = (in.getWidth + 1) >> 1
+    val reducedVec   = Wire(Vec(reducedWidth, Bool()))
+    for (ix <- 0 until reducedWidth - 1) {
+      reducedVec(ix) := in(ix * 2 + 1, ix * 2).orR
     }
+    reducedVec(reducedWidth - 1) :=
+      in(in.getWidth - 1, (reducedWidth - 1) * 2).orR
+    reducedVec.asUInt
+  }
 }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
-object orReduceBy4
-{
-    def apply(in: UInt): UInt =
-    {
-        val reducedWidth = (in.getWidth + 3)>>2
-        val reducedVec = Wire(Vec(reducedWidth, Bool()))
-        for (ix <- 0 until reducedWidth - 1) {
-            reducedVec(ix) := in(ix * 4 + 3, ix * 4).orR
-        }
-        reducedVec(reducedWidth - 1) :=
-            in(in.getWidth - 1, (reducedWidth - 1) * 4).orR
-        reducedVec.asUInt
+object orReduceBy4 {
+  def apply(in: UInt): UInt = {
+    val reducedWidth = (in.getWidth + 3) >> 2
+    val reducedVec   = Wire(Vec(reducedWidth, Bool()))
+    for (ix <- 0 until reducedWidth - 1) {
+      reducedVec(ix) := in(ix * 4 + 3, ix * 4).orR
     }
+    reducedVec(reducedWidth - 1) :=
+      in(in.getWidth - 1, (reducedWidth - 1) * 4).orR
+    reducedVec.asUInt
+  }
 }
-

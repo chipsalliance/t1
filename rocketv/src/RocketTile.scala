@@ -37,25 +37,21 @@ object RocketTileParameter {
   *   - mcontextWidth: todo, 0
   *   - scontextWidth: todo, 0
   *   - hasBeu: has bus error unit, false
-  *
   *   - fastLoadByte: todo, true
   *   - fastLoadWord: todo, false
   *     - if (fastLoadByte) io.dmem.resp.bits.data(xLen-1, 0)
   *     - else if (fastLoadWord) io.dmem.resp.bits.data_word_bypass(xLen-1, 0)
   *     - else wb_reg_wdata
-  *
   *   - mulDivLatency:
   *   - divUnroll:
   *   - divEarlyOut:
   *   - divEarlyOutGranularity:
   *   - mulUnroll:
   *   - mulEarlyOut:
-  *
   *   - itlbNSets: ???
   *   - itlbNWays: ???
   *   - itlbNSectors: ???
   *   - itlbNSuperpageEntries: ???
-  *
   *   - usingBTB:
   *     - btbEntries: 28
   *     - btbNMatchBits: 14
@@ -67,7 +63,6 @@ object RocketTileParameter {
   *     - counterLength: 1
   *     - historyLength: 8
   *     - historyBits: 3
-  *
   *   - icache/dcache size: 16K, 32K
   *   - cacheBlockBytes: 32
   *   - cache way: 4

@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -43,23 +42,20 @@ import chisel3.util._
 /*----------------------------------------------------------------------------
 | In the result, no more than one of 'isNaN', 'isInf', and 'isZero' will be
 | set.
-*----------------------------------------------------------------------------*/
-object rawFloatFromRecFN
-{
-    def apply(expWidth: Int, sigWidth: Int, in: Bits): RawFloat =
-    {
-        val exp = in(expWidth + sigWidth - 1, sigWidth - 1)
-        val isZero    = exp(expWidth, expWidth - 2) === 0.U
-        val isSpecial = exp(expWidth, expWidth - 1) === 3.U
+ *----------------------------------------------------------------------------*/
+object rawFloatFromRecFN {
+  def apply(expWidth: Int, sigWidth: Int, in: Bits): RawFloat = {
+    val exp       = in(expWidth + sigWidth - 1, sigWidth - 1)
+    val isZero    = exp(expWidth, expWidth - 2) === 0.U
+    val isSpecial = exp(expWidth, expWidth - 1) === 3.U
 
-        val out = Wire(new RawFloat(expWidth, sigWidth))
-        out.isNaN  := isSpecial &&   exp(expWidth - 2)
-        out.isInf  := isSpecial && ! exp(expWidth - 2)
-        out.isZero := isZero
-        out.sign   := in(expWidth + sigWidth)
-        out.sExp   := exp.zext
-        out.sig    := 0.U(1.W) ## ! isZero ## in(sigWidth - 2, 0)
-        out
-    }
+    val out = Wire(new RawFloat(expWidth, sigWidth))
+    out.isNaN  := isSpecial && exp(expWidth - 2)
+    out.isInf  := isSpecial && !exp(expWidth - 2)
+    out.isZero := isZero
+    out.sign   := in(expWidth + sigWidth)
+    out.sExp   := exp.zext
+    out.sig    := 0.U(1.W) ## !isZero ## in(sigWidth - 2, 0)
+    out
+  }
 }
-

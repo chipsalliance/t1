@@ -11,7 +11,7 @@ import mainargs.*
 
 class T1RocketTile(mlirbc: Array[Byte]) extends OMReader(mlirbc, "T1RocketTile_Class") with T1OMReader:
   private val tile = top.obj("om")
-  private val t1 = tile.obj("t1")
+  private val t1   = tile.obj("t1")
 
   given Writer[T1RocketTileOM] = macroW
   case class T1RocketTileOM(
@@ -38,7 +38,7 @@ class T1RocketTile(mlirbc: Array[Byte]) extends OMReader(mlirbc, "T1RocketTile_C
   val retime = tile.flatten.flatMap(_.objOpt).flatMap(_.get("retime"))
 
   override def json = write(T1RocketTileOM(vlen, dlen, instructions, extensions, march, sram, retime))
-  
+
 end T1RocketTile
 
 object T1RocketTile:

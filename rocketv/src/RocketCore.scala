@@ -1753,14 +1753,14 @@ class Rocket(val parameter: RocketParameter)
   class Scoreboard(n: Int, zero: Boolean = false) {
     def set(en:            Bool, addr: UInt): Unit = update(en, _next | mask(en, addr))
     def clear(en:          Bool, addr: UInt): Unit = update(en, _next & ~mask(en, addr))
-    def read(addr:         UInt): Bool = r(addr)
-    def readBypassed(addr: UInt): Bool = _next(addr)
+    def read(addr:         UInt):             Bool = r(addr)
+    def readBypassed(addr: UInt):             Bool = _next(addr)
 
-    private val _r    = RegInit(0.U(n.W))
-    private val r     = if (zero) (_r >> 1 << 1) else _r
-    private var _next = r
-    private var ens   = false.B
-    private def mask(en: Bool, addr: UInt) = Mux(en, 1.U << addr, 0.U)
+    private val _r                             = RegInit(0.U(n.W))
+    private val r                              = if (zero) (_r >> 1 << 1) else _r
+    private var _next                          = r
+    private var ens                            = false.B
+    private def mask(en: Bool, addr: UInt)     = Mux(en, 1.U << addr, 0.U)
     private def update(en: Bool, update: UInt) = {
       _next = update
       ens = ens || en
@@ -1770,11 +1770,11 @@ class Rocket(val parameter: RocketParameter)
 }
 
 class RegFile(n: Int, w: Int, zero: Boolean = false) {
-  val rf: Mem[UInt] = Mem(n, UInt(w.W))
-  private def access(addr: UInt): UInt = rf(~addr(log2Ceil(n) - 1, 0))
-  private val reads                 = collection.mutable.ArrayBuffer[(UInt, UInt)]()
-  private var canRead               = true
-  def read(addr: UInt)              = {
+  val rf:                         Mem[UInt] = Mem(n, UInt(w.W))
+  private def access(addr: UInt): UInt      = rf(~addr(log2Ceil(n) - 1, 0))
+  private val reads = collection.mutable.ArrayBuffer[(UInt, UInt)]()
+  private var canRead = true
+  def read(addr: UInt) = {
     require(canRead)
     reads += addr -> Wire(UInt())
     reads.last._2 := Mux(zero.B && addr === 0.U, 0.U, access(addr))

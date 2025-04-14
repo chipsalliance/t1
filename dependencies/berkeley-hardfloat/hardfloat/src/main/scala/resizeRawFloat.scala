@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -43,36 +42,32 @@ import chisel3.util.Fill
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
-object resizeRawFloat
-{
-    def apply(expWidth: Int, sigWidth: Int, in: RawFloat): RawFloat =
-    {
-        val sAdjustedExp =
-            in.sExp +& ((BigInt(1)<<expWidth) - (BigInt(1)<<in.expWidth)).S
+object resizeRawFloat {
+  def apply(expWidth: Int, sigWidth: Int, in: RawFloat): RawFloat = {
+    val sAdjustedExp =
+      in.sExp +& ((BigInt(1) << expWidth) - (BigInt(1) << in.expWidth)).S
 
-        val out = Wire(new RawFloat(expWidth, sigWidth))
-        out.sign   := in.sign
-        out.isNaN  := in.isNaN
-        out.isInf  := in.isInf
-        out.isZero := in.isZero
-        out.sExp :=
-            (if (in.expWidth <= expWidth)
-                 sAdjustedExp
-             else
-                 ((sAdjustedExp < 0.S)##
-                     Mux(sAdjustedExp(in.expWidth + 1, expWidth + 1).orR,
-                         Fill(expWidth - 1, 1.U(1.W)) ## 0.U(2.W),
-                         sAdjustedExp(expWidth, 0)
-                     )
-                 ).asSInt)
-        out.sig :=
-            (if (in.sigWidth <= sigWidth)
-                 in.sig<<(sigWidth - in.sigWidth)
-             else
-                 in.sig(in.sigWidth, in.sigWidth - sigWidth + 1) ##
-                     in.sig(in.sigWidth - sigWidth, 0).orR
-                 )
-        out
-    }
+    val out = Wire(new RawFloat(expWidth, sigWidth))
+    out.sign   := in.sign
+    out.isNaN  := in.isNaN
+    out.isInf  := in.isInf
+    out.isZero := in.isZero
+    out.sExp   :=
+      (if (in.expWidth <= expWidth)
+         sAdjustedExp
+       else
+         ((sAdjustedExp < 0.S) ##
+           Mux(
+             sAdjustedExp(in.expWidth + 1, expWidth + 1).orR,
+             Fill(expWidth - 1, 1.U(1.W)) ## 0.U(2.W),
+             sAdjustedExp(expWidth, 0)
+           )).asSInt)
+    out.sig    :=
+      (if (in.sigWidth <= sigWidth)
+         in.sig << (sigWidth - in.sigWidth)
+       else
+         in.sig(in.sigWidth, in.sigWidth - sigWidth + 1) ##
+           in.sig(in.sigWidth - sigWidth, 0).orR)
+    out
+  }
 }
-

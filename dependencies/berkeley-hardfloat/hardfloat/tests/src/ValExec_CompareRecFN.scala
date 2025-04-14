@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -40,95 +39,92 @@ package hardfloat.test
 import hardfloat._
 import chisel3._
 
-class ValExec_CompareRecFN_lt(expWidth: Int, sigWidth: Int) extends Module
-{
-    val io = IO(new Bundle {
-        val a = Input(Bits((expWidth + sigWidth).W))
-        val b = Input(Bits((expWidth + sigWidth).W))
-        val expected = new Bundle {
-            val out = Input(Bits(1.W))
-            val exceptionFlags = Input(Bits(5.W))
-        }
-        val actual = new Bundle {
-            val out = Output(Bits(1.W))
-            val exceptionFlags = Output(Bits(5.W))
-        }
-        val check = Output(Bool())
-        val pass = Output(Bool())
-    })
+class ValExec_CompareRecFN_lt(expWidth: Int, sigWidth: Int) extends Module {
+  val io = IO(new Bundle {
+    val a        = Input(Bits((expWidth + sigWidth).W))
+    val b        = Input(Bits((expWidth + sigWidth).W))
+    val expected = new Bundle {
+      val out            = Input(Bits(1.W))
+      val exceptionFlags = Input(Bits(5.W))
+    }
+    val actual   = new Bundle {
+      val out            = Output(Bits(1.W))
+      val exceptionFlags = Output(Bits(5.W))
+    }
+    val check    = Output(Bool())
+    val pass     = Output(Bool())
+  })
 
-    val compareRecFN = Module(new CompareRecFN(expWidth, sigWidth))
-    compareRecFN.io.a := recFNFromFN(expWidth, sigWidth, io.a)
-    compareRecFN.io.b := recFNFromFN(expWidth, sigWidth, io.b)
-    compareRecFN.io.signaling := true.B
+  val compareRecFN = Module(new CompareRecFN(expWidth, sigWidth))
+  compareRecFN.io.a         := recFNFromFN(expWidth, sigWidth, io.a)
+  compareRecFN.io.b         := recFNFromFN(expWidth, sigWidth, io.b)
+  compareRecFN.io.signaling := true.B
 
-    io.actual.out := compareRecFN.io.lt
-    io.actual.exceptionFlags := compareRecFN.io.exceptionFlags
+  io.actual.out            := compareRecFN.io.lt
+  io.actual.exceptionFlags := compareRecFN.io.exceptionFlags
 
-    io.check := true.B
-    io.pass :=
-        (io.actual.out === io.expected.out) &&
-        (io.actual.exceptionFlags === io.expected.exceptionFlags)
+  io.check := true.B
+  io.pass  :=
+    (io.actual.out === io.expected.out) &&
+      (io.actual.exceptionFlags === io.expected.exceptionFlags)
 }
 
-class ValExec_CompareRecFN_le(expWidth: Int, sigWidth: Int) extends Module
-{
-    val io = IO(new Bundle {
-        val a = Input(Bits((expWidth + sigWidth).W))
-        val b = Input(Bits((expWidth + sigWidth).W))
-        val expected = new Bundle {
-            val out = Input(Bits(1.W))
-            val exceptionFlags = Input(Bits(5.W))
-        }
-        val actual = new Bundle {
-            val out = Output(Bits(1.W))
-            val exceptionFlags = Output(Bits(5.W))
-        }
-        val check = Output(Bool())
-        val pass = Output(Bool())
-    })
+class ValExec_CompareRecFN_le(expWidth: Int, sigWidth: Int) extends Module {
+  val io = IO(new Bundle {
+    val a        = Input(Bits((expWidth + sigWidth).W))
+    val b        = Input(Bits((expWidth + sigWidth).W))
+    val expected = new Bundle {
+      val out            = Input(Bits(1.W))
+      val exceptionFlags = Input(Bits(5.W))
+    }
+    val actual   = new Bundle {
+      val out            = Output(Bits(1.W))
+      val exceptionFlags = Output(Bits(5.W))
+    }
+    val check    = Output(Bool())
+    val pass     = Output(Bool())
+  })
 
-    val compareRecFN = Module(new CompareRecFN(expWidth, sigWidth))
-    compareRecFN.io.a := recFNFromFN(expWidth, sigWidth, io.a)
-    compareRecFN.io.b := recFNFromFN(expWidth, sigWidth, io.b)
-    compareRecFN.io.signaling := true.B
+  val compareRecFN = Module(new CompareRecFN(expWidth, sigWidth))
+  compareRecFN.io.a         := recFNFromFN(expWidth, sigWidth, io.a)
+  compareRecFN.io.b         := recFNFromFN(expWidth, sigWidth, io.b)
+  compareRecFN.io.signaling := true.B
 
-    io.actual.out := compareRecFN.io.lt || compareRecFN.io.eq
-    io.actual.exceptionFlags := compareRecFN.io.exceptionFlags
+  io.actual.out            := compareRecFN.io.lt || compareRecFN.io.eq
+  io.actual.exceptionFlags := compareRecFN.io.exceptionFlags
 
-    io.check := true.B
-    io.pass :=
-        (io.actual.out === io.expected.out) &&
-        (io.actual.exceptionFlags === io.expected.exceptionFlags)
+  io.check := true.B
+  io.pass  :=
+    (io.actual.out === io.expected.out) &&
+      (io.actual.exceptionFlags === io.expected.exceptionFlags)
 }
 
-class ValExec_CompareRecFN_eq(expWidth: Int, sigWidth: Int) extends Module
-{
-    val io = IO(new Bundle {
-        val a = Input(Bits((expWidth + sigWidth).W))
-        val b = Input(Bits((expWidth + sigWidth).W))
-        val expected = new Bundle {
-            val out = Input(Bits(1.W))
-            val exceptionFlags = Input(Bits(5.W))
-        }
-        val actual = new Bundle {
-            val out = Output(Bits(1.W))
-            val exceptionFlags = Output(Bits(5.W))
-        }
-        val check = Output(Bool())
-        val pass = Output(Bool())
-    })
+class ValExec_CompareRecFN_eq(expWidth: Int, sigWidth: Int) extends Module {
+  val io = IO(new Bundle {
+    val a        = Input(Bits((expWidth + sigWidth).W))
+    val b        = Input(Bits((expWidth + sigWidth).W))
+    val expected = new Bundle {
+      val out            = Input(Bits(1.W))
+      val exceptionFlags = Input(Bits(5.W))
+    }
+    val actual   = new Bundle {
+      val out            = Output(Bits(1.W))
+      val exceptionFlags = Output(Bits(5.W))
+    }
+    val check    = Output(Bool())
+    val pass     = Output(Bool())
+  })
 
-    val compareRecFN = Module(new CompareRecFN(expWidth, sigWidth))
-    compareRecFN.io.a := recFNFromFN(expWidth, sigWidth, io.a)
-    compareRecFN.io.b := recFNFromFN(expWidth, sigWidth, io.b)
-    compareRecFN.io.signaling := false.B
+  val compareRecFN = Module(new CompareRecFN(expWidth, sigWidth))
+  compareRecFN.io.a         := recFNFromFN(expWidth, sigWidth, io.a)
+  compareRecFN.io.b         := recFNFromFN(expWidth, sigWidth, io.b)
+  compareRecFN.io.signaling := false.B
 
-    io.actual.out := compareRecFN.io.eq
-    io.actual.exceptionFlags := compareRecFN.io.exceptionFlags
+  io.actual.out            := compareRecFN.io.eq
+  io.actual.exceptionFlags := compareRecFN.io.exceptionFlags
 
-    io.check := true.B
-    io.pass :=
-        (io.actual.out === io.expected.out) &&
-        (io.actual.exceptionFlags === io.expected.exceptionFlags)
+  io.check := true.B
+  io.pass  :=
+    (io.actual.out === io.expected.out) &&
+      (io.actual.exceptionFlags === io.expected.exceptionFlags)
 }

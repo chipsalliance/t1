@@ -528,19 +528,19 @@ class TLB(val parameter: TLBParameter)
     if (!usingVM || (minPgLevels == pgLevels && vaddrBits == vaddrBitsExtended)) false.B
     else vm_enabled && stage1_en && badVA(false)
 
-  val cmd_lrsc = usingAtomics.B && isOneOf(io.req.bits.cmd, Seq(M_XLR, M_XSC))
-  def isAMOLogical(cmd: UInt) = isOneOf(cmd, Seq(M_XA_SWAP, M_XA_XOR, M_XA_OR, M_XA_AND))
-  val cmd_amo_logical = usingAtomics.B && isAMOLogical(io.req.bits.cmd)
+  val cmd_lrsc                   = usingAtomics.B && isOneOf(io.req.bits.cmd, Seq(M_XLR, M_XSC))
+  def isAMOLogical(cmd:    UInt) = isOneOf(cmd, Seq(M_XA_SWAP, M_XA_XOR, M_XA_OR, M_XA_AND))
+  val cmd_amo_logical            = usingAtomics.B && isAMOLogical(io.req.bits.cmd)
   def isAMOArithmetic(cmd: UInt) = isOneOf(cmd, Seq(M_XA_ADD, M_XA_MIN, M_XA_MAX, M_XA_MINU, M_XA_MAXU))
-  val cmd_amo_arithmetic = usingAtomics.B && isAMOArithmetic(io.req.bits.cmd)
-  val cmd_put_partial    = io.req.bits.cmd === M_PWR
-  def isAMO(cmd:  UInt) = isAMOLogical(cmd) || isAMOArithmetic(cmd)
-  def isRead(cmd: UInt) = isOneOf(cmd, Seq(M_XRD, M_HLVX, M_XLR, M_XSC)) || isAMO(cmd)
-  val cmd_read  = isRead(io.req.bits.cmd)
-  val cmd_readx = usingHypervisor.B && io.req.bits.cmd === M_HLVX
-  def isWrite(cmd: UInt) = cmd === M_XWR || cmd === M_PWR || cmd === M_XSC || isAMO(cmd)
-  val cmd_write       = isWrite(io.req.bits.cmd)
-  val cmd_write_perms = cmd_write ||
+  val cmd_amo_arithmetic         = usingAtomics.B && isAMOArithmetic(io.req.bits.cmd)
+  val cmd_put_partial            = io.req.bits.cmd === M_PWR
+  def isAMO(cmd:           UInt) = isAMOLogical(cmd) || isAMOArithmetic(cmd)
+  def isRead(cmd:          UInt) = isOneOf(cmd, Seq(M_XRD, M_HLVX, M_XLR, M_XSC)) || isAMO(cmd)
+  val cmd_read                   = isRead(io.req.bits.cmd)
+  val cmd_readx                  = usingHypervisor.B && io.req.bits.cmd === M_HLVX
+  def isWrite(cmd:         UInt) = cmd === M_XWR || cmd === M_PWR || cmd === M_XSC || isAMO(cmd)
+  val cmd_write                  = isWrite(io.req.bits.cmd)
+  val cmd_write_perms            = cmd_write ||
     isOneOf(io.req.bits.cmd, Seq(M_FLUSH_ALL, M_WOK)) // not a write, but needs write permissions
 
   val lrscAllowed = Mux((usingDataScratchpad || usingAtomicsOnlyForIO).B, 0.U, c_array)

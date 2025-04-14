@@ -59,21 +59,21 @@ class FPU(val parameter: FPUParameter)
   override protected def implicitClock: Clock = io.clock
   override protected def implicitReset: Reset = io.reset
 
-  val helper          = new FPUHelper(parameter.minFLen, parameter.minFLen, parameter.xLen)
+  val helper = new FPUHelper(parameter.minFLen, parameter.minFLen, parameter.xLen)
   val typeTagWbOffset = helper.typeTagWbOffset
-  def recode(x:      UInt, tag: UInt): UInt = helper.recode(x, tag)
-  def consistent(x:  UInt): Bool = helper.consistent(x)
+  def recode(x:      UInt, tag: UInt):                           UInt = helper.recode(x, tag)
+  def consistent(x:  UInt):                                      Bool = helper.consistent(x)
   def unbox(x:       UInt, tag: UInt, exactType: Option[FType]): UInt = helper.unbox(x, tag, exactType)
   def box(x:         UInt, tag: UInt) = helper.box(x, tag)
   def typeTag(t:     FType) = helper.typeTag(t)
   def sanitizeNaN(x: UInt, t:   FType) = helper.sanitizeNaN(x, t)
-  def maxType    = helper.maxType
-  val fLen       = parameter.fLen
-  val minFLen    = parameter.minFLen
+  def maxType = helper.maxType
+  val fLen = parameter.fLen
+  val minFLen = parameter.minFLen
   val floatTypes = helper.floatTypes
-  val S          = helper.S
-  val D          = helper.D
-  val H          = helper.H
+  val S = helper.S
+  val D = helper.D
+  val H = helper.H
   object cfg {
     val sfmaLatency = parameter.sfmaLatency
     val dfmaLatency = parameter.dfmaLatency
@@ -306,9 +306,9 @@ class FPU(val parameter: FPUParameter)
       require(pipes.forall(_.lat >= offset))
       pipes.map(p => Mux(p.cond(c), (1 << p.lat - offset).U, 0.U)).reduce(_ | _)
     }
-    def pipeid(c: FPUCtrlSigs) = pipes.zipWithIndex.map(p => Mux(p._1.cond(c), p._2.U, 0.U)).reduce(_ | _)
-    val maxLatency     = pipes.map(_.lat).max
-    val memLatencyMask = latencyMask(mem_ctrl, 2)
+    def pipeid(c: FPUCtrlSigs)                   = pipes.zipWithIndex.map(p => Mux(p._1.cond(c), p._2.U, 0.U)).reduce(_ | _)
+    val maxLatency                               = pipes.map(_.lat).max
+    val memLatencyMask                           = latencyMask(mem_ctrl, 2)
 
     class WBInfo extends Bundle {
       val rd      = UInt(5.W)
@@ -458,8 +458,8 @@ case class FType(exp: Int, sig: Int) {
   def ieeeWidth    = exp + sig
   def recodedWidth = ieeeWidth + 1
 
-  def ieeeQNaN = ((BigInt(1) << (ieeeWidth - 1)) - (BigInt(1) << (sig - 2))).U(ieeeWidth.W)
-  def qNaN     = ((BigInt(7) << (exp + sig - 3)) + (BigInt(1) << (sig - 2))).U(recodedWidth.W)
+  def ieeeQNaN        = ((BigInt(1) << (ieeeWidth - 1)) - (BigInt(1) << (sig - 2))).U(ieeeWidth.W)
+  def qNaN            = ((BigInt(7) << (exp + sig - 3)) + (BigInt(1) << (sig - 2))).U(recodedWidth.W)
   def isNaN(x:  UInt) = x(sig + exp - 1, sig + exp - 3).andR
   def isSNaN(x: UInt) = isNaN(x) && !x(sig - 2)
 
@@ -526,22 +526,22 @@ case class FType(exp: Int, sig: Int) {
 // TODO: migrate into FPUParameter
 class FPUHelper(minFLen: Int, fLen: Int, xLen: Int) {
   require(fLen == 0 || FType.all.exists(_.ieeeWidth == fLen))
-  val minXLen    = 32
-  val nIntTypes  = log2Ceil(xLen / minXLen) + 1
-  def floatTypes = FType.all.filter(t => minFLen <= t.ieeeWidth && t.ieeeWidth <= fLen)
-  def minType    = floatTypes.head
-  def maxType    = floatTypes.last
-  def prevType(t: FType) = floatTypes(typeTag(t) - 1)
-  def maxExpWidth = maxType.exp
-  def maxSigWidth = maxType.sig
-  def typeTag(t: FType) = floatTypes.indexOf(t)
-  def typeTagWbOffset = (FType.all.indexOf(minType) + 1).U
+  val minXLen                = 32
+  val nIntTypes              = log2Ceil(xLen / minXLen) + 1
+  def floatTypes             = FType.all.filter(t => minFLen <= t.ieeeWidth && t.ieeeWidth <= fLen)
+  def minType                = floatTypes.head
+  def maxType                = floatTypes.last
+  def prevType(t:     FType) = floatTypes(typeTag(t) - 1)
+  def maxExpWidth            = maxType.exp
+  def maxSigWidth            = maxType.sig
+  def typeTag(t:      FType) = floatTypes.indexOf(t)
+  def typeTagWbOffset        = (FType.all.indexOf(minType) + 1).U
   def typeTagGroup(t: FType) = (if (floatTypes.contains(t)) typeTag(t) else typeTag(maxType)).U
   // typeTag
-  def H = typeTagGroup(FType.H)
-  def S = typeTagGroup(FType.S)
-  def D = typeTagGroup(FType.D)
-  def I = typeTag(maxType).U
+  def H                      = typeTagGroup(FType.H)
+  def S                      = typeTagGroup(FType.S)
+  def D                      = typeTagGroup(FType.D)
+  def I                      = typeTag(maxType).U
 
   private def isBox(x: UInt, t: FType): Bool = x(t.sig + t.exp, t.sig + t.exp - 4).andR
 

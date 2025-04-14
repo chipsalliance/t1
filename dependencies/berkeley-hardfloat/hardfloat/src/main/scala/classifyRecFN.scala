@@ -1,4 +1,3 @@
-
 /*============================================================================
 
 This Chisel source file is part of a pre-release version of the HardFloat IEEE
@@ -39,29 +38,25 @@ package hardfloat
 
 import chisel3._
 
-object classifyRecFN
-{
-    def apply(expWidth: Int, sigWidth: Int, in: Bits) =
-    {
-        val minNormExp: BigInt = (BigInt(1)<<(expWidth - 1)) + 2
+object classifyRecFN {
+  def apply(expWidth: Int, sigWidth: Int, in: Bits) = {
+    val minNormExp: BigInt = (BigInt(1) << (expWidth - 1)) + 2
 
-        val rawIn: RawFloat = rawFloatFromRecFN(expWidth, sigWidth, in)
-        val isSigNaN: Bool = isSigNaNRawFloat(rawIn)
-        val isFiniteNonzero: Bool = ! rawIn.isNaN && ! rawIn.isInf && ! rawIn.isZero
-        val isSubnormal: Bool = rawIn.sExp < minNormExp.S
+    val rawIn:           RawFloat = rawFloatFromRecFN(expWidth, sigWidth, in)
+    val isSigNaN:        Bool     = isSigNaNRawFloat(rawIn)
+    val isFiniteNonzero: Bool     = !rawIn.isNaN && !rawIn.isInf && !rawIn.isZero
+    val isSubnormal:     Bool     = rawIn.sExp < minNormExp.S
 
+    (rawIn.isNaN && !isSigNaN) ##
+      isSigNaN ##
+      (!rawIn.sign && rawIn.isInf) ##
+      (!rawIn.sign && isFiniteNonzero && !isSubnormal) ##
+      (!rawIn.sign && isFiniteNonzero && isSubnormal) ##
+      (!rawIn.sign && rawIn.isZero) ##
+      (rawIn.sign && rawIn.isZero) ##
+      (rawIn.sign && isFiniteNonzero && isSubnormal) ##
+      (rawIn.sign && isFiniteNonzero && !isSubnormal) ##
+      (rawIn.sign && rawIn.isInf)
 
-        (rawIn.isNaN && ! isSigNaN) ##
-        isSigNaN ##
-        (! rawIn.sign && rawIn.isInf) ##
-        (! rawIn.sign && isFiniteNonzero && ! isSubnormal) ##
-        (! rawIn.sign && isFiniteNonzero &&   isSubnormal) ##
-        (! rawIn.sign && rawIn.isZero) ##
-        (rawIn.sign   && rawIn.isZero) ##
-        (rawIn.sign   && isFiniteNonzero &&   isSubnormal) ##
-        (rawIn.sign   && isFiniteNonzero && ! isSubnormal) ##
-        (rawIn.sign   && rawIn.isInf)
-
-    }
+  }
 }
-

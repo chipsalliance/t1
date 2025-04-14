@@ -15,7 +15,7 @@ import org.chipsalliance.t1.tile.{T1RocketTile, T1RocketTileParameter}
 // --instructionSets rv32_i --instructionSets rv_a --instructionSets rv_c --instructionSets rv_v --instructionSets Zve32x --instructionSets zvl1024b --cacheBlockBytes 32 --nPMPs 8 --cacheable 80000000-ffffffff --sideEffects 00000000-1fffffff --dcacheNSets 64 --dcacheNWays 4 --dcacheRowBits 32 --iCacheNSets 32 --iCacheNWays 4 --iCachePrefetch false --dLen 256 --vrfBankSize 2 --vrfRamType p0rp1w
 object T1RocketTile extends SerializableModuleElaborator {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
-    def shortName = "path"
+    def shortName               = "path"
     def read(strs: Seq[String]) = Right(os.Path(strs.head, os.pwd))
   }
 

@@ -41,13 +41,13 @@ class LaneFFO(datapathWidth: Int) extends Module {
   //
   val selectOH = UIntToOH(resultSelect)
   // find-first-set
-  val first: Bool = selectOH(0)
+  val first:                      Bool = selectOH(0)
   // set-before-first
-  val sbf:   Bool = selectOH(1)
+  val sbf:                        Bool = selectOH(1)
   // set-only-first
-  val sof:   Bool = selectOH(2)
+  val sof:                        Bool = selectOH(2)
   // set-including-first
-  val sif:   Bool = selectOH(3)
+  val sif:                        Bool = selectOH(3)
 
   /** first: complete ? 0 : index sbf: complete ? 0 : notZero ? ro : -1 sof: complete ? 0 : OH sif: complete ? 0 :
     * notZero ? inc : -1
