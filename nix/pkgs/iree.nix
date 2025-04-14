@@ -8,13 +8,13 @@
 }:
 let
   stdenv = llvmPackages.stdenv;
-  version = "3.4.0rc20250331";
-  iree-llvm-version = "857a04cd7670b629b560ba7e67c758a0c15e0841";
+  version = "3.4.0rc20250414";
+  iree-llvm-version = "2f41fa387d6734c637d02cbcf985c7b312b1e23b";
   iree-llvm-src = fetchFromGitHub {
     owner = "iree-org";
     repo = "llvm-project";
     rev = iree-llvm-version;
-    hash = "sha256-xxl9pjfu5JNbUynf7QQENyOrJs547LUMKhYi2HAlJ3k=";
+    hash = "sha256-3bo63+JuLNf+MFyG7Yrw9OZJEo4t4D+IrW2OsgG93s4=";
   };
   iree-cpuinfo-version = "3c8b1533ac03dd6531ab6e7b9245d488f13a82a5";
   iree-cpuinfo-src = fetchFromGitHub {
@@ -22,13 +22,6 @@ let
     repo = "cpuinfo";
     rev = iree-cpuinfo-version;
     hash = "sha256-eshoHmGiu5k0XE/A1SWf7OvBj7/YD9JNSZgoyGzGcLA=";
-  };
-  iree-googletest-version = "c8393f8554419dc27b688c535b8fa4afb82146a4";
-  iree-googletest-src = fetchFromGitHub {
-    owner = "google";
-    repo = "googletest";
-    rev = iree-googletest-version;
-    hash = "sha256-K48kVGMyoWWcDHXhHM98NORZerBm6wbnYf50GkK4B2Y=";
   };
   iree-benchmark-version = "99bdb2127d1fa1cff444bbefb814e105c7d20c45";
   iree-benchmark-src = fetchFromGitHub {
@@ -44,12 +37,12 @@ let
     rev = iree-flatcc-version;
     hash = "sha256-umZ9TvNYDZtF/mNwQUGuhAGve0kPw7uXkaaQX0EzkBY=";
   };
-  iree-torch-mlir-version = "e4a2f86832103df4b0178666f4b17dfecf5b8bb7";
+  iree-torch-mlir-version = "11d085345e93b50ce7fd290f504045870e53f405";
   iree-torch-mlir-src = fetchFromGitHub {
     owner = "iree-org";
     repo = "torch-mlir";
     rev = iree-torch-mlir-version;
-    hash = "sha256-xcpE5lmoHGETTcPE/Q26AFoeACRoNS4Fby98U6C736s=";
+    hash = "sha256-bq+qIuMo6gA6O5CFTtXXHWEMGP4/S6WkcmrgYCkyxeU=";
   };
 in
 stdenv.mkDerivation {
@@ -60,14 +53,13 @@ stdenv.mkDerivation {
     owner = "iree-org";
     repo = "iree";
     tag = "iree-${version}";
-    hash = "sha256-L21iWAyl4qj6w8tElrnf05Vt6eEY3A+VX4yfH7bUciA=";
+    hash = "sha256-HPtJ+qHecdaP814AdSNKvrsEVJv6tezd9WtGO19seFY=";
   };
 
   postUnpack = ''
     cp -r ${iree-llvm-src}/* $sourceRoot/third_party/llvm-project/
     cp -r ${iree-torch-mlir-src}/* $sourceRoot/third_party/torch-mlir/
     cp -r ${iree-cpuinfo-src}/* $sourceRoot/third_party/cpuinfo/
-    cp -r ${iree-googletest-src}/* $sourceRoot/third_party/googletest/
     cp -r ${iree-benchmark-src}/* $sourceRoot/third_party/benchmark/
     cp -r ${iree-flatcc-src}/* $sourceRoot/third_party/flatcc/
     chmod -R u+w $sourceRoot/third_party/
@@ -86,6 +78,7 @@ stdenv.mkDerivation {
   cmakeFlags = [
     "-DIREE_BUILD_TESTS=OFF"
     "-DIREE_BUILD_SAMPLES=OFF"
+    "-DIREE_USE_SYSTEM_DEPS=ON"
     "-DIREE_BUILD_PYTHON_BINDINGS=ON"
     "-DIREE_TARGET_BACKEND_DEFAULTS=OFF"
     "-DIREE_TARGET_BACKEND_LLVM_CPU=ON"
@@ -102,8 +95,4 @@ stdenv.mkDerivation {
     cp -vr $out/python_packages/iree_compiler/iree/* $out/lib/python${python3.pythonVersion}/site-packages/iree/
     cp -vr $out/python_packages/iree_runtime/iree/* $out/lib/python${python3.pythonVersion}/site-packages/iree/
   '';
-
-  patches = [
-    ../patches/iree/0001-Find-nanobind-first.patch
-  ];
 }

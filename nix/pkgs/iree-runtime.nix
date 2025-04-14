@@ -7,14 +7,7 @@
   fetchFromGitHub,
 }:
 let
-  version = "3.4.0rc20250331";
-  iree-googletest-version = "c8393f8554419dc27b688c535b8fa4afb82146a4";
-  iree-googletest-src = fetchFromGitHub {
-    owner = "google";
-    repo = "googletest";
-    rev = iree-googletest-version;
-    hash = "sha256-K48kVGMyoWWcDHXhHM98NORZerBm6wbnYf50GkK4B2Y=";
-  };
+  version = "3.4.0rc20250414";
   iree-flatcc-version = "9362cd00f0007d8cbee7bff86e90fb4b6b227ff3";
   iree-flatcc-src = fetchFromGitHub {
     owner = "dvidelabs";
@@ -31,11 +24,10 @@ rv32-stdenv.mkDerivation {
     owner = "iree-org";
     repo = "iree";
     tag = "iree-${version}";
-    hash = "sha256-L21iWAyl4qj6w8tElrnf05Vt6eEY3A+VX4yfH7bUciA=";
+    hash = "sha256-HPtJ+qHecdaP814AdSNKvrsEVJv6tezd9WtGO19seFY=";
   };
 
   postUnpack = ''
-    cp -r ${iree-googletest-src}/* $sourceRoot/third_party/googletest/
     cp -r ${iree-flatcc-src}/* $sourceRoot/third_party/flatcc/
     chmod -R u+w $sourceRoot/third_party/
   '';
@@ -217,8 +209,4 @@ rv32-stdenv.mkDerivation {
     cp build_tools/third_party/flatcc/libflatcc_parsing.a $prefix/lib/
     # cp build_tools/third_party/flatcc/libflatcc_runtime.a $prefix/lib/
   '';
-
-  patches = [
-    ../patches/iree/0001-Do-not-unconditionally-build-runtime-demo.patch
-  ];
 }
