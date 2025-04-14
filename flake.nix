@@ -18,7 +18,7 @@
       ...
     }:
     let
-      overlay = import ./nix/overlay.nix { inherit self; };
+      overlay = import ./nix/overlay.nix;
     in
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {
       # Add supported platform here
