@@ -42,6 +42,10 @@ fn mask_display(mask: &Vec<bool>) -> String {
   mask.into_iter().map(|&b| if b { '1' } else { '0' }).collect()
 }
 
+fn data_display(data: &Vec<u8>) -> String {
+  data.into_iter().rev().map(|&b| format! {"{:02x}", b}).collect()
+}
+
 #[derive(Deserialize, Debug)]
 #[serde(tag = "event")]
 pub(crate) enum JsonEvents {
@@ -360,11 +364,12 @@ impl JsonEventRunner for SpikeRunner {
       self.commit_queue.iter_mut().rev().find(|se| se.issue_idx == vrf_write.issue_idx)
     {
       debug!(
-        "[{}] VrfWrite: issue_idx={}, idx_base={},  mask={}, data={:x?} ({})",
+        "[{}] VrfWrite: issue_idx={}, idx_base={},  mask={}, data={}({:02x?}) ({})",
         vrf_write.cycle,
         vrf_write.issue_idx,
         vrf_write.vrf_idx,
         mask_display(&vrf_write.mask),
+        data_display(&vrf_write.data),
         vrf_write.data,
         se.describe_insn()
       );
