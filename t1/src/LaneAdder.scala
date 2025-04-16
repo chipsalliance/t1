@@ -14,7 +14,7 @@ import org.chipsalliance.t1.rtl.vfu.{VectorAdder, VectorAdderParameter}
 object LaneAdderParam                {
   implicit def rw: upickle.default.ReadWriter[LaneAdderParam] = upickle.default.macroRW
 }
-case class LaneAdderParam(eLen: Int, latency: Int, laneScale: Int = 2)
+case class LaneAdderParam(eLen: Int, latency: Int, laneScale: Int)
     extends VFUParameter
     with SerializableModuleParameter {
   val datapathWidth: Int       = eLen * laneScale

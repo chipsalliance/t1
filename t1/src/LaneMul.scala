@@ -17,9 +17,7 @@ object LaneMulParam {
 }
 
 /** @param dataPathWidth width of data path, can be 32 or 64, decides the memory bandwidth. */
-case class LaneMulParam(eLen: Int, latency: Int, laneScale: Int = 2)
-    extends VFUParameter
-    with SerializableModuleParameter {
+case class LaneMulParam(eLen: Int, latency: Int, laneScale: Int) extends VFUParameter with SerializableModuleParameter {
   val datapathWidth: Int       = eLen * laneScale
   val respWidth:     Int       = datapathWidth
   val sourceWidth:   Int       = datapathWidth

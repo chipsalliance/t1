@@ -286,6 +286,8 @@ case class T1Parameter(
 
   val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, allInstructions)
 
+  val chaining1HBits: Int = 2 << log2Ceil(chainingSize)
+
   /** paraemter for AXI4. */
   val axi4BundleParameter: AXI4BundleParameter = AXI4BundleParameter(
     idWidth = sourceWidth,
@@ -351,11 +353,9 @@ case class T1Parameter(
     name = "main"
   )
   def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
-  def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0)
+  def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0, 1)
 
-  require(xLen == datapathWidth)
   require(isPow2(laneNumber))
-  require(isPow2(chainingSize))
 }
 
 class T1Probe(parameter: T1Parameter) extends Bundle {
@@ -369,7 +369,7 @@ class T1Probe(parameter: T1Parameter) extends Bundle {
   // write queue enq for mask unit
   val writeQueueEnqVec:   Vec[ValidIO[UInt]]             = Vec(parameter.laneNumber, Valid(UInt(parameter.instructionIndexBits.W)))
   // mask unit instruction valid
-  val instructionValid:   UInt                           = UInt((parameter.chainingSize * 2).W)
+  val instructionValid:   UInt                           = UInt(parameter.chaining1HBits.W)
   // instruction index for check rd
   val responseCounter:    UInt                           = UInt(parameter.instructionIndexBits.W)
   // probes
@@ -556,7 +556,7 @@ class T1(val parameter: T1Parameter)
     *   - vd is v0
     */
   val specialInstruction: Bool      = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
-  val dataInWritePipeVec: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt((2 * parameter.chainingSize).W)))
+  val dataInWritePipeVec: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.chaining1HBits.W)))
   val dataInWritePipe:    UInt      = dataInWritePipeVec.reduce(_ | _)
 
   // todo: instructionRAWReady -> v0 write token

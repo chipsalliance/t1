@@ -113,7 +113,8 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   val readRequestQueueSizeBeforeCheck: Int = 4
   val readRequestQueueSizeAfterCheck:  Int = 4
   val dataQueueSize:                   Int = 4
-  val vrfReadEntryType = new VRFReadQueueEntry(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits)
+  val vrfReadEntryType =
+    new VRFReadQueueEntry(parameter.vrfParam.regNumBits, parameter.vrfOffsetBits, parameter.chainingSize)
 
   // read request queue for vs1 vs2 vd
   val queueAfterCheck1:  QueueIO[VRFReadQueueEntry] =

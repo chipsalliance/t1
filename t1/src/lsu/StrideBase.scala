@@ -29,7 +29,7 @@ abstract class StrideBase(param: MSHRParam) extends Module {
   /** [[LSURequest]] from LSU see [[LSU.request]]
     */
   @public
-  val lsuRequest: ValidIO[LSURequest] = IO(Flipped(Valid(new LSURequest(param.datapathWidth))))
+  val lsuRequest: ValidIO[LSURequest] = IO(Flipped(Valid(new LSURequest(param.datapathWidth, param.chainingSize))))
 
   /** request from LSU. */
   val lsuRequestReg: LSURequest = RegInit(0.U.asTypeOf(lsuRequest.bits))
