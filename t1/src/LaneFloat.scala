@@ -24,7 +24,7 @@ case class LaneFloatParam(eLen: Int, latency: Int, laneScale: Int)
   val datapathWidth: Int       = eLen * laneScale
   val decodeField:   BoolField = Decoder.float
   val inputBundle  = new LaneFloatRequest(datapathWidth)
-  val outputBundle = new LaneFloatResponse(datapathWidth, laneScale)
+  val outputBundle = new LaneFloatResponse(datapathWidth)
   override val NeedSplit: Boolean = false
 }
 
@@ -53,9 +53,9 @@ class LaneFloatRequest(datapathWidth: Int) extends VFUPipeBundle {
   val executeIndex: UInt = UInt(2.W)
 }
 
-class LaneFloatResponse(datapathWidth: Int, laneScale: Int) extends VFUPipeBundle {
+class LaneFloatResponse(datapathWidth: Int) extends VFUPipeBundle {
   val data           = UInt(datapathWidth.W)
-  val adderMaskResp  = UInt(laneScale.W)
+  val adderMaskResp  = UInt((datapathWidth / 8).W)
   val exceptionFlags = UInt(5.W)
   val executeIndex: UInt = UInt(2.W)
 }
@@ -69,7 +69,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule with Serializab
   val omInstance: Instance[LaneFloatOM] = Instantiate(new LaneFloatOM(parameter))
   omInstance.retimeIn.foreach(_ := Property(Path(clock)))
 
-  val response: LaneFloatResponse = Wire(new LaneFloatResponse(parameter.datapathWidth, parameter.laneScale))
+  val response: LaneFloatResponse = Wire(new LaneFloatResponse(parameter.datapathWidth))
   val request:  LaneFloatRequest  = connectIO(response, true.B).asTypeOf(parameter.inputBundle)
 
   val responseVec: Seq[(UInt, UInt)] = Seq.tabulate(parameter.laneScale) { index =>
@@ -114,7 +114,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule with Serializab
 
     val mulAddRecFN = Module(new MulAddRecFN(8, 24))
     val fmaIn0      = Mux(sub, recIn1, recIn0)
-    val fmaIn1      = Mux(addsub, (BigInt(1) << (parameter.datapathWidth - 1)).U, Mux(rmaf, recIn2, recIn1))
+    val fmaIn1      = Mux(addsub, (BigInt(1) << (parameter.eLen - 1)).U, Mux(rmaf, recIn2, recIn1))
     val fmaIn2      = Mux(
       sub,
       recIn0,
@@ -123,7 +123,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule with Serializab
         recIn2,
         Mux(
           maf && subRequest.floatMul,
-          ((subRequest.src(0) ^ subRequest.src(1)) & (BigInt(1) << (parameter.datapathWidth - 1)).U) << 1,
+          ((subRequest.src(0) ^ subRequest.src(1)) & (BigInt(1) << (parameter.eLen - 1)).U) << 1,
           recIn1
         )
       )
@@ -317,7 +317,7 @@ class LaneFloat(val parameter: LaneFloatParam) extends VFUModule with Serializab
     (result, flags)
   }
 
-  response.adderMaskResp  := VecInit(responseVec.map(_._1(0))).asUInt
+  response.adderMaskResp  := VecInit(responseVec.map(_._1(parameter.eLen / 8 - 1, 0))).asUInt
   response.data           := VecInit(responseVec.map(_._1)).asUInt
   response.exceptionFlags := VecInit(responseVec.map(_._2)).reduce(_ | _)
   response.executeIndex   := request.executeIndex

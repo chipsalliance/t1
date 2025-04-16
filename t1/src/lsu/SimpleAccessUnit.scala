@@ -46,6 +46,7 @@ case class MSHRParam(
   chainingSize:     Int,
   datapathWidth:    Int,
   vLen:             Int,
+  eLen:             Int,
   laneNumber:       Int,
   paWidth:          Int,
   lsuTransposeSize: Int,
@@ -127,6 +128,8 @@ case class MSHRParam(
 
   // One round trip is required
   val lsuReadShifterLatency: Int = 2 * lsuReadShifter
+
+  val dataPathByteBits: Int = log2Ceil(datapathWidth / 8)
 }
 
 /** Miss Status Handler Register this is used to record the outstanding memory access request for each instruction. it
@@ -504,12 +507,13 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   // the LSB of [[globalOffsetOfIndexedInstructionOffsets]] is offset of the offset group
   // this is used for extract the current offset need to be used from [[indexedInstructionOffsets]]
 
+  val offsetIndex: UInt = groupIndex ## nextElementForMemoryRequestIndex
+
   /** global(instruction level) offset to [[indexedInstructionOffsets]] [[nextElementForMemoryRequestIndex]] is the
     * current index of memory request. use [[offsetEEW]] to multiply this index TODO: use Mux1H here
     */
   val globalOffsetOfIndexedInstructionOffsets: UInt =
-    ((groupIndex ## nextElementForMemoryRequestIndex) << offsetEEW)
-      .asUInt(nextElementForMemoryRequestIndex.getWidth + 1, 0)
+    (offsetIndex << offsetEEW).asUInt(nextElementForMemoryRequestIndex.getWidth + 1, 0)
 
   /** MSB of [[globalOffsetOfIndexedInstructionOffsets]], indicate the offset group of current memory request. */
   val offsetGroupIndexOfMemoryRequest: UInt =
@@ -590,11 +594,11 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
       offsetEEWOH,
       Seq(
         // EEW = 8
-        offsetOfOffsetGroup(1, 0).andR,
+        offsetIndex(param.dataPathByteBits - 1, 0).andR,
         // EEW = 16
-        offsetOfOffsetGroup(1),
+        offsetIndex(param.dataPathByteBits - 2, 0).andR,
         // EEW = 32
-        true.B
+        if (param.dataPathByteBits > 2) offsetIndex(param.dataPathByteBits - 3, 0).andR else true.B
       )
     )
 
@@ -816,17 +820,18 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   s1EnqQueue.deq.ready     := s1EnqueueReady && s1DataEnqValid
   s1EnqDataQueue.deq.ready := s1EnqueueReady
 
-  val addressInBeatByte: UInt = s1Reg.address(log2Ceil(param.datapathWidth / 8) - 1, 0)
+  val addressInBeatByte: UInt = s1Reg.address(log2Ceil(param.eLen / 8) - 1, 0)
   // 1 -> 1 2 -> 3 4 -> 15
   val baseMask:          UInt = dataEEWOH(2) ## dataEEWOH(2) ## !dataEEWOH(0) ## true.B
 
   /** compute the mask for store transaction. */
-  val storeMask: UInt = (baseMask << addressInBeatByte).asUInt(param.datapathWidth / 8 - 1, 0)
+  val storeMask: UInt = (baseMask << addressInBeatByte).asUInt(param.eLen / 8 - 1, 0)
 
   /** offset caused by element index(byte level) in the datapath. */
-  val storeOffsetByIndex: UInt = (s1Reg.indexInMaskGroup(1, 0) << dataEEW).asUInt(1, 0)
+  val storeOffsetByIndex: UInt =
+    (s1Reg.indexInMaskGroup(param.dataPathByteBits - 1, 0) << dataEEW).asUInt(param.dataPathByteBits - 1, 0)
 
-  val addressOffSetForDataPath: Int = log2Ceil(param.datapathWidth / 8)
+  val addressOffSetForDataPath: Int = log2Ceil(param.eLen / 8)
 
   /** align the VRF index in datapath and memory. TODO: use Mux1H to select(only 4 cases).
     */
@@ -846,7 +851,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   // log(32)-> 5    log(8) -> 3
   memReadRequest.bits.source  := memoryRequestSource
   memReadRequest.bits.address := (s1Reg.address >> addressOffSetForDataPath) << addressOffSetForDataPath
-  memReadRequest.bits.size    := 2.U
+  memReadRequest.bits.size    := log2Ceil(param.eLen / 8).U
   memReadRequest.valid        := s1Valid && sourceFree && !lsuRequestReg.instructionInformation.isStore
 
   memWriteRequest.valid        := s1Valid && sourceFree && lsuRequestReg.instructionInformation.isStore
@@ -857,7 +862,7 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   memWriteRequest.bits.source  := memoryRequestSource
 
   val offsetRecord = RegInit(
-    VecInit(Seq.fill(memoryRequestSourceOH.getWidth)(0.U(log2Ceil(param.datapathWidth / 8).W)))
+    VecInit(Seq.fill(memoryRequestSourceOH.getWidth)(0.U(log2Ceil(param.eLen / 8).W)))
   )
 
   offsetRecord.zipWithIndex.foreach { case (d, i) =>
@@ -878,26 +883,31 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
   /** the LSB(maskGroupWidth) for response, MSHR only maintains maskGroupWidth of request. */
   val responseSourceLSBOH: UInt = UIntToOH(memReadResponse.bits.source(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0))
 
+  val loadBaseElementIndex = groupIndex ## indexInMaskGroupResponse
+
   /** which byte to access in VRF for load instruction. see [[storeBaseByteOffset]]
     */
-  val loadBaseByteOffset: UInt = ((groupIndex ## indexInMaskGroupResponse) << dataEEW)
+  val loadBaseByteOffset: UInt = (loadBaseElementIndex << dataEEW).asUInt
   vrfWritePort.valid := memReadResponse.valid
   val addressOffset =
     offsetRecord(memReadResponse.bits.source(log2Ceil(param.maxOffsetPerLaneAccess) - 1, 0)) ## 0.U(3.W)
   memReadResponse.ready := vrfWritePort.ready
 
   // TODO: handle alignment for VRF and memory
-  vrfWritePort.bits.data             := (((memReadResponse.bits.data >> addressOffset) << (loadBaseByteOffset(1, 0) ## 0.U(
-    3.W
-  )))).asUInt
+  vrfWritePort.bits.data             := (
+    ((memReadResponse.bits.data >> addressOffset) << (loadBaseByteOffset(param.dataPathByteBits - 1, 0) ## 0.U(3.W)))
+  ).asUInt
   vrfWritePort.bits.last             := last
   vrfWritePort.bits.instructionIndex := lsuRequestReg.instructionIndex
   vrfWritePort.bits.mask             := Mux1H(
     dataEEWOH(2, 0),
     Seq(
-      UIntToOH(loadBaseByteOffset(1, 0)),
-      loadBaseByteOffset(1) ## loadBaseByteOffset(1) ## !loadBaseByteOffset(1) ## !loadBaseByteOffset(1),
-      15.U(4.W)
+      UIntToOH(loadBaseElementIndex(param.dataPathByteBits - 1, 0)),
+      FillInterleaved(2, UIntToOH(loadBaseElementIndex(param.dataPathByteBits - 2, 0))),
+      if (param.dataPathByteBits >= 3)
+        FillInterleaved(4, UIntToOH(loadBaseElementIndex(param.dataPathByteBits - 3, 0)))
+      else
+        -1.S(vrfWritePort.bits.mask.getWidth.W).asUInt
     )
   )
   // calculate vd register offset

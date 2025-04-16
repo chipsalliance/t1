@@ -87,13 +87,13 @@ class SimpleMemRequest(param: MSHRParam) extends Bundle {
 }
 
 class SimpleMemReadResponse(param: MSHRParam) extends Bundle {
-  val data:   UInt = UInt(param.datapathWidth.W)
+  val data:   UInt = UInt(param.eLen.W)
   val source: UInt = UInt(param.sourceWidth.W)
 }
 
 class SimpleMemWrite(param: MSHRParam) extends Bundle {
-  val data:    UInt = UInt(param.datapathWidth.W)
-  val mask:    UInt = UInt((param.datapathWidth / 8).W)
+  val data:    UInt = UInt(param.eLen.W)
+  val mask:    UInt = UInt((param.eLen / 8).W)
   val source:  UInt = UInt(8.W)
   val address: UInt = UInt(param.paWidth.W)
   val size:    UInt = UInt(2.W)

@@ -107,6 +107,8 @@ case class LaneParameter(
     extends SerializableModuleParameter {
   val maskUnitVefWriteQueueSize: Int = 8
 
+  val laneScale: Int = datapathWidth / eLen
+
   val chaining1HBits: Int = 2 << log2Ceil(chainingSize)
 
   /** 1 in MSB for instruction order. */
@@ -1002,7 +1004,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.executeIndex        := 0.U
   entranceControl.instructionFinished :=
     // vl is too small, don't need to use this lane.
-    (((laneIndex ## 0.U(2.W)) >> csrInterface.vSew).asUInt >= csrInterface.vl || maskLogicCompleted) &&
+    (((laneIndex ## 0.U(
+      parameter.dataPathByteBits.W
+    )) >> csrInterface.vSew).asUInt >= csrInterface.vl || maskLogicCompleted) &&
       // for 'nr' type instructions, they will need another complete signal.
       !(laneRequest.bits.decodeResult(Decoder.nr) || laneRequest.bits.lsWholeReg)
   // indicate if this is the mask type.
@@ -1016,15 +1020,17 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val lastElementIndex: UInt = (csrInterface.vl - csrInterface.vl.orR)(parameter.vlMaxBits - 2, 0)
   val requestVSew1H:    UInt = UIntToOH(csrInterface.vSew)
 
+  val dataPathScaleBit: Int = log2Ceil(parameter.datapathWidth / parameter.eLen)
+
   /** For an instruction, the last group is not executed by all lanes, here is the last group of the instruction xxxxx
     * xxx xx -> vsew = 0 xxxxxx xxx x -> vsew = 1 xxxxxxx xxx -> vsew = 2
     */
   val lastGroupForInstruction: UInt = Mux1H(
     requestVSew1H(2, 0),
     Seq(
-      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 2),
-      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 1),
-      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits)
+      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 2 + dataPathScaleBit),
+      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + 1 + dataPathScaleBit),
+      lastElementIndex(parameter.vlMaxBits - 2, parameter.laneNumberBits + dataPathScaleBit)
     )
   )
 
@@ -1032,9 +1038,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val lastLaneIndex: UInt = Mux1H(
     requestVSew1H(2, 0),
     Seq(
-      lastElementIndex(parameter.laneNumberBits + 2 - 1, 2),
-      lastElementIndex(parameter.laneNumberBits + 1 - 1, 1),
-      lastElementIndex(parameter.laneNumberBits - 1, 0)
+      lastElementIndex(parameter.laneNumberBits + 2 - 1 + dataPathScaleBit, 2 + dataPathScaleBit),
+      lastElementIndex(parameter.laneNumberBits + 1 - 1 + dataPathScaleBit, 1 + dataPathScaleBit),
+      lastElementIndex(parameter.laneNumberBits - 1 + dataPathScaleBit, dataPathScaleBit)
     )
   )
 
@@ -1057,11 +1063,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val isLastLaneForMaskLogic:     Bool = lastLaneIndexForMaskLogic === laneIndex
   val lastGroupCountForMaskLogic: UInt = (maskeDataGroup >> parameter.laneNumberBits).asUInt -
     ((vlBody.orR || dataPathMisaligned) && (laneIndex > lastLaneIndexForMaskLogic))
+  val vlTailWidth:                Int  = log2Ceil(parameter.datapathWidth / 8)
   val misalignedForOther:         Bool = Mux1H(
-    requestVSew1H(1, 0),
+    requestVSew1H(2, 0),
     Seq(
-      csrInterface.vl(1, 0).orR,
-      csrInterface.vl(0)
+      csrInterface.vl(vlTailWidth - 1, 0).orR,
+      csrInterface.vl(vlTailWidth - 2, 0).orR,
+      if (vlTailWidth - 3 >= 0) csrInterface.vl(vlTailWidth - 3, 0).orR else false.B
     )
   )
 

@@ -100,8 +100,8 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
     enqueue.bits.vSew1H,
     Seq(
       stageWire.maskForMaskInput.orR,
-      stageWire.maskForMaskInput(1, 0).orR,
-      stageWire.maskForMaskInput(0)
+      cutUIntBySize(stageWire.maskForMaskInput, 2).head.orR,
+      cutUIntBySize(stageWire.maskForMaskInput, 4).head.orR
     )
   ) || enqueue.bits.maskNotMaskedElement ||
     enqueue.bits.decodeResult(Decoder.maskDestination) || enqueue.bits.decodeResult(Decoder.red) ||
@@ -193,7 +193,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   val needCorrect:       Bool =
     isTheLastGroup &&
       enqueue.bits.isLastLaneForInstruction &&
-      vlNeedCorrect
+      vlNeedCorrect && !enqueue.bits.decodeResult(Decoder.maskLogic)
   val maskCorrect:       UInt = Mux(needCorrect, correctMask, -1.S(parameter.dataPathByteWidth.W).asUInt)
   val crossReadOnlyMask: UInt = Fill(parameter.dataPathByteWidth, !updateLaneState.outOfExecutionRange)
 

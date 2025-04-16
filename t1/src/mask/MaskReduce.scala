@@ -10,7 +10,7 @@ import chisel3.properties.{AnyClassType, Property}
 import chisel3.util._
 import org.chipsalliance.stdlib.GeneralOM
 
-class ReduceInput(datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean) extends Bundle {
+class ReduceInput(datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean, laneScale: Int) extends Bundle {
   val maskType:      Bool         = Bool()
   val eew:           UInt         = UInt(2.W)
   val uop:           UInt         = UInt(3.W)
@@ -22,7 +22,7 @@ class ReduceInput(datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean) exten
   val aluUop:        UInt         = UInt(4.W)
   val sign:          Bool         = Bool()
   // for fpu
-  val fpSourceValid: Option[UInt] = Option.when(fpuEnable)(UInt(laneNumber.W))
+  val fpSourceValid: Option[UInt] = Option.when(fpuEnable)(UInt((laneNumber * laneScale).W))
 }
 
 class ReduceOutput(datapathWidth: Int) extends Bundle {
@@ -34,13 +34,15 @@ object MaskReduceParameter {
   implicit def rw: upickle.default.ReadWriter[MaskReduceParameter] = upickle.default.macroRW
 }
 
-case class MaskReduceParameter(eLen: Int, datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean)
+case class MaskReduceParameter(eLen: Int, datapathWidth: Int, laneNumber: Int, fpuEnable: Boolean, laneScale: Int)
     extends SerializableModuleParameter
 
 class MaskReduceInterface(parameter: MaskReduceParameter) extends Bundle {
   val clock          = Input(Clock())
   val reset          = Input(Reset())
-  val in             = Flipped(Decoupled(new ReduceInput(parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)))
+  val in             = Flipped(
+    Decoupled(new ReduceInput(parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable, parameter.laneScale))
+  )
   val out            = Valid(new ReduceOutput(parameter.datapathWidth))
   val firstGroup     = Input(Bool())
   val newInstruction = Input(Bool())
@@ -87,7 +89,7 @@ class MaskReduce(val parameter: MaskReduceParameter)
 
   // reduce function unit
   val adder:       Instance[ReduceAdder]          = Instantiate(new ReduceAdder(ReduceAdderParameter(parameter.eLen)))
-  val logicUnit:   Instance[LaneLogic]            = Instantiate(new LaneLogic(LaneLogicParameter(parameter.datapathWidth)))
+  val logicUnit:   Instance[LaneLogic]            = Instantiate(new LaneLogic(LaneLogicParameter(parameter.eLen)))
   // option unit for flot reduce
   val floatAdder:  Option[Instance[FloatAdder]]   =
     Option.when(parameter.fpuEnable)(Instantiate(new FloatAdder(FloatAdderParameter(8, 24, floatAdderLatency))))
@@ -96,8 +98,8 @@ class MaskReduce(val parameter: MaskReduceParameter)
     Option.when(parameter.fpuEnable)(Instantiate(new FloatCompare(FloatCompareParameter(8, 24))))
 
   // init reg
-  val reduceInit:     UInt = RegInit(0.U(parameter.datapathWidth.W))
-  val reduceResult:   UInt = Wire(UInt(parameter.datapathWidth.W))
+  val reduceInit:     UInt = RegInit(0.U(parameter.eLen.W))
+  val reduceResult:   UInt = Wire(UInt(parameter.eLen.W))
   val crossFoldCount: UInt = RegInit(0.U(log2Ceil(parameter.laneNumber * parameter.datapathWidth / parameter.eLen).W))
   val lastFoldCount:  Bool = RegInit(false.B)
   val updateResult:   Bool = Wire(Bool())
@@ -208,12 +210,13 @@ class MaskReduce(val parameter: MaskReduceParameter)
 
   val selectLaneResult:     UInt = Mux1H(
     UIntToOH(crossFoldCount),
-    cutUInt(reqReg.source2, parameter.datapathWidth)
+    cutUInt(reqReg.source2, parameter.eLen)
   )
+  val scaleSourceValid:     UInt = FillInterleaved(parameter.datapathWidth / parameter.eLen, reqReg.sourceValid)
   val sourceValidCalculate: UInt =
     reqReg.fpSourceValid
-      .map(fv => Mux(floatType, fv & reqReg.sourceValid, reqReg.sourceValid))
-      .getOrElse(reqReg.sourceValid)
+      .map(fv => Mux(floatType, fv & scaleSourceValid, scaleSourceValid))
+      .getOrElse(scaleSourceValid)
   sourceValid := Mux1H(
     UIntToOH(crossFoldCount),
     sourceValidCalculate.asBools

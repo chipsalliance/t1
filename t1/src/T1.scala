@@ -232,8 +232,8 @@ case class T1Parameter(
   /** vLen in Byte. */
   val vlenb: Int = vLen / 8
 
-  /** The hardware width of [[datapathWidth]]. */
-  val dataPathWidthBits: Int = log2Ceil(datapathWidth)
+  /** The hardware width of [[datapathWidth]] / 8. */
+  val dataPathByteBits: Int = log2Ceil(datapathWidth / 8)
 
   /** 1 in MSB for instruction order. */
   val instructionIndexBits: Int = log2Ceil(chainingSize) + 1
@@ -336,6 +336,7 @@ case class T1Parameter(
     datapathWidth = datapathWidth,
     chainingSize = chainingSize,
     vLen = vLen,
+    eLen = eLen,
     laneNumber = laneNumber,
     paWidth = xLen,
     // TODO: configurable for each LSU
@@ -720,14 +721,14 @@ class T1(val parameter: T1Parameter)
   val evlForLane: UInt = Mux(
     decodeResult(Decoder.nr),
     // evl for Whole Vector Register Move ->  vs1 * (vlen / datapathWidth)
-    (requestRegDequeue.bits.instruction(17, 15) +& 1.U) ## 0.U(log2Ceil(parameter.vLen / parameter.datapathWidth).W),
+    (requestRegDequeue.bits.instruction(17, 15) +& 1.U) ## 0.U(log2Ceil(parameter.vLen / parameter.eLen).W),
     requestReg.bits.issue.vl
   )
 
-  val vSewForLsu: UInt = Mux(lsWholeReg, 2.U, requestRegDequeue.bits.instruction(13, 12))
+  val vSewForLsu: UInt = Mux(lsWholeReg, log2Ceil(parameter.eLen / 8).U, requestRegDequeue.bits.instruction(13, 12))
   val evlForLsu:  UInt = Mux(
     lsWholeReg,
-    (requestRegDequeue.bits.instruction(31, 29) +& 1.U) ## 0.U(log2Ceil(parameter.vLen / parameter.datapathWidth).W),
+    (requestRegDequeue.bits.instruction(31, 29) +& 1.U) ## 0.U(log2Ceil(parameter.vLen / parameter.eLen).W),
     requestReg.bits.issue.vl
   )
 

@@ -16,11 +16,14 @@ class LaneStage3Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val data:             UInt         = UInt(parameter.datapathWidth.W)
   val pipeData:         UInt         = UInt(parameter.datapathWidth.W)
   val mask:             UInt         = UInt((parameter.datapathWidth / 8).W)
-  val ffoIndex:         UInt         = UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W)
+  val ffoIndex:         UInt         = UInt(
+    (parameter.laneScale * log2Ceil(parameter.vLen / parameter.laneNumber / parameter.laneScale)).W
+  )
   val crossWriteData:   Vec[UInt]    = Vec(2, UInt(parameter.datapathWidth.W))
   val sSendResponse:    Bool         = Bool()
-  val ffoSuccess:       Bool         = Bool()
-  val fpReduceValid:    Option[Bool] = Option.when(parameter.fpuEnable && isLastSlot)(Bool())
+  val ffoSuccess:       UInt         = UInt((parameter.datapathWidth / parameter.eLen).W)
+  val fpReduceValid:    Option[UInt] =
+    Option.when(parameter.fpuEnable && isLastSlot)(UInt((parameter.datapathWidth / parameter.eLen).W))
   // pipe state
   val decodeResult:     DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
@@ -86,7 +89,7 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     val sendState = (sCrossWriteLSB ++ sCrossWriteMSB).toSeq
     crossWritePort.get.zipWithIndex.foreach { case (port, index) =>
       port.valid                 := stageValidReg.get && !sendState(index)
-      port.bits.mask             := pipeEnqueue.get.mask(2 * index + 1, 2 * index)
+      port.bits.mask             := cutUIntBySize(pipeEnqueue.get.mask, 2)(index)
       port.bits.data             := pipeEnqueue.get.crossWriteData(index)
       port.bits.counter          := pipeEnqueue.get.groupCounter
       port.bits.instructionIndex := pipeEnqueue.get.instructionIndex
