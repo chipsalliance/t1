@@ -216,7 +216,7 @@ class TestBench(val parameter: T1Parameter)
   when(lsuProbe.reqEnq.orR)(printf(cf"""{"event":"LsuEnq","enq":${lsuProbe.reqEnq},"cycle":${simulationTime}}\n"""))
 
   // allocate 2 * chainingSize scoreboards
-  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(2 * parameter.chainingSize) { _ =>
+  val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(parameter.chaining1HBits) { _ =>
     RegInit(0.U.asTypeOf(Valid(UInt(16.W))))
   }
   vrfWriteScoreboard.foreach(scoreboard => dontTouch(scoreboard))
@@ -224,7 +224,7 @@ class TestBench(val parameter: T1Parameter)
     (laneProbes.map(laneProbe => laneProbe.instructionValid) :+
       lsuProbe.lsuInstructionValid :+ t1Probe.instructionValid).reduce(_ | _)
   val scoreboardEnq    =
-    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U((2 * parameter.chainingSize).W))
+    Mux(t1Probe.instructionIssue, UIntToOH(t1Probe.issueTag), 0.U(parameter.chaining1HBits.W))
   vrfWriteScoreboard.zipWithIndex.foreach { case (scoreboard, tag) =>
     val writeEnq: UInt = VecInit(
       // vrf write from lane
