@@ -386,7 +386,10 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   dequeue.bits.bordersForMaskLogic := pipeQueue.deq.bits.bordersForMaskLogic
 
   dequeue.bits.maskForFilter :=
-    (FillInterleaved(4, pipeQueue.deq.bits.maskNotMaskedElement) | pipeQueue.deq.bits.maskForMaskInput) &
+    (FillInterleaved(
+      parameter.datapathWidth / 8,
+      pipeQueue.deq.bits.maskNotMaskedElement
+    ) | pipeQueue.deq.bits.maskForMaskInput) &
       pipeQueue.deq.bits.boundaryMaskCorrection
   // All required data is ready
   val dataQueueValidVec: Seq[Bool] =
