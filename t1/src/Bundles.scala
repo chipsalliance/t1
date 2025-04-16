@@ -364,7 +364,7 @@ class V0Update(datapathWidth: Int, vrfOffsetBits: Int) extends Bundle {
   val data:   UInt = UInt(datapathWidth.W)
   val offset: UInt = UInt(vrfOffsetBits.W)
   // mask/ld类型的有可能不会写完整的32bit
-  val mask:   UInt = UInt(4.W)
+  val mask:   UInt = UInt((datapathWidth / 8).W)
 }
 
 /** Request to access VRF in each lanes. */
@@ -568,7 +568,7 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
 
   // mask for this execute group
-  val mask: UInt = UInt(4.W)
+  val mask: UInt = UInt((parameter.datapathWidth / 8).W)
 
   /** Store some data that will be used later. e.g: ffo Write VRF By OtherLanes: What should be written into vrf if ffo
     * end by other lanes. pipe from s0 read result of vs2, for instructions that are not executed, pipe from s1
@@ -589,8 +589,8 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
 class ExecutionUnitRecord(parameter: LaneParameter)(isLastSlot: Boolean) extends Bundle {
   val crossReadVS2:        Bool         = Bool()
   val bordersForMaskLogic: Bool         = Bool()
-  val maskForMaskInput:    UInt         = UInt(4.W)
-  val maskForFilter:       UInt         = UInt(4.W)
+  val maskForMaskInput:    UInt         = UInt((parameter.datapathWidth / 8).W)
+  val maskForFilter:       UInt         = UInt((parameter.datapathWidth / 8).W)
   // false -> lsb of cross read group
   val executeIndex:        Bool         = Bool()
   val source:              Vec[UInt]    = Vec(3, UInt(parameter.datapathWidth.W))
@@ -612,9 +612,9 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val src:          Vec[UInt]    = Vec(4, UInt((parameter.datapathWidth + 1).W))
   val opcode:       UInt         = UInt(4.W)
   // mask for carry or borrow
-  val mask:         UInt         = UInt(4.W)
+  val mask:         UInt         = UInt((parameter.datapathWidth / 8).W)
   // mask for execute
-  val executeMask:  UInt         = UInt(4.W)
+  val executeMask:  UInt         = UInt((parameter.datapathWidth / 8).W)
   // eg: vwmaccus, vwmulsu
   val sign0:        Bool         = Bool()
   val sign:         Bool         = Bool()
@@ -623,7 +623,7 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val saturate:     Bool         = Bool()
   val vxrm:         UInt         = UInt(2.W)
   val vSew:         UInt         = UInt(2.W)
-  val shifterSize:  UInt         = UInt((log2Ceil(parameter.datapathWidth) * 4).W)
+  val shifterSize:  UInt         = UInt((log2Ceil(parameter.eLen) * (parameter.datapathWidth / 8)).W)
   val rem:          Bool         = Bool()
   val executeIndex: UInt         = UInt(2.W)
   val popInit:      UInt         = UInt(parameter.vlMaxBits.W)
