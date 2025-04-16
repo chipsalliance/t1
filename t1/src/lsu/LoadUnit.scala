@@ -18,7 +18,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   @public
   val memResponse:      DecoupledIO[MemDataBundle] = IO(Flipped(Decoupled(new MemDataBundle(param))))
   @public
-  val status:           LSUBaseStatus              = IO(Output(new LSUBaseStatus))
+  val status:           LSUBaseStatus              = IO(Output(new LSUBaseStatus(param.instructionIndexBits)))
   @public
   val writeReadyForLsu: Bool                       = IO(Input(Bool()))
 

@@ -70,7 +70,7 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
   )
   val readResult:        Vec[ValidIO[UInt]]                = Flipped(Vec(parameter.laneNumber, Valid(UInt(parameter.datapathWidth.W))))
   val writeRD:           ValidIO[UInt]                     = Valid(UInt(parameter.datapathWidth.W))
-  val lastReport:        UInt                              = Output(UInt((2 * parameter.chainingSize).W))
+  val lastReport:        UInt                              = Output(UInt(parameter.chaining1HBits.W))
   val laneMaskInput:     Vec[UInt]                         = Output(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
   val laneMaskSelect:    Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(parameter.laneParam.maskGroupSizeBits.W)))
   val laneMaskSewSelect: Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(2.W)))
