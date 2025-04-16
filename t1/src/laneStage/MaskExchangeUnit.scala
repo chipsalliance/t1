@@ -40,9 +40,12 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   // todo: connect mask request & response
   maskReq.valid        := enqIsMaskRequest && enqueue.valid && maskRequestAllow
   maskReq.bits.source1 := enqueue.bits.pipeData
+  val ffoIndexDataExtend: UInt = VecInit(cutUIntBySize(enqueue.bits.ffoIndex, parameter.laneScale).map { d =>
+    changeUIntSize(d, parameter.eLen)
+  }).asUInt
   maskReq.bits.source2 := Mux(
     enqFFoIndex,
-    enqueue.bits.ffoIndex,
+    ffoIndexDataExtend,
     enqueue.bits.data
   )
   maskReq.bits.index   := enqueue.bits.instructionIndex

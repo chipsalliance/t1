@@ -6,7 +6,7 @@ package org.chipsalliance.t1.rtl.lane
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
-import org.chipsalliance.t1.rtl.{cutUInt, ffo, SlotRequestToVFU, VFUResponseToSlot}
+import org.chipsalliance.t1.rtl.{cutUInt, cutUIntBySize, ffo, maskAnd, SlotRequestToVFU, VFUResponseToSlot}
 import org.chipsalliance.dwbb.stdlib.queue.Queue
 
 @instantiable
@@ -28,7 +28,7 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   val responseWire:     ValidIO[VFUResponseToSlot] = WireDefault(0.U.asTypeOf(responseToSlot))
   val requestReg:       ValidIO[SlotRequestToVFU]  = RegInit(0.U.asTypeOf(Valid(enqueue)))
   val sendRequestValid: Bool                       = RegInit(false.B)
-  val ffoSuccess:       Bool                       = RegInit(false.B)
+  val ffoSuccess:       UInt                       = RegInit(0.U(dequeue.ffoSuccess.getWidth.W))
   val vxsatResult = RegInit(false.B)
   val responseData: UInt = RegInit(0.U(enqueue.src.head.getWidth.W))
 
@@ -55,7 +55,6 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
 
   // update execute index
   val firstIndex = OHToUInt(ffo(requestFromSlot.bits.executeMask))
-  val nextExecuteIndexForNextGroup: UInt = (firstIndex << requestFromSlot.bits.vSew).asUInt
 
   // current one hot depends on execute index
   val currentOHForExecuteGroup: UInt = UIntToOH(executeIndex)
@@ -63,20 +62,18 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   val remainder:                UInt = requestReg.bits.executeMask & (~scanRightOr(currentOHForExecuteGroup)).asUInt
   // Finds the first unfiltered execution.
   val nextIndex:                UInt = OHToUInt(ffo(remainder))
-  val nextExecuteIndex:         UInt = (nextIndex << requestReg.bits.vSew).asUInt
 
   when(requestToVfu.fire || requestFromSlot.fire) {
-    executeIndex := Mux(requestFromSlot.fire, nextExecuteIndexForNextGroup, nextExecuteIndex)
+    executeIndex := Mux(requestFromSlot.fire, firstIndex, nextIndex)
   }
 
   scanRightOr
-  val byteMask1: UInt = currentOHForExecuteGroup | (currentOHForExecuteGroup << 1).asUInt
   val byteMaskForExecution = Mux1H(
     vSew1H,
     Seq(
       currentOHForExecuteGroup,
-      byteMask1,
-      byteMask1 | (byteMask1 << 2).asUInt
+      FillInterleaved(2, cutUIntBySize(currentOHForExecuteGroup, 2).head),
+      FillInterleaved(4, cutUIntBySize(currentOHForExecuteGroup, 4).head)
     )
   )
 
@@ -109,6 +106,7 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
     requestReg.bits.src.zip(signSeq).map { case (d, s) => CollapseOperand(d, s) }
   )
   requestToVfu.bits.mask         := (requestReg.bits.mask & currentOHForExecuteGroup).orR
+  requestToVfu.bits.popInit      := cutUIntBySize(requestReg.bits.popInit, requestReg.bits.mask.getWidth / 4)(executeIndex)
   // 5: log2ceil(elen)
   requestToVfu.bits.shifterSize  := Mux1H(currentOHForExecuteGroup, cutUInt(requestReg.bits.shifterSize, 5))
 
@@ -135,28 +133,29 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
     isLastResponse         := executeQueue.deq.bits(executeSizeBit) && responseFromVfu.valid && executeQueue.deq.valid
   }
 
-  // update result
-  val writeIndex1H = UIntToOH(writeIndex)
+  val writeElement1H: UInt = UIntToOH(writeIndex)
 
   /** VRF byte level mask */
   val writeMaskInByte: UInt = Mux1H(
     vSew1H(2, 0),
     Seq(
-      true.B << writeIndex,
-      "b11".U(2.W) << writeIndex,
-      "b1111".U(4.W) << writeIndex
+      writeElement1H,
+      FillInterleaved(2, cutUIntBySize(writeElement1H, 2).head),
+      FillInterleaved(4, cutUIntBySize(writeElement1H, 4).head)
     )
   ).asUInt
 
   /** VRF bit level mask */
   val writeMaskInBit: UInt = FillInterleaved(8, writeMaskInByte)
 
-  /** output of execution unit need to align to VRF in bit level(used in dynamic shift) TODO: fix me
-    */
-  val dataOffset: UInt = writeIndex ## 0.U(3.W)
-
-  // TODO: this is a dynamic shift logic, but if we switch to parallel execution unit, we don't need it anymore.
-  val executeResult = (responseFromVfu.bits.data << dataOffset).asUInt(enqueue.src.head.getWidth - 1, 0)
+  val executeResult: UInt = Mux1H(
+    vSew1H(2, 0),
+    Seq(
+      Fill(responseData.getWidth / 8, responseFromVfu.bits.data(7, 0)),
+      Fill(responseData.getWidth / 16, responseFromVfu.bits.data(15, 0)),
+      Fill(responseData.getWidth / 32, responseFromVfu.bits.data(31, 0))
+    )
+  ).asUInt
 
   // execute 1,2,4 times based on SEW, only write VRF when 32 bits is ready.
   val resultUpdate: UInt = (executeResult & writeMaskInBit) | (responseData & (~writeMaskInBit).asUInt)
@@ -164,11 +163,12 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   when(responseFromVfu.fire) {
     responseData := resultUpdate
   }
-  val updateFFO   = responseFromVfu.bits.ffoSuccess || ffoSuccess
+  val newFfoSuccess = (responseFromVfu.bits.ffoSuccess << writeIndex(0)).asUInt
+  val updateFFO     = newFfoSuccess | ffoSuccess
   when(responseFromVfu.fire || requestFromSlot.fire) {
-    ffoSuccess := updateFFO && !requestFromSlot.fire
+    ffoSuccess := maskAnd(!requestFromSlot.fire, updateFFO)
   }
-  val updateVxsat = (responseFromVfu.bits.vxsat ## responseFromVfu.bits.clipFail).orR || vxsatResult
+  val updateVxsat   = (responseFromVfu.bits.vxsat ## responseFromVfu.bits.clipFail).orR || vxsatResult
   when(responseFromVfu.fire || requestFromSlot.fire) {
     vxsatResult := updateVxsat && !requestFromSlot.fire
   }

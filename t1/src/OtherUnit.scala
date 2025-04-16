@@ -111,7 +111,17 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule with Serializab
   val differentSign:      Bool = request.sign && roundSignBits && !request.src(1)(parameter.datapathWidth - 1)
   val clipResult = Mux(roundResultOverlap || differentSign, largestClipResult, roundResult)
 
-  val indexRes: UInt = ((request.groupIndex ## request.laneIndex ## request.executeIndex) >> request.vSew).asUInt
+  val indexRes: UInt = Mux1H(
+    vSewOH(2, 0),
+    Seq(
+      request.groupIndex ## request.laneIndex ## request.executeIndex,
+      request.groupIndex ## request.laneIndex ## request.executeIndex(log2Ceil(parameter.dataPathByteWidth) - 2, 0),
+      if (log2Ceil(parameter.dataPathByteWidth) > 2)
+        request.groupIndex ## request.laneIndex ## request.executeIndex(log2Ceil(parameter.dataPathByteWidth) - 3, 0)
+      else
+        request.groupIndex ## request.laneIndex
+    )
+  )
 
   val extendSign: Bool =
     request.sign && Mux1H(vSewOH, Seq(request.src.head(7), request.src.head(15), request.src.head(31)))

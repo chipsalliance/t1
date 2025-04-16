@@ -140,7 +140,8 @@ class MaskUnit(val parameter: T1Parameter)
     parameter.vLen,
     parameter.laneNumber,
     parameter.laneParam.groupNumberBits,
-    2
+    2,
+    parameter.eLen
   )
 
   /** duplicate v0 for mask */
@@ -189,12 +190,15 @@ class MaskUnit(val parameter: T1Parameter)
     val dataPosition = (changeUIntSize(elementIndex, positionSize) << sew).asUInt(positionSize - 1, 0)
     val sewOHInput   = UIntToOH(sew)(2, 0)
 
-    // The offset of the data starting position in 32 bits (currently only 32).
-    // Since the data may cross lanes, it will be optimized during fusion.
-    val dataOffset: UInt = (dataPosition(1) && sewOHInput(1, 0).orR) ## (dataPosition(0) && sewOHInput(0))
-    val accessLane = if (parameter.laneNumber > 1) dataPosition(log2Ceil(parameter.laneNumber) + 1, 2) else 0.U(1.W)
+    val dataPathBaseBits = log2Ceil(parameter.datapathWidth / 8)
+    val dataOffset: UInt = dataPosition(dataPathBaseBits - 1, 0)
+    val accessLane =
+      if (parameter.laneNumber > 1)
+        dataPosition(log2Ceil(parameter.laneNumber) + dataPathBaseBits - 1, dataPathBaseBits)
+      else 0.U(1.W)
+
     // 32 bit / group
-    val dataGroup  = (dataPosition >> (log2Ceil(parameter.laneNumber) + 2)).asUInt
+    val dataGroup = (dataPosition >> (log2Ceil(parameter.laneNumber) + dataPathBaseBits)).asUInt
     val offsetWidth: Int = parameter.laneParam.vrfParam.vrfOffsetBits
     val offset            = dataGroup(offsetWidth - 1, 0)
     val accessRegGrowth   = (dataGroup >> offsetWidth).asUInt
@@ -280,11 +284,12 @@ class MaskUnit(val parameter: T1Parameter)
   // 3 -> 1 times
   val dataSplitSew:    UInt = Mux1H(
     Seq(
-      useDefaultSew                           -> instReg.sew,
+      useDefaultSew               -> instReg.sew,
+      gather16                    -> 1.U,
       // extend
-      (unitType(3) && subType(2))             -> 0.U,
-      (unitType(3) && subType(1) || gather16) -> 1.U,
-      allGroupExecute                         -> 2.U
+      (unitType(3) && subType(2)) -> (0 + log2Ceil(parameter.laneScale)).U,
+      (unitType(3) && subType(1)) -> (1 + log2Ceil(parameter.laneScale)).U,
+      allGroupExecute             -> 2.U
     )
   )
 
@@ -300,7 +305,12 @@ class MaskUnit(val parameter: T1Parameter)
   )
 
   // ExecuteIndex is only related to how many times it will be executed, so use [dataSplitSew]
-  val lastExecuteIndex: UInt = Mux1H(UIntToOH(dataSplitSew), Seq(3.U(2.W), 2.U(2.W), 0.U(2.W)))
+  val lastExecuteIndex: UInt = Mux1H(
+    UIntToOH(dataSplitSew),
+    Seq(8, 16, 32).map { dw =>
+      ((parameter.datapathWidth / dw - 1) * dw / 8).U(parameter.dataPathByteBits.W)
+    }
+  )
 
   // calculate last group
   val sourceDataEEW1H:  UInt = UIntToOH(sourceDataEEW)(2, 0)
@@ -351,7 +361,8 @@ class MaskUnit(val parameter: T1Parameter)
     // Seq(4, 2, 1) => If it is in normal form, one datapath corresponds to several elements
     val dataNeedForNPL    = Mux1H(
       sew1H,
-      Seq(4, 2, 1).map { eSize =>
+      Seq(4, 2, 1).map { sewSize =>
+        val eSize        = sewSize * parameter.laneScale
         val eSizeLog     = log2Ceil(eSize)
         val misAlign     = if (eSizeLog > 0) changeUIntSize(lastGroupRemaining, eSizeLog).orR else false.B
         // How many datapaths will there be?
@@ -465,7 +476,7 @@ class MaskUnit(val parameter: T1Parameter)
   val groupDataNeed:       UInt              = Mux(lastGroup, lastGroupDataNeed, (-1.S(parameter.laneNumber.W)).asUInt)
   // For read type, only sew * laneNumber data will be consumed each time
   // There will be a maximum of (dataPath * laneNumber) / (sew * laneNumber) times
-  val executeIndex:        UInt              = RegInit(0.U(2.W))
+  val executeIndex:        UInt              = RegInit(0.U(parameter.dataPathByteBits.W))
   // The status of an execution
   // Each execution ends with executeIndex + 1
   val readIssueStageState: MaskUnitReadState = RegInit(0.U.asTypeOf(new MaskUnitReadState(parameter)))
@@ -485,15 +496,14 @@ class MaskUnit(val parameter: T1Parameter)
       FillInterleaved(2, UIntToOH(dataPosition(1))),
       15.U(4.W)
     )(sewInt)
-    // The offset of the data starting position in 32 bits (currently only 32).
-    // Since the data may cross lanes, it will be optimized during fusion.
-    // (dataPosition(1) && sewOHInput(1, 0).orR) ## (dataPosition(0) && sewOHInput(0))
-    val dataOffset: UInt =
-      (if (sewInt < 2) dataPosition(1) else false.B) ##
-        (if (sewInt == 0) dataPosition(0) else false.B)
-    val accessLane = if (parameter.laneNumber > 1) dataPosition(log2Ceil(parameter.laneNumber) + 1, 2) else 0.U(1.W)
+    val dataPathBaseBits = log2Ceil(parameter.datapathWidth / 8)
+    val dataOffset: UInt = dataPosition(dataPathBaseBits - 1, 0)
+    val accessLane =
+      if (parameter.laneNumber > 1)
+        dataPosition(log2Ceil(parameter.laneNumber) + dataPathBaseBits - 1, dataPathBaseBits)
+      else 0.U(1.W)
     // 32 bit / group
-    val dataGroup  = (dataPosition >> (log2Ceil(parameter.laneNumber) + 2)).asUInt
+    val dataGroup  = (dataPosition >> (log2Ceil(parameter.laneNumber) + dataPathBaseBits)).asUInt
     val offsetWidth: Int = parameter.laneParam.vrfParam.vrfOffsetBits
     val offset            = dataGroup(offsetWidth - 1, 0)
     val accessRegGrowth   = (dataGroup >> offsetWidth).asUInt
@@ -521,8 +531,8 @@ class MaskUnit(val parameter: T1Parameter)
     UIntToOH(dataSplitSew)(2, 0),
     Seq(
       requestCounter ## executeIndex,
-      requestCounter ## executeIndex(1),
-      requestCounter
+      requestCounter ## (executeIndex >> 1),
+      requestCounter ## (executeIndex >> 2)
     )
   )
 
@@ -576,34 +586,31 @@ class MaskUnit(val parameter: T1Parameter)
   // select source & valid
   val minSourceSize: Int = 8 * parameter.laneNumber
   val minValidSize = parameter.laneNumber
-  val groupSourceData:  UInt = VecInit(exeReqReg.map(_.bits.source1)).asUInt
-  val groupSourceValid: UInt = VecInit(exeReqReg.map(_.valid)).asUInt
-  val shifterSize:      UInt = Wire(UInt(2.W))
-  shifterSize := Mux1H(
-    sourceDataEEW1H(1, 0),
-    Seq(
-      executeIndex,
-      executeIndex(1) ## false.B
-    )
+  val groupSourceData:  UInt      = VecInit(exeReqReg.map(_.bits.source1)).asUInt
+  val groupSourceValid: UInt      = VecInit(exeReqReg.map(_.valid)).asUInt
+  val shifterSource:    UInt      = Mux1H(
+    UIntToOH(executeIndex),
+    Seq.tabulate(parameter.datapathWidth / 8) { i =>
+      (groupSourceData >> (minSourceSize * i)).asUInt
+    }
   )
-  val shifterSource: UInt      = Mux1H(
-    UIntToOH(shifterSize),
-    Seq(
-      groupSourceData,
-      (groupSourceData >> minSourceSize).asUInt,
-      (groupSourceData >> (minSourceSize * 2)).asUInt,
-      (groupSourceData >> (minSourceSize * 3)).asUInt
-    )
-  )
-  val selectValid:   UInt      = Mux1H(
+  val maxExecuteTimes:  Int       = parameter.datapathWidth / 8
+  val selectValid:      UInt      = Mux1H(
     sourceDataEEW1H,
     Seq(
-      cutUIntBySize(FillInterleaved(4, groupSourceValid), 4)(executeIndex),
-      cutUIntBySize(FillInterleaved(2, groupSourceValid), 2)(executeIndex(1)),
-      groupSourceValid
+      cutUIntBySize(FillInterleaved(maxExecuteTimes, groupSourceValid), maxExecuteTimes)(executeIndex),
+      cutUIntBySize(FillInterleaved(maxExecuteTimes / 2, groupSourceValid), maxExecuteTimes / 2)(
+        executeIndex(parameter.dataPathByteBits - 1, 1)
+      ),
+      if (maxExecuteTimes > 4)
+        cutUIntBySize(FillInterleaved(maxExecuteTimes / 4, groupSourceValid), maxExecuteTimes / 4)(
+          executeIndex(parameter.dataPathByteBits - 1, 2)
+        )
+      else
+        groupSourceValid
     )
   )
-  val source:        Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
+  val source:           Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
   source.zipWithIndex.foreach { case (d, i) =>
     d := Mux1H(
       sourceDataEEW1H,
@@ -658,7 +665,7 @@ class MaskUnit(val parameter: T1Parameter)
     }
   }
 
-  val isLastExecuteGroup: Bool = executeIndex === lastExecuteIndex
+  val isLastExecuteGroup: Bool = (executeIndex === lastExecuteIndex) || allGroupExecute
   val allDataValid:       Bool = exeReqReg.zipWithIndex.map { case (d, i) => d.valid || !groupDataNeed(i) }.reduce(_ && _)
   val anyDataValid:       Bool = exeReqReg.zipWithIndex.map { case (d, i) => d.valid }.reduce(_ || _)
 
@@ -896,12 +903,16 @@ class MaskUnit(val parameter: T1Parameter)
 
   // Process the data that needs to be written
   val dlen: Int = parameter.datapathWidth * parameter.laneNumber
-  // Execute at most 4 times, each index represents 1/4 of dlen
-  val eachIndexSize = dlen / 4
+  // Execute at most (parameter.datapathWidth / 8) times
+  // each index represents 1 / (parameter.datapathWidth / 8) of dlen
+  val eachIndexSize = dlen / (parameter.datapathWidth / 8)
   val executeIndexVec: Seq[UInt] = Seq(
-    waiteReadDataPipeReg.executeGroup(1, 0),
-    waiteReadDataPipeReg.executeGroup(0) ## false.B,
-    false.B
+    waiteReadDataPipeReg.executeGroup(parameter.dataPathByteBits - 1, 0),
+    waiteReadDataPipeReg.executeGroup(parameter.dataPathByteBits - 2, 0) ## false.B,
+    if (parameter.dataPathByteBits > 2)
+      waiteReadDataPipeReg.executeGroup(parameter.dataPathByteBits - 3, 0) ## 0.U(2.W)
+    else
+      false.B
   )
   val writeDataVec = Seq(0, 1, 2).map { sewInt =>
     val dataByte     = 1 << sewInt
@@ -934,7 +945,7 @@ class MaskUnit(val parameter: T1Parameter)
     val res: MaskUnitExeResponse = Wire(new MaskUnitExeResponse(parameter.laneParam))
     res.ffoByOther             := DontCare
     res.index                  := instReg.instructionIndex
-    res.writeData.groupCounter := (waiteReadDataPipeReg.executeGroup << instReg.sew >> 2).asUInt
+    res.writeData.groupCounter := (waiteReadDataPipeReg.executeGroup << instReg.sew >> parameter.dataPathByteBits).asUInt
     res.writeData.vd           := instReg.vd
     res.writeData.data         := cutUIntBySize(writeData, parameter.laneNumber)(laneIndex)
     res.writeData.mask         := cutUIntBySize(writeMask, parameter.laneNumber)(laneIndex)
@@ -996,7 +1007,13 @@ class MaskUnit(val parameter: T1Parameter)
   val compressUnit = Instantiate(new MaskCompress(compressParam))
   val reduceUnit   = Instantiate(
     new MaskReduce(
-      MaskReduceParameter(parameter.eLen, parameter.datapathWidth, parameter.laneNumber, parameter.fpuEnable)
+      MaskReduceParameter(
+        parameter.eLen,
+        parameter.datapathWidth,
+        parameter.laneNumber,
+        parameter.fpuEnable,
+        parameter.laneScale
+      )
     )
   )
   omInstance.reduceUnitIn := reduceUnit.io.om.asAnyClassType
@@ -1090,8 +1107,8 @@ class MaskUnit(val parameter: T1Parameter)
     extendType,
     Mux(
       subType(2),
-      requestCounter ## executeIndex,
-      requestCounter ## executeIndex(1)
+      requestCounter ## (executeIndex >> log2Ceil(parameter.laneScale)),
+      requestCounter ## (executeIndex(parameter.dataPathByteBits - 1, 1) >> log2Ceil(parameter.laneScale))
     ),
     requestCounter
   )

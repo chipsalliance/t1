@@ -625,8 +625,8 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val vSew:         UInt         = UInt(2.W)
   val shifterSize:  UInt         = UInt((log2Ceil(parameter.eLen) * (parameter.datapathWidth / 8)).W)
   val rem:          Bool         = Bool()
-  val executeIndex: UInt         = UInt(2.W)
-  val popInit:      UInt         = UInt(parameter.vlMaxBits.W)
+  val executeIndex: UInt         = UInt(log2Ceil(parameter.datapathWidth / 8).W)
+  val popInit:      UInt         = UInt((parameter.datapathWidth / parameter.eLen * parameter.vlMaxBits).W)
   val groupIndex:   UInt         = UInt(parameter.groupNumberBits.W)
   val laneIndex:    UInt         = UInt(parameter.laneNumberBits.W)
   val complete:     Bool         = Bool()
@@ -645,9 +645,9 @@ class VFUResponseToSlot(parameter: LaneParameter) extends Bundle {
   val data:           UInt = UInt(parameter.datapathWidth.W)
   val executeIndex:   UInt = UInt(2.W)
   val clipFail:       Bool = Bool()
-  val ffoSuccess:     Bool = Bool()
+  val ffoSuccess:     UInt = UInt((parameter.datapathWidth / parameter.eLen).W)
   val divBusy:        Bool = Bool()
-  val adderMaskResp:  UInt = UInt(4.W)
+  val adderMaskResp:  UInt = UInt((parameter.datapathWidth / 8).W)
   val vxsat:          UInt = UInt(4.W)
   // float flag
   val exceptionFlags: UInt = UInt(5.W)
@@ -710,7 +710,7 @@ class MaskUnitReadState(parameter: T1Parameter) extends Bundle {
   val accessLane:     Vec[UInt] = Vec(parameter.laneNumber, UInt(log2Ceil(parameter.laneNumber).W))
   // 3: log2Ceil(8); 8: Use up to 8 registers
   val vsGrowth:       Vec[UInt] = Vec(parameter.laneNumber, UInt(3.W))
-  val executeGroup:   UInt      = UInt((parameter.laneParam.groupNumberBits + 2).W)
+  val executeGroup:   UInt      = UInt((parameter.laneParam.groupNumberBits + log2Ceil(parameter.datapathWidth / 8)).W)
   val readDataOffset: UInt      = UInt((log2Ceil(parameter.datapathWidth / 8) * parameter.laneNumber).W)
   val last:           Bool      = Bool()
 }
@@ -740,9 +740,9 @@ class MaskUnitExeReq(parameter: LaneParameter) extends Bundle {
   // source2, read offset
   val source2:       UInt         = UInt(parameter.datapathWidth.W)
   val index:         UInt         = UInt(parameter.instructionIndexBits.W)
-  val ffo:           Bool         = Bool()
+  val ffo:           UInt         = UInt((parameter.datapathWidth / parameter.eLen).W)
   // Is there a valid element?
-  val fpReduceValid: Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
+  val fpReduceValid: Option[UInt] = Option.when(parameter.fpuEnable)(UInt((parameter.datapathWidth / parameter.eLen).W))
 }
 
 class MaskUnitExeResponse(parameter: LaneParameter) extends Bundle {
@@ -773,7 +773,7 @@ class MaskUnitReadQueue(parameter: T1Parameter) extends Bundle {
 }
 
 class MaskUnitWaitReadQueue(parameter: T1Parameter) extends Bundle {
-  val executeGroup: UInt = UInt((parameter.laneParam.groupNumberBits + 2).W)
+  val executeGroup: UInt = UInt((parameter.laneParam.groupNumberBits + log2Ceil(parameter.datapathWidth / 8)).W)
   val sourceValid:  UInt = UInt(parameter.laneNumber.W)
   val replaceVs1:   UInt = UInt(parameter.laneNumber.W)
   val needRead:     UInt = UInt(parameter.laneNumber.W)

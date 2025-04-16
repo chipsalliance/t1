@@ -63,15 +63,15 @@ class SlideIndexGen(parameter: T1Parameter) extends Module {
     val positionSize    = parameter.laneParam.vlMaxBits - 1
     val allDataPosition = (elementIndex << sewInt).asUInt
     val dataPosition    = changeUIntSize(allDataPosition, positionSize)
-    // The offset of the data starting position in 32 bits (currently only 32).
-    // Since the data may cross lanes, it will be optimized during fusion.
-    // (dataPosition(1) && sewOHInput(1, 0).orR) ## (dataPosition(0) && sewOHInput(0))
-    val dataOffset: UInt =
-      (if (sewInt < 2) dataPosition(1) else false.B) ##
-        (if (sewInt == 0) dataPosition(0) else false.B)
-    val accessLane = if (parameter.laneNumber > 1) dataPosition(log2Ceil(parameter.laneNumber) + 1, 2) else 0.U(1.W)
+
+    val dataPathBaseBits = log2Ceil(parameter.datapathWidth / 8)
+    val dataOffset: UInt = dataPosition(dataPathBaseBits - 1, 0)
+    val accessLane =
+      if (parameter.laneNumber > 1)
+        dataPosition(log2Ceil(parameter.laneNumber) + dataPathBaseBits - 1, dataPathBaseBits)
+      else 0.U(1.W)
     // 32 bit / group
-    val dataGroup  = (dataPosition >> (log2Ceil(parameter.laneNumber) + 2)).asUInt
+    val dataGroup  = (dataPosition >> (log2Ceil(parameter.laneNumber) + dataPathBaseBits)).asUInt
     val offsetWidth: Int = parameter.laneParam.vrfParam.vrfOffsetBits
     val offset            = dataGroup(offsetWidth - 1, 0)
     val accessRegGrowth   = (dataGroup >> offsetWidth).asUInt

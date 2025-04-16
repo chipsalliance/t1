@@ -162,7 +162,14 @@ object VFUInstantiateParameter {
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
+          OtherUnitParam(
+            32,
+            log2Ceil(vLen) + 1,
+            log2Ceil(vLen * 8 / dLen),
+            log2Ceil(dLen / 32 / laneScale),
+            4 * laneScale,
+            1
+          )
         ),
         Seq.tabulate(chainingSize) { i => i }
       )
@@ -208,7 +215,14 @@ object VFUInstantiateParameter {
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
+          OtherUnitParam(
+            32,
+            log2Ceil(vLen) + 1,
+            log2Ceil(vLen * 8 / dLen),
+            log2Ceil(dLen / 32 / laneScale),
+            4 * laneScale,
+            1
+          )
         ),
         Seq.tabulate(chainingSize) { i => i }
       )
@@ -248,7 +262,14 @@ object VFUInstantiateParameter {
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
+          OtherUnitParam(
+            32,
+            log2Ceil(vLen) + 1,
+            log2Ceil(vLen * 8 / dLen),
+            log2Ceil(dLen / 32 / laneScale),
+            4 * laneScale,
+            1
+          )
         ),
         Seq(i)
       )
@@ -288,7 +309,14 @@ object VFUInstantiateParameter {
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
+          OtherUnitParam(
+            32,
+            log2Ceil(vLen) + 1,
+            log2Ceil(vLen * 8 / dLen),
+            log2Ceil(dLen / 32 / laneScale),
+            4 * laneScale,
+            1
+          )
         ),
         Seq(i)
       )
@@ -325,7 +353,14 @@ object VFUInstantiateParameter {
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
+          OtherUnitParam(
+            32,
+            log2Ceil(vLen) + 1,
+            log2Ceil(vLen * 8 / dLen),
+            log2Ceil(dLen / 32 / laneScale),
+            4 * laneScale,
+            1
+          )
         ),
         Seq(i)
       )
@@ -370,7 +405,14 @@ object VFUInstantiateParameter {
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
+          OtherUnitParam(
+            32,
+            log2Ceil(vLen) + 1,
+            log2Ceil(vLen * 8 / dLen),
+            log2Ceil(dLen / 32 / laneScale),
+            4 * laneScale,
+            1
+          )
         ),
         Seq.tabulate(chainingSize) { i => i }
       )
@@ -410,7 +452,14 @@ object VFUInstantiateParameter {
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
+          OtherUnitParam(
+            32,
+            log2Ceil(vLen) + 1,
+            log2Ceil(vLen * 8 / dLen),
+            log2Ceil(dLen / 32 / laneScale),
+            4 * laneScale,
+            1
+          )
         ),
         Seq.tabulate(chainingSize) { i => i }
       )
@@ -451,7 +500,14 @@ object VFUInstantiateParameter {
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
+          OtherUnitParam(
+            32,
+            log2Ceil(vLen) + 1,
+            log2Ceil(vLen * 8 / dLen),
+            log2Ceil(dLen / 32 / laneScale),
+            4 * laneScale,
+            1
+          )
         ),
         Seq.tabulate(chainingSize) { i => i }
       )
@@ -492,7 +548,14 @@ object VFUInstantiateParameter {
       (
         SerializableModuleGenerator(
           classOf[OtherUnit],
-          OtherUnitParam(32, log2Ceil(vLen) + 1, log2Ceil(vLen * 8 / dLen), log2Ceil(dLen / 32), 4, 1)
+          OtherUnitParam(
+            32,
+            log2Ceil(vLen) + 1,
+            log2Ceil(vLen * 8 / dLen),
+            log2Ceil(dLen / 32 / laneScale),
+            4 * laneScale,
+            1
+          )
         ),
         Seq.tabulate(chainingSize) { i => i }
       )

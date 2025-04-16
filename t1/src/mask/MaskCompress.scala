@@ -16,8 +16,11 @@ case class CompressParam(
   vLen:            Int,
   laneNumber:      Int,
   groupNumberBits: Int,
-  latency:         Int)
-    extends SerializableModuleParameter
+  latency:         Int,
+  eLen:            Int)
+    extends SerializableModuleParameter {
+  val laneScale: Int = datapathWidth / eLen
+}
 
 object CompressParam {
   implicit def rwP = upickle.default.macroRW[CompressParam]
@@ -33,7 +36,7 @@ class CompressInput(parameter: CompressParam) extends Bundle {
   val source2:        UInt = UInt((parameter.laneNumber * parameter.datapathWidth).W)
   val pipeData:       UInt = UInt((parameter.laneNumber * parameter.datapathWidth).W)
   val groupCounter:   UInt = UInt(parameter.groupNumberBits.W)
-  val ffoInput:       UInt = UInt(parameter.laneNumber.W)
+  val ffoInput:       UInt = UInt((parameter.laneNumber * parameter.laneScale).W)
   val validInput:     UInt = UInt(parameter.laneNumber.W)
   val lastCompress:   Bool = Bool()
 }
@@ -42,7 +45,7 @@ class CompressOutput(parameter: CompressParam) extends Bundle {
   val data:          UInt = UInt((parameter.laneNumber * parameter.datapathWidth).W)
   val mask:          UInt = UInt((parameter.laneNumber * parameter.datapathWidth / 8).W)
   val groupCounter:  UInt = UInt(parameter.groupNumberBits.W)
-  val ffoOutput:     UInt = UInt(parameter.laneNumber.W)
+  val ffoOutput:     UInt = UInt((parameter.laneNumber * parameter.laneScale).W)
   val compressValid: Bool = Bool()
 }
 
@@ -155,7 +158,7 @@ class MaskCompress(val parameter: CompressParam)
     Seq(1, 2, 4).map { eew =>
       VecInit(Seq.tabulate(parameter.laneNumber) { index =>
         // data width: eew * 8, data path 32, need [4 / eew] element
-        val dataSize = 4 / eew
+        val dataSize = (parameter.datapathWidth / 8) / eew
         val res: Seq[UInt] = Seq.tabulate(dataSize) { i =>
           changeUIntSize(compressVecPipe(dataSize * index + i), eew * 8)
         }
@@ -168,7 +171,7 @@ class MaskCompress(val parameter: CompressParam)
     eew1H,
     Seq(1, 2, 4).map { eew =>
       VecInit(Seq.tabulate(parameter.laneNumber) { index =>
-        val dataSize = 4 / eew
+        val dataSize = (parameter.datapathWidth / 8) / eew
         val res: Seq[UInt] = Seq.tabulate(dataSize) { i =>
           val maskIndex: Int = (parameter.datapathWidth - 1).min(dataSize * index + i)
           Fill(eew, maskPipe(maskIndex))
@@ -256,8 +259,8 @@ class MaskCompress(val parameter: CompressParam)
   val ffoMask: UInt = FillInterleaved(parameter.datapathWidth / 8, validInputPipe)
 
   val ffoData = VecInit(outWire.ffoOutput.asBools.zipWithIndex.map { case (fbo, i) =>
-    val pipeData  = cutUIntBySize(in.bits.pipeData, parameter.laneNumber)(i)
-    val writeData = cutUIntBySize(in.bits.source2, parameter.laneNumber)(i)
+    val pipeData  = cutUInt(in.bits.pipeData, parameter.eLen)(i)
+    val writeData = cutUInt(in.bits.source2, parameter.eLen)(i)
     Mux(fbo, pipeData, writeData)
   }).asUInt
 
@@ -290,7 +293,7 @@ class MaskCompress(val parameter: CompressParam)
     ffoValid := false.B
   }
   val firstLane:      UInt = ffo(in.bits.ffoInput)
-  val firstLaneIndex: UInt = OHToUInt(firstLane)(log2Ceil(parameter.laneNumber) - 1, 0)
+  val firstLaneIndex: UInt = OHToUInt(firstLane)(log2Ceil(parameter.laneNumber * parameter.laneScale) - 1, 0)
 
   val source1SigExtend: UInt = Mux1H(
     eew1H,
@@ -305,22 +308,24 @@ class MaskCompress(val parameter: CompressParam)
   )
 
   /** for find first one, need to tell the lane with higher index `1` . */
-  val completedLeftOr: UInt = (scanLeftOr(in.bits.ffoInput) << 1).asUInt(parameter.laneNumber - 1, 0)
+  val completedLeftOr: UInt =
+    (scanLeftOr(in.bits.ffoInput) << 1).asUInt((parameter.laneNumber * parameter.laneScale) - 1, 0)
   when(in.fire && in.bits.ffoInput.orR && ffoType) {
     ffoValid := true.B
     when(!ffoValid) {
       ffoIndex := Mux1H(
         firstLane,
         // 3: firstLaneIndex.width
-        cutUInt(in.bits.source2, parameter.datapathWidth).map(i =>
-          i(parameter.xLen - 1 - 3, 5) ## firstLaneIndex ## i(4, 0)
+        cutUInt(in.bits.source2, parameter.eLen).map(i =>
+          i(parameter.xLen - 1 - firstLaneIndex.getWidth, 5) ## firstLaneIndex ## i(4, 0)
         )
       )
     }
   }.elsewhen(mvRd) {
     ffoIndex := source1SigExtend
   }
-  val ffoOutPipe:      UInt = initRegEnable(completedLeftOr | Fill(parameter.laneNumber, ffoValid), in.fire)
+  val ffoOutPipe:      UInt =
+    initRegEnable(completedLeftOr | Fill(parameter.laneNumber * parameter.laneScale, ffoValid), in.fire)
   outWire.ffoOutput := ffoOutPipe
   out               := RegNext(outWire, 0.U.asTypeOf(outWire))
   io.stageValid     := stage2Valid || in.valid || compressTailValid
