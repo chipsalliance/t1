@@ -33,7 +33,17 @@ let
         let
           march = lib.pipe rtlDesignMetadata.march [
             (lib.splitString "_")
-            (map (ext: if ext == "zvbb" then "zvbb1" else ext))
+            (map (
+              ext:
+              # g impls d
+              if ext == "rv32gc" then
+                "rv32imafc"
+              # zvbb has experimental compiler support and required version info
+              else if ext == "zvbb" then
+                "zvbb1"
+              else
+                ext
+            ))
             (lib.concatStringsSep "_")
           ];
         in
@@ -47,6 +57,12 @@ let
           "-fno-PIC"
           "-g"
           "-O3"
+          # disable the support for the Run-Time Type Information, for example, `dynamic_cast`
+          "-fno-rtti"
+          # disable the support for C++ exceptions
+          "-fno-exceptions"
+          # disables thread-safe initialization of static variables within functions
+          "-fno-threadsafe-statics"
         ]
         ++ lib.optionals (lib.elem "zvbb" (lib.splitString "_" rtlDesignMetadata.march)) [
           "-menable-experimental-extensions"
