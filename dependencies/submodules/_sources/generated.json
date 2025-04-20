@@ -22,7 +22,7 @@
     },
     "chisel": {
         "cargoLocks": null,
-        "date": "2025-04-15",
+        "date": "2025-04-20",
         "extract": null,
         "name": "chisel",
         "passthru": null,
@@ -34,12 +34,12 @@
             "name": null,
             "owner": "chipsalliance",
             "repo": "chisel",
-            "rev": "1adb02be15884b939f5153b957a31a1a8c903b5c",
-            "sha256": "sha256-bNrKjrku/7ATygN2UmdbQTrietFng4DJsOJPNd5Zqp0=",
+            "rev": "b4dac39bde8c2849fba6af692083e3539ddb1cf7",
+            "sha256": "sha256-FtQhIjkWhpJvsfPLO9xW4GMQjypLsDiXyp4dwxNLYno=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "1adb02be15884b939f5153b957a31a1a8c903b5c"
+        "version": "b4dac39bde8c2849fba6af692083e3539ddb1cf7"
     },
     "chisel-interface": {
         "cargoLocks": null,
