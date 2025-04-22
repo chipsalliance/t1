@@ -8,7 +8,7 @@ use std::ffi::{CStr, CString};
 use tracing::trace;
 
 pub fn clip(binary: u32, a: i32, b: i32) -> u32 {
-  ensure!(a <= b, "a should be less than or equal to b");
+  assert!(a <= b, "a should be less than or equal to b");
   let nbits = b - a + 1;
   let mask = if nbits >= 32 {
     u32::MAX
