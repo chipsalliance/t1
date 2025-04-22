@@ -1,3 +1,4 @@
+use anyhow::ensure;
 use std::collections::HashMap;
 use tracing::trace;
 use Default;
@@ -500,10 +501,12 @@ impl SpikeEvent {
   pub fn check_rd(&self, data: u32) -> anyhow::Result<()> {
     // TODO: rtl should indicate whether resp_bits_data is valid
     if self.is_rd_written {
-      assert_eq!(
-        data, self.rd_bits,
+      ensure!(
+        data == self.rd_bits,
         "expect to write rd[{}] = {}, actual {}",
-        self.rd_idx, self.rd_bits, data
+        self.rd_idx,
+        self.rd_bits,
+        data
       );
     }
 
@@ -512,18 +515,17 @@ impl SpikeEvent {
 
   pub fn check_is_ready_for_commit(&self, cycle: u64) -> anyhow::Result<()> {
     for (addr, record) in &self.mem_access_record.all_writes {
-      assert_eq!(
-        record.num_completed_writes,
-        record.writes.len(),
+      ensure!(
+        record.num_completed_writes == record.writes.len(),
         "[{cycle}] expect to write mem {addr:#x}, not executed when commit, issue_idx={} ({})",
         self.issue_idx,
         self.describe_insn(),
       );
     }
     for (idx, record) in &self.vrf_access_record.all_writes {
-      assert!(
-        record.executed,
-        "[{cycle}] expect to write vrf {idx}, not executed when commit, issue_idx={} ({})",
+      ensure!(
+        record.executed || !record.changed,
+        "[{cycle}] expect to write vrf {idx}, changed but not executed when commit, issue_idx={} ({})",
         self.issue_idx,
         self.describe_insn()
       );

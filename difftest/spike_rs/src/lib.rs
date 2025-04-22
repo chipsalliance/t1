@@ -2,12 +2,13 @@ pub mod runner;
 pub mod spike_event;
 pub mod util;
 
+use anyhow::ensure;
 use libc::c_char;
 use std::ffi::{CStr, CString};
 use tracing::trace;
 
 pub fn clip(binary: u32, a: i32, b: i32) -> u32 {
-  assert!(a <= b, "a should be less than or equal to b");
+  ensure!(a <= b, "a should be less than or equal to b");
   let nbits = b - a + 1;
   let mask = if nbits >= 32 {
     u32::MAX
@@ -66,7 +67,7 @@ impl Spike {
     bytes: Vec<u8>,
   ) -> anyhow::Result<()> {
     trace!("ld: addr: 0x{:x}, len: 0x{:x}", addr, len);
-    assert!(addr + len <= self.size);
+    ensure!(addr + len <= self.size);
 
     let dst = &mut self.mem[addr..addr + len];
     for (i, byte) in bytes.iter().enumerate() {
