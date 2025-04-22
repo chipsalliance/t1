@@ -1,8 +1,9 @@
+use anyhow::{anyhow, bail, ensure};
 use num_bigint::BigUint;
 use serde::{Deserialize, Deserializer};
 use spike_rs::runner::SpikeRunner;
 use spike_rs::spike_event::LSU_IDX_DEFAULT;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 fn str_to_vec_u8<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where
@@ -195,9 +196,9 @@ impl JsonEventRunner for SpikeRunner {
         "[{cycle}] RegWrite: Hit board! idx={idx}, rtl data={data:#x}, board data={board_data:#x}",
       );
 
-      assert!(
+      ensure!(
         data == board_data,
-        "rtl data({data:#x}) should be equal to board data({board_data:#x})"
+        "[{cycle}] RegWrite: rtl data={data:#x}; board data={board_data:#x}"
       );
 
       self.rf_board[idx as usize] = None;
@@ -214,14 +215,14 @@ impl JsonEventRunner for SpikeRunner {
       se.describe_insn()
     );
 
-    assert!(
+    ensure!(
       idx as u32 == se.rd_idx,
-      "rtl idx({idx}) should be equal to spike idx({})",
+      "[{cycle}] rtl idx={idx}; se idx={}",
       se.rd_idx
     );
-    assert!(
+    ensure!(
       data == se.rd_bits,
-      "rtl data({data:#x}) should be equal to spike data({:#x})",
+      "[{cycle}] rtl data={data:#x}; se data={:#x}",
       se.rd_bits
     );
 
@@ -241,7 +242,7 @@ impl JsonEventRunner for SpikeRunner {
       se.describe_insn()
     );
 
-    assert!(
+    ensure!(
       idx as u32 == se.rd_idx,
       "rtl idx({idx}) should be equal to spike idx({})",
       se.rd_idx
@@ -262,7 +263,7 @@ impl JsonEventRunner for SpikeRunner {
         "[{cycle}] FregWrite: Hit board! idx={idx}, rtl data={data:#x}, board data={board_data:#x}",
       );
 
-      assert!(
+      ensure!(
         data == board_data,
         "rtl data({data:#x}) should be equal to board data({board_data:#x})"
       );
@@ -281,12 +282,12 @@ impl JsonEventRunner for SpikeRunner {
       se.describe_insn()
     );
 
-    assert!(
+    ensure!(
       idx as u32 == se.rd_idx,
       "rtl idx({idx}) should be equal to spike idx({})",
       se.rd_idx
     );
-    assert!(
+    ensure!(
       data == se.rd_bits,
       "rtl data({data:#x}) should be equal to spike data({:#x})",
       se.rd_bits
@@ -308,7 +309,7 @@ impl JsonEventRunner for SpikeRunner {
       se.describe_insn()
     );
 
-    assert!(
+    ensure!(
       idx as u32 == se.rd_idx,
       "rtl idx({idx}) should be equal to spike idx({})",
       se.rd_idx
@@ -336,7 +337,7 @@ impl JsonEventRunner for SpikeRunner {
 
   fn update_lsu_idx(&mut self, lsu_enq: &LsuEnqEvent) -> anyhow::Result<()> {
     let enq = lsu_enq.enq;
-    assert!(enq > 0, "enq should be greater than 0");
+    ensure!(enq > 0, "enq should be greater than 0");
     let cycle = lsu_enq.cycle;
 
     if let Some(se) = self
@@ -374,21 +375,22 @@ impl JsonEventRunner for SpikeRunner {
         se.describe_insn()
       );
 
-      if let Some(unretired_writes) = se.vrf_access_record.unretired_writes {
-        assert!(
-          unretired_writes > 0,
-          "[{}] VrfWrite: unretired_writes should be greater than 0, issue_idx={} ({})",
-          vrf_write.cycle,
-          vrf_write.issue_idx,
-          se.describe_insn()
-        );
-        if unretired_writes == 1 {
-          retire_issue = Some(vrf_write.issue_idx);
-        }
-        se.vrf_access_record.unretired_writes = Some(unretired_writes - 1);
-      } else {
-        se.vrf_access_record.retired_writes += 1;
+    // check if all writes retired
+    if let Some(unretired_writes) = se.vrf_access_record.unretired_writes {
+      ensure!(
+        unretired_writes > 0,
+        "[{}] VrfWrite: unretired_writes should be greater than 0, issue_idx={} ({})",
+        vrf_write.cycle,
+        vrf_write.issue_idx,
+        se.describe_insn()
+      );
+      if unretired_writes == 1 {
+        retire_issue = Some(vrf_write.issue_idx);
       }
+      se.vrf_access_record.unretired_writes = Some(unretired_writes - 1);
+    } else {
+      se.vrf_access_record.retired_writes += 1;
+    }
 
       vrf_write.mask.iter().enumerate().filter(|(_, &mask)| mask).for_each(|(offset, _)| {
         let written_byte = *vrf_write.data.get(offset).unwrap_or(&0);
@@ -431,7 +433,7 @@ impl JsonEventRunner for SpikeRunner {
     }
 
     if let Some(issue_idx) = retire_issue {
-      self.retire(cycle, issue_idx).unwrap();
+      self.retire(cycle, issue_idx)?;
     }
 
     Ok(())
@@ -449,21 +451,24 @@ impl JsonEventRunner for SpikeRunner {
       // compare with spike event record
       mask.iter().enumerate()
         .filter(|(_, &mask)| mask)
-        .for_each(|(offset, _)| {
+        .try_for_each(|(offset, _)| {
           let byte_addr = base_addr + offset as u32;
           let data_byte = *data.get(offset).unwrap_or(&0);
-          let mem_write =
-            se.mem_access_record.all_writes.get_mut(&byte_addr).unwrap_or_else(|| {
-              panic!("[{cycle}] MemoryWrite: cannot find mem write of byte_addr {byte_addr:#x}")
-            });
+          let mem_write = se.mem_access_record.all_writes.get_mut(&byte_addr).ok_or_else(
+              || anyhow!("[{cycle}] MemoryWrite: cannot find mem write of byte_addr {byte_addr:#x}")
+            )?;
           let single_mem_write_val = mem_write.writes[mem_write.num_completed_writes].val;
           mem_write.num_completed_writes += 1;
-          assert_eq!(single_mem_write_val, data_byte, "[{cycle}] expect mem write of byte {single_mem_write_val:#02x}, actual byte {data_byte:#02x} (byte_addr={byte_addr:#x}, pc = {:#x}, disasm = {})", se.pc, se.disasm);
-        });
+
+          ensure!(single_mem_write_val == data_byte, "[{cycle}] MemoryWrite: expect mem write of byte {single_mem_write_val:#02x}, actual byte {data_byte:#02x} (byte_addr={byte_addr:#x}, pc = {:#x}, disasm = {})", se.pc, se.disasm);
+
+          Ok(())
+        })?;
+
       return Ok(());
     }
 
-    panic!("[{cycle}] MemoryWrite: cannot find se with instruction lsu_idx={lsu_idx}")
+    bail!("[{cycle}] MemoryWrite: cannot find se with instruction lsu_idx={lsu_idx}")
   }
 
   fn vrf_scoreboard(&mut self, vrf_scoreboard: &VrfScoreboardEvent) -> anyhow::Result<()> {
@@ -474,7 +479,7 @@ impl JsonEventRunner for SpikeRunner {
     let mut should_retire: Option<u8> = None;
 
     if let Some(se) = self.commit_queue.iter_mut().rev().find(|se| se.issue_idx == issue_idx) {
-      assert!(
+      ensure!(
         se.vrf_access_record.retired_writes <= count,
         "[{cycle}] VrfScoreboard: retired_writes({}) should be less than count({count}), issue_idx={issue_idx} ({})",
         se.vrf_access_record.retired_writes, se.describe_insn()
@@ -493,11 +498,11 @@ impl JsonEventRunner for SpikeRunner {
         se.describe_insn()
       );
     } else if count != 0 {
-      panic!("[{cycle}] VrfScoreboard: cannot find se with instruction issue_idx={issue_idx}, count={count}");
+      bail!("[{cycle}] VrfScoreboard: cannot find se with instruction issue_idx={issue_idx}, count={count}");
     }
 
     if let Some(issue_idx) = should_retire {
-      self.retire(cycle, issue_idx).unwrap();
+      self.retire(cycle, issue_idx)?;
     }
 
     Ok(())
@@ -519,16 +524,15 @@ impl JsonEventRunner for SpikeRunner {
     let cycle = check_rd.cycle;
     let issue_idx = check_rd.issue_idx;
 
-    let se =
-      self.commit_queue.iter_mut().find(|se| se.issue_idx == issue_idx).unwrap_or_else(|| {
-        panic!("[{cycle}] CheckRd: cannot find se with instruction issue_idx={issue_idx}")
-      });
+    let se = self.commit_queue.iter().find(|se| se.issue_idx == issue_idx).ok_or_else(|| {
+      anyhow!("[{cycle}] CheckRd: cannot find se with instruction issue_idx={issue_idx}")
+    })?;
 
     info!("[{cycle}] CheckRd: issue_idx={issue_idx}, data={data:x?}");
 
     se.check_rd(data).expect("Failed to check_rd");
 
-    self.retire(cycle, issue_idx).unwrap();
+    self.retire(cycle, issue_idx)?;
 
     Ok(())
   }
@@ -549,12 +553,12 @@ impl JsonEventRunner for SpikeRunner {
           "[{cycle}] Retire: retire se with issue_idx={issue_idx}, ({})",
           se.describe_insn()
         );
-        se.check_is_ready_for_commit(cycle).unwrap();
+        se.check_is_ready_for_commit(cycle)?;
       } else {
-        panic!("[{cycle}] Retire: cannot remove se with instruction issue_idx={issue_idx}")
+        bail!("[{cycle}] Retire: cannot remove se with instruction issue_idx={issue_idx}")
       }
     } else {
-      panic!("[{cycle}] Retire: cannot find se with instruction issue_idx={issue_idx}")
+      bail!("[{cycle}] Retire: cannot find se with instruction issue_idx={issue_idx}")
     }
     Ok(())
   }
