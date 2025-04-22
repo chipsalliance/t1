@@ -10,9 +10,17 @@ where
   D: Deserializer<'de>,
 {
   let s: &str = Deserialize::deserialize(deserializer)?;
-  let bigint = BigUint::parse_bytes(s.trim_start().as_bytes(), 16)
-    .ok_or_else(|| serde::de::Error::custom("Failed to parse BigUint from hex string"))?;
-  Ok(bigint.to_bytes_le())
+  let s = s.trim_start();
+  if s.len() % 2 != 0 {
+    return Err(serde::de::Error::custom("Hex string length must be even"));
+  }
+  let bytes = (0..s.len())
+    .step_by(2)
+    .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+    .rev()
+    .collect::<Result<Vec<u8>, _>>()
+    .map_err(|_| serde::de::Error::custom("Failed to parse hex string into bytes"))?;
+  Ok(bytes)
 }
 
 fn str_to_vec_bool<'de, D>(deserializer: D) -> Result<Vec<bool>, D::Error>
@@ -357,23 +365,31 @@ impl JsonEventRunner for SpikeRunner {
   }
 
   fn peek_vrf_write(&mut self, vrf_write: &VrfWriteEvent) -> anyhow::Result<()> {
-    let cycle = vrf_write.cycle;
-
     let mut retire_issue: Option<u8> = None;
 
-    if let Some(se) =
-      self.commit_queue.iter_mut().rev().find(|se| se.issue_idx == vrf_write.issue_idx)
-    {
-      debug!(
-        "[{}] VrfWrite: issue_idx={}, idx_base={},  mask={}, data={}({:02x?}) ({})",
-        vrf_write.cycle,
-        vrf_write.issue_idx,
-        vrf_write.vrf_idx,
-        mask_display(&vrf_write.mask),
-        data_display(&vrf_write.data),
-        vrf_write.data,
-        se.describe_insn()
-      );
+    let se =
+      self.commit_queue.iter_mut().find(|se| se.issue_idx == vrf_write.issue_idx).ok_or_else(
+        || {
+          anyhow!(
+            "[{}] VrfWrite: rtl detect vrf write on vrf idx={} with no matched se (issue_idx={}), \
+          maybe from committed load insn",
+            vrf_write.cycle,
+            vrf_write.vrf_idx,
+            vrf_write.issue_idx
+          )
+        },
+      )?;
+
+    info!(
+      "[{}] VrfWrite: issue_idx={}, idx_base={}, mask={}, data={}({:02x?}) ({})",
+      vrf_write.cycle,
+      vrf_write.issue_idx,
+      vrf_write.vrf_idx,
+      mask_display(&vrf_write.mask),
+      data_display(&vrf_write.data),
+      vrf_write.data,
+      se.describe_insn()
+    );
 
     // check if all writes retired
     if let Some(unretired_writes) = se.vrf_access_record.unretired_writes {
@@ -392,48 +408,55 @@ impl JsonEventRunner for SpikeRunner {
       se.vrf_access_record.retired_writes += 1;
     }
 
-      vrf_write.mask.iter().enumerate().filter(|(_, &mask)| mask).for_each(|(offset, _)| {
-        let written_byte = *vrf_write.data.get(offset).unwrap_or(&0);
+    vrf_write.mask.iter().enumerate().filter(|(_, &mask)| mask).try_for_each(|(offset, _)| {
+      let written_byte = *vrf_write.data.get(offset).unwrap_or(&0);
 
-        if let Some(record) = se.vrf_access_record.all_writes.get_mut(&(vrf_write.vrf_idx + offset)) {
-          assert_eq!(
-            record.byte,
-            written_byte,
-            "[{}] VrfWrite: {offset}th byte incorrect ({:#02x} record != {written_byte:#02x} written) \
-              (mask={}, data={:x?}) \
-              issue_idx={} [vrf_idx={}] (disasm: {}, pc: {:#x}, bits: {:#x})",
-            vrf_write.cycle,
-            record.byte,
-            mask_display(&vrf_write.mask),
-            vrf_write.data,
-            se.issue_idx,
-            vrf_write.vrf_idx + offset,
-            se.disasm,
-            se.pc,
-            se.inst_bits
-          );
-          record.executed = true;
-        } else {
-          debug!(
-            "[{}] VrfWrite: cannot find vrf write record, maybe not changed (idx={}, mask={}, data={:x?})",
-            vrf_write.cycle,
-            vrf_write.vrf_idx + offset,
-            mask_display(&vrf_write.mask),
-            vrf_write.data
-          );
-        }
-      })
-    } else {
-      info!(
-        "[{cycle}] VrfWrite: rtl detect vrf write on idx={} \
-        with no matched se (issue_idx={}), \
-        maybe from committed load insn",
-        vrf_write.vrf_idx, vrf_write.issue_idx
-      );
-    }
+      let insn = se.describe_insn();
+
+      if let Some(record) = se.vrf_access_record.all_writes.get_mut(&(vrf_write.vrf_idx + offset)) {
+        ensure!(record.byte == written_byte, "[{}] VrfWrite: {offset}th byte incorrect ({:#02x} record != {written_byte:#02x} written) \
+          (mask={}, data={}) issue_idx={} [vrf_idx={}] ({insn})",
+          vrf_write.cycle,
+          record.byte,
+          mask_display(&vrf_write.mask),
+          data_display(&vrf_write.data),
+          se.issue_idx,
+          vrf_write.vrf_idx + offset,
+        );
+        record.executed = true;
+      } else {
+        bail!(
+          "[{}] VrfWrite: cannot find vrf write record, vrf_idx={}, mask={}, data={} ({insn})",
+          vrf_write.cycle,
+          vrf_write.vrf_idx + offset,
+          mask_display(&vrf_write.mask),
+          data_display(&vrf_write.data),
+        );
+      }
+
+      Ok(())
+    }).map_err(|e| {
+      self.commit_queue.clone().into_iter().for_each(|se| {
+        let mut entries: Vec<_> = se.vrf_access_record.all_writes.iter().collect();
+
+        error!(
+          "issue_idx={} ({}) in commit queue now, write {}/{}",
+          se.issue_idx,
+          se.describe_insn(),
+          entries.iter().filter(|e| e.1.executed).count(),
+          entries.len()
+        );
+        entries.sort_by_key(|&(key, _)| key);
+        entries.iter().for_each(|(key, record)| {
+          error!("index={key}, byte={:#02x},{}, {}", record.byte, if record.changed {"changed"} else {"not changed"}, if record.executed {"executed"} else {"not executed"});
+        });
+      });
+
+      e
+    })?;
 
     if let Some(issue_idx) = retire_issue {
-      self.retire(cycle, issue_idx)?;
+      self.retire(vrf_write.cycle, issue_idx)?;
     }
 
     Ok(())
@@ -538,14 +561,6 @@ impl JsonEventRunner for SpikeRunner {
   }
 
   fn retire(&mut self, cycle: u64, issue_idx: u8) -> anyhow::Result<()> {
-    self.commit_queue.clone().into_iter().for_each(|se| {
-      debug!(
-        "[{cycle}] Retire: there is se with issue_idx={} ({}) in commit queue now",
-        se.issue_idx,
-        se.describe_insn()
-      );
-    });
-
     if let Some(idx) = self.commit_queue.iter().rev().position(|se| se.issue_idx == issue_idx) {
       // use (len - 1 - idx) to get the real idx, a little tricky
       if let Some(se) = self.commit_queue.remove(self.commit_queue.len() - 1 - idx) {

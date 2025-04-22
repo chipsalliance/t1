@@ -33,7 +33,8 @@ pub struct MemReadRecord {
 #[derive(Debug, Clone)]
 pub struct SingleVrfWrite {
   pub byte: u8,
-  pub executed: bool, // set to true when rtl execute this mem access
+  pub changed: bool,
+  pub executed: bool,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -296,35 +297,36 @@ impl SpikeEvent {
       return Ok((0, 0));
     }
 
-    if self.is_vload() {
-      let vd_bytes_start = self.rd_idx * vlen_in_bytes;
-      if self.is_whole() {
-        return Ok((vd_bytes_start, vlen_in_bytes * (1 + self.vnf)));
-      }
-      let len = if self.vlmul() & 0b100 != 0 {
-        vlen_in_bytes * (1 + self.vnf)
-      } else {
-        (vlen_in_bytes * (1 + self.vnf)) << self.vlmul()
-      };
-      return Ok((vd_bytes_start, len));
-    }
-
-    let vd_bytes_start = self.rd_idx * vlen_in_bytes;
-
-    if self.is_mask_vd() {
-      return Ok((vd_bytes_start, vlen_in_bytes));
-    }
-
-    let len = if self.vlmul() & 0b100 != 0 {
-      vlen_in_bytes >> (8 - self.vlmul())
-    } else {
-      vlen_in_bytes << self.vlmul()
-    };
-
     Ok((
-      vd_bytes_start,
-      if self.is_widening() { len * 2 } else { len },
-    ))
+      self.rd_idx * vlen_in_bytes,
+      std::cmp::min(8 * vlen_in_bytes, (32 - self.rd_idx) * vlen_in_bytes),
+    )) // (start, len)
+
+    // if self.is_vload() {
+    //   if self.is_whole() || self.vlmul() & 0b100 != 0 {
+    //     return Ok((vd_bytes_start, vlen_in_bytes * (1 + self.vnf)));
+    //   } else {
+    //     return Ok((
+    //       vd_bytes_start,
+    //       (vlen_in_bytes * (1 + self.vnf)) << self.vlmul(),
+    //     ));
+    //   }
+    // }
+
+    // if self.is_mask_vd() {
+    //   return Ok((vd_bytes_start, vlen_in_bytes * 2));
+    // }
+
+    // let len = if self.vlmul() & 0b100 != 0 {
+    //   vlen_in_bytes >> (8 - self.vlmul())
+    // } else {
+    //   vlen_in_bytes << self.vlmul()
+    // };
+
+    // Ok((
+    //   vd_bytes_start,
+    //   if self.is_widening() { len * 2 } else { len },
+    // ))
   }
 
   pub fn pre_log_arch_changes(&mut self, spike: &Spike, vlen: u32) -> anyhow::Result<()> {
@@ -371,12 +373,15 @@ impl SpikeEvent {
       let vreg_index = offset / vlen_in_bytes;
       let vreg_offset = offset % vlen_in_bytes;
       let cur_byte = proc.get_vreg_data(vreg_index, vreg_offset);
+      self.vrf_access_record.all_writes.insert(
+        offset as usize,
+        SingleVrfWrite {
+          byte: cur_byte,
+          changed: origin_byte != cur_byte,
+          executed: false,
+        },
+      );
       if origin_byte != cur_byte {
-        self
-          .vrf_access_record
-          .all_writes
-          .entry(offset as usize)
-          .or_insert(SingleVrfWrite { byte: cur_byte, executed: false });
         trace!(
           "SpikeVRFChange: vrf={:?}, change_from={origin_byte}, change_to={cur_byte}, vrf_idx={offset}",
           vec![offset / vlen_in_bytes, offset % vlen_in_bytes],
