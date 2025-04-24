@@ -58,6 +58,7 @@ rec {
 
   # some symbols in newlib libgloss uses ecall, which does not work in emulator
   # emurt provides hand-written implementations for these symbols
+  # TODO: Now all the test cases are using `memcpy` provided by newlib. We will eventually want a rvv optimized `memcpy` and add it to our emurt.
   emurt = final.callPackage ../tests/emurt {
     stdenv = rv32_pkgs.stdenv;
     bintools = rv32_buildPkgs.bintools;
@@ -83,11 +84,11 @@ rec {
                 rv32_buildPkgs.${llvmForRVV_attrName}.clangNoCompilerRt;
           }).overrideAttrs
             (oldAttrs: {
-              env.NIX_CFLAGS_COMPILE = "-march=rv32gcv -mabi=ilp32f";
+              env.NIX_CFLAGS_COMPILE = "-march=rv32imacf_zvl128b_zve32f -mabi=ilp32f";
             });
 
         newlib = rv32_pkgs.stdenv.cc.libc.overrideAttrs (oldAttrs: {
-          CFLAGS_FOR_TARGET = "-march=rv32gcv -mabi=ilp32f";
+          CFLAGS_FOR_TARGET = "-march=rv32imacf_zvl128b_zve32f -mabi=ilp32f";
         });
       in
       rv32_buildPkgs.wrapCCWith rec {
