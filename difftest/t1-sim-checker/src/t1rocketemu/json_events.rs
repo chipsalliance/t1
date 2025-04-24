@@ -408,7 +408,7 @@ impl JsonEventRunner for SpikeRunner {
       se.vrf_access_record.retired_writes += 1;
     }
 
-    vrf_write.mask.iter().enumerate().filter(|(_, &mask)| mask).try_for_each(|(offset, _)| {
+    vrf_write.mask.iter().enumerate().filter(|&(_, &mask)| mask).try_for_each(|(offset, _)| {
       let written_byte = *vrf_write.data.get(offset).unwrap_or(&0);
 
       let insn = se.describe_insn();
@@ -473,7 +473,7 @@ impl JsonEventRunner for SpikeRunner {
       info!("[{cycle}] MemoryWrite: address={base_addr:#x}, size={}, data={data:x?}, mask={}, pc = {:#x}, disasm = {}", data.len(), mask_display(&mask), se.pc, se.disasm);
       // compare with spike event record
       mask.iter().enumerate()
-        .filter(|(_, &mask)| mask)
+        .filter(|&(_, &mask)| mask)
         .try_for_each(|(offset, _)| {
           let byte_addr = base_addr + offset as u32;
           let data_byte = *data.get(offset).unwrap_or(&0);

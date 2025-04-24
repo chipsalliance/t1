@@ -49,14 +49,14 @@ impl Iterator for StrbIterator {
 // dpi functions
 //----------------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn axi_tick(reset: u8) {
   TARGET.with(|driver| {
     driver.tick();
   })
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn axi_push_AW(
   reset: u8,
   channel_id: c_ulonglong,
@@ -90,7 +90,7 @@ unsafe extern "C" fn axi_push_AW(
   unsafe { ready.write(true as u8) };
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn axi_push_AR(
   reset: u8,
   channel_id: c_ulonglong,
@@ -124,7 +124,7 @@ unsafe extern "C" fn axi_push_AR(
   unsafe { ready.write(true as u8) };
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn axi_push_W(
   reset: u8,
   channel_id: c_ulonglong,
@@ -166,7 +166,7 @@ unsafe extern "C" fn axi_push_W(
   })
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn axi_pop_B(
   reset: u8,
   channel_id: c_ulonglong,
@@ -210,7 +210,7 @@ unsafe extern "C" fn axi_pop_B(
   })
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn axi_pop_R(
   reset: u8,
   channel_id: c_ulonglong,
@@ -270,7 +270,7 @@ unsafe extern "C" fn axi_pop_R(
   })
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn t1_cosim_init(
   elf_file: InStr<'_>,
   dlen: i32,
@@ -330,7 +330,7 @@ unsafe extern "C" fn t1_cosim_init(
   TARGET.init(|| Driver::new(scope, &args));
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn t1_cosim_final() {
   TARGET.with_optional(|driver| {
     if let Some(driver) = driver {
@@ -342,7 +342,7 @@ unsafe extern "C" fn t1_cosim_final() {
   });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn t1_cosim_set_timeout(timeout: u64) {
   TARGET.with(|driver| driver.set_timeout(timeout));
 }
@@ -352,12 +352,12 @@ unsafe extern "C" fn t1_cosim_set_timeout(timeout: u64) {
 ///   0   : continue
 ///   255 : quit successfully
 ///   otherwise : error
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn t1_cosim_watchdog() -> u8 {
   TARGET.with(|driver| driver.watchdog())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn get_resetvector(resetvector: *mut c_longlong) {
   TARGET.with(|driver| {
     *resetvector = driver.e_entry as c_longlong;
