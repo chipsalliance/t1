@@ -470,7 +470,13 @@ impl JsonEventRunner for SpikeRunner {
     let lsu_idx = memory_write.lsu_idx;
 
     if let Some(se) = self.commit_queue.iter_mut().find(|se| se.lsu_idx == lsu_idx) {
-      info!("[{cycle}] MemoryWrite: address={base_addr:#x}, size={}, data={data:x?}, mask={}, pc = {:#x}, disasm = {}", data.len(), mask_display(&mask), se.pc, se.disasm);
+      info!(
+        "[{cycle}] MemoryWrite: address={base_addr:#x}, size={}, data={data:x?}, mask={}, pc = {:#x}, disasm = {}",
+        data.len(),
+        mask_display(&mask),
+        se.pc,
+        se.disasm
+      );
       // compare with spike event record
       mask.iter().enumerate()
         .filter(|&(_, &mask)| mask)
@@ -505,7 +511,8 @@ impl JsonEventRunner for SpikeRunner {
       ensure!(
         se.vrf_access_record.retired_writes <= count,
         "[{cycle}] VrfScoreboard: retired_writes({}) should be less than count({count}), issue_idx={issue_idx} ({})",
-        se.vrf_access_record.retired_writes, se.describe_insn()
+        se.vrf_access_record.retired_writes,
+        se.describe_insn()
       );
 
       // if instruction writes rd, it will retire in check_rd()
@@ -521,7 +528,9 @@ impl JsonEventRunner for SpikeRunner {
         se.describe_insn()
       );
     } else if count != 0 {
-      bail!("[{cycle}] VrfScoreboard: cannot find se with instruction issue_idx={issue_idx}, count={count}");
+      bail!(
+        "[{cycle}] VrfScoreboard: cannot find se with instruction issue_idx={issue_idx}, count={count}"
+      );
     }
 
     if let Some(issue_idx) = should_retire {

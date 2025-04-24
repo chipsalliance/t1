@@ -2,7 +2,7 @@ use std::path::Path;
 
 use dpi_common::util::MetaConfig;
 use spike_rs::runner::SpikeRunner;
-use spike_rs::runner::{SpikeArgs, MEM_SIZE};
+use spike_rs::runner::{MEM_SIZE, SpikeArgs};
 use spike_rs::spike_event::MemAccessRecord;
 use spike_rs::spike_event::SpikeEvent;
 use spike_rs::util::load_elf_to_buffer;

@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use xmas_elf::program::{ProgramHeader, Type};
-use xmas_elf::{header, ElfFile};
+use xmas_elf::{ElfFile, header};
 
 pub fn load_elf(spike: &mut Spike, fname: &Path) -> anyhow::Result<u64> {
   let mut file = File::open(fname).unwrap();
