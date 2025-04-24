@@ -35,6 +35,7 @@ let
     in
     (length keysMa == 0) || ((length intersectKeys > 0) && all (isEqual: isEqual) intersectValEquality);
 
+  # TODO: we need a "tag" for all the test case
   scope = lib.recurseIntoAttrs (
     lib.makeScope newScope (casesSelf: {
       recurseForDerivations = true;
@@ -137,7 +138,11 @@ let
   _all =
     let
       allCases = lib.filter lib.isDerivation (
-        lib.concatLists (map lib.attrValues (lib.attrValues scopeStripped))
+        lib.concatLists (
+          map lib.attrValues (
+            lib.attrValues (lib.filterAttrs (_: v: builtins.typeOf v == "set") scopeStripped)
+          )
+        )
       );
       script =
         ''
