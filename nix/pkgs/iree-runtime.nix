@@ -209,5 +209,6 @@ rv32-stdenv.mkDerivation {
 
   patches = [
     ../patches/iree/disable_file_io.patch
+    ../patches/iree/fix_alignment.patch
   ];
 }
