@@ -112,6 +112,10 @@ let
   # remove non-case attributes in scope
   scopeStripped = {
     inherit (scope)
+      # Expose these build stub to help downstream
+      t1main
+      linkerScript
+
       mlir
       iree-mlir
       intrinsic
