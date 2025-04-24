@@ -6,7 +6,7 @@
   fetchFromGitHub,
 }:
 let
-  iree-turbine-version = "3.3.0";
+  iree-turbine-version = "3dedc95d2340a64bd38964f362852cc3a9e6a54a";
 in
 python3.pkgs.buildPythonPackage {
   pname = "iree-turbine";
@@ -15,8 +15,8 @@ python3.pkgs.buildPythonPackage {
   src = fetchFromGitHub {
     owner = "iree-org";
     repo = "iree-turbine";
-    rev = "v${iree-turbine-version}";
-    hash = "sha256-ccBDUK2t8RXDKsQP9wOzvW/tz8RNBadsDwtONRSc0S0=";
+    rev = "${iree-turbine-version}";
+    hash = "sha256-H2Qz2sIKB0ZCmVsrLiAmSktID7AGqLCqKrKiBj0RrKU=";
   };
 
   build-system = [

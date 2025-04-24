@@ -1,7 +1,9 @@
 {
   linkerScript,
   iree,
+  iree-turbine,
   iree-runtime,
+  python3,
   makeBuilder,
   findAndBuild,
   getTestRequiredFeatures,
@@ -10,9 +12,13 @@
 }:
 
 let
-  builder = makeBuilder { casePrefix = "iree-mlir"; };
+  builder = makeBuilder { casePrefix = "iree-pytorch"; };
   device_embedded_sync-c = ./device_embedded_sync.c;
   test-c = ./test.c;
+  pythonEnv = python3.withPackages (ps: [
+    ps.torch
+    iree-turbine
+  ]);
   build =
     { caseName, sourcePath }:
     builder {
@@ -22,7 +28,10 @@ let
 
       passthru.featuresRequired = getTestRequiredFeatures sourcePath;
 
-      nativeBuildInputs = [ iree ];
+      nativeBuildInputs = [
+        iree
+        pythonEnv
+      ];
       buildInputs = [ iree-runtime ];
 
       ireeCFlags = toString [
@@ -54,7 +63,8 @@ let
 
       buildPhase = ''
         runHook preBuild
-        iree-compile $ireeCompileArgs ${caseName}.mlir -o mlir_module_dylib_riscv_32.vmfb
+        python3 ${caseName}.py
+        iree-compile $ireeCompileArgs matmul.mlir -o mlir_module_dylib_riscv_32.vmfb
         iree-c-embed-data $ireeCEmbedDataArgs mlir_module_dylib_riscv_32.vmfb
         $CC -c -fPIC mlir_module_dylib_riscv_32.c -o mlir_module_dylib.o
         $CC -c -fPIC $ireeCFlags run.c -o run.o
@@ -97,8 +107,6 @@ let
           -o $pname.elf
         runHook postBuild
       '';
-
-      meta.description = "testcase '${caseName}', written in MLIR";
     };
 in
 findAndBuild ./. build
