@@ -237,7 +237,7 @@ impl Drop for State {
 }
 
 #[link(name = "spike_interfaces")]
-extern "C" {
+unsafe extern "C" {
   pub fn spike_register_callback(target: *mut (), callback: FfiCallback);
   fn spike_new(set: *const c_char, lvl: *const c_char, lane_number: usize) -> *mut ();
   fn spike_get_proc(spike: *mut ()) -> *mut ();

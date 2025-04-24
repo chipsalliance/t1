@@ -103,7 +103,7 @@ pub(crate) struct Retire {
 //----------------------
 
 /// evaluate after AW and W is finished at corresponding channel_id.
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn axi_write_highBandwidthPort(
   channel_id: c_longlong,
   awid: c_longlong,
@@ -132,7 +132,7 @@ unsafe extern "C" fn axi_write_highBandwidthPort(
 }
 
 /// evaluate at AR fire at corresponding channel_id.
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn axi_read_highBandwidthPort(
   channel_id: c_longlong,
   arid: c_longlong,
@@ -160,7 +160,7 @@ unsafe extern "C" fn axi_read_highBandwidthPort(
 }
 
 /// evaluate at AR fire at corresponding channel_id.
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn axi_read_indexedAccessPort(
   channel_id: c_longlong,
   arid: c_longlong,
@@ -188,7 +188,7 @@ unsafe extern "C" fn axi_read_indexedAccessPort(
 }
 
 /// evaluate after AW and W is finished at corresponding channel_id.
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn axi_write_indexedAccessPort(
   channel_id: c_longlong,
   awid: c_longlong,
@@ -215,7 +215,7 @@ unsafe extern "C" fn axi_write_indexedAccessPort(
   });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn t1_cosim_init(
   elf_file: InStr<'_>,
   dlen: i32,
@@ -236,12 +236,12 @@ unsafe extern "C" fn t1_cosim_init(
   TARGET.init(|| Driver::new(scope, &args));
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn t1_cosim_set_timeout(timeout: u64) {
   TARGET.with(|driver| driver.set_timeout(timeout));
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn t1_cosim_final() {
   TARGET.with_optional(|driver| {
     if let Some(driver) = driver {
@@ -257,14 +257,14 @@ unsafe extern "C" fn t1_cosim_final() {
 ///   0   : continue
 ///   255 : quit successfully
 ///   otherwise : error
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn t1_cosim_watchdog() -> u8 {
   TARGET.with(|driver| driver.watchdog())
 }
 
 /// evaluate at instruction queue is not empty
 /// arg issue will be type cast from a struct to svBitVecVal*(uint32_t*)
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn issue_vector_instruction(issue_dst: *mut SvBitVecVal) {
   TARGET.with(|driver| {
     let issue = driver.issue_instruction();
@@ -272,7 +272,7 @@ unsafe extern "C" fn issue_vector_instruction(issue_dst: *mut SvBitVecVal) {
   });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn retire_vector_instruction(retire_src: *const SvBitVecVal) {
   let retire = &*(retire_src as *const Retire);
   TARGET.with(|driver| {
@@ -280,7 +280,7 @@ unsafe extern "C" fn retire_vector_instruction(retire_src: *const SvBitVecVal) {
   });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn retire_vector_mem(dummy: *const SvBitVecVal) {
   TARGET.with(|driver| {
     driver.retire_memory();
