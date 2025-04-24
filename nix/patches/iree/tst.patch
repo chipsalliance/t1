@@ -1,0 +1,63 @@
+diff --git a/runtime/src/iree/base/internal/math.h b/runtime/src/iree/base/internal/math.h
+index c2e5cfd38b..ae10e0ea11 100644
+--- a/runtime/src/iree/base/internal/math.h
++++ b/runtime/src/iree/base/internal/math.h
+@@ -11,6 +11,7 @@
+ #include <stdint.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <stdio.h>
+ 
+ #include "iree/base/api.h"
+ 
+@@ -230,6 +231,7 @@ static inline uint32_t iree_math_round_up_to_pow2_u32(uint32_t n) {
+ #elif 0  // golf required; can be bloated
+   return n == 1 ? 1u : 2u << ((iree_math_count_leading_zeros_u32(n - 1) ^ 31));
+ #else
++  printf("%u\n", n);
+   // https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+   n--;
+   n |= n >> 1;
+diff --git a/runtime/src/iree/vm/bytecode/verifier.c b/runtime/src/iree/vm/bytecode/verifier.c
+index 4b19bba506..59c9170ad4 100644
+--- a/runtime/src/iree/vm/bytecode/verifier.c
++++ b/runtime/src/iree/vm/bytecode/verifier.c
+@@ -3,6 +3,7 @@
+ // Licensed under the Apache License v2.0 with LLVM Exceptions.
+ // See https://llvm.org/LICENSE.txt for license information.
+ // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++#include <stdio.h>
+ 
+ #include "iree/vm/bytecode/verifier.h"
+ 
+@@ -331,16 +332,30 @@ iree_status_t iree_vm_bytecode_function_verify(
+         iree_vm_ModuleStateDef_global_ref_count(module_state_def);
+   }
+ 
++  printf("!!!\n");
++
+   // Ensure the register storage (rounded to the nearest power of 2) won't
+   // exceed the maximum allowed registers.
+   verify_state.i32_register_count = iree_math_round_up_to_pow2_u32(
+       VMMAX(1, function_descriptor->i32_register_count));
+   verify_state.ref_register_count = iree_math_round_up_to_pow2_u32(
+       VMMAX(1, function_descriptor->ref_register_count));
++
++  printf("function_descriptor->i32_register_count: %u\n", function_descriptor->i32_register_count);
++  printf("function_descriptor->ref_register_count: %u\n", function_descriptor->ref_register_count);
++  printf("verify_state.i32_register_count: %u\n", verify_state.i32_register_count);
++  printf("verify_state.ref_register_count: %u\n", verify_state.ref_register_count);
++
+   if (IREE_UNLIKELY(verify_state.i32_register_count > IREE_I32_REGISTER_MASK) ||
+       IREE_UNLIKELY(verify_state.ref_register_count > IREE_REF_REGISTER_MASK)) {
+     // Register count overflow. A valid compiler should never produce files that
+     // hit this.
++    printf("%u\n", verify_state.i32_register_count);
++    printf("%u\n", IREE_I32_REGISTER_MASK);
++    printf("%d\n", verify_state.i32_register_count > IREE_I32_REGISTER_MASK);
++    printf("%u\n", verify_state.ref_register_count);
++    printf("%u\n", IREE_REF_REGISTER_MASK);
++    printf("%d\n", verify_state.ref_register_count > IREE_REF_REGISTER_MASK);
+     return iree_make_status(IREE_STATUS_RESOURCE_EXHAUSTED,
+                             "register count overflow");
+   }
