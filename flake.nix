@@ -82,7 +82,11 @@
             programs = {
               nixfmt.enable = true;
               scalafmt.enable = true;
-              rustfmt.enable = true;
+
+              # treefmt-nix can not determine edition automatically,
+              # unlike 'cargo fmt' which reads from Cargo.toml.
+              #
+              # rustfmt.enable = true;
             };
             settings.formatter = {
               nixfmt.excludes = [ "*/generated.nix" ];
