@@ -1,6 +1,6 @@
 use std::{fs::read_to_string, path::PathBuf};
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use clap::Parser;
 use serde::Deserialize;
 use spike_rs::runner::SpikeArgs;

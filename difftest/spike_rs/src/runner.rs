@@ -2,9 +2,9 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use tracing::debug;
 
+use crate::Spike;
 use crate::spike_event::SpikeEvent;
 use crate::util::load_elf;
-use crate::Spike;
 
 pub struct SpikeRunner {
   spike: Box<Spike>,

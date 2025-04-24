@@ -1,16 +1,16 @@
 use crate::get_t;
 use crate::interconnect::simctrl::ExitFlagRef;
 use crate::interconnect::{
-  create_emu_addrspace_with_mem, AddressSpace, MemReqPayload, RegularMemory, RAM_BASE, RAM_SIZE,
+  AddressSpace, MemReqPayload, RAM_BASE, RAM_SIZE, RegularMemory, create_emu_addrspace_with_mem,
 };
 use dpi_common::util::MetaConfig;
 use svdpi::SvScope;
 
 use anyhow::Context;
 use elf::{
+  ElfStream,
   abi::{EM_RISCV, ET_EXEC, PT_LOAD, STT_FUNC},
   endian::LittleEndian,
-  ElfStream,
 };
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::os::unix::fs::FileExt;

@@ -1,10 +1,10 @@
+use Default;
 use anyhow::ensure;
 use std::collections::HashMap;
 use tracing::trace;
-use Default;
 
-use crate::clip;
 use crate::Spike;
+use crate::clip;
 
 #[derive(Debug, Clone)]
 pub struct SingleMemWrite {
@@ -419,8 +419,7 @@ impl SpikeEvent {
             self.rd_bits = data;
             trace!(
               "ScalarRFChange: idx={:#02x}, data={:08x}",
-              self.rd_idx,
-              self.rd_bits
+              self.rd_idx, self.rd_bits
             );
           }
         }
@@ -431,8 +430,7 @@ impl SpikeEvent {
           self.rd_bits = data;
           trace!(
             "FloatRFChange: idx={:#02x}, data={:08x}",
-            self.rd_idx,
-            self.rd_bits
+            self.rd_idx, self.rd_bits
           );
         }
         _ => trace!(

@@ -3,11 +3,11 @@
 
 use dpi_common::DpiTarget;
 use std::{
-  ffi::{c_char, c_longlong, c_ulonglong, CString},
+  ffi::{CString, c_char, c_longlong, c_ulonglong},
   path::{Path, PathBuf},
 };
-use svdpi::dpi::param::InStr;
 use svdpi::SvScope;
+use svdpi::dpi::param::InStr;
 use tempfile::TempDir;
 use tracing::{debug, error, info};
 
