@@ -7,7 +7,7 @@
   fetchFromGitHub,
 }:
 let
-  version = "3.4.0rc20250414";
+  version = "3.5.0rc20250604";
   iree-flatcc-version = "9362cd00f0007d8cbee7bff86e90fb4b6b227ff3";
   iree-flatcc-src = fetchFromGitHub {
     owner = "dvidelabs";
@@ -24,7 +24,7 @@ rv32-stdenv.mkDerivation {
     owner = "iree-org";
     repo = "iree";
     tag = "iree-${version}";
-    hash = "sha256-HPtJ+qHecdaP814AdSNKvrsEVJv6tezd9WtGO19seFY=";
+    hash = "sha256-Lq7jPJ+ZAiatdLoXYsnRB43kAsHSqXlAZk/GoHdZGY4=";
   };
 
   postUnpack = ''
@@ -206,8 +206,4 @@ rv32-stdenv.mkDerivation {
     cp -v ../runtime/src/iree/vm/bytecode/module.h $prefix/include/iree/vm/bytecode/
     cp -v build_tools/third_party/flatcc/libflatcc_parsing.a $prefix/lib/
   '';
-
-  patches = [
-    ../patches/iree/disable_file_io.patch
-  ];
 }
