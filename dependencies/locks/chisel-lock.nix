@@ -220,34 +220,34 @@ in
     installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mainargs_2.13/0.7.6";
   };
 
-  "com.lihaoyi_mill-contrib-jmh_2.13-0.12.8-1-46e216" = fetchMaven {
-    name = "com.lihaoyi_mill-contrib-jmh_2.13-0.12.8-1-46e216";
+  "com.lihaoyi_mill-contrib-jmh_2.13-0.12.10" = fetchMaven {
+    name = "com.lihaoyi_mill-contrib-jmh_2.13-0.12.10";
     urls = [
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-contrib-jmh_2.13/0.12.8-1-46e216/mill-contrib-jmh_2.13-0.12.8-1-46e216.jar"
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-contrib-jmh_2.13/0.12.8-1-46e216/mill-contrib-jmh_2.13-0.12.8-1-46e216.pom"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-contrib-jmh_2.13/0.12.10/mill-contrib-jmh_2.13-0.12.10.jar"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-contrib-jmh_2.13/0.12.10/mill-contrib-jmh_2.13-0.12.10.pom"
     ];
-    hash = "sha256-1meI7K7hijKyXySfEAMYrRcNMhIjBpsQThyGJvmsI8o=";
-    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-contrib-jmh_2.13/0.12.8-1-46e216";
+    hash = "sha256-5eFNbNdcipGoQ4bK1HVAR9vkWX99dsEcFfyTl6+56jo=";
+    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-contrib-jmh_2.13/0.12.10";
   };
 
-  "com.lihaoyi_mill-main-api_2.13-0.12.8-1-46e216" = fetchMaven {
-    name = "com.lihaoyi_mill-main-api_2.13-0.12.8-1-46e216";
+  "com.lihaoyi_mill-main-api_2.13-0.12.10" = fetchMaven {
+    name = "com.lihaoyi_mill-main-api_2.13-0.12.10";
     urls = [
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-api_2.13/0.12.8-1-46e216/mill-main-api_2.13-0.12.8-1-46e216.jar"
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-api_2.13/0.12.8-1-46e216/mill-main-api_2.13-0.12.8-1-46e216.pom"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-api_2.13/0.12.10/mill-main-api_2.13-0.12.10.jar"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-api_2.13/0.12.10/mill-main-api_2.13-0.12.10.pom"
     ];
-    hash = "sha256-4uPDK4pTRGogIMWaYpRhWg+D8C2gDvaX88/x47X06Ls=";
-    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-main-api_2.13/0.12.8-1-46e216";
+    hash = "sha256-Tonwh3z3aq28qIK1ST6Vv8L21dS2I12QFKTK1voTKME=";
+    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-main-api_2.13/0.12.10";
   };
 
-  "com.lihaoyi_mill-main-client-0.12.8-1-46e216" = fetchMaven {
-    name = "com.lihaoyi_mill-main-client-0.12.8-1-46e216";
+  "com.lihaoyi_mill-main-client-0.12.10" = fetchMaven {
+    name = "com.lihaoyi_mill-main-client-0.12.10";
     urls = [
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-client/0.12.8-1-46e216/mill-main-client-0.12.8-1-46e216.jar"
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-client/0.12.8-1-46e216/mill-main-client-0.12.8-1-46e216.pom"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-client/0.12.10/mill-main-client-0.12.10.jar"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-main-client/0.12.10/mill-main-client-0.12.10.pom"
     ];
-    hash = "sha256-YMhZ7tABUyMCFXru2tjJK9IA73Z11n5w/RH5r4ia3q8=";
-    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-main-client/0.12.8-1-46e216";
+    hash = "sha256-cc653s0gNGNaNdYQLTql4h6pu7t7KS96aucYvHN39YI=";
+    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-main-client/0.12.10";
   };
 
   "com.lihaoyi_mill-moduledefs_2.13-0.11.2" = fetchMaven {
@@ -260,14 +260,14 @@ in
     installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-moduledefs_2.13/0.11.2";
   };
 
-  "com.lihaoyi_mill-runner-linenumbers_2.13-0.12.8-1-46e216" = fetchMaven {
-    name = "com.lihaoyi_mill-runner-linenumbers_2.13-0.12.8-1-46e216";
+  "com.lihaoyi_mill-runner-linenumbers_2.13-0.12.10" = fetchMaven {
+    name = "com.lihaoyi_mill-runner-linenumbers_2.13-0.12.10";
     urls = [
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-runner-linenumbers_2.13/0.12.8-1-46e216/mill-runner-linenumbers_2.13-0.12.8-1-46e216.jar"
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-runner-linenumbers_2.13/0.12.8-1-46e216/mill-runner-linenumbers_2.13-0.12.8-1-46e216.pom"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-runner-linenumbers_2.13/0.12.10/mill-runner-linenumbers_2.13-0.12.10.jar"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-runner-linenumbers_2.13/0.12.10/mill-runner-linenumbers_2.13-0.12.10.pom"
     ];
-    hash = "sha256-87nmecp5r+JPxSGxJIQz0wLptyW3yTilDK4CQaQlcsY=";
-    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-runner-linenumbers_2.13/0.12.8-1-46e216";
+    hash = "sha256-27wIiOTFeAQX/T40SNQopxV45cpf4v7eUgWpbYzDyws=";
+    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-runner-linenumbers_2.13/0.12.10";
   };
 
   "com.lihaoyi_mill-scala-compiler-bridge_2.13.11-0.0.1" = fetchMaven {
@@ -320,24 +320,34 @@ in
     installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-scala-compiler-bridge_2.13.15/0.0.1";
   };
 
-  "com.lihaoyi_mill-scalalib-api_2.13-0.12.8-1-46e216" = fetchMaven {
-    name = "com.lihaoyi_mill-scalalib-api_2.13-0.12.8-1-46e216";
+  "com.lihaoyi_mill-scalalib-api_2.13-0.12.10" = fetchMaven {
+    name = "com.lihaoyi_mill-scalalib-api_2.13-0.12.10";
     urls = [
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-api_2.13/0.12.8-1-46e216/mill-scalalib-api_2.13-0.12.8-1-46e216.jar"
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-api_2.13/0.12.8-1-46e216/mill-scalalib-api_2.13-0.12.8-1-46e216.pom"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-api_2.13/0.12.10/mill-scalalib-api_2.13-0.12.10.jar"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-api_2.13/0.12.10/mill-scalalib-api_2.13-0.12.10.pom"
     ];
-    hash = "sha256-8xD1JkQ+PyCOCEYO/mlpmkQ1PpqIRjHnlwjI46Q/TNY=";
-    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-api_2.13/0.12.8-1-46e216";
+    hash = "sha256-fD0bTO0DCFDKqAoOlxCEtl4ojQ67Biya1KD1Px86oN4=";
+    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-api_2.13/0.12.10";
   };
 
-  "com.lihaoyi_mill-scalalib-worker_2.13-0.12.8-1-46e216" = fetchMaven {
-    name = "com.lihaoyi_mill-scalalib-worker_2.13-0.12.8-1-46e216";
+  "com.lihaoyi_mill-scalalib-classgraph-worker_2.13-0.12.10" = fetchMaven {
+    name = "com.lihaoyi_mill-scalalib-classgraph-worker_2.13-0.12.10";
     urls = [
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-worker_2.13/0.12.8-1-46e216/mill-scalalib-worker_2.13-0.12.8-1-46e216.jar"
-      "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-worker_2.13/0.12.8-1-46e216/mill-scalalib-worker_2.13-0.12.8-1-46e216.pom"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-classgraph-worker_2.13/0.12.10/mill-scalalib-classgraph-worker_2.13-0.12.10.jar"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-classgraph-worker_2.13/0.12.10/mill-scalalib-classgraph-worker_2.13-0.12.10.pom"
     ];
-    hash = "sha256-SJG7mGWhe+4a2xkmFWQqn/QUBb+RYMpSdB7b1jv7JQw=";
-    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-worker_2.13/0.12.8-1-46e216";
+    hash = "sha256-hG84gE0vqBOXfJBOilIsbVcbRLnNJH56uB0de9p6qPI=";
+    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-classgraph-worker_2.13/0.12.10";
+  };
+
+  "com.lihaoyi_mill-scalalib-worker_2.13-0.12.10" = fetchMaven {
+    name = "com.lihaoyi_mill-scalalib-worker_2.13-0.12.10";
+    urls = [
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-worker_2.13/0.12.10/mill-scalalib-worker_2.13-0.12.10.jar"
+      "https://repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-worker_2.13/0.12.10/mill-scalalib-worker_2.13-0.12.10.pom"
+    ];
+    hash = "sha256-d0GagFyLYYjvR0UVCDp+9aP8FicRe3PuL40faaL1N2Q=";
+    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/mill-scalalib-worker_2.13/0.12.10";
   };
 
   "com.lihaoyi_os-lib_2.13-0.10.0" = fetchMaven {
@@ -579,24 +589,14 @@ in
     installPath = "https/repo1.maven.org/maven2/com/typesafe/config/1.4.3";
   };
 
-  "de.tototec_de.tobiasroeser.mill.vcs.version_mill0.11_2.13-0.4.0" = fetchMaven {
-    name = "de.tototec_de.tobiasroeser.mill.vcs.version_mill0.11_2.13-0.4.0";
+  "de.tototec_de.tobiasroeser.mill.vcs.version_mill0.11_2.13-0.4.1" = fetchMaven {
+    name = "de.tototec_de.tobiasroeser.mill.vcs.version_mill0.11_2.13-0.4.1";
     urls = [
-      "https://repo1.maven.org/maven2/de/tototec/de.tobiasroeser.mill.vcs.version_mill0.11_2.13/0.4.0/de.tobiasroeser.mill.vcs.version_mill0.11_2.13-0.4.0.jar"
-      "https://repo1.maven.org/maven2/de/tototec/de.tobiasroeser.mill.vcs.version_mill0.11_2.13/0.4.0/de.tobiasroeser.mill.vcs.version_mill0.11_2.13-0.4.0.pom"
+      "https://repo1.maven.org/maven2/de/tototec/de.tobiasroeser.mill.vcs.version_mill0.11_2.13/0.4.1/de.tobiasroeser.mill.vcs.version_mill0.11_2.13-0.4.1.jar"
+      "https://repo1.maven.org/maven2/de/tototec/de.tobiasroeser.mill.vcs.version_mill0.11_2.13/0.4.1/de.tobiasroeser.mill.vcs.version_mill0.11_2.13-0.4.1.pom"
     ];
-    hash = "sha256-2FbYLLM5o1PFuPL+MrLzMiYzUJ7MUSTUQ/wEQM8qqXA=";
-    installPath = "https/repo1.maven.org/maven2/de/tototec/de.tobiasroeser.mill.vcs.version_mill0.11_2.13/0.4.0";
-  };
-
-  "io.chris-kipp_mill-ci-release_mill0.12_2.13-0.2.1" = fetchMaven {
-    name = "io.chris-kipp_mill-ci-release_mill0.12_2.13-0.2.1";
-    urls = [
-      "https://repo1.maven.org/maven2/io/chris-kipp/mill-ci-release_mill0.12_2.13/0.2.1/mill-ci-release_mill0.12_2.13-0.2.1.jar"
-      "https://repo1.maven.org/maven2/io/chris-kipp/mill-ci-release_mill0.12_2.13/0.2.1/mill-ci-release_mill0.12_2.13-0.2.1.pom"
-    ];
-    hash = "sha256-BT3ltyXaRGZdP0qnujgEKt8qW3y37XMGKTqTdXUA4s8=";
-    installPath = "https/repo1.maven.org/maven2/io/chris-kipp/mill-ci-release_mill0.12_2.13/0.2.1";
+    hash = "sha256-x5XWd12u2wr+LPtkNlI8tVuoYpopT0Ox24qkf83L308=";
+    installPath = "https/repo1.maven.org/maven2/de/tototec/de.tobiasroeser.mill.vcs.version_mill0.11_2.13/0.4.1";
   };
 
   "io.circe_circe-core_2.13-0.14.2" = fetchMaven {
@@ -1468,16 +1468,6 @@ in
     ];
     hash = "sha256-PI2XYc1qPkTMmpbPv6gEgBYvAen+U+xAkxNz+P64Sc8=";
     installPath = "https/repo1.maven.org/maven2/org/scala-lang/scaladoc_3/3.3.4";
-  };
-
-  "org.scala-lang_scalap-2.13.15" = fetchMaven {
-    name = "org.scala-lang_scalap-2.13.15";
-    urls = [
-      "https://repo1.maven.org/maven2/org/scala-lang/scalap/2.13.15/scalap-2.13.15.jar"
-      "https://repo1.maven.org/maven2/org/scala-lang/scalap/2.13.15/scalap-2.13.15.pom"
-    ];
-    hash = "sha256-JMnmdCcFUakGj+seqTp15VYMzcq90jGjQPmKbCzY28A=";
-    installPath = "https/repo1.maven.org/maven2/org/scala-lang/scalap/2.13.15";
   };
 
   "org.scala-lang_tasty-core_3-3.3.4" = fetchMaven {
@@ -3354,6 +3344,16 @@ in
     installPath = "https/repo1.maven.org/maven2/io/github/alexarchambault/data-class_2.13/0.2.7";
   };
 
+  "io.github.classgraph_classgraph-4.8.179" = fetchMaven {
+    name = "io.github.classgraph_classgraph-4.8.179";
+    urls = [
+      "https://repo1.maven.org/maven2/io/github/classgraph/classgraph/4.8.179/classgraph-4.8.179.jar"
+      "https://repo1.maven.org/maven2/io/github/classgraph/classgraph/4.8.179/classgraph-4.8.179.pom"
+    ];
+    hash = "sha256-0+TFFhkHYotrD0RBI9lQCljyUYmoTjnOQ+crHvUPfig=";
+    installPath = "https/repo1.maven.org/maven2/io/github/classgraph/classgraph/4.8.179";
+  };
+
   "io.github.java-diff-utils_java-diff-utils-4.12" = fetchMaven {
     name = "io.github.java-diff-utils_java-diff-utils-4.12";
     urls = [
@@ -3945,4 +3945,4 @@ in
   };
 
 }
-# Project Source Hash:sha256-bNrKjrku/7ATygN2UmdbQTrietFng4DJsOJPNd5Zqp0=
+# Project Source Hash:sha256-wQ+H2KM3yV0i0cCIgnPLe7sfAQEMtpGzffn26r9+4gw=
