@@ -11,6 +11,8 @@ fi
 mkdir -p ./dependencies/locks
 bumpScript=(
   "t1.submodules.ivy-chisel.bump"
+  "t1.submodules.ivy-chisel-interface.bump"
+  "t1.submodules.ivy-arithmetic.bump"
   "t1.submodules.ivy-hardfloat.bump"
   "t1.submodules.ivy-omlib.bump"
   "t1.elaborator.bump"

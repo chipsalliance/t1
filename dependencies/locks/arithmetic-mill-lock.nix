@@ -855,6 +855,66 @@ in
     installPath = "https/repo1.maven.org/maven2/org/springframework/spring-framework-bom/5.3.39";
   };
 
+  "org.typelevel_algebra_2.13-2.8.0" = fetchMaven {
+    name = "org.typelevel_algebra_2.13-2.8.0";
+    urls = [
+      "https://repo1.maven.org/maven2/org/typelevel/algebra_2.13/2.8.0/algebra_2.13-2.8.0.jar"
+      "https://repo1.maven.org/maven2/org/typelevel/algebra_2.13/2.8.0/algebra_2.13-2.8.0.pom"
+    ];
+    hash = "sha256-r8lNMqbAa4qzw1PiBMQMIVSCDGKyy1Tdfo/6yOpaoZc=";
+    installPath = "https/repo1.maven.org/maven2/org/typelevel/algebra_2.13/2.8.0";
+  };
+
+  "org.typelevel_cats-kernel_2.13-2.8.0" = fetchMaven {
+    name = "org.typelevel_cats-kernel_2.13-2.8.0";
+    urls = [
+      "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0/cats-kernel_2.13-2.8.0.jar"
+      "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0/cats-kernel_2.13-2.8.0.pom"
+    ];
+    hash = "sha256-s6L0OArPjCAClIWdjTgRepGjR+kJXhlqHClMbNi3yUs=";
+    installPath = "https/repo1.maven.org/maven2/org/typelevel/cats-kernel_2.13/2.8.0";
+  };
+
+  "org.typelevel_spire-macros_2.13-0.18.0" = fetchMaven {
+    name = "org.typelevel_spire-macros_2.13-0.18.0";
+    urls = [
+      "https://repo1.maven.org/maven2/org/typelevel/spire-macros_2.13/0.18.0/spire-macros_2.13-0.18.0.jar"
+      "https://repo1.maven.org/maven2/org/typelevel/spire-macros_2.13/0.18.0/spire-macros_2.13-0.18.0.pom"
+    ];
+    hash = "sha256-BkgngMlMEHzel8RYJ+6Pyjopv9dHhXRVm//J+auxE2o=";
+    installPath = "https/repo1.maven.org/maven2/org/typelevel/spire-macros_2.13/0.18.0";
+  };
+
+  "org.typelevel_spire-platform_2.13-0.18.0" = fetchMaven {
+    name = "org.typelevel_spire-platform_2.13-0.18.0";
+    urls = [
+      "https://repo1.maven.org/maven2/org/typelevel/spire-platform_2.13/0.18.0/spire-platform_2.13-0.18.0.jar"
+      "https://repo1.maven.org/maven2/org/typelevel/spire-platform_2.13/0.18.0/spire-platform_2.13-0.18.0.pom"
+    ];
+    hash = "sha256-QLgA1LL95gtutk9ktWxq8jmyr9BIAEfRlHFS0jt13CY=";
+    installPath = "https/repo1.maven.org/maven2/org/typelevel/spire-platform_2.13/0.18.0";
+  };
+
+  "org.typelevel_spire-util_2.13-0.18.0" = fetchMaven {
+    name = "org.typelevel_spire-util_2.13-0.18.0";
+    urls = [
+      "https://repo1.maven.org/maven2/org/typelevel/spire-util_2.13/0.18.0/spire-util_2.13-0.18.0.jar"
+      "https://repo1.maven.org/maven2/org/typelevel/spire-util_2.13/0.18.0/spire-util_2.13-0.18.0.pom"
+    ];
+    hash = "sha256-TtFz/tgqsdZdL2wlNT8e513i92LfvvCGbvsy3VT9Wc8=";
+    installPath = "https/repo1.maven.org/maven2/org/typelevel/spire-util_2.13/0.18.0";
+  };
+
+  "org.typelevel_spire_2.13-0.18.0" = fetchMaven {
+    name = "org.typelevel_spire_2.13-0.18.0";
+    urls = [
+      "https://repo1.maven.org/maven2/org/typelevel/spire_2.13/0.18.0/spire_2.13-0.18.0.jar"
+      "https://repo1.maven.org/maven2/org/typelevel/spire_2.13/0.18.0/spire_2.13-0.18.0.pom"
+    ];
+    hash = "sha256-MxjpoZbni1cNWhfRcUl9aR0GM2YrFwl3S6KeTBb5J3c=";
+    installPath = "https/repo1.maven.org/maven2/org/typelevel/spire_2.13/0.18.0";
+  };
+
   "com.fasterxml.jackson_jackson-bom-2.17.2" = fetchMaven {
     name = "com.fasterxml.jackson_jackson-bom-2.17.2";
     urls = [
@@ -1147,4 +1207,4 @@ in
   };
 
 }
-# Project Source Hash:sha256-uTjKiUjvB+zAramSiNlYk5BvWTGjtY56GGtZCHOi0Hg=
+# Project Source Hash:sha256-TDYJMD5BGuROGHc3lOsEG0aFQDXlVXWB0xZ1pMcS7g0=
