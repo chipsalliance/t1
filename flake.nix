@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     mill-ivy-fetcher.url = "github:Avimitin/mill-ivy-fetcher";
-    zaozi.url = "github:sequencer/zaozi";
+    circt-follow.url = "github:sequencer/zaozi";
     treefmt-nix.url = "github:numtide/treefmt-nix";
   };
 
@@ -14,7 +14,7 @@
       self,
       nixpkgs,
       mill-ivy-fetcher,
-      zaozi,
+      circt-follow,
       ...
     }:
     let
@@ -49,7 +49,8 @@
             inherit system;
             overlays = [
               mill-ivy-fetcher.overlays.default
-              zaozi.overlays.default
+              # Follow CIRCT from sequencer/zaozi overlay
+              circt-follow.overlays.default
               overlay
             ];
           };
