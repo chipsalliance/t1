@@ -20,12 +20,12 @@ jobs:
       - name: Bump Chisel
         run: |
           cd dependencies/submodules/
-          nix run '.#nvfetcher' -- -f '^chisel$'
+          nix run '.#nvfetcher' -- -f '\\b(chisel|zaozi)\\b'
           nix fmt
-      - name: Bump circt
+      - name: Bump Zaozi when CIRCT updated
         run: |
           oldFirtool="$(nix build '.#circt' --no-link --print-out-paths)/bin/firtool"
-          nix flake update nixpkgs-for-circt
+          nix flake update zaozi
           newFirtool="$(nix build '.#circt' --no-link --print-out-paths)/bin/firtool"
           diff_bin="$(nix build '.#diffutils' --no-link --print-out-paths)/bin/diff"
           if "$diff_bin" -u <($oldFirtool --version) <($newFirtool --version); then
