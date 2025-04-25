@@ -96,7 +96,25 @@ lib.makeScope newScope (scope: {
       scope.ivy-chisel.setupHook
     ];
 
-    lockFile = "${submodules.arithmetic.src}/nix/arithmetic-mill-lock.nix";
+    lockFile = ../locks/arithmetic-mill-lock.nix;
+
+    passthru.bump = writeShellApplication {
+      name = "bump-zaozi-mill-lock";
+
+      runtimeInputs = [
+        mill
+        mill-ivy-fetcher
+      ];
+
+      text = ''
+        ivyLocal="${scope.ivy-chisel}"
+        export JAVA_TOOL_OPTIONS="''${JAVA_TOOL_OPTIONS:-} -Dcoursier.ivy.home=$ivyLocal -Divy.home=$ivyLocal"
+
+        mif run -p "${submodules.arithmetic.src}" \
+          --targets "arithmetic[snapshot]" \
+          -o ./dependencies/locks/arithmetic-mill-lock.nix "$@"
+      '';
+    };
   };
 
   ivy-chisel-interface = publishMillJar {
@@ -111,11 +129,31 @@ lib.makeScope newScope (scope: {
 
     nativeBuildInputs = [ git ];
 
-    lockFile = "${submodules.chisel-interface.src}/nix/chisel-interface-mill-lock.nix";
+    lockFile = ../locks/chisel-interface-lock.nix;
 
     buildInputs = [
       scope.ivy-chisel.setupHook
     ];
+
+    passthru.bump = writeShellApplication {
+      name = "bump-zaozi-mill-lock";
+
+      runtimeInputs = [
+        mill
+        mill-ivy-fetcher
+      ];
+
+      text = ''
+        ivyLocal="${scope.ivy-chisel}"
+        export JAVA_TOOL_OPTIONS="''${JAVA_TOOL_OPTIONS:-} -Dcoursier.ivy.home=$ivyLocal -Divy.home=$ivyLocal"
+
+        mif run -p "${submodules.chisel-interface.src}" \
+          --targets "jtag[snapshot]" \
+          --targets "axi4[snapshot]" \
+          --targets "dwbb[snapshot]" \
+          -o ./dependencies/locks/chisel-interface-lock.nix "$@"
+      '';
+    };
   };
 
   ivy-rvdecoderdb = publishMillJar {
