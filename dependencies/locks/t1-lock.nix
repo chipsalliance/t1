@@ -771,11 +771,11 @@ in
     installPath = "https/repo1.maven.org/maven2/org/junit/junit-bom/5.11.0";
   };
 
-  "org.junit_junit-bom-5.11.2" = fetchMaven {
-    name = "org.junit_junit-bom-5.11.2";
-    urls = [ "https://repo1.maven.org/maven2/org/junit/junit-bom/5.11.2/junit-bom-5.11.2.pom" ];
-    hash = "sha256-cGHayaCE9Q75/hyJE3iFhnmKFYtzLY/MLSHDid0QSHY=";
-    installPath = "https/repo1.maven.org/maven2/org/junit/junit-bom/5.11.2";
+  "org.junit_junit-bom-5.11.4" = fetchMaven {
+    name = "org.junit_junit-bom-5.11.4";
+    urls = [ "https://repo1.maven.org/maven2/org/junit/junit-bom/5.11.4/junit-bom-5.11.4.pom" ];
+    hash = "sha256-nbbdpbMILETuwuXYxim5wKdWe4U5JhdP8wechYIZuZQ=";
+    installPath = "https/repo1.maven.org/maven2/org/junit/junit-bom/5.11.4";
   };
 
   "org.junit_junit-bom-5.9.2" = fetchMaven {
@@ -1681,23 +1681,23 @@ in
     installPath = "https/repo1.maven.org/maven2/org/apache/commons/commons-parent/73";
   };
 
-  "org.apache.commons_commons-parent-78" = fetchMaven {
-    name = "org.apache.commons_commons-parent-78";
+  "org.apache.commons_commons-parent-81" = fetchMaven {
+    name = "org.apache.commons_commons-parent-81";
     urls = [
-      "https://repo1.maven.org/maven2/org/apache/commons/commons-parent/78/commons-parent-78.pom"
+      "https://repo1.maven.org/maven2/org/apache/commons/commons-parent/81/commons-parent-81.pom"
     ];
-    hash = "sha256-0aJAoMZMen5VZmg8WT/tz9MMHFaXx6DgdiAVpYrCsac=";
-    installPath = "https/repo1.maven.org/maven2/org/apache/commons/commons-parent/78";
+    hash = "sha256-0QmTrWM4k0+sJSPTmr37c4vKixmop90ZWQybLKYBGDA=";
+    installPath = "https/repo1.maven.org/maven2/org/apache/commons/commons-parent/81";
   };
 
-  "org.apache.commons_commons-text-1.13.0" = fetchMaven {
-    name = "org.apache.commons_commons-text-1.13.0";
+  "org.apache.commons_commons-text-1.13.1" = fetchMaven {
+    name = "org.apache.commons_commons-text-1.13.1";
     urls = [
-      "https://repo1.maven.org/maven2/org/apache/commons/commons-text/1.13.0/commons-text-1.13.0.jar"
-      "https://repo1.maven.org/maven2/org/apache/commons/commons-text/1.13.0/commons-text-1.13.0.pom"
+      "https://repo1.maven.org/maven2/org/apache/commons/commons-text/1.13.1/commons-text-1.13.1.jar"
+      "https://repo1.maven.org/maven2/org/apache/commons/commons-text/1.13.1/commons-text-1.13.1.pom"
     ];
-    hash = "sha256-bmb1fpgZoCG1UTUFOyUm+wonq12KTLYmp/P9GqPatOM=";
-    installPath = "https/repo1.maven.org/maven2/org/apache/commons/commons-text/1.13.0";
+    hash = "sha256-XyN/MsgPLk56B1WNH/JQAwM6OPDe4xCKkrqrZRDAFp0=";
+    installPath = "https/repo1.maven.org/maven2/org/apache/commons/commons-text/1.13.1";
   };
 
   "org.apache.groovy_groovy-bom-4.0.22" = fetchMaven {
@@ -1994,4 +1994,4 @@ in
   };
 
 }
-# Project Source Hash:sha256-23FfqN91IJgbXPkgUNgCUNEYnrShjDJKOfWGc+2jueM=
+# Project Source Hash:sha256-FoJsgQmfbxqZ7zHCIV6XLAATzFB19gr3UchPH5prinA=
