@@ -64,6 +64,7 @@ lib.makeScope newScope (scope: {
       CIRCT_INSTALL_PATH = circt-install;
       MLIR_INSTALL_PATH = mlir-install;
       JEXTRACT_INSTALL_PATH = jextract-21;
+      JAVA_TOOL_OPTIONS = "-Djextract.decls.per.header=65535 --enable-preview";
     };
 
     lockFile = ../locks/zaozi-lock.nix;
