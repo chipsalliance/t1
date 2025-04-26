@@ -169,18 +169,20 @@ class TestBench(val parameter: T1RocketTileParameter)
   val storeUnitProbe = t1Probe.lsuProbe.storeUnitProbe.suggestName("storeUnitProbe")
   val otherUnitProbe = t1Probe.lsuProbe.otherUnitProbe.suggestName("otherUnitProbe")
 
+  val log = SimLog.file("rtl_event.jsonl")
+
   // output the probes
   // rocket reg write
   when(
     rocketProbe.rfWen && !rocketProbe.vectorWriteRD && rocketProbe.rfWaddr =/= 0.U && !(rocketProbe.waitWen && rocketProbe.waitWaddr =/= 0.U)
   )(
-    printf(
+    log.printf(
       cf"""{"event":"RegWrite","idx":${rocketProbe.rfWaddr},"data":"${rocketProbe.rfWdata}%x","cycle":${simulationTime}}\n"""
     )
   )
 
   when(rocketProbe.waitWen && !rocketProbe.isVectorCommit && rocketProbe.waitWaddr =/= 0.U)(
-    printf(
+    log.printf(
       cf"""{"event":"RegWriteWait","idx":${rocketProbe.waitWaddr},"cycle":${simulationTime}}\n"""
     )
   )
@@ -214,18 +216,18 @@ class TestBench(val parameter: T1RocketTileParameter)
       val rfWaddr = Mux(fpu.pipeWrite.rfWen, fpu.pipeWrite.rfWaddr, fpu.loadOrVectorWrite.rfWaddr)
       val rfWdata = fpToIEEE.io.out.bits
       when(rfWen) {
-        printf(
+        log.printf(
           cf"""{"event":"FregWrite","idx":$rfWaddr,"data":"$rfWdata%x","cycle":$simulationTime}\n"""
         )
       }
 
       when(fpuScoreboard.fpuSetScoreBoard && !rfWen) {
-        printf(
+        log.printf(
           cf"""{"event":"FregWriteWait","idx":${fpuScoreboard.scoreBoardSetAddress},"cycle":${simulationTime}}\n"""
         )
       }
       when(fpuScoreboard.memSetScoreBoard && !rfWen) {
-        printf(
+        log.printf(
           cf"""{"event":"FregWriteWait","idx":${fpuScoreboard.scoreBoardSetAddress},"cycle":${simulationTime}}\n"""
         )
       }
@@ -242,7 +244,7 @@ class TestBench(val parameter: T1RocketTileParameter)
 
     val vrfIdx = vrfOffsetInBytes + laneOffsetInBytes
     when(lane.valid)(
-      printf(
+      log.printf(
         cf"""{"event":"VrfWrite","issue_idx":${lane.requestInstruction},"vrf_idx":${vrfIdx},"mask":"${lane.requestMask}%x","data":"${lane.requestData}%x","cycle":${simulationTime}}\n"""
       )
     )
@@ -250,33 +252,33 @@ class TestBench(val parameter: T1RocketTileParameter)
 
   // t1 memory write from store unit
   when(storeUnitProbe.valid)(
-    printf(
+    log.printf(
       cf"""{"event":"MemoryWrite","lsu_idx":${storeUnitProbe.index},"mask":"${storeUnitProbe.mask}%x","data":"${storeUnitProbe.data}%x","address":"${storeUnitProbe.address}%x","cycle":${simulationTime}}\n"""
     )
   )
 
   // t1 memory write from other unit
   when(otherUnitProbe.valid)(
-    printf(
+    log.printf(
       cf"""{"event":"MemoryWrite","lsu_idx":${otherUnitProbe.index},"mask":"${otherUnitProbe.mask}%x","data":"${otherUnitProbe.data}%x","address":"${otherUnitProbe.address}%x","cycle":${simulationTime}}\n"""
     )
   )
 
   // t1 issue
   when(t1Probe.issue.valid)(
-    printf(cf"""{"event":"Issue","idx":${t1Probe.issue.bits},"cycle":${simulationTime}}\n""")
+    log.printf(cf"""{"event":"Issue","idx":${t1Probe.issue.bits},"cycle":${simulationTime}}\n""")
   )
 
   // t1 retire
   when(t1Probe.retire.valid)(
-    printf(
+    log.printf(
       cf"""{"event":"CheckRd","data":"${t1Probe.retire.bits}%x","issue_idx":${t1Probe.responseCounter},"cycle":${simulationTime}}\n"""
     )
   )
 
   // t1 lsu enq
   when(t1Probe.lsuProbe.reqEnq.orR)(
-    printf(cf"""{"event":"LsuEnq","enq":${t1Probe.lsuProbe.reqEnq},"cycle":${simulationTime}}\n""")
+    log.printf(cf"""{"event":"LsuEnq","enq":${t1Probe.lsuProbe.reqEnq},"cycle":${simulationTime}}\n""")
   )
 
   // t1 vrf scoreboard
@@ -305,7 +307,7 @@ class TestBench(val parameter: T1RocketTileParameter)
     // always equal to array index
     scoreboard.bits := scoreboard.bits + PopCount(writeEnq)
     when(scoreboard.valid && !instructionValid(tag)) {
-      printf(
+      log.printf(
         cf"""{"event":"VrfScoreboard","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
       )
       scoreboard.valid := false.B
