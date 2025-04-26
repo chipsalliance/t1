@@ -58,6 +58,8 @@ class TestBench(val parameter: T1Parameter)
   override def implicitReset = verbatimModule.reset
   val dut: Instance[T1] = SerializableModuleGenerator(classOf[T1], parameter).instance()
 
+  val log = SimLog.file("rtl_event.jsonl")
+
   val simulationTime: UInt = RegInit(0.U(64.W))
   simulationTime := simulationTime + 1.U
 
@@ -185,35 +187,35 @@ class TestBench(val parameter: T1Parameter)
 
     val vrfIdx = vrfOffsetInBytes + laneOffsetInBytes
     when(vrf.valid)(
-      printf(
+      log.printf(
         cf"""{"event":"VrfWrite","issue_idx":${vrf.requestInstruction},"vrf_idx":${vrfIdx},"mask":"${vrf.requestMask}%x","data":"${vrf.requestData}%x","cycle":${simulationTime}}\n"""
       )
     )
   }
   // memory write from store unit
   when(storeUnitProbe.valid)(
-    printf(
+    log.printf(
       cf"""{"event":"MemoryWrite","lsu_idx":${storeUnitProbe.index},"mask":"${storeUnitProbe.mask}%x","data":"${storeUnitProbe.data}%x","address":"${storeUnitProbe.address}%x","cycle":${simulationTime}}\n"""
     )
   )
   // memory write from other unit
   when(otherUnitProbe.valid)(
-    printf(
+    log.printf(
       cf"""{"event":"MemoryWrite","lsu_idx":${otherUnitProbe.index},"mask":"${otherUnitProbe.mask}%x","data":"${otherUnitProbe.data}%x","address":"${otherUnitProbe.address}%x","cycle":${simulationTime}}\n"""
     )
   )
   // issue
   when(dut.io.issue.fire)(
-    printf(cf"""{"event":"Issue","idx":${t1Probe.instructionCounter},"cycle":${simulationTime}}\n""")
+    log.printf(cf"""{"event":"Issue","idx":${t1Probe.instructionCounter},"cycle":${simulationTime}}\n""")
   )
   // check rd
   when(dut.io.retire.rd.valid)(
-    printf(
+    log.printf(
       cf"""{"event":"CheckRd","data":"${dut.io.retire.rd.bits.rdData}%x","issue_idx":${t1Probe.responseCounter},"cycle":${simulationTime}}\n"""
     )
   )
   // lsu enq
-  when(lsuProbe.reqEnq.orR)(printf(cf"""{"event":"LsuEnq","enq":${lsuProbe.reqEnq},"cycle":${simulationTime}}\n"""))
+  when(lsuProbe.reqEnq.orR)(log.printf(cf"""{"event":"LsuEnq","enq":${lsuProbe.reqEnq},"cycle":${simulationTime}}\n"""))
 
   // allocate 2 * chainingSize scoreboards
   val vrfWriteScoreboard: Seq[Valid[UInt]] = Seq.tabulate(parameter.chaining1HBits) { _ =>
@@ -241,7 +243,7 @@ class TestBench(val parameter: T1Parameter)
     // always equal to array index
     scoreboard.bits := scoreboard.bits + PopCount(writeEnq)
     when(scoreboard.valid && !instructionValid(tag)) {
-      printf(
+      log.printf(
         cf"""{"event":"VrfScoreboard","count":${scoreboard.bits},"issue_idx":${tag},"cycle":${simulationTime}}\n"""
       )
       scoreboard.valid := false.B

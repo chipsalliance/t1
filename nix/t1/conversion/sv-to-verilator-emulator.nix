@@ -34,7 +34,8 @@ let
       "-y"
       "$DWBB_DIR/sim_ver"
       "-Wno-lint"
-      "+define+PRINTF_FD=t1_common_pkg::log_fd"
+      "+define+PRINTF_FD=do_not_use_printf"
+      "+define+__CIRCT_LIB_LOGGING"
     ]
     # vsrc may define sv packages, put it at the first
     ++ vsrc
