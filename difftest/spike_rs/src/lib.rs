@@ -221,6 +221,10 @@ impl State {
     (addr, size_by_byte)
   }
 
+  pub fn get_frm(&self) -> u32 {
+    unsafe { state_get_frm(self.state) as u32 } 
+  }
+
   pub fn set_mcycle(&self, mcycle: usize) {
     unsafe { state_set_mcycle(self.state, mcycle) }
   }
@@ -273,6 +277,7 @@ unsafe extern "C" {
   fn state_get_mem_read_size(state: *mut ()) -> u32;
   fn state_get_mem_read_addr(state: *mut (), index: u32) -> u32;
   fn state_get_mem_read_size_by_byte(state: *mut (), index: u32) -> u8;
+  fn state_get_frm(state: *mut ()) -> u64;
   fn state_handle_pc(state: *mut (), pc: u64) -> u64;
   fn state_set_mcycle(state: *mut (), mcycle: usize);
   fn state_clear(state: *mut ());

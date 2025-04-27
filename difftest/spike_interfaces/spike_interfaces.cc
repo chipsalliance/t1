@@ -229,6 +229,10 @@ uint8_t state_get_mem_read_size_by_byte(spike_state_t *state, uint32_t index) {
   return std::get<2>(state->s->log_mem_read[index]);
 }
 
+uint64_t state_get_frm(spike_state_t *state) {
+  return state->s->frm->read();
+}
+
 void spike_register_callback(void *ffi_target_, ffi_callback callback) {
   ffi_addr_to_mem = callback;
   ffi_target = ffi_target_;
