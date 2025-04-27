@@ -89,6 +89,8 @@ pub struct SpikeEvent {
   pub vl: u32,
   pub vstart: u16,
 
+  pub frm: u32,
+
   // rd
   pub rd_bits: u32,
 
@@ -142,6 +144,8 @@ impl SpikeEvent {
       vxsat: proc.vu_get_vxsat(),
       vl: proc.vu_get_vl(),
       vstart: proc.vu_get_vstart(),
+
+      frm: state.get_frm(),
 
       rd_bits: Default::default(),
 
@@ -282,7 +286,7 @@ impl SpikeEvent {
   }
 
   pub fn vcsr(&self) -> u32 {
-    self.vxsat as u32 | self.vxrm << 1
+    self.vxsat as u32 | self.vxrm << 1 | self.frm << 3
   }
 
   pub fn describe_insn(&self) -> String {
