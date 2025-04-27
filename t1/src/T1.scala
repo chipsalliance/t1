@@ -458,6 +458,7 @@ class T1(val parameter: T1Parameter)
   requestRegCSR.vl     := requestReg.bits.issue.vl
   requestRegCSR.vStart := requestReg.bits.issue.vstart
   requestRegCSR.vxrm   := requestReg.bits.issue.vcsr(2, 1)
+  requestRegCSR.frm    := requestReg.bits.issue.vcsr(5, 3)
 
   /** maintain a [[DecoupleIO]] for [[requestReg]]. */
   val requestRegDequeue = Wire(Decoupled(new T1Issue(parameter.xLen, parameter.vLen)))
@@ -865,7 +866,7 @@ class T1(val parameter: T1Parameter)
   maskUnit.io.instReq.bits.readFromScala    := Mux(decodeResult(Decoder.itype), imm, requestRegDequeue.bits.rs1Data)
   maskUnit.io.instReq.bits.sew              := T1Issue.vsew(requestReg.bits.issue)
   maskUnit.io.instReq.bits.maskType         := maskType
-  maskUnit.io.instReq.bits.vxrm             := requestReg.bits.issue.vcsr(2, 1)
+  maskUnit.io.instReq.bits.vxrm             := requestReg.bits.issue.vcsr(5, 3)
   maskUnit.io.instReq.bits.vlmul            := requestReg.bits.issue.vtype(2, 0)
   maskUnit.io.instReq.bits.vs1              := requestRegDequeue.bits.instruction(19, 15)
   maskUnit.io.instReq.bits.vs2              := requestRegDequeue.bits.instruction(24, 20)

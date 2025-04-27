@@ -1684,7 +1684,7 @@ class CSR(val parameter: CSRParameter)
     // connect csr for vector
     val vtype        = vector.get.states("vill") ## 0.U(23.W) ## vector.get.states("vma") ##
       vector.get.states("vta") ## vector.get.states("vsew") ## vector.get.states("vlmul")
-    val vcsr         = vector.get.states("vxrm") ## vector.get.states("vxsat")
+    val vcsr         = reg_frm ## vector.get.states("vxrm") ## vector.get.states("vxsat")
     io.csrToVector.foreach { v =>
       v.vtype  := vtype
       v.vl     := vector.get.states("vl")
