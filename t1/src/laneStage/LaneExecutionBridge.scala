@@ -339,7 +339,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   vfuRequest.bits.tag          := slotIndex.U
 
   // from float csr
-  vfuRequest.bits.roundingMode.foreach(_ := executionRecord.csr.vxrm)
+  vfuRequest.bits.roundingMode.foreach(_ := executionRecord.csr.frm)
   executeDecode := executionRecord.decodeResult
 
   vfuRequest.valid := (if (isLastSlot) {

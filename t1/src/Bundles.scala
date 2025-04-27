@@ -275,6 +275,8 @@ class CSRInterface(vlWidth: Int) extends Bundle {
     */
   val vxrm: UInt = UInt(2.W)
 
+  val frm: UInt = UInt(3.W)
+
   /** Vector Tail Agnostic see
     * [[https://github.com/riscv/riscv-v-spec/blob/8c8a53ccc70519755a25203e14c10068a814d4fd/v-spec.adoc#38-vector-fixed-point-rounding-mode-register-vxrm]]
     *
