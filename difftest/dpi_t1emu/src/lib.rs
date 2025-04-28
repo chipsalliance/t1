@@ -1,3 +1,6 @@
+// t1emu is in maintainance mode, don't bother to fix it
+#![allow(unsafe_op_in_unsafe_fn)]
+
 pub mod dpi;
 pub mod drive;
 

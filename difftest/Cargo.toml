@@ -22,4 +22,4 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "ansi"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 num-bigint = "0.4.6"
-svdpi = "0.0.3"
+svdpi = "0.0.5"
