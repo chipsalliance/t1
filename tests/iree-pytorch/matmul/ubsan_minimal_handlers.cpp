@@ -1,24 +1,18 @@
-#include "sanitizer_atomic.h"
-
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
+#include <atomic>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <unistd.h>
 
-#ifdef KERNEL_USE
-extern "C" void ubsan_message(const char *msg);
-static void message(const char *msg) { ubsan_message(msg); }
-#else
-static void message(const char *msg) {
-  (void)write(2, msg, strlen(msg));
-}
-#endif
+#define GET_CALLER_PC()                                                        \
+  ((uintptr_t)__builtin_extract_return_addr(                           \
+      __builtin_return_address(0)))
 
 static const int kMaxCallerPcs = 20;
-static __sanitizer::atomic_uintptr_t caller_pcs[kMaxCallerPcs];
+static std::atomic_uintptr_t caller_pcs[kMaxCallerPcs];
 // Number of elements in caller_pcs. A special value of kMaxCallerPcs + 1 means
 // that "too many errors" has already been reported.
-static __sanitizer::atomic_uint32_t caller_pcs_sz;
+static std::atomic_uint32_t caller_pcs_sz;
 
 static char *append_str(const char *s, char *buf, const char *end) {
   for (const char *p = s; (buf < end) && (*p != '\0'); ++p, ++buf)
@@ -48,12 +42,11 @@ static void format_msg(const char *kind, uintptr_t caller, char *buf,
   *buf = '\0';
 }
 
-SANITIZER_INTERFACE_WEAK_DEF(void, __ubsan_report_error, const char *kind,
-                             uintptr_t caller) {
+void __ubsan_report_error(const char *kind, uintptr_t caller) {
   if (caller == 0)
     return;
   while (true) {
-    unsigned sz = __sanitizer::atomic_load_relaxed(&caller_pcs_sz);
+    unsigned sz = std::atomic_load(&caller_pcs_sz);
     if (sz > kMaxCallerPcs)
       return; // early exit
     // when sz==kMaxCallerPcs print "too many errors", but only when cmpxchg
@@ -61,55 +54,32 @@ SANITIZER_INTERFACE_WEAK_DEF(void, __ubsan_report_error, const char *kind,
     if (sz > 0 && sz < kMaxCallerPcs) {
       uintptr_t p;
       for (unsigned i = 0; i < sz; ++i) {
-        p = __sanitizer::atomic_load_relaxed(&caller_pcs[i]);
-        if (p == 0) break;  // Concurrent update.
+        p = std::atomic_load(&caller_pcs[i]);
+        if (p == 0)
+          break; // Concurrent update.
         if (p == caller)
           return;
       }
-      if (p == 0) continue;  // FIXME: yield?
+      if (p == 0)
+        continue; // FIXME: yield?
     }
 
-    if (!__sanitizer::atomic_compare_exchange_strong(
-            &caller_pcs_sz, &sz, sz + 1, __sanitizer::memory_order_seq_cst))
-      continue;  // Concurrent update! Try again from the start.
+    if (!std::atomic_compare_exchange_strong(&caller_pcs_sz, &sz, sz + 1))
+      continue; // Concurrent update! Try again from the start.
 
     if (sz == kMaxCallerPcs) {
-      message("ubsan: too many errors\n");
+      puts("ubsan: too many errors\n");
       return;
     }
-    __sanitizer::atomic_store_relaxed(&caller_pcs[sz], caller);
+    std::atomic_store(&caller_pcs[sz], caller);
 
     char msg_buf[128];
     format_msg(kind, caller, msg_buf, msg_buf + sizeof(msg_buf));
-    message(msg_buf);
+    puts(msg_buf);
   }
 }
 
-#if defined(__ANDROID__)
-extern "C" __attribute__((weak)) void android_set_abort_message(const char *);
-static void abort_with_message(const char *kind, uintptr_t caller) {
-  char msg_buf[128];
-  format_msg(kind, caller, msg_buf, msg_buf + sizeof(msg_buf));
-  if (&android_set_abort_message)
-    android_set_abort_message(msg_buf);
-  abort();
-}
-#else
 static void abort_with_message(const char *kind, uintptr_t caller) { abort(); }
-#endif
-
-#if SANITIZER_DEBUG
-namespace __sanitizer {
-// The DCHECK macro needs this symbol to be defined.
-void NORETURN CheckFailed(const char *file, int, const char *cond, u64, u64) {
-  message("Sanitizer CHECK failed: ");
-  message(file);
-  message(":?? : "); // FIXME: Show line number.
-  message(cond);
-  abort();
-}
-} // namespace __sanitizer
-#endif
 
 #define INTERFACE extern "C" __attribute__((visibility("default")))
 
