@@ -3,7 +3,7 @@ use num_bigint::BigUint;
 use serde::{Deserialize, Deserializer};
 use spike_rs::runner::SpikeRunner;
 use spike_rs::spike_event::LSU_IDX_DEFAULT;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 fn str_to_vec_u8<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where

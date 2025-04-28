@@ -575,9 +575,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "svdpi"
-version = "0.0.3"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47897130b3c4134f7c3c924619ef9438dee608b3ad4afb5771fb0a3927b67e53"
+checksum = "dbc9e4fa99dcabab9edbab3e70fa4370139830f48ba3e8d698addf3acee13c1d"
 
 [[package]]
 name = "syn"

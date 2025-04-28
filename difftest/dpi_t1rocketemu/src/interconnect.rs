@@ -10,8 +10,6 @@ use tracing::debug;
 use framebuffer::FrameBuffer;
 use simctrl::{ExitFlagRef, SimCtrl};
 
-use crate::get_t;
-
 pub mod framebuffer;
 pub mod simctrl;
 

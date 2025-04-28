@@ -3,17 +3,14 @@
 
 use dpi_common::DpiTarget;
 use std::{
-  ffi::{CString, c_char, c_longlong, c_ulonglong},
+  ffi::CString,
   path::{Path, PathBuf},
 };
-use svdpi::SvScope;
-use svdpi::dpi::param::InStr;
+use svdpi::{dpi::param::{InBV, InStr, Out}, SvScope};
 use tempfile::TempDir;
 use tracing::{debug, error, info};
 
 use crate::drive::{Driver, IncompleteRead, IncompleteWrite, OnlineArgs};
-
-pub type SvBitVecVal = u32;
 
 // --------------------------
 // preparing data structures
@@ -22,13 +19,13 @@ pub type SvBitVecVal = u32;
 static TARGET: DpiTarget<Driver> = DpiTarget::new();
 
 /// Wstrb iterator
-struct StrbIterator {
-  strb: *const u8,
+struct StrbIterator<'a> {
+  strb: &'a [u32],
   total_width: usize,
   current: usize,
 }
 
-impl Iterator for StrbIterator {
+impl Iterator for StrbIterator<'_> {
   type Item = bool;
   fn next(&mut self) -> Option<Self::Item> {
     if self.total_width == self.current {
@@ -36,10 +33,10 @@ impl Iterator for StrbIterator {
     }
     assert!(self.total_width > self.current);
 
-    let slot = self.current / 8;
-    let bit = self.current % 8;
+    let slot = self.current / 32;
+    let bit = self.current % 32;
     // The wstrb are transfered in small endian
-    let extracted = unsafe { (self.strb.offset(slot as isize).read() >> bit & 1) != 0 };
+    let extracted = (self.strb[slot] >> bit & 1) != 0;
     self.current += 1;
     Some(extracted)
   }
@@ -59,17 +56,17 @@ unsafe extern "C" fn axi_tick(reset: u8) {
 #[unsafe(no_mangle)]
 unsafe extern "C" fn axi_push_AW(
   reset: u8,
-  channel_id: c_ulonglong,
+  channel_id: u64,
   data_width: u64,
-  awid: c_ulonglong,
-  awaddr: c_ulonglong,
-  awsize: c_ulonglong,
-  awlen: c_ulonglong,
-  awuser: c_ulonglong,
+  awid: u64,
+  awaddr: u64,
+  awsize: u64,
+  awlen: u64,
+  awuser: u64,
 
-  ready: *mut u8,
+  mut ready: Out<'_, bool>,
 ) {
-  unsafe { ready.write(false as u8) };
+  ready.set(false);
   if reset != 0 {
     return;
   }
@@ -87,23 +84,23 @@ unsafe extern "C" fn axi_push_AW(
       awaddr
     );
   });
-  unsafe { ready.write(true as u8) };
+  ready.set(true);
 }
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn axi_push_AR(
   reset: u8,
-  channel_id: c_ulonglong,
+  channel_id: u64,
   data_width: u64,
-  arid: c_ulonglong,
-  araddr: c_ulonglong,
-  arsize: c_ulonglong,
-  arlen: c_ulonglong,
-  aruser: c_ulonglong,
+  arid: u64,
+  araddr: u64,
+  arsize: u64,
+  arlen: u64,
+  aruser: u64,
 
-  ready: *mut u8,
+  mut ready: Out<'_, bool>,
 ) {
-  unsafe { ready.write(false as u8) };
+  ready.set(false);
   if reset != 0 {
     return;
   }
@@ -121,24 +118,26 @@ unsafe extern "C" fn axi_push_AR(
       araddr
     );
   });
-  unsafe { ready.write(true as u8) };
+  ready.set(true);
 }
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn axi_push_W(
   reset: u8,
-  channel_id: c_ulonglong,
+  channel_id: u64,
   data_width: u64,
-  wdata: *const SvBitVecVal,
-  wstrb: *const SvBitVecVal,
-  wlast: c_char,
+  wdata: InBV<'_, 1024>,
+  wstrb: InBV<'_, 128>,
+  wlast: u8,
 
-  ready: *mut u8,
+  mut ready: Out<'_, bool>,
 ) {
-  unsafe { ready.write(false as u8) };
+  ready.set(false);
   if reset != 0 {
     return;
   }
+  let wdata = &wdata.as_u8_slice()[..data_width as usize / 8];
+  let wstrb = wstrb.as_slice();
   TARGET.with(|target| {
     target.update_commit_cycle();
     // TODO: maybe we don't assert this, to allow same-cycle AW/W (when W is sequenced before AW)
@@ -147,13 +146,12 @@ unsafe extern "C" fn axi_push_W(
       .get_mut(&(channel_id))
       .expect("No inflight write with this ID found!");
     let w = channel.iter_mut().find(|w| !w.ready()).expect("No inflight write with this ID found!");
-    let wslice = unsafe { std::slice::from_raw_parts(wdata as *const u8, data_width as usize / 8) };
     let wstrbit = StrbIterator {
-      strb: wstrb as *const u8,
+      strb: wstrb,
       total_width: data_width as usize / 8,
       current: 0,
     };
-    w.push(wslice, wstrbit, wlast != 0, data_width);
+    w.push(wdata, wstrbit, wlast != 0, data_width);
     if wlast != 0 {
       debug!(
         "[{}] Write fully sequenced: channel_id={} id={}",
@@ -162,30 +160,37 @@ unsafe extern "C" fn axi_push_W(
         w.id()
       );
     }
-    unsafe { ready.write(true as u8) };
+    ready.set(true);
   })
+}
+
+// Packed result buffer:
+// ret[0]: valid
+// ret[2..3]: BID
+// ret[4..8]: BUSER
+#[repr(C)]
+struct RetAxiPopB {
+  bvalid: u8,
+  _padding_0: u8,
+  bid: u16,
+  buser: u32,
 }
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn axi_pop_B(
   reset: u8,
-  channel_id: c_ulonglong,
+  channel_id: u64,
   data_width: u64,
 
-  // Packed result buffer:
-  // ret[0]: valid
-  // ret[2..3]: BID
-  // ret[4..8]: BUSER
-  ret: *mut u8,
+  ret: *mut RetAxiPopB,
 ) {
-  unsafe { ret.write(false as u8) };
+  let ret = unsafe { &mut *ret };
+  ret.bvalid = 0;
   if reset != 0 {
     return;
   }
   TARGET.with(|target| {
-    unsafe {
-      ret.write(0);
-    }
+    ret.bvalid = 0;
     let fifo = match target.incomplete_writes.get_mut(&channel_id) {
       Some(f) => f,
       None => return,
@@ -201,44 +206,53 @@ unsafe extern "C" fn axi_pop_B(
       channel_id,
       w.id()
     );
-    unsafe {
-      ret.write(1);
-      (ret.offset(2) as *mut u16).write(w.id() as u16);
-      (ret.offset(4) as *mut u32).write(w.user() as u32);
-    }
+    
+    ret.bvalid = 1;
+    ret.bid = w.id() as u16;
+    ret.buser = w.user() as u32;
     return;
   })
+}
+
+// Packed result buffer:
+// ret[0]: valid
+// ret[1]: rlast
+// ret[2..3]: rid
+// ret[4..8]: ruser (in 32 bit)
+// ret[8..]: rdata
+#[repr(C)]
+struct RetAxiPopR {
+  rvalid: u8,
+  rlast: u8,
+  rid: u16,
+  ruser: u32,
+  rdata: [u8; 1024 / 8],
 }
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn axi_pop_R(
   reset: u8,
-  channel_id: c_ulonglong,
+  channel_id: u64,
   data_width: u64,
 
-  // Packed result buffer:
-  // ret[0]: valid
-  // ret[1]: rlast
-  // ret[2..3]: rid
-  // ret[4..8]: ruser (in 32 bit)
-  // ret[8..]: rdata
-  ret: *mut u8,
+  ret: *mut RetAxiPopR,
 ) {
-  unsafe { ret.write(false as u8) };
+  let ret = unsafe { &mut *ret };
+
+  ret.rvalid = 0;
   if reset != 0 {
     return;
   }
+
   TARGET.with(|target| {
-    unsafe {
-      ret.write(0);
-    }
+    ret.rvalid = 0;
     for ((cid, id), fifo) in target.incomplete_reads.iter_mut() {
       if *cid != channel_id {
         continue;
       }; // TODO: we actually wants two levels of HashMap
       if let Some(r) = fifo.front_mut() {
         if r.has_data() {
-          let rdata_buf = std::slice::from_raw_parts_mut(ret.offset(8), data_width as usize / 8);
+          let rdata_buf = &mut ret.rdata[..data_width as usize / 8];
           let last = r.pop(rdata_buf, data_width);
           debug!(
             "[{}] Read data: channel_id={} id={} content={:?}",
@@ -247,12 +261,11 @@ unsafe extern "C" fn axi_pop_R(
             *id,
             rdata_buf,
           );
-          unsafe {
-            ret.write(1);
-            ret.offset(1).write(last as u8);
-            (ret.offset(2) as *mut u16).write(*id as u16);
-            (ret.offset(4) as *mut u32).write(r.user() as u32);
-          }
+          
+          ret.rvalid = 1;
+          ret.rlast = last as u8;
+          ret.rid = *id as u16;
+          ret.ruser = r.user() as u32;
 
           if last {
             debug!(
@@ -358,9 +371,9 @@ unsafe extern "C" fn t1_cosim_watchdog() -> u8 {
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn get_resetvector(resetvector: *mut c_longlong) {
+unsafe extern "C" fn get_resetvector(mut resetvector: Out<'_, u64>) {
   TARGET.with(|driver| {
-    *resetvector = driver.e_entry as c_longlong;
+    resetvector.set(driver.e_entry);
   });
 }
 
