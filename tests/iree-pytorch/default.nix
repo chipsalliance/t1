@@ -40,6 +40,8 @@ let
         "-DIREE_PLATFORM_GENERIC=1"
         "-DIREE_SYNCHRONIZATION_DISABLE_UNSAFE=1"
         "-DIREE_FILE_IO_ENABLE=0"
+        "-fsanitize=undefined"
+        "-fsanitize-minimal-runtime"
       ];
 
       ireeCompileArgs = [
@@ -60,6 +62,11 @@ let
         "--flatten"
       ];
 
+      ubsanCFlags = [
+        "-march=rv32imagc_zvl${toString rtlDesignMetadata.vlen}b_zve32f"
+        "-mabi=ilp32f"
+      ];
+
       buildPhase = ''
         runHook preBuild
         python3 ${caseName}.py
@@ -69,7 +76,8 @@ let
         $CC -c -fPIC $ireeCFlags run.c -o run.o
         $CC -c -fPIC $ireeCFlags ${test-c} -o test.o
         $CC -c -fPIC $ireeCFlags ${device_embedded_sync-c} -I . -o device_embedded_sync.o
-        $CC -T${linkerScript} ${t1main} run.o test.o mlir_module_dylib.o device_embedded_sync.o \
+        $CXX -c -fPIC $ubsanCFlags ubsan_minimal_handlers.cpp -o ubsan_minimal.o
+        $CC -T${linkerScript} ${t1main} run.o test.o mlir_module_dylib.o device_embedded_sync.o ubsan_minimal.o \
           -liree_vm_impl \
           -liree_base_base \
           -liree_base_internal_synchronization \

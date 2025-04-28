@@ -49,6 +49,8 @@ rv32-stdenv.mkDerivation {
     ''-DIREE_TIME_NOW_FN="{ return 0; }"''
     ''-D"IREE_WAIT_UNTIL_FN(ns)= (true)"''
     ''-D"IREE_MEMORY_FLUSH_ICACHE(start, end)= do { } while (0)"''
+    "-fsanitize=undefined"
+    "-fsanitize-minimal-runtime"
   ];
   CFLAGS = toString [
     "-march=rv32imafc_zvl128b_zve32f"
@@ -59,9 +61,12 @@ rv32-stdenv.mkDerivation {
     ''-DIREE_TIME_NOW_FN="{ return 0; }"''
     ''-D"IREE_WAIT_UNTIL_FN(ns)= (true)"''
     ''-D"IREE_MEMORY_FLUSH_ICACHE(start, end)= do { } while (0)"''
+    "-fsanitize=undefined"
+    "-fsanitize-minimal-runtime"
   ];
 
   cmakeFlags = [
+    "-DCMAKE_BUILD_TYPE=Debug"
     "-DIREE_BUILD_TESTS=OFF"
     "-DIREE_BUILD_SAMPLES=OFF"
     "-DIREE_BUILD_COMPILER=OFF"
