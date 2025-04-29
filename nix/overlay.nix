@@ -20,6 +20,8 @@ rec {
   libspike = final.callPackage ./pkgs/libspike.nix { };
   libspike_interfaces = final.callPackage ../difftest/spike_interfaces { };
 
+  dramsim3-config = ../difftest/config/dramsim3-config.ini;
+
   buddy-mlir =
     let
       pkgSrc = final.fetchFromGitHub {
