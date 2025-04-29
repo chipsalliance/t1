@@ -1,7 +1,8 @@
 use crate::get_t;
 use crate::interconnect::simctrl::ExitFlagRef;
 use crate::interconnect::{
-  AddressSpace, MemReqPayload, RAM_BASE, RAM_SIZE, RegularMemory, create_emu_addrspace_with_mem,
+  AddressSpace, BusError, MemReqPayload, MemRespPayload, RAM_BASE, RAM_SIZE, RegularMemory,
+  create_emu_addrspace_with_mem,
 };
 use dpi_common::util::MetaConfig;
 use svdpi::SvScope;
@@ -58,7 +59,7 @@ pub struct IncompleteWrite {
   /// Is this request already sent to the memory?
   sent: bool,
   /// Is this request processed by the memory?
-  done: bool,
+  done: Option<Result<(), BusError>>,
 
   data: Vec<u8>,
   strb: Vec<bool>,
@@ -81,13 +82,20 @@ impl IncompleteWrite {
 
     assert!(
       awaddr % size == 0 && bus_size % size == 0,
-      "unaligned write addr={awaddr:#x} size={size}B dlen={bus_size}B"
+      "SIM ERROR: unaligned write addr={awaddr:#x} size={size}B dlen={bus_size}B"
+    );
+
+    // TODO: narrow burst is actually supported, but not tested
+    assert!(
+      !(size < bus_size && awlen > 0),
+      "SIM ERROR: narrow burst not supported, axsize={awsize}, axlen={awlen}, data_width={data_width}"
     );
 
     assert!(
-      !(size < bus_size && awlen > 0),
-      "narrow burst not supported, axsize={awsize}, axlen={awlen}, data_width={data_width}"
+      awaddr % 4096 + size * (awlen + 1) <= 4096,
+      "SIM ERROR: axi write transaction across 4KiB boundary, addr={awaddr:#x}, awsize={awsize}, awlen={awlen}",
     );
+
     let tsize = (size * (awlen + 1)) as usize;
     let data = Vec::with_capacity(tsize);
     let strb = Vec::with_capacity(tsize);
@@ -100,7 +108,7 @@ impl IncompleteWrite {
       user: awuser,
 
       sent: false,
-      done: false,
+      done: None,
       data,
       strb,
       bus_size: bus_size as usize,
@@ -108,30 +116,27 @@ impl IncompleteWrite {
   }
 
   /// Add an AXI W channel beat
-  pub fn push(
-    &mut self,
-    wdata: &[u8],
-    wstrb: impl Iterator<Item = bool>,
-    wlast: bool,
-    data_width: u64,
-  ) {
+  pub fn push(&mut self, wdata: &[u8], wstrb: impl Iterator<Item = bool>, wlast: bool) {
+    assert_eq!(
+      wdata.len(),
+      self.bus_size,
+      "Mismatch data width across DPI calls"
+    );
+
     let next_addr = self.addr as usize + self.data.len();
     let wire_offset = next_addr % self.bus_size;
     assert!(
       wire_offset as usize + self.width <= self.bus_size,
       "Sanity check for data width: IncompleteWrite::push"
     );
-    assert!(
-      data_width as usize == self.bus_size * 8,
-      "Mismatch data width across DPI calls"
-    );
-    self.data.extend(&wdata[wire_offset as usize..(wire_offset as usize + self.width)]);
+
+    self.data.extend(&wdata[wire_offset..wire_offset + self.width]);
     self.strb.extend(wstrb.skip(wire_offset).take(self.width));
+
     assert_eq!(self.data.len(), self.strb.len());
     assert!(self.data.len() <= (self.bursts * self.width) as usize);
-    if self.ready() {
-      assert!(wlast);
-    }
+
+    assert_eq!(wlast, self.ready());
   }
 
   /// Ready to send to mem
@@ -139,8 +144,22 @@ impl IncompleteWrite {
     self.data.len() == (self.bursts * self.width) as usize
   }
 
+  pub fn complete_ok(&mut self) {
+    assert!(self.done.is_none(), "Write transaction is already done");
+    self.done = Some(Ok(()));
+  }
+
+  pub fn complete_with_error(&mut self, e: BusError) {
+    assert!(self.done.is_none(), "Write transaction is already done");
+    self.done = Some(Err(e));
+  }
+
   pub fn done(&self) -> bool {
-    self.done
+    self.done.is_some()
+  }
+
+  pub fn resp(&self) -> Result<(), BusError> {
+    self.done.as_ref().expect("Write transanction is not done").clone()
   }
 
   pub fn id(&self) -> u64 {
@@ -167,7 +186,7 @@ pub struct IncompleteRead {
   /// The number of bytes already returned to the RTL
   returned: usize,
   /// The fetched data. None if the response has not arrived yet
-  data: Option<Vec<u8>>,
+  data: Option<Result<Vec<u8>, BusError>>,
 
   // Used for transfers
   bus_size: usize,
@@ -180,12 +199,18 @@ impl IncompleteRead {
 
     assert!(
       araddr % size == 0 && bus_size % size == 0,
-      "unaligned read addr={araddr:#x} size={size}B dlen={bus_size}B"
+      "SIM ERROR: unaligned read addr={araddr:#x} size={size}B dlen={bus_size}B"
+    );
+
+    // TODO: narrow burst is actually supported, but not tested
+    assert!(
+      !(size < bus_size && arlen > 0),
+      "SIM ERROR: narrow burst not supported, axsize={arsize}, axlen={arlen}, data_width={data_width}"
     );
 
     assert!(
-      !(size < bus_size && arlen > 0),
-      "narrow burst not supported, axsize={arsize}, axlen={arlen}, data_width={data_width}"
+      araddr % 4096 + size * (arlen + 1) <= 4096,
+      "SIM ERROR: axi read transaction across 4KiB boundary, addr={araddr:#x}, arsize={arsize}, arlen={arlen}",
     );
 
     IncompleteRead {
@@ -205,46 +230,60 @@ impl IncompleteRead {
   /// Drain one beat into the AXI R channel
   ///
   /// Returns true if this is the last beat in the response (rlast)
-  pub fn pop(&mut self, rdata_buf: &mut [u8], data_width: u64) -> bool {
-    assert!(
-      self.data.is_some(),
-      "IncompleteRead::pop called on request that hasn't gotten its data!"
-    );
-    let data = self.data.as_ref().unwrap();
-    assert!(
-      self.returned + self.width <= data.len(),
-      "Sanity check for data width: IncompleteRead::pop"
-    );
-    assert!(
-      data_width as usize == self.bus_size * 8,
-      "Mismatch data width across DPI calls: {} vs {}",
-      data_width,
-      self.bus_size * 8
+  pub fn pop(&mut self, rdata_buf: &mut [u8]) -> (Result<(), BusError>, bool) {
+    assert_eq!(
+      rdata_buf.len(),
+      self.bus_size,
+      "Mismatch data width across DPI calls"
     );
 
-    // Find in-line offset
-    let result_offset = (self.addr as usize + self.returned) % self.bus_size;
     assert!(
-      self.width + result_offset <= rdata_buf.len(),
-      "Sanity check for data width: Incomplete::pop, returned = {}, width={}, offset={}, total={}",
-      self.returned,
-      self.width,
-      result_offset,
-      rdata_buf.len(),
+      self.returned < self.bursts * self.width,
+      "All data already taken by RTL"
     );
-    let dst = &mut rdata_buf[result_offset..(result_offset + self.width)];
-    let src = &data[self.returned..(self.returned + self.width)];
-    dst.copy_from_slice(src);
+
+    let data = self
+      .data
+      .as_ref()
+      .expect("IncompleteRead::pop called on request that hasn't gotten its data!");
+
+    let resp = match data {
+      Err(e) => Err(e.clone()),
+      Ok(data) => {
+        // Find in-line offset
+        let result_offset = (self.addr as usize + self.returned) % self.bus_size;
+
+        let dst = &mut rdata_buf[result_offset..(result_offset + self.width)];
+        let src = &data[self.returned..(self.returned + self.width)];
+        dst.copy_from_slice(src);
+        Ok(())
+      }
+    };
+
     self.returned += self.width;
-    if self.returned >= data.len() {
-      assert!(self.returned == data.len());
-      true
-    } else {
-      false
-    }
+    assert!(self.returned <= self.bursts * self.width);
+
+    let last = self.returned == self.bursts * self.width;
+    (resp, last)
   }
 
-  pub fn has_data(&self) -> bool {
+  pub fn complete_with_data(&mut self, data: Vec<u8>) {
+    assert!(self.data.is_none(), "Read transaction is already done");
+    assert_eq!(
+      data.len(),
+      self.bursts * self.width,
+      "Transaction data width mismatch"
+    );
+
+    self.data = Some(Ok(data));
+  }
+
+  pub fn complete_with_error(&mut self, e: BusError) {
+    assert!(self.data.is_none(), "Read transaction is already done");
+    self.data = Some(Err(e));
+  }
+
+  pub fn done(&self) -> bool {
     self.data.is_some()
   }
 
@@ -471,36 +510,32 @@ impl Driver {
       let is_write = mapped_id >> 48 == 0;
       let cid = mapped_id >> 32 & 0xFFFF;
       let id = mapped_id & 0xFFFFFFFF;
-      match payload {
-        crate::interconnect::MemRespPayload::ReadBuffered(buf) => {
-          assert!(!is_write);
-          let r = self
-            .incomplete_reads
-            .get_mut(&(cid, id))
-            .and_then(|f| f.iter_mut().find(|r| r.data.is_none()))
-            .expect("Returned read has no corresponding pending data");
-          assert!(r.sent);
-          r.data = Some(buf.to_owned());
+
+      if !is_write {
+        let r = self
+          .incomplete_reads
+          .get_mut(&(cid, id))
+          .and_then(|f| f.iter_mut().find(|r| !r.done()))
+          .expect("Returned read has no corresponding pending data");
+        assert!(r.sent);
+        match payload {
+          MemRespPayload::ReadBuffered(buf) => r.complete_with_data(buf.to_owned()),
+          MemRespPayload::ReadRegister(buf) => r.complete_with_data(Vec::from(buf)),
+          MemRespPayload::ReadError(e) => r.complete_with_error(e),
+          MemRespPayload::WriteAck | MemRespPayload::WriteError(_) => unreachable!(),
         }
-        crate::interconnect::MemRespPayload::ReadRegister(buf) => {
-          assert!(!is_write);
-          let r = self
-            .incomplete_reads
-            .get_mut(&(cid, id))
-            .and_then(|f| f.iter_mut().find(|r| r.data.is_none()))
-            .expect("Returned read has no corresponding pending data");
-          assert!(r.sent);
-          r.data = Some(Vec::from(buf));
-        }
-        crate::interconnect::MemRespPayload::WriteAck => {
-          assert!(is_write);
-          let w = self
-            .incomplete_writes
-            .get_mut(&cid)
-            .and_then(|f| f.iter_mut().find(|w| w.id == id && !w.done))
-            .expect("Returned write has no corresponding pending data");
-          assert!(w.sent);
-          w.done = true;
+      } else {
+        let w = self
+          .incomplete_writes
+          .get_mut(&cid)
+          .and_then(|f| f.iter_mut().find(|w| w.id == id && !w.done()))
+          .expect("Returned write has no corresponding pending data");
+        match payload {
+          MemRespPayload::ReadBuffered(_)
+          | MemRespPayload::ReadRegister(_)
+          | MemRespPayload::ReadError(_) => unreachable!(),
+          MemRespPayload::WriteAck => w.complete_ok(),
+          MemRespPayload::WriteError(e) => w.complete_with_error(e),
         }
       }
     }

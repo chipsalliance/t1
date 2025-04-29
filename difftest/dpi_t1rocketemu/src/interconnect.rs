@@ -5,7 +5,7 @@ use std::{
   path::Path,
   rc::Rc,
 };
-use tracing::debug;
+use tracing::{debug, error};
 
 use framebuffer::FrameBuffer;
 use simctrl::{ExitFlagRef, SimCtrl};
@@ -32,6 +32,15 @@ pub enum MemReqPayload<'a> {
   Write(&'a [u8], Option<&'a [bool]>),
 }
 
+impl MemReqPayload<'_> {
+  pub fn is_write(&self) -> bool {
+    match self {
+      MemReqPayload::Read => false,
+      MemReqPayload::Write(..) => true,
+    }
+  }
+}
+
 /// A memory request
 ///
 /// The device should keep the ordering of requests of the same ID
@@ -48,15 +57,6 @@ pub struct MemReq<'a> {
   pub addr: AddrInfo,
 }
 
-impl<'a> MemReqPayload<'a> {
-  fn is_write(&self) -> bool {
-    match self {
-      MemReqPayload::Read => false,
-      MemReqPayload::Write(_, _) => true,
-    }
-  }
-}
-
 /// Payload of memory response
 ///
 /// Here we distinguish a fixed-sized MMIO register response
@@ -67,7 +67,9 @@ impl<'a> MemReqPayload<'a> {
 pub enum MemRespPayload<'a> {
   ReadBuffered(&'a [u8]),
   ReadRegister([u8; 4]),
+  ReadError(BusError),
   WriteAck,
+  WriteError(BusError),
 }
 
 /// A memory response
@@ -95,16 +97,22 @@ pub trait DeviceExt: Device + Sized {
   }
 }
 
+// It has no payload,
+// code generates bus error shall log detailed error message.
+// TODO: may distinguish SLVERR and DECERR in the future?
+#[derive(Debug, Clone)]
+pub struct BusError;
+
 // Represents a MMIO devices consists of 4-byte 'registers'.
 // Support only 4-byte aligned read/write, not support write mask
 // `offset` is offset in bytes from base address, guaranteed to be multiple of 4.
 // I choose offset in byte since it's usaully better aligned with document
 pub trait RegDevice {
   // Panic for bus error
-  fn reg_read(&mut self, offset: u32) -> u32;
+  fn reg_read(&mut self, offset: u32) -> Result<u32, BusError>;
 
   // Panic for bus error
-  fn reg_write(&mut self, offset: u32, value: u32);
+  fn reg_write(&mut self, offset: u32, value: u32) -> Result<(), BusError>;
 }
 
 /// Wrapping a reg device to implement the device trait
@@ -138,7 +146,10 @@ impl<T: RegDevice + Send + 'static> Device for WrappedRegDevice<T> {
         let value = self.device.reg_read(req.addr.offset);
         self.pending = Some(MemResp {
           id: req.id,
-          payload: MemRespPayload::ReadRegister(u32::to_le_bytes(value)),
+          payload: match value {
+            Ok(value) => MemRespPayload::ReadRegister(u32::to_le_bytes(value)),
+            Err(e) => MemRespPayload::ReadError(e),
+          },
         });
       }
       MemReqPayload::Write(data, mask) => {
@@ -147,8 +158,14 @@ impl<T: RegDevice + Send + 'static> Device for WrappedRegDevice<T> {
         }
 
         let value = u32::from_le_bytes(data.try_into().unwrap());
-        self.device.reg_write(req.addr.offset, value);
-        self.pending = Some(MemResp { id: req.id, payload: MemRespPayload::WriteAck });
+        let resp = self.device.reg_write(req.addr.offset, value);
+        self.pending = Some(MemResp {
+          id: req.id,
+          payload: match resp {
+            Ok(()) => MemRespPayload::WriteAck,
+            Err(e) => MemRespPayload::WriteError(e),
+          },
+        });
       }
     }
     true
@@ -509,9 +526,14 @@ pub struct DeviceEntry {
 
 pub struct AddressSpace {
   devices: Vec<DeviceEntry>,
+  // (id, is_write)
+  decode_errors: VecDeque<(u64, bool)>,
 }
 
 impl AddressSpace {
+  pub fn new(devices: Vec<DeviceEntry>) -> Self {
+    AddressSpace { devices, decode_errors: VecDeque::new() }
+  }
   pub fn req(&mut self, id: u64, addr: u32, len: u32, payload: MemReqPayload) -> bool {
     if let MemReqPayload::Write(data, mask) = payload {
       assert_eq!(len as usize, data.len());
@@ -519,15 +541,27 @@ impl AddressSpace {
         assert_eq!(len as usize, m.len());
       }
     }
-    let Some(device_idx) = self.find_device_idx(addr, len) else {
-      panic!("write error (no device found), addr=0x{addr:08x}, len={len}B");
-    };
-    let dev_entry = &mut self.devices[device_idx];
-    let addr = AddrInfo { offset: addr - dev_entry.base_and_size.0, len };
-    dev_entry.device.req(MemReq { id, payload, addr })
+    if let Some(device_idx) = self.find_device_idx(addr, len) {
+      let dev_entry = &mut self.devices[device_idx];
+      let addr = AddrInfo { offset: addr - dev_entry.base_and_size.0, len };
+      dev_entry.device.req(MemReq { id, payload, addr })
+    } else {
+      error!("interconnect: decode error, addr=0x{addr:08x}, len={len}B");
+      self.decode_errors.push_back((id, payload.is_write()));
+      true
+    }
   }
 
   pub fn resp(&mut self) -> Option<(u64, MemRespPayload)> {
+    if let Some((id, is_write)) = self.decode_errors.pop_front() {
+      let payload = if is_write {
+        MemRespPayload::WriteError(BusError)
+      } else {
+        MemRespPayload::ReadError(BusError)
+      };
+      return Some((id, payload));
+    }
+
     for dev in self.devices.iter_mut() {
       if let Some(r) = dev.device.resp() {
         return Some((r.id, r.payload));
@@ -580,5 +614,5 @@ pub fn create_emu_addrspace_with_mem<M: MemoryModel + Send + 'static>(
     FrameBuffer::new().with_addr(DISPLAY_BASE, DISPLAY_SIZE),
     WrappedRegDevice::new(SimCtrl::new(exit_flag.clone())).with_addr(SIMCTRL_BASE, SIMCTRL_SIZE),
   ];
-  (AddressSpace { devices }, exit_flag)
+  (AddressSpace::new(devices), exit_flag)
 }
