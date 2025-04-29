@@ -6,6 +6,7 @@
   sim-checker,
   writeShellScriptBin,
   python3,
+  dramsim3-config,
 }:
 
 {
@@ -29,7 +30,6 @@ let
     "testCase"
     "waveFileName"
   ];
-  dramsim3_config = ../../../difftest/config/dramsim3-config.ini;
   plusargs =
     [
       "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
@@ -39,7 +39,7 @@ let
       "+t1_wave_path=${waveFileName}"
     ]
     ++ lib.optionals (topName == "t1rocketemu") [
-      "+t1_dramsim3_cfg=${dramsim3_config}"
+      "+t1_dramsim3_cfg=${dramsim3-config}"
       "+t1_dramsim3_path=dramsim3_out"
     ];
   emuDriverWithArgs = emulator.driverWithArgs ++ plusargs ++ emuExtraArgs;
