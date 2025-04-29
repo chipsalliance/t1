@@ -7,11 +7,11 @@ use std::{
   },
 };
 
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::get_t;
 
-use super::RegDevice;
+use super::{BusError, RegDevice};
 
 #[derive(Default, Debug, Clone)]
 pub struct ExitFlagRef(Arc<AtomicU32>);
@@ -61,12 +61,13 @@ impl SimCtrl {
 }
 
 impl RegDevice for SimCtrl {
-  fn reg_read(&mut self, offset: u32) -> u32 {
+  fn reg_read(&mut self, offset: u32) -> Result<u32, BusError> {
     let _ = offset;
-    unimplemented!("simctrl does not support mmio read")
+    error!("simctrl: does not support mmio read");
+    Err(BusError)
   }
 
-  fn reg_write(&mut self, reg_offset: u32, value: u32) {
+  fn reg_write(&mut self, reg_offset: u32, value: u32) -> Result<(), BusError> {
     match reg_offset {
       0 => {
         if value == EXIT_CODE {
@@ -82,7 +83,12 @@ impl RegDevice for SimCtrl {
       0x14 => {
         self.append_event("profile", value);
       }
-      _ => panic!("simctrl: invalid write addr: base + 0x{reg_offset:02x}"),
+      _ => {
+        error!("simctrl: invalid write addr: base + 0x{reg_offset:02x}");
+        return Err(BusError);
+      }
     }
+
+    Ok(())
   }
 }

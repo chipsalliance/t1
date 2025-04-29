@@ -6,11 +6,17 @@ use std::{
   ffi::CString,
   path::{Path, PathBuf},
 };
-use svdpi::{dpi::param::{InBV, InStr, Out}, SvScope};
+use svdpi::{
+  SvScope,
+  dpi::param::{InBV, InStr, Out},
+};
 use tempfile::TempDir;
 use tracing::{debug, error, info};
 
-use crate::drive::{Driver, IncompleteRead, IncompleteWrite, OnlineArgs};
+use crate::{
+  drive::{Driver, IncompleteRead, IncompleteWrite, OnlineArgs},
+  interconnect::BusError,
+};
 
 // --------------------------
 // preparing data structures
@@ -151,7 +157,7 @@ unsafe extern "C" fn axi_push_W(
       total_width: data_width as usize / 8,
       current: 0,
     };
-    w.push(wdata, wstrbit, wlast != 0, data_width);
+    w.push(wdata, wstrbit, wlast != 0);
     if wlast != 0 {
       debug!(
         "[{}] Write fully sequenced: channel_id={} id={}",
@@ -200,13 +206,21 @@ unsafe extern "C" fn axi_pop_B(
       return;
     }
     let w = fifo.pop_front().unwrap();
+    match w.resp() {
+      Ok(()) => {}
+      Err(BusError) => panic!(
+        "SIM ERROR: write bus error, cid={}, id={}",
+        channel_id,
+        w.id()
+      ),
+    }
     debug!(
       "[{}] Write finalized: channel_id={} id={}",
       crate::get_t(),
       channel_id,
       w.id()
     );
-    
+
     ret.bvalid = 1;
     ret.bid = w.id() as u16;
     ret.buser = w.user() as u32;
@@ -246,25 +260,29 @@ unsafe extern "C" fn axi_pop_R(
 
   TARGET.with(|target| {
     ret.rvalid = 0;
-    for ((cid, id), fifo) in target.incomplete_reads.iter_mut() {
-      if *cid != channel_id {
+    for (&(cid, id), fifo) in target.incomplete_reads.iter_mut() {
+      if cid != channel_id {
         continue;
       }; // TODO: we actually wants two levels of HashMap
       if let Some(r) = fifo.front_mut() {
-        if r.has_data() {
+        if r.done() {
           let rdata_buf = &mut ret.rdata[..data_width as usize / 8];
-          let last = r.pop(rdata_buf, data_width);
+          let (resp, last) = r.pop(rdata_buf);
+          match resp {
+            Ok(()) => {}
+            Err(BusError) => panic!("SIM ERROR: read bus error, cid={cid}, id={id}"),
+          }
           debug!(
             "[{}] Read data: channel_id={} id={} content={:?}",
             crate::get_t(),
             channel_id,
-            *id,
+            id,
             rdata_buf,
           );
-          
+
           ret.rvalid = 1;
           ret.rlast = last as u8;
-          ret.rid = *id as u16;
+          ret.rid = id as u16;
           ret.ruser = r.user() as u32;
 
           if last {
@@ -272,7 +290,7 @@ unsafe extern "C" fn axi_pop_R(
               "[{}] Read finalized: channel_id={} id={}",
               crate::get_t(),
               channel_id,
-              *id
+              id
             );
             fifo.pop_front();
           }
