@@ -1,8 +1,8 @@
 use crate::get_t;
 use crate::interconnect::simctrl::ExitFlagRef;
 use crate::interconnect::{
-  AddressSpace, BusError, MemReqPayload, MemRespPayload, RAM_BASE, RAM_SIZE, RegularMemory,
-  create_emu_addrspace_with_mem,
+  AddressSpace, BusError, DRAMModel, MemReqPayload, MemRespPayload, RegularMemory,
+  create_emu_addrspace,
 };
 use dpi_common::util::MetaConfig;
 use svdpi::SvScope;
@@ -317,20 +317,10 @@ pub(crate) struct Driver {
 
 impl Driver {
   pub(crate) fn new(scope: SvScope, args: &OnlineArgs<'_>) -> Self {
-    let mut initmem = vec![0; RAM_SIZE as usize];
-    let (e_entry, _fn_sym_tab) =
-      Self::load_elf(Path::new(&args.elf_file), &mut initmem).expect("fail creating simulator");
-
-    let (addr_space, exit_flag) = match args.dramsim3 {
-      Some((cfg_path, run_path)) => {
-        let mem = RegularMemory::with_content_and_model(initmem, cfg_path, run_path);
-        create_emu_addrspace_with_mem(mem)
-      }
-      None => {
-        let mem = RegularMemory::with_content(initmem);
-        create_emu_addrspace_with_mem(mem)
-      }
-    };
+    let dram_model = args.dramsim3.map(|(cfg_path, run_path)| DRAMModel::new(cfg_path, run_path));
+    let (mut addr_space, exit_flag) = create_emu_addrspace(dram_model);
+    let e_entry =
+      Self::load_elf(Path::new(&args.elf_file), &mut addr_space).expect("fail creating simulator");
     // pass e_entry to rocket
 
     Self {
@@ -361,7 +351,7 @@ impl Driver {
   }
 
   // when error happens, `mem` may be left in an unspecified intermediate state
-  pub fn load_elf(path: &Path, mem: &mut [u8]) -> anyhow::Result<(u64, FunctionSymTab)> {
+  pub fn load_elf(path: &Path, mem: &mut AddressSpace) -> anyhow::Result<u64> {
     let file = fs::File::open(path).with_context(|| "reading ELF file")?;
     let mut elf: ElfStream<LittleEndian, _> =
       ElfStream::open_stream(&file).with_context(|| "parsing ELF file")?;
@@ -380,9 +370,10 @@ impl Driver {
 
     debug!("ELF entry: 0x{:x}", elf.ehdr.e_entry);
     let mut load_buffer = Vec::new();
-    elf.segments().iter().filter(|phdr| phdr.p_type == PT_LOAD).for_each(|phdr| {
-      let vaddr: usize = phdr.p_vaddr.try_into().expect("fail converting vaddr(u64) to usize");
-      let filesz: usize = phdr.p_filesz.try_into().expect("fail converting p_filesz(u64) to usize");
+    for phdr in elf.segments().iter().filter(|phdr| phdr.p_type == PT_LOAD) {
+      let vaddr: u32 = phdr.p_vaddr.try_into().expect("fail converting vaddr(u64) to u32");
+      let memsz: u32 = phdr.p_memsz.try_into().expect("fail converting memsz(u64) to u32");
+      let filesz: u32 = phdr.p_filesz.try_into().expect("fail converting p_filesz(u64) to u32");
       debug!(
         "Read loadable segments 0x{:x}..0x{:x} to memory 0x{:x}",
         phdr.p_offset,
@@ -390,43 +381,18 @@ impl Driver {
         vaddr
       );
 
-      // Load file start from offset into given mem slice
-      // The `offset` of the read_at method is relative to the start of the file and thus independent from the current cursor.
-      load_buffer.resize(filesz, 0u8);
-      file.read_at(load_buffer.as_mut_slice(), phdr.p_offset).unwrap_or_else(|err| {
-        panic!(
-          "fail reading ELF into mem with vaddr={}, filesz={}, offset={}. Error detail: {}",
-          vaddr, filesz, phdr.p_offset, err
+      load_buffer.resize(filesz as usize, 0u8);
+      file.read_exact_at(&mut load_buffer, phdr.p_offset).with_context(|| {
+        format!(
+          "reading ELF into mem with vaddr={:#x}, filesz={:#x}, offset={:#x}",
+          vaddr, filesz, phdr.p_offset
         )
-      });
-      let dest =
-        &mut mem[(vaddr - RAM_BASE as usize)..(vaddr - RAM_BASE as usize + load_buffer.len())];
-      dest.copy_from_slice(&load_buffer);
-    });
+      })?;
 
-    // FIXME: now the symbol table doesn't contain any function value
-    let mut fn_sym_tab = FunctionSymTab::new();
-    let symbol_table =
-      elf.symbol_table().with_context(|| "reading symbol table(SHT_SYMTAB) from ELF")?;
-    if let Some((parsed_table, string_table)) = symbol_table {
-      parsed_table
-        .iter()
-        // st_symtype = symbol.st_info & 0xf (But why masking here?)
-        .filter(|sym| sym.st_symtype() == STT_FUNC)
-        .for_each(|sym| {
-          let name = string_table
-            .get(sym.st_name as usize)
-            .unwrap_or_else(|_| panic!("fail to get name at st_name={}", sym.st_name));
-          fn_sym_tab.insert(
-            sym.st_value,
-            FunctionSym { name: name.to_string(), info: sym.st_symtype() },
-          );
-        });
-    } else {
-      debug!("load_elf: symtab not found");
-    };
+      mem.load_elf_segment(vaddr, memsz, &load_buffer);
+    }
 
-    Ok((elf.ehdr.e_entry, fn_sym_tab))
+    Ok(elf.ehdr.e_entry)
   }
 
   pub fn update_commit_cycle(&mut self) {

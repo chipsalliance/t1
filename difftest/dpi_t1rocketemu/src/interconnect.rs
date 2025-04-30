@@ -85,6 +85,11 @@ pub trait Device: Any + Send {
   fn req(&mut self, req: MemReq<'_>) -> bool;
   fn resp(&mut self) -> Option<MemResp<'_>>;
   fn tick(&mut self);
+
+  // mainly for elf load
+  fn as_ram_mut(&mut self) -> Option<&mut [u8]> {
+    None
+  }
 }
 
 impl<T: Device> DeviceExt for T {}
@@ -345,7 +350,7 @@ pub struct DRAMModel {
 unsafe impl Send for DRAMModel {}
 
 impl DRAMModel {
-  fn new(ds_cfg: &Path, ds_path: &Path) -> Self {
+  pub fn new(ds_cfg: &Path, ds_path: &Path) -> Self {
     let chunk_size: Rc<Cell<u32>> = Rc::new(Cell::new(0));
     let chunk_size_clone = chunk_size.clone();
     let sys =
@@ -459,8 +464,8 @@ impl RegularMemory<TrivialModel> {
 }
 
 impl RegularMemory<DRAMModel> {
-  pub fn with_content_and_model(data: Vec<u8>, ds_cfg: &Path, ds_path: &Path) -> Self {
-    RegularMemory { data, model: DRAMModel::new(ds_cfg, ds_path) }
+  pub fn with_content_and_model(data: Vec<u8>, model: DRAMModel) -> Self {
+    RegularMemory { data, model }
   }
 }
 
@@ -508,6 +513,10 @@ impl<M: MemoryModel + Send + 'static> Device for RegularMemory<M> {
 
   fn tick(&mut self) {
     self.model.tick();
+  }
+
+  fn as_ram_mut(&mut self) -> Option<&mut [u8]> {
+    Some(&mut self.data)
   }
 }
 
@@ -576,6 +585,25 @@ impl AddressSpace {
     }
   }
 
+  pub fn load_elf_segment(&mut self, addr: u32, len: u32, data: &[u8]) {
+    assert!(
+      data.len() <= len as usize,
+      "elfload: malformed elf, filesz={}, memsz={}",
+      data.len(),
+      len
+    );
+    let Some(device_idx) = self.find_device_idx(addr, len) else {
+      panic!("elfload: interconnect decode error, addr=0x{addr:08x}, len={len}B")
+    };
+    let dev_entry = &mut self.devices[device_idx];
+    let ram = dev_entry.device.as_ram_mut().expect("elfload: device not support elf load");
+
+    let offset = addr - dev_entry.base_and_size.0;
+    let dst = &mut ram[offset as usize..(offset + len) as usize];
+    dst[..data.len()].copy_from_slice(data);
+    dst[data.len()..].fill(0);
+  }
+
   fn find_device_idx(&self, addr: u32, len: u32) -> Option<usize> {
     for (idx, dev) in self.devices.iter().enumerate() {
       let (base, size) = dev.base_and_size;
@@ -592,25 +620,35 @@ impl AddressSpace {
   }
 }
 
-pub const RAM_BASE: u32 = 0x2000_0000;
-pub const RAM_SIZE: u32 = 0xa000_0000;
-
 /// Memory map:
 /// - 0x0400_0000 - 0x0600_0000 : framebuffer
 /// - 0x1000_0000 - 0x1000_1000 : simctrl
-/// - 0x2000_0000 - 0xc000_0000 : sram
-pub fn create_emu_addrspace_with_mem<M: MemoryModel + Send + 'static>(
-  mem: RegularMemory<M>,
-) -> (AddressSpace, ExitFlagRef) {
+/// - 0x2000_0000 - 0x4000_0000 : sram
+/// - 0x4000_0000 - 0xc000_0000 : dram
+pub fn create_emu_addrspace(dram_model: Option<DRAMModel>) -> (AddressSpace, ExitFlagRef) {
   const SIMCTRL_BASE: u32 = 0x1000_0000;
   const SIMCTRL_SIZE: u32 = 0x0000_1000; // one page
   const DISPLAY_BASE: u32 = 0x0400_0000;
   const DISPLAY_SIZE: u32 = 0x0200_0000;
+  const SRAM_BASE: u32 = 0x2000_0000;
+  const SRAM_SIZE: u32 = 0x2000_0000;
+  const DRAM_BASE: u32 = 0x4000_0000;
+  const DRAM_SIZE: u32 = 0x8000_0000;
 
   let exit_flag = ExitFlagRef::new();
 
+  let sram = RegularMemory::with_content(vec![0; SRAM_SIZE as usize]);
+  let dram_entry = match dram_model {
+    None => {
+      RegularMemory::with_content(vec![0; DRAM_SIZE as usize]).with_addr(DRAM_BASE, DRAM_SIZE)
+    }
+    Some(model) => RegularMemory::with_content_and_model(vec![0; DRAM_SIZE as usize], model)
+      .with_addr(DRAM_BASE, DRAM_SIZE),
+  };
+
   let devices = vec![
-    mem.with_addr(RAM_BASE, RAM_SIZE),
+    sram.with_addr(SRAM_BASE, SRAM_SIZE),
+    dram_entry,
     FrameBuffer::new().with_addr(DISPLAY_BASE, DISPLAY_SIZE),
     WrappedRegDevice::new(SimCtrl::new(exit_flag.clone())).with_addr(SIMCTRL_BASE, SIMCTRL_SIZE),
   ];
