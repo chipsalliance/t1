@@ -31,6 +31,9 @@ lockedPkgs.buildFHSEnv {
     [ ! -e "${vcStaticHome}"  ] && echo "env VC_STATIC_HOME='${vcStaticHome}' points to unknown location" && exit 1
     [ ! -d "${vcStaticHome}"  ] && echo "VC_STATIC_HOME='${vcStaticHome}' not accessible" && exit 1
 
+    # Disable NixOS side effects
+    export NIX_ENFORCE_PURITY=0
+
     export VC_STATIC_HOME=${vcStaticHome}
 
     export TCL_TZ=UTC

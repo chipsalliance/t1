@@ -10,7 +10,6 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 dpi_common = { path = "../dpi_common" }
-spike_rs = { path = "../spike_rs" }
 tracing = { workspace = true }
 svdpi = { workspace = true }
 anyhow = { workspace = true }
