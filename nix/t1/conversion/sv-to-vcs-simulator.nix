@@ -1,8 +1,9 @@
 {
   lib,
   bash,
-  stdenv,
+  stdenvNoCC,
   snps-fhs-env,
+  runCommand,
 }:
 
 {
@@ -35,6 +36,8 @@ let
 
   vcsCompileArgs =
     [
+      "-LDFLAGS"
+      "-Wl,-dynamic-linker=/lib64/ld-linux-x86-64.so.2"
       "-sverilog"
       "-full64"
       "-timescale=1ns/1ps"
@@ -85,7 +88,7 @@ let
 
   # vcsRtLinkArgs is only allowed in passthru
   # to enable better caching
-  self = stdenv.mkDerivation {
+  self = stdenvNoCC.mkDerivation {
     name = mainProgram;
     inherit mainProgram;
 
@@ -122,6 +125,12 @@ let
         ];
     };
 
+    env = {
+      NIX_ENFORCE_PURITY = "0";
+      LIBRARY_PATH = "/usr/lib";
+      INCLUDE_PATH = "/usr/include";
+    };
+
     shellHook = ''
       echo "[nix] entering fhs env"
       ${snps-fhs-env}/bin/snps-fhs-env
@@ -156,6 +165,8 @@ let
     meta = {
       inherit mainProgram;
     };
+
+    dontFixup = true;
   };
 in
 self
