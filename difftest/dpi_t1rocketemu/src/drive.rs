@@ -42,7 +42,8 @@ pub struct OnlineArgs<'a> {
   pub spike_isa: String,
 
   /// DRAMsim3 configuartion and run-path (if any)
-  pub dramsim3: Option<(&'a Path, &'a Path)>,
+  pub dramsim3_cfg_path: &'a Path,
+  pub dramsim3_run_path: &'a Path,
 }
 
 /// An incomplete memory write
@@ -317,8 +318,8 @@ pub(crate) struct Driver {
 
 impl Driver {
   pub(crate) fn new(scope: SvScope, args: &OnlineArgs<'_>) -> Self {
-    let dram_model = args.dramsim3.map(|(cfg_path, run_path)| DRAMModel::new(cfg_path, run_path));
-    let (mut addr_space, exit_flag) = create_emu_addrspace(dram_model);
+    let dram_model = DRAMModel::new(args.dramsim3_cfg_path, args.dramsim3_run_path);
+    let (mut addr_space, exit_flag) = create_emu_addrspace(Some(dram_model));
     let e_entry =
       Self::load_elf(Path::new(&args.elf_file), &mut addr_space).expect("fail creating simulator");
     // pass e_entry to rocket
@@ -331,7 +332,7 @@ impl Driver {
         dlen: args.dlen,
         isa: args.spike_isa.clone(),
         elf_file: Some(args.elf_file.clone()),
-        dramsim3_enabled: args.dramsim3.is_some(),
+        dramsim3_enabled: true,
       },
 
       dlen: args.dlen,
