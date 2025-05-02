@@ -210,42 +210,38 @@ object Main:
       name = "ip",
       short = 'i',
       doc = "IP type for emulator, Eg. t1emu, t1rocketemu"
-    ) ip:              Option[String],
+    ) ip:       Option[String],
     @arg(
       name = "emu",
       short = 'e',
       doc = "Type for emulator, Eg. vcs-emu, verilator-emu-trace"
-    ) emuType:         Option[String],
+    ) emuType:  Option[String],
     @arg(
       name = "config",
       short = 'c',
       doc = "configuration name"
-    ) config:          Option[String],
+    ) config:   Option[String],
     @arg(
       name = "verbose",
       short = 'v',
       doc = "set loglevel to debug"
-    ) verbose:         Flag = Flag(false),
+    ) verbose:  Flag = Flag(false),
     @arg(
       name = "out-dir",
       doc = "path to save wave file and perf result file"
-    ) outDir:          Option[String] = None,
+    ) outDir:   Option[String] = None,
     @arg(
       doc = "Cross compile RISC-V test case with x86-64 host tools"
-    ) forceX86:        Boolean = false,
+    ) forceX86: Boolean = false,
     @arg(
       name = "dry-run",
       doc = "Print the final emulator command line and exit"
-    ) dryRun:          Flag = Flag(false),
-    @arg(
-      name = "disable-dramsim3",
-      doc = "DRAM simulation is enable by default, set this flag to disable it"
-    ) disableDramSim3: Flag = Flag(false),
+    ) dryRun:   Flag = Flag(false),
     @arg(
       name = "timeout",
       doc = "Specify maximum cycle count limit"
-    ) timeout:         Option[Int] = None,
-    leftOver:          Leftover[String]
+    ) timeout:  Option[Int] = None,
+    leftOver:   Leftover[String]
   ): Unit =
     if leftOver.value.isEmpty then Logger.fatal("No test case name")
     val caseName = leftOver.value.head
@@ -316,16 +312,10 @@ object Main:
     val processArgs = Seq(
       emulator.toString(),
       s"+t1_elf_file=${caseElfPath}",
-      s"+t1_rtl_event_path=${rtlEventPath}"
+      s"+t1_rtl_event_path=${rtlEventPath}",
+      s"+t1_dramsim3_cfg=${dramSim3Config}",
+      s"+t1_dramsim3_path=${dramSim3Output}"
     )
-      ++ optionals(disableDramSim3.value, Seq(s"+t1_dramsim3_cfg=no"))
-      ++ optionals(
-        !(disableDramSim3.value),
-        Seq(
-          s"+t1_dramsim3_cfg=${dramSim3Config}",
-          s"+t1_dramsim3_path=${dramSim3Output}"
-        )
-      )
       ++ optionals(timeout.isDefined, Seq(s"+t1_timeout=${timeout.getOrElse("unreachable")}"))
       ++ optionals(isTrace, Seq(s"+t1_wave_path=${outputPath / "wave.fsdb"}"))
       ++ optionals(isCover, Seq("-cm", "assert", "-assert", s"hier=${caseCoverPath}"))
