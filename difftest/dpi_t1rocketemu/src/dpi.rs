@@ -316,46 +316,30 @@ unsafe extern "C" fn t1_cosim_init(
   let embedded_cfg_path: CString;
 
   let dramsim3_cfg_str = dramsim3_cfg.get().to_str().unwrap();
-  let dramsim3_cfg_opt = if dramsim3_cfg_str == "no" {
-    None
-  } else {
-    Some(dramsim3_cfg_str)
-  };
+  let dramsim3_path_str = dramsim3_path.get().to_str().unwrap();
+
 
   let temp_dramsim3_path: PathBuf;
-
-  let dramsim3_path_str = dramsim3_path.get().to_str().unwrap();
-  let dramsim3_cfg_full = match dramsim3_cfg_opt {
-    None => None,
-    Some(cfg_path) => {
-      let run_path = if dramsim3_path_str.is_empty() {
-        let ds3_path = TempDir::new().expect("Failed to create dramsim3 runtime dir");
-        temp_dramsim3_path = ds3_path.path().into();
-        std::mem::forget(ds3_path);
-        &temp_dramsim3_path
-      } else {
-        Path::new(dramsim3_path_str)
-      };
-      Some((Path::new(cfg_path), run_path))
-    }
+  let run_path = if dramsim3_path_str.is_empty() {
+    let ds3_path = TempDir::new().expect("Failed to create dramsim3 runtime dir");
+    temp_dramsim3_path = ds3_path.path().into();
+    std::mem::forget(ds3_path);
+    &temp_dramsim3_path
+  } else {
+    Path::new(dramsim3_path_str)
   };
-
-  match dramsim3_cfg_full {
-    None => info!("DRAMsim3 disabled"),
-    Some((cfg_path, run_path)) => {
-      info!(
-        "DRAMsim3 enabled with config: {:?}, result: {:?}",
-        cfg_path, run_path
-      );
-    }
-  }
+  info!(
+    "DRAMsim3 enabled with config: {:?}, result: {:?}",
+    dramsim3_cfg_str, run_path
+  );
 
   let args = OnlineArgs {
     elf_file: elf_file.get().to_str().unwrap().into(),
     dlen: dlen as u32,
     vlen: vlen as u32,
     spike_isa: spike_isa.get().to_str().unwrap().into(),
-    dramsim3: dramsim3_cfg_full,
+    dramsim3_cfg_path: Path::new(dramsim3_cfg_str),
+    dramsim3_run_path: &run_path,
   };
 
   TARGET.init(|| Driver::new(scope, &args));
