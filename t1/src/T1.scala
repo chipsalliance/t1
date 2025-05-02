@@ -211,7 +211,7 @@ case class T1Parameter(
   val laneNumber: Int = dLen / datapathWidth
 
   /** MMU is living in the subsystem, T1 only fires physical address. */
-  val physicalAddressWidth: Int = datapathWidth
+  val physicalAddressWidth: Int = eLen
 
   /** TODO: uarch docs for mask(v0) group and normal vrf groups.
     *
