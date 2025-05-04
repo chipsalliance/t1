@@ -1,20 +1,15 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
-/* The "SRAM" here should be distinguish from SOC's SRAM. The SOC SRAM is a 2560MB memory scratch pad.
- * And the "SRAM" here is for separating the address space to avoid conflict read & write.
- *
- * This memory region should be codegen from stuff like device tree.
- */
 MEMORY {
-  SCALAR (RWX) : ORIGIN = 0x20000000, LENGTH = 512M /* put first to set it as default */
-  MMIO   (RW)  : ORIGIN = 0x00000000, LENGTH = 512M
-  HEAP   (RW)  : ORIGIN = 0x40000000, LENGTH = 1024M
-  SRAM   (RW)  : ORIGIN = 0x60000000, LENGTH = 1024M
+  /* TODO We need a separate region to separate execute and read write permission */
+  SRAM   (RWX) : ORIGIN = 0x20000000, LENGTH = 512M /* put first to set it as default */
+  MMIO   (RW)  : ORIGIN = 0x10000000, LENGTH = 512M
+  DRAM   (RW)  : ORIGIN = 0x40000000, LENGTH = 1024M
 }
 
 SECTIONS {
-  . = ORIGIN(SCALAR);
+  . = ORIGIN(SRAM);
   .text           : { *(.text .text.*) }
   . = ALIGN(0x1000);
 
@@ -29,12 +24,15 @@ SECTIONS {
 
   .bss            : { *(.bss .bss.*) }
   _end = .; PROVIDE (end = .);
+  . = ALIGN(0x1000);
 
-  . = ORIGIN(SRAM);
   .vdata : { *(.vdata .vdata.*) } >SRAM
 
   .vbss (TYPE = SHT_NOBITS) : { *(.vbss .vbss.*) } >SRAM
+  . = ALIGN(0x1000);
 
-  __stacktop = ORIGIN(SCALAR) + LENGTH(SCALAR);  /* put stack on the top of SCALAR */
-  __heapbegin = ORIGIN(HEAP);  /* put heap on the begin of DDR */
+  __heapbegin = .; /* put heap at the top of SRAM */
+
+  __drambegin = ORIGIN(DRAM); /* provide this symbol for emulator runtime to create dram malloc */
+  __stacktop = ORIGIN(DRAM) + LENGTH(DRAM);  /* put stack on the top of DRAM */
 }
