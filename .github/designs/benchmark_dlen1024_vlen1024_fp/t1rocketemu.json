@@ -1,8 +1,8 @@
 {
-  "eval.ntt_64": 1885,
-  "eval.ntt_128": 2216,
-  "eval.ntt_256": 2668,
-  "eval.ntt_512": 38332,
-  "eval.ntt_1024": 38221,
-  "eval.ntt_4096": 38222
+  "eval.ntt_64": 1903,
+  "eval.ntt_128": 3068,
+  "eval.ntt_256": 4150,
+  "eval.ntt_512": 42525,
+  "eval.ntt_1024": 43319,
+  "eval.ntt_4096": 43319
 }
