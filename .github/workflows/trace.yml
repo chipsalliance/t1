@@ -166,4 +166,3 @@ jobs:
             echo "FAIL: fsdb not found" >&2
             exit 1
           fi
-          nix develop -c t1-helper run -c blastoise -e verilator-emu-trace -i t1rocketemu --disable-dramsim3 mlir.hello
