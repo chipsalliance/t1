@@ -27,11 +27,11 @@
         "nixpkgs4circt": "nixpkgs4circt"
       },
       "locked": {
-        "lastModified": 1745422200,
-        "narHash": "sha256-h9P7Wo2JzcBmRip7IgTdswI87G2yhGBGz/hTdiUoem8=",
+        "lastModified": 1746328757,
+        "narHash": "sha256-L8eGX4YdXhm+PHslaIaY0b+Z3/EB+QELpA6qD7e3XpI=",
         "owner": "sequencer",
         "repo": "zaozi",
-        "rev": "97c52190b3f774e3ac5e952f9a994ce60d888fcc",
+        "rev": "577326b99d84cad8c3bc3a319f2e26733d690e9d",
         "type": "github"
       },
       "original": {
@@ -187,11 +187,11 @@
     },
     "nixpkgs4circt": {
       "locked": {
-        "lastModified": 1745385072,
-        "narHash": "sha256-geZyeQp56HeUaMbhPUVpuN58QfJ94s0jLOUoNf/jUlg=",
+        "lastModified": 1746279357,
+        "narHash": "sha256-oBuu7hOtoqj3BbHp9H/8n8htBt9pMCDDRgrhA6yy0i8=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "6722b86722d71dbf45591685d355664645912388",
+        "rev": "a4b6cee9ab63822643e108f67da016aa800ea099",
         "type": "github"
       },
       "original": {
