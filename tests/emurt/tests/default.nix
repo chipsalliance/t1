@@ -12,9 +12,10 @@ in
     caseName = "simple";
 
     dontUnpack = true;
-    csrc = writeText "simple-emurt-test.c" ''
+    src = writeText "simple-emurt-test.c" ''
       #include <emurt.h>
       #include <stdio.h>
+      #include <stdlib.h>
 
       float array_b[100];
 
@@ -25,6 +26,20 @@ in
           array_b[i] += 1 + array_b[i - 1];
         }
         place_counter(0);
+
+        int pool_size = 32;
+        int* pool = (int*)dram_alloc(pool_size * sizeof(int));
+        for (int i = 0; i < pool_size; i++) {
+          pool[i] = array_b[i];
+        }
+
+        int slice_size = 8;
+        int* slice = (int*)malloc(slice_size * sizeof(int));
+        for (int i = 0; i < slice_size; i++) {
+          slice[i] = pool[i];
+        }
+
+        free(slice);
       }
     '';
 
@@ -32,7 +47,7 @@ in
       runHook preBuild
 
       $CC -T${linkerScript} \
-        $csrc \
+        $src \
         ${t1main} \
         -o $pname.elf
 

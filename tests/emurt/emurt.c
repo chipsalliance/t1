@@ -7,6 +7,21 @@
 void t1_put_char(char c) { *(uint32_t volatile *)(UART_W_REG) = (uint8_t)c; }
 void place_counter(int i) { *(int volatile *)(PERF_REG) = i; }
 
+extern char *__drambegin;
+char *t1_dram_top;
+void *dram_alloc(size_t size) {
+  char *base;
+  if (!t1_dram_top)
+    t1_dram_top = (char *)&__drambegin;
+  base = t1_dram_top;
+  t1_dram_top += size;
+  return (void *)base;
+};
+
+void dram_free(void *ptr) {
+  // no-op
+}
+
 ///////////////////////
 // uart
 ///////////////////////
@@ -45,10 +60,10 @@ char *_sbrk(int nbytes) {
 }
 
 // Magic symbols that should be provided by linker
-extern void (*__preinit_array_start []) (void) __attribute__((weak));
-extern void (*__preinit_array_end []) (void) __attribute__((weak));
-extern void (*__init_array_start []) (void) __attribute__((weak));
-extern void (*__init_array_end []) (void) __attribute__((weak));
+extern void (*__preinit_array_start[])(void) __attribute__((weak));
+extern void (*__preinit_array_end[])(void) __attribute__((weak));
+extern void (*__init_array_start[])(void) __attribute__((weak));
+extern void (*__init_array_end[])(void) __attribute__((weak));
 
 void __t1_init_array(void) {
   int32_t count;
@@ -56,12 +71,12 @@ void __t1_init_array(void) {
 
   count = __preinit_array_end - __preinit_array_start;
   for (i = 0; i < count; i++) {
-    __preinit_array_start[i] ();
+    __preinit_array_start[i]();
   }
 
   count = __init_array_end - __init_array_start;
   for (i = 0; i < count; i++) {
-    __init_array_start[i] ();
+    __init_array_start[i]();
   }
 }
 
