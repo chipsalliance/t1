@@ -17,6 +17,8 @@ class T1RocketTile(mlirbc: Array[Byte]) extends OMReader(mlirbc, "T1RocketTile_C
   case class T1RocketTileOM(
     vlen:         OMValue,
     dlen:         OMValue,
+    elen:         OMValue,
+    laneScale:    OMValue,
     instructions: Seq[OMValue],
     extensions:   Seq[OMValue],
     march:        OMValue,
@@ -26,6 +28,10 @@ class T1RocketTile(mlirbc: Array[Byte]) extends OMReader(mlirbc, "T1RocketTile_C
   val vlen = t1.obj("vlen")
 
   val dlen = t1.obj("dlen")
+
+  val elen = t1.obj("elen")
+
+  val laneScale = t1.obj("laneScale")
 
   val instructions = t1.obj("decoder").obj("instructions").list.toSeq
 
@@ -37,7 +43,7 @@ class T1RocketTile(mlirbc: Array[Byte]) extends OMReader(mlirbc, "T1RocketTile_C
 
   val retime = tile.flatten.flatMap(_.objOpt).flatMap(_.get("retime"))
 
-  override def json = write(T1RocketTileOM(vlen, dlen, instructions, extensions, march, sram, retime))
+  override def json = write(T1RocketTileOM(vlen, dlen, elen, laneScale, instructions, extensions, march, sram, retime))
 
 end T1RocketTile
 
