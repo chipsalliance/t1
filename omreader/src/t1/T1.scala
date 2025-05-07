@@ -16,6 +16,8 @@ class T1(mlirbc: Array[Byte]) extends OMReader(mlirbc, "T1_Class") with T1OMRead
   case class T1OM(
     vlen:         OMValue,
     dlen:         OMValue,
+    elen:         OMValue,
+    laneScale:    OMValue,
     instructions: Seq[OMValue],
     extensions:   Seq[OMValue],
     march:        OMValue,
@@ -25,6 +27,10 @@ class T1(mlirbc: Array[Byte]) extends OMReader(mlirbc, "T1_Class") with T1OMRead
   val vlen = t1.obj("vlen")
 
   val dlen = t1.obj("dlen")
+
+  val elen = t1.obj("elen")
+
+  val laneScale = t1.obj("laneScale")
 
   val instructions = t1.obj("decoder").obj("instructions").list.toSeq
 
@@ -36,7 +42,7 @@ class T1(mlirbc: Array[Byte]) extends OMReader(mlirbc, "T1_Class") with T1OMRead
 
   val retime = t1.flatten.flatMap(_.objOpt).flatMap(_.get("retime"))
 
-  override def json = write(T1OM(vlen, dlen, instructions, extensions, march, sram, retime))
+  override def json = write(T1OM(vlen, dlen, elen, laneScale, instructions, extensions, march, sram, retime))
 
 end T1
 
