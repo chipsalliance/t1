@@ -312,7 +312,7 @@ object Main:
     val processArgs = Seq(
       emulator.toString(),
       s"+t1_elf_file=${caseElfPath}",
-      s"+t1_rtl_event_path=${rtlEventPath}",
+      s"+t1_dev_rtl_event_path=${rtlEventPath}",
       s"+t1_dramsim3_cfg=${dramSim3Config}",
       s"+t1_dramsim3_path=${dramSim3Output}"
     )

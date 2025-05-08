@@ -1,7 +1,7 @@
 package __circt_lib_logging;
   // plusargs:
-  //   +t1_rtl_event_off  (optional) set to 1 to disable rtl event recording
-  //   +t1_rtl_event_path            path to rtl event jsonl file
+  //   +t1_dev_rtl_event_off  (optional) set to 1 to disable rtl event recording
+  //   +t1_dev_rtl_event_path            path to rtl event jsonl file
 
   int    log_fd;
   string log_path;
@@ -18,14 +18,19 @@ package __circt_lib_logging;
   endclass
 
   function automatic void log_open();
-    $value$plusargs("t1_rtl_event_off=%d", rtl_event_off);
+`ifdef T1_DEV
+    $value$plusargs("t1_dev_rtl_event_off=%d", rtl_event_off);
     if (rtl_event_off == 0) begin
-      $value$plusargs("t1_rtl_event_path=%s", log_path);
-      if (log_path.len() == 0) $fatal(1, "+t1_rtl_event_path must be set");
+      $value$plusargs("t1_dev_rtl_event_path=%s", log_path);
+      if (log_path.len() == 0) $fatal(1, "+t1_dev_rtl_event_path must be set");
 
       log_fd = $fopen(log_path, "w");
       if (log_fd == 0) $fatal(1, "failed to open rtl event file for write");
     end
+`else
+    // rtl event is unconditionally disabled
+    log_fd = 0;
+`endif
   endfunction
 
   function automatic void log_close();
@@ -51,28 +56,28 @@ module VerbatimModule #(
   // including clock gen, plusarg parsing, sim control, etc
   //
   // plusargs: "T" denotes being present only if trace is enabled 
-  //   +t1_elf_file       (required)   path to elf file
-  //   +t1_wave_path      (required T) path to wave dump file
-  //   +t1_timeout        (optional)   max cycle between two AXI DPI call
-  //   +t1_global_timeout (optional)   max cycle for whole simulation, for debug only
-  //   +t1_timeout_after_quit (optional)
-  //   +t1_dump_start     (optional T) cycle when dump starts, by default it's simulation start, for debug only
-  //   +t1_dump_end       (optional T) cycle when dump ends, by default is's simulation end, for debug only
-  //   +t1_dramsim3_cfg   (optional T) path to the dramsim3 configuration. If absent, use embedded version.
-  //                                   use "off" to turn off memory latency
-  //   +t1_dramsim3_path  (optional T) path of the output of dramsim3. If absent, one path under temp is created
+  //   +t1_elf_file             (required)   path to elf file
+  //   +t1_wave_path            (required T) path to wave dump file
+  //   +t1_timeout              (optional)   max cycle between two AXI DPI call
+  //   +t1_timeout_after_quit   (optional)
+  //   +t1_dramsim3_cfg         (required)   path to the dramsim3 configuration.
+  //   +t1_dramsim3_path        (optional)   path of the output of dramsim3. If absent, one path under temp is created
+  //
+  //   +t1_debug_global_timeout (optional)   max cycle for whole simulation, for debug only
+  //   +t1_debug_dump_start     (optional T) cycle when dump starts, by default it's simulation start, for debug only
+  //   +t1_debug_dump_end       (optional T) cycle when dump ends, by default is's simulation end, for debug only
 
   longint unsigned cycle = 0;
   longint unsigned quit_cycle = 0;
-  longint unsigned global_timeout = 0;
+  longint unsigned debug_global_timeout = 0;
   longint unsigned timeout_after_quit = 10000;
   longint unsigned dpi_timeout = 1000000;
   string elf_file;
   string dramsim3_cfg;
   string dramsim3_path;
 `ifdef T1_ENABLE_TRACE
-  longint unsigned dump_start = 0;
-  longint unsigned dump_end = 0;
+  longint unsigned debug_dump_start = 0;
+  longint unsigned debug_dump_end = 0;
   string wave_path;
 
   function void dump_wave(input string file);
@@ -119,13 +124,13 @@ module VerbatimModule #(
     initFlag = 1'b1;
 
 `ifdef T1_ENABLE_TRACE
-    $value$plusargs("t1_dump_start=%d", dump_start);
-    $value$plusargs("t1_dump_end=%d", dump_end);
+    $value$plusargs("t1_debug_dump_start=%d", debug_dump_start);
+    $value$plusargs("t1_debug_dump_end=%d", debug_dump_end);
     $value$plusargs("t1_wave_path=%s", wave_path);
 `endif
     $value$plusargs("t1_elf_file=%s", elf_file);
     $value$plusargs("t1_timeout=%d", dpi_timeout);
-    $value$plusargs("t1_global_timeout=%d", global_timeout);
+    $value$plusargs("t1_debug_global_timeout=%d", debug_global_timeout);
     $value$plusargs("t1_timeout_after_quit=%d", timeout_after_quit);
     $value$plusargs("t1_dramsim3_cfg=%s", dramsim3_cfg);
     $value$plusargs("t1_dramsim3_path=%s", dramsim3_path);
@@ -138,7 +143,7 @@ module VerbatimModule #(
     __circt_lib_logging::log_open();
 
   `ifdef T1_ENABLE_TRACE
-    if (dump_start == 0) begin
+    if (debug_dump_start == 0) begin
       dump_wave(wave_path);
     end
   `endif
@@ -179,15 +184,15 @@ module VerbatimModule #(
         end
       end
 
-      if (cycle == global_timeout) begin
+      if (cycle == debug_global_timeout) begin
         $fatal(1, "global timeout reached");
       end
 
     `ifdef T1_ENABLE_TRACE
-      if (cycle == dump_start) begin
+      if (cycle == debug_dump_start) begin
         dump_wave(wave_path);
       end
-      if (cycle == dump_end) begin
+      if (cycle == debug_dump_end) begin
         dump_finish();
       end
     `endif

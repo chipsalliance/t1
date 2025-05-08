@@ -33,7 +33,7 @@ let
   plusargs =
     [
       "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-      "+t1_rtl_event_path=rtl-event.jsonl"
+      "+t1_dev_rtl_event_path=rtl-event.jsonl"
     ]
     ++ lib.optionals (waveFileName != null) [
       "+t1_wave_path=${waveFileName}"
