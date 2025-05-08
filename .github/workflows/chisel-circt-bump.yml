@@ -20,7 +20,7 @@ jobs:
       - name: Bump Chisel
         run: |
           cd dependencies/submodules/
-          nix run '.#nvfetcher' -- -f '\\b(chisel|zaozi)\\b'
+          nix run '.#nvfetcher' -- -f '\b(chisel|zaozi)\b'
           nix fmt
       - name: Bump Zaozi when CIRCT updated
         run: |
