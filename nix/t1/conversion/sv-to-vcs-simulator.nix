@@ -44,6 +44,7 @@ let
       "-y"
       "$DWBB_DIR/sim_ver"
       "+libext+.v"
+      "+define+T1_DEV"
       "+define+PRINTF_FD=do_not_use_printf"
       "+define+__CIRCT_LIB_LOGGING"
     ]
