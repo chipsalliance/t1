@@ -102,3 +102,9 @@ class SimpleMemWrite(param: MSHRParam) extends Bundle {
 class LSUToken(parameter: LSUParameter) extends Bundle {
   val offsetGroupRelease: UInt = Output(UInt(parameter.laneNumber.W))
 }
+
+class ZVMInterfaceInLSU(parameter: LSUParameter) extends Bundle {
+  val isZVMA: Bool = Bool()
+  val dlen = parameter.datapathWidth * parameter.laneNumber
+  val inst: UInt = UInt(32.W)
+}
