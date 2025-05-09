@@ -10,6 +10,7 @@ import chisel3.util._
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4RWIrrevocable}
 import org.chipsalliance.t1.rtl._
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
+import org.chipsalliance.t1.rtl.zvma.{ZVMA, ZVMAParameter}
 
 /** @param datapathWidth
   *   ELEN
@@ -39,7 +40,9 @@ case class LSUParameter(
   vrfReadLatency:      Int,
   axi4BundleParameter: AXI4BundleParameter,
   lsuReadShifterSize:  Seq[Int],
-  name: String) {
+  name:                String,
+  zvmaEnable:          Boolean,
+  TE: Int) {
   val sewMin: Int = 8
 
   val chaining1HBits: Int = 2 << log2Ceil(chainingSize)
@@ -88,6 +91,24 @@ case class LSUParameter(
 
   /** see [[LaneParameter.vrfOffsetBits]] */
   val vrfOffsetBits: Int = log2Ceil(singleGroupSize)
+
+  def zvmaExchangeParam = ZVMADataExchangeParam(
+    chainingSize = chainingSize,
+    datapathWidth = datapathWidth,
+    vLen = vLen,
+    laneNumber = laneNumber,
+    paWidth = paWidth,
+    lsuTransposeSize = transferSize,
+    vrfReadLatency = vrfReadLatency,
+    TE = TE
+  )
+
+  def zvmaParam = ZVMAParameter(
+    vlen = vLen,
+    dlen = datapathWidth * laneNumber,
+    elen = datapathWidth,
+    TE = TE
+  )
 }
 
 class LSUSlotProbe(param: LSUParameter) extends Bundle {
@@ -204,10 +225,20 @@ class LSU(param: LSUParameter) extends Module {
   @public
   val tokenIO: LSUToken = IO(new LSUToken(param))
 
+  @public
+  val zvmaInterface: Option[ZVMInterfaceInLSU] = Option.when(param.zvmaEnable) {
+    IO(Input(new ZVMInterfaceInLSU(param)))
+  }
+
   // TODO: make it D/I
   val loadUnit:  LoadUnit         = Module(new LoadUnit(param.mshrParam))
   val storeUnit: StoreUnit        = Module(new StoreUnit(param.mshrParam))
   val otherUnit: SimpleAccessUnit = Module(new SimpleAccessUnit(param.mshrParam))
+
+  val zvmaExchange: Option[ZVMADataExchange] =
+    Option.when(param.zvmaEnable)(Module(new ZVMADataExchange(param.zvmaExchangeParam)))
+
+  val zvma = Option.when(param.zvmaEnable)(Module(new ZVMA(param.zvmaParam)))
 
   /** duplicate v0 in lsu */
   val v0: Vec[UInt] = RegInit(
@@ -243,11 +274,51 @@ class LSU(param: LSUParameter) extends Module {
   val addressCheck: Bool = otherUnit.status.idle && (!useOtherUnit || (loadUnit.status.idle && storeUnit.status.idle))
   val unitReady:    Bool =
     (useLoadUnit && loadUnit.status.idle) || (useStoreUnit && storeUnit.status.idle) || (useOtherUnit && otherUnit.status.idle)
-  request.ready := unitReady && addressCheck
-  val requestFire = request.fire
-  val reqEnq: Vec[Bool] = VecInit(
-    Seq(useLoadUnit && requestFire, useStoreUnit && requestFire, useOtherUnit && requestFire)
+  val zvmaReady = zvmaInterface.map(i =>
+    loadUnit.status.idle && storeUnit.status.idle &&
+      otherUnit.status.idle && zvmaExchange.get.io.idle && i.isZVMA && zvma.get.io.idle
   )
+  val zvmaFree  = zvmaExchange.map(z => z.io.idle && zvma.get.io.idle)
+  request.ready := unitReady && addressCheck && zvmaFree.getOrElse(true.B) || zvmaReady.getOrElse(false.B)
+  val requestFire = request.fire
+  val unitFire: Bool      = zvmaInterface.map(z => !z.isZVMA && requestFire).getOrElse(requestFire)
+  val reqEnq:   Vec[Bool] = VecInit(
+    Seq(useLoadUnit && unitFire, useStoreUnit && unitFire, useOtherUnit && unitFire)
+  )
+  val zvmaLastReport = zvmaExchange.map { z =>
+    val idle     = z.io.idle && zvma.get.io.idle
+    val idleNext = RegNext(idle, false.B)
+    Mux(!idleNext && idle, indexToOH(z.io.instructionIndex, param.chainingSize), 0.U)
+  }.getOrElse(0.U((2 * param.chainingSize).W))
+
+  zvmaExchange.foreach { z =>
+    val interface = zvmaInterface.get
+    val zModule   = zvma.get
+
+    z.io.clock := clock
+    z.io.reset := reset
+
+    zModule.io.clock := clock
+    zModule.io.reset := reset
+
+    z.io.instRequest.valid                 := requestFire && interface.isZVMA
+    z.io.instRequest.bits.inst             := interface.inst
+    z.io.instRequest.bits.instructionIndex := request.bits.instructionIndex
+    z.io.instRequest.bits.address          := request.bits.rs1Data
+    z.io.csrInterface                      := csrInterface
+
+    zModule.io.request.valid            := requestFire && interface.isZVMA
+    zModule.io.request.bits.instruction := interface.inst
+    zModule.io.request.bits.scalaSource := Mux(interface.inst(6), request.bits.rs1Data, request.bits.rs2Data)
+    zModule.io.dataFromLSU <> z.io.datatoZVMA
+    z.io.dataFromZVMA <> zModule.io.dataToLSU
+
+    zModule.io.request.bits.csr.sew := csrInterface.vSew
+    zModule.io.request.bits.csr.tew := csrInterface.tew
+    zModule.io.request.bits.csr.tk  := csrInterface.tk
+    zModule.io.request.bits.csr.tm  := csrInterface.tm
+    zModule.io.request.bits.csr.tn  := csrInterface.vl
+  }
 
   unitVec.zipWithIndex.foreach { case (mshr, index) =>
     mshr.lsuRequest.valid := reqEnq(index)
@@ -276,14 +347,18 @@ class LSU(param: LSUParameter) extends Module {
     Queue.io(UInt(param.datapathWidth.W), readLatency, flow = true)
   )
   val dataDeqFire:           UInt               = Wire(UInt(param.laneNumber.W))
+  val zvmaWaitVrfReadVec = Seq.tabulate(param.laneNumber)(_ => Option.when(param.zvmaEnable)(Wire(Bool())))
+  val zvmaWaitVrfRead    = zvmaWaitVrfReadVec.map(_.getOrElse(false.B))
   // read vrf
-  val otherTryReadVrf:       UInt               = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
+  val otherTryReadVrf: UInt = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
   vrfReadDataPorts.zipWithIndex.foreach { case (read, index) =>
     read.valid                              := otherTryReadVrf(index) || storeUnit.vrfReadDataPorts(index).valid
     read.bits                               := Mux(otherTryReadVrf(index), otherUnit.vrfReadDataPorts.bits, storeUnit.vrfReadDataPorts(index).bits)
     storeUnit.vrfReadDataPorts(index).ready := read.ready && !otherTryReadVrf(index)
     storeUnit.vrfReadResults(index)         := vrfReadResults(index)
-    storeUnit.vrfReadResults(index).valid   := vrfReadResults(index).valid && otherUnitTargetQueue.empty
+    storeUnit.vrfReadResults(index).valid   := vrfReadResults(
+      index
+    ).valid && otherUnitTargetQueue.empty && !zvmaWaitVrfRead(index)
 
     val otherUnitQueue: QueueIO[UInt] = otherUnitDataQueueVec(index)
     otherUnitQueue.enq.valid := vrfReadResults(index).valid && !otherUnitTargetQueue.empty
@@ -297,7 +372,7 @@ class LSU(param: LSUParameter) extends Module {
 
   // read data reorder
   otherUnit.vrfReadResults.bits  := Mux1H(otherUnitTargetQueue.deq.bits, otherUnitDataQueueVec.map(_.deq.bits))
-  otherUnit.vrfReadResults.valid := otherUnitTargetQueue.deq.valid &&
+  otherUnit.vrfReadResults.valid := otherUnitTargetQueue.deq.valid && !VecInit(zvmaWaitVrfRead).asUInt.orR &&
     (otherUnitTargetQueue.deq.bits & VecInit(otherUnitDataQueueVec.map(_.deq.valid)).asUInt).orR
   dataDeqFire                    := maskAnd(otherUnit.vrfReadResults.valid, otherUnitTargetQueue.deq.bits)
   otherUnitTargetQueue.deq.ready := otherUnit.vrfReadResults.valid
@@ -315,6 +390,37 @@ class LSU(param: LSUParameter) extends Module {
     )
     write.enq.bits.targetLane          := (BigInt(1) << index).U
     loadUnit.vrfWritePort(index).ready := write.enq.ready && !otherTryToWrite(index)
+  }
+
+  zvmaExchange.foreach { z =>
+    // zvma <> vrf read
+    z.io.vrfReadDataPorts.zipWithIndex.foreach { case (zrp, ri) =>
+      val vrfReadPort    = vrfReadDataPorts(ri)
+      val vrfReadResult  = vrfReadResults(ri)
+      val vrfReadCount   = RegInit(0.U(8.W))
+      val waitReadResult = vrfReadCount.orR
+      when(zrp.fire ^ vrfReadResult.fire && (zrp.fire || waitReadResult)) {
+        vrfReadCount := vrfReadCount + Mux(zrp.fire, 1.U, -1.S(8.W).asUInt)
+      }
+      when(zrp.valid) {
+        vrfReadPort.valid := true.B
+        vrfReadPort.bits  := zrp.bits
+      }
+      zrp.ready := vrfReadPort.ready
+      zvmaWaitVrfReadVec(ri).get    := waitReadResult
+      z.io.vrfReadResults(ri).valid := vrfReadResult.valid && waitReadResult
+      z.io.vrfReadResults(ri).bits  := vrfReadResult.bits
+    }
+    // zvma <> vrf write
+    z.io.vrfWritePort.zipWithIndex.foreach { case (zwp, wi) =>
+      val writeQueue = writeQueueVec(wi)
+      when(zwp.valid) {
+        writeQueue.enq.valid           := true.B
+        writeQueue.enq.bits.data       := zwp.bits
+        writeQueue.enq.bits.targetLane := (BigInt(1) << wi).U
+      }
+      zwp.ready := writeQueue.enq.ready
+    }
   }
 
   layer.block(layers.Verification) {
@@ -386,8 +492,10 @@ class LSU(param: LSUParameter) extends Module {
   }
 
   val sourceQueue = Queue.io(UInt(param.mshrParam.cacheLineIndexBits.W), param.sourceQueueSize)
+  val zvmUseAr    = Option.when(param.zvmaEnable)(Wire(Bool()))
+  val zvmWaitR    = Option.when(param.zvmaEnable)(Wire(Bool()))
   // load unit connect
-  axi4Port.ar.valid         := loadUnit.memRequest.valid && sourceQueue.enq.ready
+  axi4Port.ar.valid         := loadUnit.memRequest.valid && sourceQueue.enq.ready || zvmUseAr.getOrElse(false.B)
   axi4Port.ar.bits <> DontCare
   axi4Port.ar.bits.addr     := loadUnit.memRequest.bits.address
   axi4Port.ar.bits.len      := 0.U
@@ -395,7 +503,7 @@ class LSU(param: LSUParameter) extends Module {
   axi4Port.ar.bits.burst    := 1.U // INCR
   loadUnit.memRequest.ready := sourceQueue.enq.ready && axi4Port.ar.ready
 
-  loadUnit.memResponse.valid      := axi4Port.r.valid
+  loadUnit.memResponse.valid      := axi4Port.r.valid && !zvmWaitR.getOrElse(false.B)
   loadUnit.memResponse.bits.data  := axi4Port.r.bits.data
   loadUnit.memResponse.bits.index := sourceQueue.deq.bits
   axi4Port.r.ready                := loadUnit.memResponse.ready
@@ -429,6 +537,35 @@ class LSU(param: LSUParameter) extends Module {
   axi4Port.b.ready          := true.B
   storeUnit.storeResponse   := axi4Port.b.valid
   simpleAccessPorts.b.ready := true.B
+
+  zvmaExchange.foreach { z =>
+    // zvma <> axi read
+    val tryToRead  = z.io.memRequest.valid && !z.io.memRequest.bits.write
+    val tryToWrite = z.io.memRequest.valid && !z.io.memRequest.bits.write
+    val read       = z.io.memRequest.fire && !z.io.memRequest.bits.write
+    // todo: There is no coexistence with load unit yet.
+    zvmUseAr.get := tryToRead
+    // todo
+    val outReadCount   = RegInit(0.U(8.W))
+    val waitReadResult = outReadCount.orR
+    when(read ^ axi4Port.r.fire && (read || waitReadResult)) {
+      outReadCount := outReadCount + Mux(read, 1.U, -1.S(8.W).asUInt)
+    }
+    z.io.memRequest.ready := Mux(tryToRead, axi4Port.ar.ready, axi4Port.w.ready && axi4Port.aw.ready)
+    when(tryToRead) {
+      axi4Port.ar.bits.addr     := z.io.memRequest.bits.address
+      loadUnit.memRequest.ready := sourceQueue.enq.ready && axi4Port.ar.ready
+    }
+    z.io.memResponse.valid := axi4Port.r.valid && waitReadResult
+    z.io.memResponse.bits := axi4Port.r.bits.data
+    zvmWaitR.get          := waitReadResult
+    when(tryToWrite) {
+      axi4Port.aw.bits.addr := z.io.memRequest.bits.address
+      axi4Port.w.bits.data  := z.io.memRequest.bits.data
+      axi4Port.w.bits.strb  := z.io.memRequest.bits.mask
+    }
+
+  }
 
   // other unit <> axi
   val simpleSourceQueue: QueueIO[UInt] =
@@ -475,7 +612,8 @@ class LSU(param: LSUParameter) extends Module {
 
   // gather last signal from all MSHR to notify LSU
   lastReport                 :=
-    unitVec.map(m => Mux(m.status.last, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U)).reduce(_ | _)
+    unitVec.map(m => Mux(m.status.last, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U)).reduce(_ | _) |
+      zvmaLastReport
   tokenIO.offsetGroupRelease := otherUnit.offsetRelease.asUInt
   loadUnit.writeReadyForLsu  := writeReadyForLsu
   storeUnit.vrfReadyToStore  := vrfReadyToStore
