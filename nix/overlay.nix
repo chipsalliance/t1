@@ -1,16 +1,11 @@
-{ self }:
-
 final: prev:
 
 let
   llvmForRVV_attrName = "llvmPackages_git";
-  rv32_pkgs =
-    self.inputs.nixpkgs-for-llvm.legacyPackages."${final.system}".pkgsCross.riscv32-embedded;
-  rv32_buildPkgs = rv32_pkgs.buildPackages;
+  rv32_pkgs = final.rv32_nixpkgs;
+  rv32_buildPkgs = final.rv32_nixpkgs.buildPackages;
 in
 rec {
-  inherit rv32_pkgs rv32_buildPkgs; # for easier inspection
-
   getEnv' =
     key:
     let
