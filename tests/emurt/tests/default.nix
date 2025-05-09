@@ -28,7 +28,7 @@ in
         place_counter(0);
 
         int pool_size = 32;
-        int* pool = (int*)dram_alloc(pool_size * sizeof(int));
+        int* pool = (int*)dram_malloc(pool_size * sizeof(int));
         for (int i = 0; i < pool_size; i++) {
           pool[i] = array_b[i];
         }
@@ -40,6 +40,7 @@ in
         }
 
         free(slice);
+        dram_free(pool);
       }
     '';
 
