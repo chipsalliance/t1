@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    nixpkgs-for-llvm.url = "github:NixOS/nixpkgs/nixos-unstable-small";
     mill-ivy-fetcher.url = "github:Avimitin/mill-ivy-fetcher";
     circt-follow.url = "github:sequencer/zaozi";
     treefmt-nix.url = "github:numtide/treefmt-nix";
@@ -13,6 +14,7 @@
     inputs@{
       self,
       nixpkgs,
+      nixpkgs-for-llvm,
       mill-ivy-fetcher,
       circt-follow,
       ...
@@ -51,6 +53,10 @@
               mill-ivy-fetcher.overlays.default
               # Follow CIRCT from sequencer/zaozi overlay
               circt-follow.overlays.default
+              # pin riscv32 packages to avoid consistent breakage
+              (final: prev: {
+                rv32_nixpkgs = nixpkgs-for-llvm.legacyPackages."${system}".pkgsCross.riscv32-embedded;
+              })
               overlay
             ];
           };

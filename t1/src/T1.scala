@@ -165,6 +165,7 @@ case class T1Parameter(
       .filter { instruction =>
         instruction.instructionSet.name match {
           case "rv_v"    => true
+          case "rv_zvma" => zvmaEnable
           case "rv_zvbb" => if (zvbbEnable) true else false
           case _         => false
         }
@@ -284,7 +285,10 @@ case class T1Parameter(
 
   val releaseShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
 
-  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, allInstructions)
+  // todo
+  def zvmaEnable:   Boolean      = true
+  val TE:           Int          = 32
+  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, zvmaEnable, allInstructions)
 
   val chaining1HBits: Int = 2 << log2Ceil(chainingSize)
 
@@ -351,7 +355,9 @@ case class T1Parameter(
     vrfReadLatency = vrfReadLatency,
     axi4BundleParameter = axi4BundleParameter,
     lsuReadShifterSize = lsuReadShifterSize,
-    name = "main"
+    name = "main",
+    zvmaEnable = zvmaEnable,
+    TE = TE
   )
   def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0, 1)
@@ -460,6 +466,10 @@ class T1(val parameter: T1Parameter)
   requestRegCSR.vxrm   := requestReg.bits.issue.vcsr(2, 1)
   requestRegCSR.frm    := requestReg.bits.issue.vcsr(5, 3)
 
+  requestRegCSR.tk  := requestReg.bits.issue.vtype(13, 11)
+  requestRegCSR.tm  := requestReg.bits.issue.vtype(29, 16)
+  requestRegCSR.tew := requestReg.bits.issue.vtype(5, 3) << requestReg.bits.issue.vtype(10, 9)
+
   /** maintain a [[DecoupleIO]] for [[requestReg]]. */
   val requestRegDequeue = Wire(Decoupled(new T1Issue(parameter.xLen, parameter.vLen)))
   // latch instruction, csr, decode result and instruction index to requestReg.
@@ -507,16 +517,17 @@ class T1(val parameter: T1Parameter)
   val maskType:            Bool = !requestRegDequeue.bits.instruction(25)
   val lsWholeReg:          Bool = isLoadStoreType && requestRegDequeue.bits.instruction(27, 26) === 0.U &&
     requestRegDequeue.bits.instruction(24, 20) === 8.U
+  val isZvma:              Bool = Option.when(parameter.zvmaEnable)(requestReg.bits.decodeResult(Decoder.zvma)).getOrElse(false.B)
   // lane 只读不执行的指令
   val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
   val maskUnitInstruction: Bool = (decodeResult(Decoder.slid) || decodeResult(Decoder.mv))
-  val skipLastFromLane:    Bool = isStoreType || maskUnitInstruction || readOnlyInstruction
+  val skipLastFromLane:    Bool = isStoreType || maskUnitInstruction || readOnlyInstruction || isZvma
   val instructionValid:    Bool = requestReg.bits.issue.vl > requestReg.bits.issue.vstart
 
   // TODO: these should be decoding results
   /** load store that don't read offset. */
-  val noOffsetReadLoadStore: Bool = isLoadStoreType && (!requestRegDequeue.bits.instruction(26))
+  val noOffsetReadLoadStore: Bool = (isLoadStoreType && (!requestRegDequeue.bits.instruction(26))) || isZvma
 
   val vSew1H:        UInt = UIntToOH(T1Issue.vsew(requestReg.bits.issue))
   val source1Extend: UInt = Mux1H(
@@ -752,7 +763,7 @@ class T1(val parameter: T1Parameter)
     // and broadcast to all lanes.
     request.bits.readFromScalar := source1Select
 
-    request.bits.issueInst  := !noOffsetReadLoadStore && !maskUnitInstruction
+    request.bits.issueInst  := !noOffsetReadLoadStore && !maskUnitInstruction && !isZvma
     request.bits.loadStore  := isLoadStoreType
     // let record in VRF to know there is a store instruction.
     request.bits.store      := isStoreType
@@ -839,8 +850,11 @@ class T1(val parameter: T1Parameter)
   omInstance.lanesIn := Property(laneVec.map(_.om.asAnyClassType))
   dataInWritePipeVec := VecInit(laneVec.map(_.writeQueueValid))
 
+  val issueToLSU: Bool = Option
+    .when(parameter.zvmaEnable)(isLoadStoreType || requestReg.bits.decodeResult(Decoder.zvma))
+    .getOrElse(isLoadStoreType)
   // 连lsu
-  lsu.request.valid                                       := requestRegDequeue.fire && isLoadStoreType
+  lsu.request.valid                                       := requestRegDequeue.fire && issueToLSU
   lsu.request.bits.instructionIndex                       := requestReg.bits.instructionIndex
   lsu.request.bits.rs1Data                                := requestRegDequeue.bits.rs1Data
   lsu.request.bits.rs2Data                                := requestRegDequeue.bits.rs2Data
@@ -853,6 +867,10 @@ class T1(val parameter: T1Parameter)
   lsu.request.bits.instructionInformation.eew             := vSewForLsu
   lsu.request.bits.instructionInformation.isStore         := isStoreType
   lsu.request.bits.instructionInformation.maskedLoadStore := maskType
+  lsu.zvmaInterface.foreach { i =>
+    i.inst   := requestRegDequeue.bits.instruction
+    i.isZVMA := requestReg.bits.decodeResult(Decoder.zvma)
+  }
 
   lsu.csrInterface     := requestRegCSR
   lsu.csrInterface.vl  := evlForLsu
@@ -938,7 +956,8 @@ class T1(val parameter: T1Parameter)
     .reduce(_ && _)
 
   /** for lsu instruction lsu is ready, for normal instructions, lanes are ready. */
-  val executionReady: Bool = (!isLoadStoreType || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
+  val executionReady: Bool =
+    (!(isLoadStoreType || isZvma) || lsu.request.ready) && (noOffsetReadLoadStore || allLaneReady)
   // - ready to issue instruction
   // - for vi and vx type of gather, it need to access vs2 for one time, we read vs2 firstly in `gatherReadFinish`
   //   and convert it to mv instruction.
@@ -954,7 +973,7 @@ class T1(val parameter: T1Parameter)
   tokenManager.instructionIssue.valid                 := requestRegDequeue.fire
   tokenManager.instructionIssue.bits.instructionIndex := requestReg.bits.instructionIndex
   tokenManager.instructionIssue.bits.writeV0          :=
-    (!requestReg.bits.decodeResult(Decoder.targetRd) && !isStoreType) && requestReg.bits.vdIsV0
+    (!requestReg.bits.decodeResult(Decoder.targetRd) && !isStoreType && !isZvma) && requestReg.bits.vdIsV0
   tokenManager.instructionIssue.bits.useV0AsMask      := maskType
   tokenManager.instructionIssue.bits.isLoadStore      := !requestRegDequeue.bits.instruction(6)
   tokenManager.instructionIssue.bits.toLane           := !noOffsetReadLoadStore && !maskUnitInstruction
