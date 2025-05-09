@@ -89,7 +89,8 @@ case class CSRParameter(
   usingAtomics:    Boolean,
   usingDebug:      Boolean,
   usingMulDiv:     Boolean,
-  usingVector:     Boolean)
+  usingVector:     Boolean,
+  usingZVMA:       Boolean)
     extends SerializableModuleParameter {
 
   def pgLevels: Int = xLen match {
@@ -278,6 +279,11 @@ class CSRInterface(parameter: CSRParameter) extends Bundle {
   val scontext       = Output(UInt(parameter.scontextWidth.W))
   val fiom           = Output(Bool())
   val vectorCsr      = Option.when(parameter.usingVector)(Input(Bool()))
+  val setVlType      = Option.when(parameter.usingZVMA)(new Bundle {
+    val tm: Bool = Input(Bool())
+    val tn: Bool = Input(Bool())
+    val tk: Bool = Input(Bool())
+  })
   val wbRegRS2       = Option.when(parameter.usingVector)(Input(UInt(parameter.xLen.W)))
   val csrToVector    = Option.when(parameter.usingVector)(Output(new VCSR))
   // @todo custom CSR
@@ -1681,10 +1687,13 @@ class CSR(val parameter: CSRParameter)
 
   // update csr for vector
   if (usingVector) {
+    // todo: param
+    val TE              = 32
     // connect csr for vector
-    val vtype        = vector.get.states("vill") ## 0.U(23.W) ## vector.get.states("vma") ##
-      vector.get.states("vta") ## vector.get.states("vsew") ## vector.get.states("vlmul")
-    val vcsr         = reg_frm ## vector.get.states("vxrm") ## vector.get.states("vxsat")
+    val vtype           = vector.get.states("vill") ## false.B ## vector.get.states("tm") ## 0.U(2.W) ##
+      vector.get.states("tk") ## vector.get.states("vtwiden") ## vector.get.states("altfmt") ##
+      vector.get.states("vma") ## vector.get.states("vta") ## vector.get.states("vsew") ## vector.get.states("vlmul")
+    val vcsr            = reg_frm ## vector.get.states("vxrm") ## vector.get.states("vxsat")
     io.csrToVector.foreach { v =>
       v.vtype  := vtype
       v.vl     := vector.get.states("vl")
@@ -1692,21 +1701,24 @@ class CSR(val parameter: CSRParameter)
       v.vstart := vector.get.states("vstart")
     }
     // set vl type
-    val vsetvli      = !io.inst(0)(31)
-    val vsetivli     = io.inst(0)(31, 30).andR
-    val vsetvl       = io.inst(0)(31) && !io.inst(0)(30)
-    val rs1IsZero    = io.inst(0)(19, 15) === 0.U
-    val rdIsZero     = io.inst(0)(11, 7) === 0.U
+    val vsetvli         = !io.inst(0)(31)
+    val vsetivli        = io.inst(0)(31, 30).andR
+    val vsetvl          = io.inst(0)(31) && !io.inst(0)(30)
+    val rs1IsZero       = io.inst(0)(19, 15) === 0.U
+    val rdIsZero        = io.inst(0)(11, 7) === 0.U
     // v type set
-    val newVType     = Mux1H(
+    val newVType        = Mux1H(
       Seq(
-        (vsetvli || vsetivli) -> io.inst(0)(27, 20),
-        vsetvl                -> io.wbRegRS2.get
+        vsetvli  -> io.inst(0)(30, 20),
+        vsetivli -> io.inst(0)(29, 20),
+        vsetvl   -> io.wbRegRS2.get
       )
     )
-    val newTypMSBValid: Bool = (newVType >> 8).asUInt.orR
+    val vectorMSBValid: Bool = (newVType >> 8).asUInt.orR
+    val zvmaMSBReserved = io.setVlType.map { _ => (newVType(30) ## newVType(15, 14)).orR }
+    val newTypMSBValid  = zvmaMSBReserved.getOrElse(vectorMSBValid)
     // todo: xLen -> vector.elen
-    val vlmulIllList = Seq(0.U, 1.U, 2.U, 3.U) ++ Option.when(xLen >= 16)(7.U) ++
+    val vlmulIllList    = Seq(0.U, 1.U, 2.U, 3.U) ++ Option.when(xLen >= 16)(7.U) ++
       Option.when(xLen >= 32)(6.U) ++ Option.when(xLen >= 64)(5.U)
     val vlmulIll: Bool = vlmulIllList.map(_ === newVType(2, 0)).reduce(_ || _)
     val vSewIllList = Seq(0.U) ++ Option.when(xLen >= 16)(1.U) ++
@@ -1714,9 +1726,12 @@ class CSR(val parameter: CSRParameter)
     val vsewIll     = vSewIllList.map(_ === newVType(5, 3)).reduce(_ || _)
     val vsetIll     = vlmulIll && !newTypMSBValid && vsewIll
     // vlmax = vlen * lmul / sew
-    val vlmax: UInt = (true.B << (log2Ceil(vLen) - 6) << (newVType(2, 0) + 3.U) >> newVType(5, 3)).asUInt
+    val vlmaxForNormal: UInt = (true.B << (log2Ceil(vLen) - 6) << (newVType(2, 0) + 3.U) >> newVType(5, 3)).asUInt
+    val vlmax   = io.setVlType.map { _ =>
+      Mux(vlmaxForNormal < TE.U || !newVType(10, 9).orR, vlmaxForNormal, TE.U)
+    }.getOrElse(vlmaxForNormal)
     // set vl
-    val setVL = Mux1H(
+    val setVL   = Mux1H(
       Seq(
         ((vsetvli || vsetvl) && !rs1IsZero)             -> Mux(io.rw.wdata > vlmax, vlmax, io.rw.wdata),
         ((vsetvli || vsetvl) && rs1IsZero && !rdIsZero) -> vlmax,
@@ -1725,21 +1740,39 @@ class CSR(val parameter: CSRParameter)
       )
     )
     setVlReadData := Mux(io.retire(0) && io.vectorCsr.getOrElse(false.B) && vsetIll, setVL, 0.U)
-    when(io.retire(0) && io.vectorCsr.get) {
+    val setVlEn = io.setVlType.map(t => !t.asUInt.orR && io.vectorCsr.get).getOrElse(io.vectorCsr.get)
+    io.setVlType.foreach { t =>
+      when(io.retire(0) && t.tk) {
+        vector.get.states("tk") := io.rw.wdata
+      }
+      when(io.retire(0) && t.tn) {
+        vector.get.states("vl") := Mux(io.rw.wdata > TE.U && vector.get.states("vtwiden").orR, TE.U, io.rw.wdata)
+      }
+      when(io.retire(0) && t.tm) {
+        vector.get.states("tm") := Mux(io.rw.wdata > TE.U, TE.U, io.rw.wdata)
+      }
+    }
+    when(io.retire(0) && setVlEn) {
       when(vsetIll) {
-        vector.get.states("vl")    := setVL
-        vector.get.states("vlmul") := newVType(2, 0)
-        vector.get.states("vsew")  := newVType(5, 3)
-        vector.get.states("vta")   := newVType(6)
-        vector.get.states("vma")   := newVType(7)
-        vector.get.states("vill")  := false.B
+        vector.get.states("vl")      := setVL
+        vector.get.states("vlmul")   := newVType(2, 0)
+        vector.get.states("vsew")    := newVType(5, 3)
+        vector.get.states("vta")     := newVType(6)
+        vector.get.states("vma")     := newVType(7)
+        vector.get.states("tm")      := newVType(29, 16)
+        vector.get.states("tk")      := newVType(13, 11)
+        vector.get.states("vtwiden") := newVType(10, 9)
+        vector.get.states("vill")    := false.B
       }.otherwise {
-        vector.get.states("vl")    := 0.U
-        vector.get.states("vlmul") := 0.U
-        vector.get.states("vsew")  := 0.U
-        vector.get.states("vta")   := 0.U
-        vector.get.states("vma")   := 0.U
-        vector.get.states("vill")  := true.B
+        vector.get.states("vl")      := 0.U
+        vector.get.states("vlmul")   := 0.U
+        vector.get.states("vsew")    := 0.U
+        vector.get.states("vta")     := 0.U
+        vector.get.states("vma")     := 0.U
+        vector.get.states("tm")      := 0.U
+        vector.get.states("tk")      := 0.U
+        vector.get.states("vtwiden") := 0.U
+        vector.get.states("vill")    := true.B
       }
     }
     // v csr write

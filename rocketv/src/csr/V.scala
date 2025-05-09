@@ -51,6 +51,10 @@ class V(vlen: Int, hypervisor: Boolean) {
     case "vstart"      => UInt(vlWidth.W)
     case "vxrm"        => UInt(2.W)
     case "vxsat"       => Bool()
+    case "tm"          => UInt(14.W)
+    case "tk"          => UInt(3.W)
+    case "vtwiden"     => UInt(2.W)
+    case "altfmt"      => Bool()
   }
   // https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#311-state-of-vector-extension-at-reset
   def reset(content: String):      Option[UInt] = content match {
@@ -64,6 +68,9 @@ class V(vlen: Int, hypervisor: Boolean) {
     case "vill"       => Some(true.B)
     // The vector extension must have a consistent state at reset. In particular, vtype and vl must have values that can be read and then restored with a single vsetvl instruction.
     case "vl"         => Some(0.U)
+    case "tm"         => Some(0.U)
+    case "tk"         => Some(0.U)
+    case "vtwiden"    => Some(0.U)
     // The vstart, vxrm, vxsat CSRs can have arbitrary values at reset.
     case _            => None
   }
@@ -85,14 +92,18 @@ class V(vlen: Int, hypervisor: Boolean) {
       "vl",
       "vstart",
       "vxrm",
-      "vxsat"
+      "vxsat",
+      "tm", // todo: option?
+      "tk",
+      "vtwiden",
+      "altfmt"
     ) ++ Option.when(hypervisor)(
       // https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#33-vector-context-status-in-vsstatus
       "vsstatus.VS"
     )).map { content: String =>
       content ->
         reset(content)
-          .map(resetValue => RegInit(resetValue))
+          .map(resetValue => RegInit(resetValue.asTypeOf(chiselType(content))))
           .getOrElse(Reg(chiselType(content)))
           .suggestName(content)
           .asUInt
