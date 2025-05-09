@@ -14,7 +14,7 @@ object DecoderParam {
   implicit def rwP: upickle.default.ReadWriter[DecoderParam] = upickle.default.macroRW
 }
 
-case class DecoderParam(fpuEnable: Boolean, zvbbEnable: Boolean, allInstructions: Seq[Instruction])
+case class DecoderParam(fpuEnable: Boolean, zvbbEnable: Boolean, zvmaEnable: Boolean, allInstructions: Seq[Instruction])
     extends SerializableModuleParameter
 
 trait T1DecodeFiled[D <: Data] extends DecodeField[T1DecodePattern, D] with FieldName
@@ -225,6 +225,10 @@ object Decoder {
 
   object zvbb extends BoolField {
     override def getTriState(pattern: T1DecodePattern): TriState = pattern.isZvbb.value
+  }
+
+  object zvma extends BoolField {
+    override def getTriState(pattern: T1DecodePattern): TriState = pattern.isZvma.value
   }
 
   object topUop extends T1TopUopField {
@@ -448,6 +452,12 @@ object Decoder {
     if (param.zvbbEnable)
       Seq(
         zvbb
+      )
+    else Seq()
+  } ++ {
+    if (param.zvmaEnable)
+      Seq(
+        zvma
       )
     else Seq()
   }
