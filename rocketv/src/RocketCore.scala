@@ -94,6 +94,7 @@ case class RocketParameter(
     extends SerializableModuleParameter {
   // interface to T1
   def usingVector = hasInstructionSet("rv_v")
+  def usingZVMA   = hasInstructionSet("rv_zvma")
 
   // fixed for now
   def usingRVE = false
@@ -272,7 +273,8 @@ case class RocketParameter(
     usingAtomics:      Boolean,
     usingDebug:        Boolean,
     usingMulDiv:       Boolean,
-    usingVector:       Boolean
+    usingVector:       Boolean,
+    usingZVMA:         Boolean
   )
   val decoderParameter = DecoderParameter(
     instructionSets,
@@ -461,6 +463,7 @@ class Rocket(val parameter: RocketParameter)
   def usingAtomics:            Boolean     = parameter.usingAtomics
   def usingMulDiv:             Boolean     = parameter.usingMulDiv
   def usingVector:             Boolean     = parameter.usingVector
+  def usingZVMA:               Boolean     = parameter.usingZVMA
   def pipelinedMul:            Boolean     = parameter.pipelinedMul
   def usingCompressed:         Boolean     = parameter.usingCompressed
   def usingFPU:                Boolean     = parameter.usingFPU
@@ -1281,6 +1284,11 @@ class Rocket(val parameter: RocketParameter)
     csr.io.rw.cmd   := parameter.csrParameter.maskCmd(wbRegValid, wbRegDecodeOutput(parameter.decoderParameter.csr))
     csr.io.rw.wdata := wbRegWdata
     csr.io.vectorCsr.foreach(_ := wbRegDecodeOutput(parameter.decoderParameter.vectorCSR))
+    csr.io.setVlType.foreach { t =>
+      t.tm := wbRegDecodeOutput(parameter.decoderParameter.setTm)
+      t.tn := wbRegDecodeOutput(parameter.decoderParameter.setTn)
+      t.tk := wbRegDecodeOutput(parameter.decoderParameter.setTk)
+    }
     csr.io.wbRegRS2.foreach(_ := wbRegRS2)
 
     io.bpwatch.zip(wbRegWphit).zip(csr.io.bp)
