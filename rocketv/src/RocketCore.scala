@@ -68,6 +68,7 @@ case class RocketParameter(
   clockGate:              Boolean,
   instructionSets:        Set[String],
   vLen:                   Int,
+  tew:                    Option[Int],
   usingUser:              Boolean,
   hartIdLen:              Int,
   nPMPs:                  Int,
@@ -94,7 +95,7 @@ case class RocketParameter(
     extends SerializableModuleParameter {
   // interface to T1
   def usingVector = hasInstructionSet("rv_v")
-  def usingZVMA   = hasInstructionSet("rv_zvma")
+  def usingXsfmm  = instructionSets.exists(_.startsWith("rv_xsfmm"))
 
   // fixed for now
   def usingRVE = false
@@ -256,6 +257,7 @@ case class RocketParameter(
     vLen:              Int,
     xLen:              Int,
     fLen.getOrElse(0): Int,
+    tew:               Option[Int],
     hartIdLen:         Int,
     mcontextWidth:     Int,
     scontextWidth:     Int,
@@ -274,7 +276,7 @@ case class RocketParameter(
     usingDebug:        Boolean,
     usingMulDiv:       Boolean,
     usingVector:       Boolean,
-    usingZVMA:         Boolean
+    usingXsfmm:        Boolean
   )
   val decoderParameter = DecoderParameter(
     instructionSets,
@@ -463,7 +465,7 @@ class Rocket(val parameter: RocketParameter)
   def usingAtomics:            Boolean     = parameter.usingAtomics
   def usingMulDiv:             Boolean     = parameter.usingMulDiv
   def usingVector:             Boolean     = parameter.usingVector
-  def usingZVMA:               Boolean     = parameter.usingZVMA
+  def usingXsfmm:              Boolean     = parameter.usingXsfmm
   def pipelinedMul:            Boolean     = parameter.pipelinedMul
   def usingCompressed:         Boolean     = parameter.usingCompressed
   def usingFPU:                Boolean     = parameter.usingFPU
