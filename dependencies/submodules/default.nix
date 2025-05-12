@@ -157,7 +157,7 @@ lib.makeScope newScope (scope: {
     };
   };
 
-  ivy-rvdecoderdb = publishMillJar {
+  ivy-rvdecoderdb = publishMillJar rec {
     name = "rvdecoderdb-snapshot";
     src = submodules.rvdecoderdb.src;
 
@@ -165,12 +165,25 @@ lib.makeScope newScope (scope: {
       "rvdecoderdb.jvm"
     ];
 
-    lockFile = "${submodules.rvdecoderdb.src}/nix/chisel-mill-lock.nix";
+    lockFile = ../locks/rvdecoderdb-lock.nix;
 
     nativeBuildInputs = [
       # rvdecoderdb requires git to generate version
       git
     ];
+
+    passthru.bump = writeShellApplication {
+      name = "bump-rvdecoderdb-mill-lock";
+      runtimeInputs = [
+        mill
+        mill-ivy-fetcher
+      ];
+      text = ''
+        mif run \
+          --targets 'rvdecoderdb.jvm' \
+          -p "${src}" -o ./dependencies/locks/rvdecoderdb-lock.nix "$@"
+      '';
+    };
   };
 
   ivy-hardfloat = publishMillJar rec {

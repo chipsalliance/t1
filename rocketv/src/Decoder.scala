@@ -61,14 +61,19 @@ case class DecoderParameter(
   val instructions: Seq[Instruction] =
     org.chipsalliance.rvdecoderdb
       .instructions(
-        org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader)
+        org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader),
+        Some(org.chipsalliance.rvdecoderdb.extractCustomResource(getClass.getClassLoader))
       )
       .filter(instruction =>
-        (
-          instructionSets ++
-            // Four mandatory instruction sets.
-            Seq("rv_i", "rv_zicsr", "rv_zifencei", "rv_system")
-        ).contains(instruction.instructionSet.name)
+        instruction.instructionSet.name match {
+          case "rv_xsfmm" => instructionSets.exists(_.startsWith("rv_xsfmm"))
+          case name       =>
+            (
+              instructionSets ++
+                // Four mandatory instruction sets.
+                Seq("rv_i", "rv_zicsr", "rv_zifencei", "rv_system")
+            ).contains(name)
+        }
       )
       .toSeq
       .filter {
@@ -87,6 +92,9 @@ case class DecoderParameter(
 
   private def xLen64: Boolean = instructions.map(_.instructionSet.name).exists(_.startsWith("rv64_"))
 
+  private def hasAnyMatchSet(predicate: String => Boolean): Boolean =
+    instructions.flatMap(_.instructionSets.map(_.name)).exists(predicate)
+
   private def fLen0: Boolean = !fLen32 && !fLen64
 
   private def fLen32: Boolean = hasAnySetIn("rv_f", "rv32_f", "rv64_f")
@@ -96,7 +104,7 @@ case class DecoderParameter(
   private val useFPU    = !fLen0
   private val useMulDiv = hasAnySetIn("rv_m", "rv64_m")
   private val useVector = hasAnySetIn("rv_v")
-  private val useZvma   = hasAnySetIn("rv_zvma")
+  private val useZvma   = hasAnyMatchSet(_.startsWith("rv_xsfmm"))
 
   private val instructionDecodePatterns: Seq[RocketDecodePattern]                         = instructions.map(RocketDecodePattern.apply)
   private val instructionDecodeFields:   Seq[DecodeField[RocketDecodePattern, _ <: Data]] = Seq(
@@ -708,7 +716,7 @@ case class DecoderParameter(
   object vector extends BoolDecodeField[RocketDecodePattern] {
     override def name: String = "vector"
 
-    override def genTable(op: RocketDecodePattern): BitPat = if (op.instruction.instructionSet.name == "rv_v" || op.instruction.instructionSet.name == "rv_zvma") Y else N
+    override def genTable(op: RocketDecodePattern): BitPat = if (op.instruction.instructionSet.name == "rv_v" || op.instruction.instructionSet.name.startsWith("rv_xsfmm")) Y else N
   }
 
   object vectorLSU extends BoolDecodeField[RocketDecodePattern] {
