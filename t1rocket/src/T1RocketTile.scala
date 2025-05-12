@@ -138,6 +138,10 @@ case class T1RocketTileParameter(
     vlen.toInt
   }.get
 
+  def tew: Option[Int] = instructionSets.collectFirst { case s"rv_xsfmm${tew}t" =>
+    tew.toInt
+  }
+
   // static for now
   def hasBeu: Boolean = false
 
@@ -224,6 +228,7 @@ case class T1RocketTileParameter(
     clockGate,
     instructionSets.toSet,
     vLen,
+    tew,
     usingUser,
     hartIdLen,
     nPMPs,
@@ -361,11 +366,11 @@ case class T1RocketTileParameter(
     laneScale = laneScale,
     chainingSize = chainingSize,
     extensions = instructionSets.filter {
-      case i if i.startsWith("zve") => true
-      case i if i.startsWith("zvl") => true
-      case i if i == "zvma"         => true
-      case i if i == "zvbb"         => true
-      case _                        => false
+      case i if i.startsWith("zve")      => true
+      case i if i.startsWith("zvl")      => true
+      case i if i.startsWith("rv_xsfmm") => true
+      case i if i == "zvbb"              => true
+      case _                             => false
     },
     vrfBankSize = vrfBankSize,
     vrfRamType = vrfRamType,

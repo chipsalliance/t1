@@ -17,7 +17,7 @@ object isZvma {
 
   def y(t1DecodePattern: T1DecodePattern): Boolean = {
     val allMatched =
-      if (t1DecodePattern.param.zvmaEnable)
+      if (t1DecodePattern.param.useXsfmm)
         Seq(
           "vlte8",
           "vlte16",

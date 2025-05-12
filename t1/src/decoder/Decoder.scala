@@ -14,7 +14,7 @@ object DecoderParam {
   implicit def rwP: upickle.default.ReadWriter[DecoderParam] = upickle.default.macroRW
 }
 
-case class DecoderParam(fpuEnable: Boolean, zvbbEnable: Boolean, zvmaEnable: Boolean, allInstructions: Seq[Instruction])
+case class DecoderParam(fpuEnable: Boolean, zvbbEnable: Boolean, useXsfmm: Boolean, allInstructions: Seq[Instruction])
     extends SerializableModuleParameter
 
 trait T1DecodeFiled[D <: Data] extends DecodeField[T1DecodePattern, D] with FieldName
@@ -455,7 +455,7 @@ object Decoder {
       )
     else Seq()
   } ++ {
-    if (param.zvmaEnable)
+    if (param.useXsfmm)
       Seq(
         zvma
       )

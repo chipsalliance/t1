@@ -33,10 +33,11 @@ trait HasChisel extends ScalaModule {
 }
 
 trait HasRVDecoderDB extends ScalaModule {
-  def rvdecoderdbIvy:   Dep
-  def riscvOpcodesPath: T[PathRef]
+  def rvdecoderdbIvy:         Dep
+  def riscvOpcodesPath:       T[PathRef]
+  def riscvCustomOpcodesPath: T[PathRef]
   def ivyDeps = T(super.ivyDeps() ++ Seq(rvdecoderdbIvy))
-  def riscvOpcodesTar:    T[PathRef]      = T {
+  def riscvOpcodesTar:       T[PathRef] = T {
     val tmpDir = os.temp.dir()
     os.makeDir(tmpDir / "unratified")
     os.walk(riscvOpcodesPath().path)
@@ -55,7 +56,21 @@ trait HasRVDecoderDB extends ScalaModule {
     os.proc("tar", "cf", T.dest / "riscv-opcodes.tar", ".").call(tmpDir)
     PathRef(T.dest)
   }
-  override def resources: T[Seq[PathRef]] = super.resources() ++ Some(riscvOpcodesTar())
+  def riscvCustomOpcodesTar: T[PathRef] = T {
+    val tmpDir = os.temp.dir()
+    os.walk(riscvCustomOpcodesPath().path)
+      .filter(f =>
+        f.baseName.startsWith("rv128_") ||
+          f.baseName.startsWith("rv64_") ||
+          f.baseName.startsWith("rv32_") ||
+          f.baseName.startsWith("rv_")
+      )
+      .foreach(os.copy.into(_, tmpDir))
+    os.proc("tar", "cf", T.dest / "riscv-custom-opcodes.tar", ".").call(tmpDir)
+    PathRef(T.dest)
+  }
+
+  override def resources: T[Seq[PathRef]] = super.resources() ++ Seq(riscvOpcodesTar(), riscvCustomOpcodesTar())
 }
 
 // Local definitions
@@ -73,12 +88,6 @@ trait ConfigGenModule extends ScalaModule {
   def moduleDeps = super.moduleDeps ++ Seq(t1Module)
   def mainargsIvy: Dep
   override def ivyDeps = T(super.ivyDeps() ++ Seq(mainargsIvy))
-}
-
-// T1 forked version of RocketCore
-trait RocketModule extends ScalaModule with HasChisel with HasRVDecoderDB {
-  def rocketchipModule: ScalaModule
-  def moduleDeps = super.moduleDeps ++ Seq(rocketchipModule)
 }
 
 // The next generation of purely standalone Rocket Core w/ AXI/CHI.

@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.util.log2Ceil
 
 // context for Vector
-class V(vlen: Int, hypervisor: Boolean) {
+class V(vlen: Int, hypervisor: Boolean, xsfmm: Boolean) {
   require(Module.currentModule.isDefined)
   def vlWidth: Int = log2Ceil(vlen) + 1
   def vlenbWidth = log2Ceil(vlen / 8)
@@ -92,15 +92,20 @@ class V(vlen: Int, hypervisor: Boolean) {
       "vl",
       "vstart",
       "vxrm",
-      "vxsat",
-      "tm", // todo: option?
-      "tk",
-      "vtwiden",
-      "altfmt"
+      "vxsat"
     ) ++ Option.when(hypervisor)(
       // https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#33-vector-context-status-in-vsstatus
       "vsstatus.VS"
-    )).map { content: String =>
+    ) ++ {
+      if (xsfmm)
+        Seq(
+          "tm",
+          "tk",
+          "vtwiden",
+          "altfmt"
+        )
+      else None
+    }).map { content: String =>
       content ->
         reset(content)
           .map(resetValue => RegInit(resetValue.asTypeOf(chiselType(content))))
