@@ -41,7 +41,7 @@ case class LSUParameter(
   axi4BundleParameter: AXI4BundleParameter,
   lsuReadShifterSize:  Seq[Int],
   name:                String,
-  zvmaEnable:          Boolean,
+  useXsfmm:            Boolean,
   TE: Int) {
   val sewMin: Int = 8
 
@@ -226,7 +226,7 @@ class LSU(param: LSUParameter) extends Module {
   val tokenIO: LSUToken = IO(new LSUToken(param))
 
   @public
-  val zvmaInterface: Option[ZVMInterfaceInLSU] = Option.when(param.zvmaEnable) {
+  val zvmaInterface: Option[ZVMInterfaceInLSU] = Option.when(param.useXsfmm) {
     IO(Input(new ZVMInterfaceInLSU(param)))
   }
 
@@ -236,9 +236,9 @@ class LSU(param: LSUParameter) extends Module {
   val otherUnit: SimpleAccessUnit = Module(new SimpleAccessUnit(param.mshrParam))
 
   val zvmaExchange: Option[ZVMADataExchange] =
-    Option.when(param.zvmaEnable)(Module(new ZVMADataExchange(param.zvmaExchangeParam)))
+    Option.when(param.useXsfmm)(Module(new ZVMADataExchange(param.zvmaExchangeParam)))
 
-  val zvma = Option.when(param.zvmaEnable)(Module(new ZVMA(param.zvmaParam)))
+  val zvma = Option.when(param.useXsfmm)(Module(new ZVMA(param.zvmaParam)))
 
   /** duplicate v0 in lsu */
   val v0: Vec[UInt] = RegInit(
@@ -347,7 +347,7 @@ class LSU(param: LSUParameter) extends Module {
     Queue.io(UInt(param.datapathWidth.W), readLatency, flow = true)
   )
   val dataDeqFire:           UInt               = Wire(UInt(param.laneNumber.W))
-  val zvmaWaitVrfReadVec = Seq.tabulate(param.laneNumber)(_ => Option.when(param.zvmaEnable)(Wire(Bool())))
+  val zvmaWaitVrfReadVec = Seq.tabulate(param.laneNumber)(_ => Option.when(param.useXsfmm)(Wire(Bool())))
   val zvmaWaitVrfRead    = zvmaWaitVrfReadVec.map(_.getOrElse(false.B))
   // read vrf
   val otherTryReadVrf: UInt = Mux(otherUnit.vrfReadDataPorts.valid, otherUnit.status.targetLane, 0.U)
@@ -492,8 +492,8 @@ class LSU(param: LSUParameter) extends Module {
   }
 
   val sourceQueue = Queue.io(UInt(param.mshrParam.cacheLineIndexBits.W), param.sourceQueueSize)
-  val zvmUseAr    = Option.when(param.zvmaEnable)(Wire(Bool()))
-  val zvmWaitR    = Option.when(param.zvmaEnable)(Wire(Bool()))
+  val zvmUseAr    = Option.when(param.useXsfmm)(Wire(Bool()))
+  val zvmWaitR    = Option.when(param.useXsfmm)(Wire(Bool()))
   // load unit connect
   axi4Port.ar.valid         := loadUnit.memRequest.valid && sourceQueue.enq.ready || zvmUseAr.getOrElse(false.B)
   axi4Port.ar.bits <> DontCare

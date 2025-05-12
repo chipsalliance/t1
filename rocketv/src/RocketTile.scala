@@ -139,6 +139,10 @@ case class RocketTileParameter(
     vlen.toInt
   }
 
+  def tew: Option[Int] = instructionSets.collectFirst { case s"rv_xsfmm${tew}t" =>
+    tew.toInt
+  }
+
   // static for now
   def hasBeu:                                     Boolean          = false
   def usingNMI:                                   Boolean          = false
@@ -212,6 +216,7 @@ case class RocketTileParameter(
     clockGate,
     instructionSets,
     vLen.getOrElse(0),
+    tew,
     usingUser,
     hartIdLen,
     nPMPs,

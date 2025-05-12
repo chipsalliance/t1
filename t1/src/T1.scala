@@ -33,7 +33,7 @@ import chisel3.util.{
 }
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4RWIrrevocable}
 import org.chipsalliance.rvdecoderdb.Instruction
-import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam, T1CustomInstruction}
+import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
 import org.chipsalliance.t1.rtl.lsu.{LSU, LSUParameter, LSUProbe}
 import org.chipsalliance.t1.rtl.vrf.{RamType, VRFParam}
 import org.chipsalliance.stdlib.GeneralOM
@@ -146,8 +146,6 @@ case class T1Parameter(
       }}
        |""".stripMargin
 
-  def t1customInstructions: Seq[T1CustomInstruction] = Nil
-
   def vLen: Int = extensions.collectFirst { case s"zvl${vlen}b" =>
     vlen.toInt
   }.get
@@ -157,20 +155,28 @@ case class T1Parameter(
       "\\d+".r.findFirstIn(pattern).get.toInt
   }.get
 
-  def spikeMarch: String = s"rv32gc_${extensions.mkString("_").toLowerCase}"
+  def spikeMarch: String = s"rv32gc_${extensions
+      .map(e =>
+        if (e.startsWith("rv_xsfmm")) { e.replaceFirst("rv_xsfmm", "xsfmm") }
+        else { e }
+      )
+      .mkString("_")
+      .toLowerCase}"
 
   val allInstructions: Seq[Instruction] = {
     org.chipsalliance.rvdecoderdb
-      .instructions(org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader))
+      .instructions(
+        org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader),
+        Some(org.chipsalliance.rvdecoderdb.extractCustomResource(getClass.getClassLoader))
+      )
       .filter { instruction =>
         instruction.instructionSet.name match {
-          case "rv_v"    => true
-          case "rv_zvma" => zvmaEnable
-          case "rv_zvbb" => if (zvbbEnable) true else false
-          case _         => false
+          case "rv_v"                                                   => true
+          case s"rv_xsfmm${tew}t" if Seq(16, 32, 64, 128).contains(tew) => useXsfmm
+          case "rv_zvbb"                                                => if (zvbbEnable) true else false
+          case _                                                        => false
         }
-      } ++
-      t1customInstructions.map(_.instruction)
+      }
   }.toSeq.filter { insn =>
     insn.name match {
       case s if Seq("vsetivli", "vsetvli", "vsetvl").contains(s) => false
@@ -181,7 +187,8 @@ case class T1Parameter(
   require(
     extensions.forall(
       (Seq("zve32x", "zve32f", "zvbb") ++
-        Seq(128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536).map(vlen => s"zvl${vlen}b")).contains
+        Seq(128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536).map(vlen => s"zvl${vlen}b") ++
+        Seq(16, 32, 64, 128).map(tew => s"rv_xsfmm${tew}t")).contains
     ),
     "unsupported extension."
   )
@@ -285,10 +292,16 @@ case class T1Parameter(
 
   val releaseShifterSize: Seq[Int] = Seq.tabulate(laneNumber)(_ => 1)
 
-  // todo
-  def zvmaEnable:   Boolean      = extensions.contains("xsfmmbase")
-  val TE:           Int          = 32
-  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, zvmaEnable, allInstructions)
+  def useXsfmm: Boolean     = extensions.exists(ext => ext.startsWith("rv_xsfmm"))
+  val tew:      Option[Int] = extensions.collectFirst { case s"rv_xsfmm${tew}t" => tew.toInt }
+  val TE:       Int         = if (useXsfmm) {
+    // force panic when zvma is enable but no TEW was parsed
+    tew.get
+  } else {
+    0
+  }
+
+  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, useXsfmm, allInstructions)
 
   val chaining1HBits: Int = 2 << log2Ceil(chainingSize)
 
@@ -356,7 +369,7 @@ case class T1Parameter(
     axi4BundleParameter = axi4BundleParameter,
     lsuReadShifterSize = lsuReadShifterSize,
     name = "main",
-    zvmaEnable = zvmaEnable,
+    useXsfmm = useXsfmm,
     TE = TE
   )
   def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
@@ -517,7 +530,7 @@ class T1(val parameter: T1Parameter)
   val maskType:            Bool = !requestRegDequeue.bits.instruction(25)
   val lsWholeReg:          Bool = isLoadStoreType && requestRegDequeue.bits.instruction(27, 26) === 0.U &&
     requestRegDequeue.bits.instruction(24, 20) === 8.U
-  val isZvma:              Bool = Option.when(parameter.zvmaEnable)(requestReg.bits.decodeResult(Decoder.zvma)).getOrElse(false.B)
+  val isZvma:              Bool = Option.when(parameter.useXsfmm)(requestReg.bits.decodeResult(Decoder.zvma)).getOrElse(false.B)
   // lane 只读不执行的指令
   val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
@@ -851,7 +864,7 @@ class T1(val parameter: T1Parameter)
   dataInWritePipeVec := VecInit(laneVec.map(_.writeQueueValid))
 
   val issueToLSU: Bool = Option
-    .when(parameter.zvmaEnable)(isLoadStoreType || requestReg.bits.decodeResult(Decoder.zvma))
+    .when(parameter.useXsfmm)(isLoadStoreType || requestReg.bits.decodeResult(Decoder.zvma))
     .getOrElse(isLoadStoreType)
   // 连lsu
   lsu.request.valid                                       := requestRegDequeue.fire && issueToLSU
