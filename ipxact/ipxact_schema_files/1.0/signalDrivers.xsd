@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : signalDrivers.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.9 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" elementFormDefault="qualified" attributeFormDefault="qualified" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:include schemaLocation="simpleTypes.xsd"/>
+	<xs:include schemaLocation="autoConfigure.xsd"/>
+	<xs:element name="clockDriver">
+		<xs:annotation>
+			<xs:documentation>Describes a driven clock signal.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="clockPeriod">
+					<xs:annotation>
+						<xs:documentation>Clock period in nanoseconds</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="spirit:configurableDouble">
+								<xs:attributeGroup ref="spirit:general.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="clockPulseOffset">
+					<xs:annotation>
+						<xs:documentation>Time in nanoseconds until first pulse.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="spirit:configurableDouble">
+								<xs:attributeGroup ref="spirit:general.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="clockPulseValue">
+					<xs:annotation>
+						<xs:documentation>Value of signal after first clock edge.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="spirit:spiritNumberType">
+								<xs:attributeGroup ref="spirit:general.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="clockPulseDuration">
+					<xs:annotation>
+						<xs:documentation>Duration in nanoseconds of first state in cycle.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="spirit:configurableDouble">
+								<xs:attributeGroup ref="spirit:general.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="singleShotDriver">
+		<xs:annotation>
+			<xs:documentation>Describes a driven one-shot signal.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="singleShotOffset">
+					<xs:annotation>
+						<xs:documentation>Time in nanoseconds until start of one-shot.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="spirit:configurableDouble">
+								<xs:attributeGroup ref="spirit:general.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="singleShotValue">
+					<xs:annotation>
+						<xs:documentation>Value of signal after first  edge of one-shot.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="spirit:spiritNumberType">
+								<xs:attributeGroup ref="spirit:general.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="singleShotDuration">
+					<xs:annotation>
+						<xs:documentation>Duration in nanoseconds of the one shot.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="spirit:configurableDouble">
+								<xs:attributeGroup ref="spirit:general.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="requiresDriver">
+		<xs:annotation>
+			<xs:documentation>Specifies if a signal requires a driver. Default is false. The attribute driverType can further qualify what type of driver is required. Undefined behaviour if direction is not input or inout. Driver type any indicates that any unspecified type of driver must be connected</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="xs:boolean">
+					<xs:attribute name="driverType" use="optional" default="any">
+						<xs:simpleType>
+							<xs:restriction base="xs:token">
+								<xs:enumeration value="clock"/>
+								<xs:enumeration value="singleShot"/>
+								<xs:enumeration value="any"/>
+							</xs:restriction>
+						</xs:simpleType>
+					</xs:attribute>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="signalValueType">
+		<xs:annotation>
+			<xs:documentation>Describes a signal value. The signal value can be just a value (number), a strength, or both. If the "value" is not given, it should be considered an X (unknown). A weak strength with no value given is considered Z (tristate).</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element ref="spirit:strength"/>
+			<xs:sequence>
+				<xs:element ref="spirit:value"/>
+				<xs:element ref="spirit:strength" minOccurs="0"/>
+			</xs:sequence>
+		</xs:choice>
+	</xs:complexType>
+	<xs:simpleType name="strengthType">
+		<xs:annotation>
+			<xs:documentation>Describes a signal strength.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="strong"/>
+			<xs:enumeration value="weak"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="value">
+		<xs:annotation>
+			<xs:documentation>The value of a signal.  1 or 0 for single bit signals, unsigned numeric otherwise.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="spirit:spiritNumberType">
+					<xs:attributeGroup ref="spirit:long.prompt.att"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="strength">
+		<xs:annotation>
+			<xs:documentation>The strength of the signal.  "strong" (default) or "weak".</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="spirit:strengthType">
+					<xs:attributeGroup ref="spirit:general.att"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

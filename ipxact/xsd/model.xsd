@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="file.xsd"/>
+	<xs:include schemaLocation="port.xsd"/>
+	<xs:simpleType name="envIdentifierType">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="[a-zA-Z0-9_+\*\.]*:[a-zA-Z0-9_+\*\.]*:[a-zA-Z0-9_+\*\.]*"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="designInstantiationType">
+		<xs:annotation>
+			<xs:documentation>Design instantiation type.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroupNMTOKEN"/>
+			<xs:element name="designRef" type="ipxact:configurableLibraryRefType">
+				<xs:annotation>
+					<xs:documentation>References an IP-XACT design document (by VLNV) that provides a design for the component.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="designConfigurationInstantiationType">
+		<xs:annotation>
+			<xs:documentation>Design configuration instantiation type.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroupNMTOKEN"/>
+			<xs:element name="language" type="ipxact:languageType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation> The hardware description language used such as "verilog" or "vhdl". If the attribute "strict" is "true", this value must match the language being generated for the design.  </xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="designConfigurationRef" type="ipxact:configurableLibraryRefType">
+				<xs:annotation>
+					<xs:documentation>References an IP-XACT design configuration document (by VLNV) that provides a configuration for the component's design.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="componentInstantiationType">
+		<xs:annotation>
+			<xs:documentation>Component instantiation type</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroupNMTOKEN"/>
+			<xs:element name="isVirtual" type="xs:boolean" default="false" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>When true, indicates that this component should not be netlisted.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="language" type="ipxact:languageType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation> The hardware description language used such as "verilog" or "vhdl". If the attribute "strict" is "true", this value must match the language being generated for the design.  </xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="libraryName" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A string specifying the library name in which the model should be compiled. If the libraryName element is not present then its value defaults to “work”.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="packageName" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A string describing the VHDL package containing the interface of the model. If the packageName element is not present then its value defaults to the component VLNV name concatenated with postfix “_cmp_pkg” which stands for component package.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="moduleName" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A string describing the Verilog, SystemVerilog, or SystemC module name or the VHDL entity name. If the moduleName is not present then its value defaults to the component VLNV name</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="architectureName" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A string describing the VHDL architecture name. If the architectureName element is not present then its value defaults to “rtl”.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="configurationName" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A string describing the Verilog, SystemVerilog, or VHDL configuration name. If the configurationName element is not present then its value defaults to the design configuration VLNV name of the design configuration associated with the active hierarchical view or, if there is no active hierarchical view, to the component VLNV name concatenated with postfix “_rtl_cfg”.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="moduleParameters" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Model parameter name value pairs container</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="moduleParameter" type="ipxact:moduleParameterType" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>A module parameter name value pair. The name is given in an attribute. The value is the element value. The dataType (applicable to high level modeling) is given in the dataType attribute. For hardware based models, the name should be identical to the RTL (VHDL generic or Verilog parameter). The usageType attribute indicates how the model parameter is to be used.
+										</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+				<xs:unique name="moduleParameterName">
+					<xs:selector xpath="ipxact:moduleParameter"/>
+					<xs:field xpath="ipxact:name"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element name="defaultFileBuilder" type="ipxact:fileBuilderType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Default command and flags used to build derived files from the sourceName files in the referenced file sets.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:fileSetRef" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ipxact:constraintSetRef" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="clearboxElementRefs" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation> Container for clear box element references.  </xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="clearboxElementRef" type="ipxact:clearboxElementRefType" minOccurs="0" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation> Reference to a clear box element which is visible within this view.  </xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:group name="instantiationsGroup">
+		<xs:choice>
+			<xs:element name="componentInstantiation" type="ipxact:componentInstantiationType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Component Instantiation</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="designInstantiation" type="ipxact:designInstantiationType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Design Instantiation</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="designConfigurationInstantiation" type="ipxact:designConfigurationInstantiationType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Design Configuration Instantiation</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:choice>
+	</xs:group>
+	<xs:complexType name="modelType">
+		<xs:annotation>
+			<xs:documentation>Model information.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="views" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Views container</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="view" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Single view of a component</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:sequence>
+									<xs:group ref="ipxact:nameGroupNMTOKEN"/>
+									<xs:element name="envIdentifier" minOccurs="0" maxOccurs="unbounded">
+										<xs:annotation>
+											<xs:documentation> Defines the hardware environment in which this view applies. The format of the string is language:tool:vendor_extension, with each piece being optional. The language must be one of the types from ipxact:fileType. The tool values are defined by the Accellera Systems Initiative, and include generic values "*Simulation" and "*Synthesis" to imply any tool of the indicated type. Having more than one envIdentifier indicates that the view applies to multiple environments.  </xs:documentation>
+										</xs:annotation>
+										<xs:complexType>
+											<xs:simpleContent>
+												<xs:extension base="ipxact:envIdentifierType">
+													<xs:attributeGroup ref="ipxact:id.att"/>
+												</xs:extension>
+											</xs:simpleContent>
+										</xs:complexType>
+									</xs:element>
+									<xs:element name="componentInstantiationRef" type="xs:NMTOKEN" minOccurs="0"/>
+									<xs:element name="designInstantiationRef" type="xs:NMTOKEN" minOccurs="0"/>
+									<xs:element name="designConfigurationInstantiationRef" type="xs:NMTOKEN" minOccurs="0"/>
+									<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+								</xs:sequence>
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="instantiations" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Instantiations container</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:choice>
+						<xs:group ref="ipxact:instantiationsGroup" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Component, design, designConfiguration instantiation view of a component</xs:documentation>
+							</xs:annotation>
+						</xs:group>
+					</xs:choice>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="ports" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Port container</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="ipxact:port" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="abstractorModelType">
+		<xs:annotation>
+			<xs:documentation>Model information for an abstractor.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="views" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Views container</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="view" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Single view of an abstracto</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:sequence>
+									<xs:group ref="ipxact:nameGroupNMTOKEN"/>
+									<xs:element name="envIdentifier" minOccurs="0" maxOccurs="unbounded">
+										<xs:annotation>
+											<xs:documentation> Defines the hardware environment in which this view applies. The format of the string is language:tool:vendor_extension, with each piece being optional. The language must be one of the types from ipxact:fileType. The tool values are defined by the Accellera Systems Initiative, and include generic values "*Simulation" and "*Synthesis" to imply any tool of the indicated type. Having more than one envIdentifier indicates that the view applies to multiple environments.  </xs:documentation>
+										</xs:annotation>
+										<xs:complexType>
+											<xs:simpleContent>
+												<xs:extension base="ipxact:envIdentifierType">
+													<xs:attributeGroup ref="ipxact:id.att"/>
+												</xs:extension>
+											</xs:simpleContent>
+										</xs:complexType>
+									</xs:element>
+									<xs:element name="componentInstantiationRef" type="xs:NMTOKEN" minOccurs="0"/>
+									<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+								</xs:sequence>
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="instantiations" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Instantiations container</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="componentInstantiation" type="ipxact:componentInstantiationType" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Component Instantiation</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="ports" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Port container</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="port" type="ipxact:abstractorPortType" minOccurs="0" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="model" type="ipxact:modelType">
+		<xs:annotation>
+			<xs:documentation>Model information.</xs:documentation>
+		</xs:annotation>
+		<xs:key name="instantiationsKey">
+			<xs:selector xpath="./ipxact:instantiations/ipxact:componentInstantiation | ./ipxact:instantiations/ipxact:designInstantiation | ./ipxact:instantiations/ipxact:designConfigurationInstantiation"/>
+			<xs:field xpath="./ipxact:name"/>
+		</xs:key>
+		<xs:key name="componentInstantiationsKey">
+			<xs:selector xpath="./ipxact:instantiations/ipxact:componentInstantiation"/>
+			<xs:field xpath="./ipxact:name"/>
+		</xs:key>
+		<xs:key name="designInstantiationsKey">
+			<xs:selector xpath="./ipxact:instantiations/ipxact:designInstantiation"/>
+			<xs:field xpath="./ipxact:name"/>
+		</xs:key>
+		<xs:key name="designConfigurationInstantiationsKey">
+			<xs:selector xpath="./ipxact:instantiations/ipxact:designConfigurationInstantiation"/>
+			<xs:field xpath="./ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="componentInstantiationsRef" refer="ipxact:componentInstantiationsKey">
+			<xs:selector xpath="./ipxact:views/ipxact:view/ipxact:componentInstantiationRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:keyref name="designInstantiationsRef" refer="ipxact:designInstantiationsKey">
+			<xs:selector xpath="./ipxact:views/ipxact:view/ipxact:designInstantiationRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:keyref name="designConfigurationInstantiationsRef" refer="ipxact:designConfigurationInstantiationsKey">
+			<xs:selector xpath="./ipxact:views/ipxact:view/ipxact:designConfigurationInstantiationRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:key name="constraintSetKey">
+			<xs:selector xpath=".//ipxact:constraintSet"/>
+			<xs:field xpath="@constraintSetId"/>
+		</xs:key>
+		<xs:keyref name="constraintSetRef" refer="ipxact:constraintSetKey">
+			<xs:selector xpath=".//ipxact:constraintSetRef/ipxact:localName"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+	</xs:element>
+	<xs:complexType name="clearboxElementRefType">
+		<xs:annotation>
+			<xs:documentation> Reference to a clearboxElement within a view. The 'name' attribute must refer to a clearboxElement defined within this component.  </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="location" type="ipxact:slicesType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>The contents of each location element can be used to specified one location (HDL Path) through the referenced clearBoxElement is accessible.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="name" type="xs:Name" use="required">
+			<xs:annotation>
+				<xs:documentation>Reference to a clearboxElement defined within this component.  </xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="languageType">
+		<xs:simpleContent>
+			<xs:extension base="xs:token">
+				<xs:attribute name="strict" type="xs:boolean" default="false">
+					<xs:annotation>
+						<xs:documentation>A value of 'true' indicates that this value must match the language being generated for the design.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+</xs:schema>

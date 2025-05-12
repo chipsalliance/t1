@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : busInterface.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.19 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="configurator.xsd"/>
+	<xs:include schemaLocation="memoryMap.xsd"/>
+	<xs:include schemaLocation="signal.xsd"/>
+	<xs:simpleType name="bitSteeringType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="on"/>
+			<xs:enumeration value="off"/>
+			<xs:enumeration value="default"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="busInterface" type="spirit:busInterfaceType">
+		<xs:annotation>
+			<xs:documentation>Describes one of the bus interfaces supported by this component.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="busInterfaces">
+		<xs:annotation>
+			<xs:documentation>A list of bus interfaces supported by this component.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="spirit:busInterface" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="busInterfaceType">
+		<xs:sequence>
+			<xs:element name="name" type="xs:Name">
+				<xs:annotation>
+					<xs:documentation>Uniquely names this bus interface.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="busType" type="spirit:libraryRefType">
+				<xs:annotation>
+					<xs:documentation>The bus type of this interface.  Refers to a bus description using vendor, library and name attributes.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:choice>
+				<xs:element name="master">
+					<xs:annotation>
+						<xs:documentation>If this element is present, the bus interface can serve as a master.  This element encapsulates additional information related to its role as master.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="addressSpaceRef" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>If this master connects to an addressable bus, this element references the address space  it maps to.  It has an addressSpaceRef attribute which is an addrSpaceID key ref.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:complexContent>
+										<xs:extension base="spirit:addrSpaceRefType">
+											<xs:sequence>
+												<xs:annotation>
+													<xs:documentation>If master's mapping to the physical address space is not zero based, baseAddress and bitOffset elements may be used to indicate the offsets.</xs:documentation>
+												</xs:annotation>
+												<xs:element ref="spirit:baseAddress" minOccurs="0"/>
+												<xs:element ref="spirit:bitOffset" minOccurs="0"/>
+											</xs:sequence>
+										</xs:extension>
+									</xs:complexContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="slave">
+					<xs:annotation>
+						<xs:documentation>If this element is present, the bus interface can serve as a slave.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="spirit:memoryMapRef" minOccurs="0"/>
+							<xs:element name="bridge" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>If this element is present, it indicates that the bus interface provides a bridge to another master bus interface on the same component.  It has a masterRef attribute which contains the name of the other bus interface.  It also has an opaque attribute to indicate that the bus bridge is opaque.
+
+Any slave interface can bridge to multiple master interfaces, and multiple slave interfaces can bridge to the same master interface.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:attribute name="masterRef" type="xs:Name" use="required">
+										<xs:annotation>
+											<xs:documentation>The name of the master bus interface to which this interface bridges.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+									<xs:attribute name="opaque" type="xs:boolean"/>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="fileSetRefGroup" minOccurs="0" maxOccurs="unbounded">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="group" type="xs:Name" minOccurs="0"/>
+										<xs:element ref="spirit:fileSetRef" minOccurs="0" maxOccurs="unbounded"/>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="system">
+					<xs:annotation>
+						<xs:documentation>If this element is present, the bus interface is a system interface, neither master nor slave, with a specific function on the bus.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="spirit:group"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="mirroredSlave">
+					<xs:annotation>
+						<xs:documentation>If this element is present, the bus interface represents a mirrored slave interface. All directional constraints on signals are reversed relative to the specification in the bus definition.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence minOccurs="0">
+							<xs:element name="baseAddresses" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Represents a set of remap base addresses.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="remapAddress" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>Base of an address block. The state attribute indicates the name of the remap state for which this address is valid.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="spirit:spiritNumberType">
+														<xs:attributeGroup ref="spirit:long.att"/>
+														<xs:attribute ref="spirit:prompt" default="Base Address:"/>
+														<xs:attribute name="state" type="xs:string"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="range">
+											<xs:annotation>
+												<xs:documentation>The address range of mirrored slave. </xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="spirit:spiritNumberType">
+														<xs:attributeGroup ref="spirit:long.prompt.att"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="mirroredMaster">
+					<xs:annotation>
+						<xs:documentation>If this element is present, the bus interface represents a mirrored master interface. All directional constraints on signals are reversed relative to the specification in the bus definition.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType/>
+				</xs:element>
+				<xs:element name="mirroredSystem">
+					<xs:annotation>
+						<xs:documentation>If this element is present, the bus interface represents a mirrored system interface. All directional constraints on signals are reversed relative to the specification in the bus definition.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="spirit:group"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="exportedInterface">
+					<xs:annotation>
+						<xs:documentation>If this element is present, this interface represents an interface being exported from a sub-component. The type of interface (master, slave, ...) should be obtained from the sub-component interface.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="componentRef" type="xs:string">
+								<xs:annotation>
+									<xs:documentation>Indicates name of the sub-component  containing the interface being exported. </xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="interfaceRef" type="xs:string">
+								<xs:annotation>
+									<xs:documentation>Indicates the name of the sub-component bus interface being exported.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:choice>
+			<xs:element name="connection" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Directs how a bus interface is connected when the component is added to a design already containing a bus owner.
+
+Default behavior is "explicit".</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:token">
+						<xs:enumeration value="required">
+							<xs:annotation>
+								<xs:documentation>A bus instance is automatically chosen and the connection is made.  Component addition fails if a suitable bus is not available.</xs:documentation>
+							</xs:annotation>
+						</xs:enumeration>
+						<xs:enumeration value="explicit">
+							<xs:annotation>
+								<xs:documentation>Connection of this bus interface is not made until the user explicitly requests connection.</xs:documentation>
+							</xs:annotation>
+						</xs:enumeration>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="signalMap" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Maps component signals to bus signals.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="signalName" minOccurs="0" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Maps a component's signal to a signal in a bus description. The text content of this element identifies a signal on this component bu its signal name.  The busSignal attribute names the corresponding signal in the bus definition.
+
+The optional attributes left and right can be used to select a bit-slice of a signal vector to map to the bus interface. </xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:simpleContent>
+									<xs:extension base="xs:token">
+										<xs:attribute name="busSignal" type="xs:Name" use="required"/>
+										<xs:attribute name="left" type="xs:nonNegativeInteger"/>
+										<xs:attribute name="right" type="xs:nonNegativeInteger"/>
+									</xs:extension>
+								</xs:simpleContent>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="index" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Master or slave index of this bus interface's connection on a bus.  Only used on indexed buses.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:nonNegativeInteger">
+							<xs:attributeGroup ref="spirit:long.att"/>
+							<xs:attribute ref="spirit:prompt" default="Connection Index:"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="bitSteering" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Indicates whether bit steering should be used to map this interface onto a bus of different data width.
+
+Values are "on", "off" or "default".</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="spirit:bitSteeringType">
+							<xs:attributeGroup ref="spirit:autoConfig"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="spirit:configurators" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Configuration generators for bus interfaces.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:anyAttribute namespace="##other" processContents="lax"/>
+	</xs:complexType>
+	<xs:element name="group" type="xs:Name">
+		<xs:annotation>
+			<xs:documentation>Indicates which system interface is being mirrored. Name must match a group name present on one or more signals in the corresonding bus definition.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="channels">
+		<xs:annotation>
+			<xs:documentation>Lists all channel connections between mirror interfaces of this component.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="channel" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Defines a set of mirrored interfaces of this component that are connected to one another.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="maxMasters" type="xs:nonNegativeInteger" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Overrides the maxMasters value in the bus definition if this number is more restrictive.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="maxSlaves" type="xs:nonNegativeInteger" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Overrides the maxSlaves value in the bus definition if this number is more restrictive.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="busInterfaceRef" type="xs:Name" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Contains the name of one of the bus interfaces that is part of this channel.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="channelConnections">
+			<xs:selector xpath="spirit:channel/spirit:busInterfaceRef"/>
+			<xs:field xpath="."/>
+		</xs:unique>
+	</xs:element>
+	<xs:element name="remapStates">
+		<xs:annotation>
+			<xs:documentation>Contains a list of remap state names and associated signal values</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="remapState" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Contains a list of signals and values which tell the decoder to enter this remap state. The name attribute identifies the name of the state</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="remapSignal" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Contains the name and value of a signal on the component, the value indicates the logic value which this signal must take to effect the remapping. The id attribute stores the name of the signal which takes that value.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:boolean">
+											<xs:attribute name="id" type="xs:NMTOKEN" use="required">
+												<xs:annotation>
+													<xs:documentation>This attribute identifies a signal on the component which affects the component's memory layout</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+						<xs:attribute name="name" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>Stores the name of the state</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

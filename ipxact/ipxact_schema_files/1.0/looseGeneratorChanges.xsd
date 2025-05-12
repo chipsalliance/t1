@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : looseGeneratorChanges.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.13 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" elementFormDefault="qualified" attributeFormDefault="qualified" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:include schemaLocation="file.xsd"/>
+	<xs:include schemaLocation="subInstances.xsd"/>
+	<xs:element name="addRemRepChange">
+		<xs:annotation>
+			<xs:documentation>Indicates whether the alteration is an addition, removal or a replacement</xs:documentation>
+		</xs:annotation>
+		<xs:simpleType>
+			<xs:restriction base="xs:string">
+				<xs:enumeration value="add"/>
+				<xs:enumeration value="remove"/>
+				<xs:enumeration value="replace"/>
+			</xs:restriction>
+		</xs:simpleType>
+	</xs:element>
+	<xs:element name="addRemChange">
+		<xs:annotation>
+			<xs:documentation>Indicates whether the alteration is an addition or a removal</xs:documentation>
+		</xs:annotation>
+		<xs:simpleType>
+			<xs:restriction base="xs:string">
+				<xs:enumeration value="add"/>
+				<xs:enumeration value="remove"/>
+			</xs:restriction>
+		</xs:simpleType>
+	</xs:element>
+	<xs:element name="generatorChangeList">
+		<xs:annotation>
+			<xs:documentation>Defines the changes to be made to the design as directed by an external generator.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="componentChanges" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>List of changes affecting components in the design.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="componentChange" minOccurs="0" maxOccurs="unbounded">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element ref="spirit:addRemRepChange"/>
+										<xs:element ref="spirit:instanceName"/>
+										<xs:element name="componentFileName" type="spirit:spiritURI" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>This is the file containing the component definition. Required only if the alteration is an addition or a replacement. Should be an absolute filename so that the DE may copy it.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="subComponents" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>Required only for hierarchical components. Holds the hierarchical component's sub-component definition files.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="subComponentFileName" type="xs:anyURI" maxOccurs="unbounded">
+														<xs:annotation>
+															<xs:documentation>Path to definitions of components and channels instanced in hierarchical component definition.</xs:documentation>
+														</xs:annotation>
+													</xs:element>
+												</xs:sequence>
+											</xs:complexType>
+										</xs:element>
+										<xs:element ref="spirit:configuration" minOccurs="0"/>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="interconnectionChanges" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>List of changes affecting interconnections in the design.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="interconnectionChange" minOccurs="0" maxOccurs="unbounded">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element ref="spirit:addRemChange"/>
+										<xs:element ref="spirit:interconnection"/>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="adHocConnectionChanges" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>List of changes affecting ad-hoc connections in the design.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="adHocConnectionChange" minOccurs="0" maxOccurs="unbounded">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element ref="spirit:addRemChange"/>
+										<xs:element name="name" type="xs:short">
+											<xs:annotation>
+												<xs:documentation>This is the name of the ad-hoc connection to modify</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="export" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>Specifies whether this ad-hoc connection will be exported out of the design.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:boolean">
+														<xs:attributeGroup ref="spirit:bool.prompt.att"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="pinReference" minOccurs="0" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>Indicates the signal on the component which is being connected by this ad-hoc connection</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:attribute name="componentRef" type="xs:Name" use="required"/>
+												<xs:attribute name="signalRef" type="xs:Name" use="required"/>
+												<xs:attribute name="left" type="xs:nonNegativeInteger"/>
+												<xs:attribute name="right" type="xs:nonNegativeInteger"/>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="vendorExtensionChanges" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>List of changes affecting vendor defined extensions in the design.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="vendorExtensionChange" minOccurs="0" maxOccurs="unbounded">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element ref="spirit:addRemChange"/>
+										<xs:element ref="spirit:vendorExtensions"/>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="constraints.xsd"/>
+	<xs:include schemaLocation="memoryMap.xsd"/>
+	<xs:element name="typeDefinitions">
+		<xs:complexType>
+			<xs:sequence minOccurs="0">
+				<xs:group ref="ipxact:documentNameGroup"/>
+				<xs:element ref="ipxact:externalTypeDefinitions" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="modes" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>A list of user defined component modes.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="mode" maxOccurs="unbounded">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:group ref="ipxact:nameGroup"/>
+										<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+									</xs:sequence>
+									<xs:attributeGroup ref="ipxact:id.att"/>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="views" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>A list of user defined views.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="view" maxOccurs="unbounded">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:group ref="ipxact:nameGroup"/>
+										<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+									</xs:sequence>
+									<xs:attributeGroup ref="ipxact:id.att"/>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:fieldAccessPolicyDefinitions" minOccurs="0"/>
+				<xs:element ref="ipxact:enumerationDefinitions" minOccurs="0"/>
+				<xs:element ref="ipxact:fieldDefinitions" minOccurs="0"/>
+				<xs:element ref="ipxact:registerDefinitions" minOccurs="0"/>
+				<xs:element ref="ipxact:registerFileDefinitions" minOccurs="0"/>
+				<xs:element ref="ipxact:addressBlockDefinitions" minOccurs="0"/>
+				<xs:element ref="ipxact:bankDefinitions" minOccurs="0"/>
+				<xs:element ref="ipxact:memoryMapDefinitions" minOccurs="0"/>
+				<xs:element ref="ipxact:memoryRemapDefinitions" minOccurs="0"/>
+				<xs:element name="resetTypes" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>A list of user defined resetTypes applicable to this component.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="resetType" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>A user defined reset policy</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:group ref="ipxact:nameGroup"/>
+										<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+									</xs:sequence>
+									<xs:attributeGroup ref="ipxact:id.att"/>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:choices" minOccurs="0"/>
+				<xs:element ref="ipxact:parameters" minOccurs="0"/>
+				<xs:element ref="ipxact:assertions" minOccurs="0"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+		<xs:key name="typeDefinitionsChoiceKey">
+			<xs:selector xpath="ipxact:choices/ipxact:choice"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="typeDefinitionsChoiceRef" refer="ipxact:typeDefinitionsChoiceKey">
+			<xs:selector xpath=".//ipxact:parameter | .//ipxact:moduleParameter"/>
+			<xs:field xpath="@choiceRef"/>
+		</xs:keyref>
+		<xs:key name="typeDefinitionsResetTypeKey">
+			<xs:selector xpath="ipxact:resetTypes/ipxact:resetType"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="typeDefinitionsFieldResetTypeRef" refer="ipxact:typeDefinitionsResetTypeKey">
+			<xs:selector xpath=".//ipxact:field/ipxact:resets/ipxact:reset  | .//ipxact:ports/ipxact:port/ipxact:isReset"/>
+			<xs:field xpath="@resetTypeRef"/>
+		</xs:keyref>
+		<xs:keyref name="typeDefinitionsFieldDefinitionResetTypeRef" refer="ipxact:typeDefinitionsResetTypeKey">
+			<xs:selector xpath=".//ipxact:fieldDefinition/ipxact:resets/ipxact:reset  | .//ipxact:ports/ipxact:port/ipxact:isReset"/>
+			<xs:field xpath="@resetTypeRef"/>
+		</xs:keyref>
+		<xs:keyref name="typeDefinitionsResetTypeLinkResetTypeRef" refer="ipxact:typeDefinitionsResetTypeKey">
+			<xs:selector xpath=".//ipxact:resetTypeLink/ipxact:resetTypeReference"/>
+			<xs:field xpath="@resetTypeRef"/>
+		</xs:keyref>
+		<xs:unique name="typeDefinitionsParameterUnique">
+			<xs:selector xpath=".//ipxact:parameter | .//ipxact:moduleParameter"/>
+			<xs:field xpath="@parameterId"/>
+		</xs:unique>
+		<xs:key name="typeDefinitionsMemoryRemapDefinitionKey">
+			<xs:selector xpath="ipxact:memoryRemapDefinitions/ipxact:memoryRemapDefinition"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:key name="typeDefinitionsMemoryMapDefinitionKey">
+			<xs:selector xpath="ipxact:memoryMapDefinitions/ipxact:memoryMapDefinition"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:key name="typeDefinitionsBankDefinitionKey">
+			<xs:selector xpath="ipxact:bankDefinitions/ipxact:bankDefinition"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:key name="typeDefinitionsAddressBlockDefinitionKey">
+			<xs:selector xpath="ipxact:addressBlockDefinitions/ipxact:addressBlockDefinition"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:key name="typeDefinitionsRegisterFileDefinitionKey">
+			<xs:selector xpath="ipxact:registerFileDefinitions/ipxact:registerFileDefinition"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:key name="typeDefinitionsRegisterDefinitionKey">
+			<xs:selector xpath="ipxact:registerDefinitions/ipxact:registerDefinition"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:key name="typeDefinitionsFieldDefinitionKey">
+			<xs:selector xpath="ipxact:fieldDefinitions/ipxact:fieldDefinition"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:key name="typeDefinitionsEnumerationDefinitionKey">
+			<xs:selector xpath="ipxact:enumerationDefinitions/ipxact:enumerationDefinition"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:key name="typeDefinitionsFieldAccessPolicyDefinitionKey">
+			<xs:selector xpath="ipxact:fieldAccessPolicyDefinitions/ipxact:fieldAccessPolicyDefinition"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:key name="typeDefinitionsViewKey">
+			<xs:selector xpath="ipxact:views/ipxact:view"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="typeDefinitionsViewLinkViewRef" refer="ipxact:typeDefinitionsViewKey">
+			<xs:selector xpath=".//ipxact:viewLink/ipxact:viewReference"/>
+			<xs:field xpath="@viewRef"/>
+		</xs:keyref>
+		<xs:keyref name="typeDefinitionsViewRef" refer="ipxact:typeDefinitionsViewKey">
+			<xs:selector xpath=".//ipxact:viewRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:key name="typeDefinitionsModeKey">
+			<xs:selector xpath="ipxact:modes/ipxact:mode"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="typeDefinitionsModeLinkModeRef" refer="ipxact:typeDefinitionsModeKey">
+			<xs:selector xpath=".//ipxact:modeLink/ipxact:modeReference"/>
+			<xs:field xpath="@modeRef"/>
+		</xs:keyref>
+		<xs:keyref name="typeDefinitionsModeRef" refer="ipxact:typeDefinitionsModeKey">
+			<xs:selector xpath=".//ipxact:modeRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:key name="typeDefinitionsExternalTypeDefinitionsKey">
+			<xs:selector xpath="ipxact:externalTypeDefinitions"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="typeDefinitionsExternalTypeDefinitionsRef" refer="ipxact:typeDefinitionsExternalTypeDefinitionsKey">
+			<xs:selector xpath=".//ipxact:*"/>
+			<xs:field xpath="@typeDefinitions"/>
+		</xs:keyref>
+	</xs:element>
+</xs:schema>

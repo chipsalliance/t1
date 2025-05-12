@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : design.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.12 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="subInstances.xsd"/>
+	<xs:include schemaLocation="model.xsd"/>
+	<xs:element name="design">
+		<xs:annotation>
+			<xs:documentation>Root element for a platform design.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="spirit:identifier"/>
+				<xs:element ref="spirit:componentInstances" minOccurs="0"/>
+				<xs:element ref="spirit:interconnections" minOccurs="0"/>
+				<xs:element ref="spirit:adHocConnections" minOccurs="0"/>
+				<xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:key name="designComponentInstanceKey">
+			<xs:selector xpath="spirit:componentInstances/spirit:componentInstance"/>
+			<xs:field xpath="spirit:instanceName"/>
+		</xs:key>
+	</xs:element>
+</xs:schema>

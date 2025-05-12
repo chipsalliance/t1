@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="simpleTypes.xsd"/>
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="autoConfigure.xsd"/>
+	<xs:complexType name="complexTiedValueExpression">
+		<xs:annotation>
+			<xs:documentation>An unsigned bit vector expression that resolves to the value set {0, 1, ...} or or the string values 'open' or 'default'.  It is derived from simpleUnsignedBitVectorExpression and it supports an expression value.</xs:documentation>
+		</xs:annotation>
+		<xs:simpleContent>
+			<xs:extension base="ipxact:simpleUnsignedBitVectorExpression">
+				<xs:attributeGroup ref="ipxact:any.att"/>
+				<xs:attribute name="minimum" type="xs:int">
+					<xs:annotation>
+						<xs:documentation>For elements which can be specified using expression which are supposed to be resolved to a long value, this indicates the minimum value allowed.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="maximum" type="xs:int">
+					<xs:annotation>
+						<xs:documentation>For elements which can be specified using expression which are supposed to be resolved to a long value, this indicates the maximum value allowed.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:element name="configurableElementValues">
+		<xs:annotation>
+			<xs:documentation>All configuration information for a contained component, generator, generator chain or abstractor instance.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence maxOccurs="unbounded">
+				<xs:element ref="ipxact:configurableElementValue">
+					<xs:annotation>
+						<xs:documentation>Describes the content of a configurable element. The required referenceId attribute refers to the ID attribute of the configurable element.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="configurableElementValueReferenceUnique">
+			<xs:selector xpath="ipxact:configurableElementValue"/>
+			<xs:field xpath="@referenceId"/>
+		</xs:unique>
+	</xs:element>
+	<xs:element name="configurableElementValue">
+		<xs:annotation>
+			<xs:documentation>Describes the content of a configurable element. The required referenceId attribute refers to the ID attribute of the configurable element.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="ipxact:complexBaseExpression">
+					<xs:attribute name="referenceId" type="xs:Name" use="required">
+						<xs:annotation>
+							<xs:documentation>Refers to the ID attribute of the configurable element.</xs:documentation>
+						</xs:annotation>
+					</xs:attribute>
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="instanceName" type="xs:Name">
+		<xs:annotation>
+			<xs:documentation>An instance name assigned to subcomponent instances and contained channels, that is unique within the parent component.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="componentInstance">
+		<xs:annotation>
+			<xs:documentation>Component instance element.  The instance name is contained in the unique-value instanceName attribute.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:instanceName"/>
+				<xs:element ref="ipxact:displayName" minOccurs="0"/>
+				<xs:element ref="ipxact:shortDescription" minOccurs="0"/>
+				<xs:element ref="ipxact:description" minOccurs="0"/>
+				<xs:element name="componentRef" type="ipxact:configurableLibraryRefType">
+					<xs:annotation>
+						<xs:documentation>References a component to be found in an external library.  The four attributes define the VLNV of the referenced element.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="ipxact:powerDomainLinks" minOccurs="0"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="componentInstances">
+		<xs:annotation>
+			<xs:documentation>Sub instances of internal components.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:componentInstance" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="adHocConnection">
+		<xs:annotation>
+			<xs:documentation>Represents an ad-hoc connection between component ports.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:nameGroupPort"/>
+				<xs:element name="tiedValue" type="ipxact:complexTiedValueExpression" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>The logic value of this connection. The value can be an unsigned bit vector expression or the string values 'open' or 'default'. Only valid for ports of style wire.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="portReferences">
+					<xs:annotation>
+						<xs:documentation>Liist of internal and external port references involved in the adhocConnection</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:choice>
+							<xs:sequence>
+								<xs:element name="internalPortReference" maxOccurs="unbounded">
+									<xs:annotation>
+										<xs:documentation>Defines a reference to a port on a component contained within the design.</xs:documentation>
+									</xs:annotation>
+									<xs:complexType>
+										<xs:sequence>
+											<xs:element ref="ipxact:subPortReference" minOccurs="0" maxOccurs="unbounded"/>
+											<xs:element ref="ipxact:partSelect" minOccurs="0"/>
+											<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+										</xs:sequence>
+										<xs:attribute name="portRef" type="ipxact:portName" use="required">
+											<xs:annotation>
+												<xs:documentation>A port on the on the referenced component from componentInterfaceRef.</xs:documentation>
+											</xs:annotation>
+										</xs:attribute>
+										<xs:attribute name="componentInstanceRef" type="xs:Name" use="required">
+											<xs:annotation>
+												<xs:documentation>A reference to the instanceName element of a component in this design.</xs:documentation>
+											</xs:annotation>
+										</xs:attribute>
+										<xs:attributeGroup ref="ipxact:id.att"/>
+									</xs:complexType>
+								</xs:element>
+								<xs:element ref="ipxact:externalPortReference" minOccurs="0" maxOccurs="unbounded"/>
+							</xs:sequence>
+							<xs:element ref="ipxact:externalPortReference" maxOccurs="unbounded"/>
+						</xs:choice>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="adHocConnections">
+		<xs:annotation>
+			<xs:documentation>Defines the set of ad-hoc connections in a design. An ad-hoc connection represents a connection between two component pins which were not connected as a result of interface connections (i.e.the pin to pin connection was made explicitly and is represented explicitly).</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:adHocConnection" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="interconnection">
+		<xs:annotation>
+			<xs:documentation>Describes a connection between two active (not monitor) busInterfaces.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:nameGroup"/>
+				<xs:element ref="ipxact:activeInterface">
+					<xs:annotation>
+						<xs:documentation>Describes one interface of the interconnection.
+
+The componentInterfaceRef and busRef attributes indicate the instance name and bus interface name of one end of the connection.                                                  This interface can be connected to one or more additional active and/or hierarchical interfaces, or to one or more hierarchical interfaces or to one or more monitor interfaces. The connected interfaces are all contained within the choice element below.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:choice>
+					<xs:sequence>
+						<xs:element ref="ipxact:activeInterface" maxOccurs="unbounded"/>
+						<xs:element name="hierInterface" type="ipxact:hierInterfaceType" minOccurs="0" maxOccurs="unbounded"/>
+					</xs:sequence>
+					<xs:element name="hierInterface" type="ipxact:hierInterfaceType" maxOccurs="unbounded"/>
+				</xs:choice>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="monitorInterconnection">
+		<xs:annotation>
+			<xs:documentation>Describes a connection from the interface of one component to any number of monitor interfaces in the design.
+
+An active interface can be connected to unlimited number of monitor interfaces.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:nameGroup"/>
+				<xs:element name="monitoredActiveInterface" type="ipxact:monitorInterfaceType">
+					<xs:annotation>
+						<xs:documentation>Describes an active interface of the design that all the monitors will be connected to.
+
+The componentInterfaceRef and busRef attributes indicate the instance name and bus interface name. The optional path attribute indicates the hierarchical instance name path to the component.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="monitorInterface" type="ipxact:monitorInterfaceType" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Describes a list of monitor interfaces that are connected to the single active interface.
+
+The componentInterfaceRef and busRef attributes indicate the instance name and bus interface name. The optional path attribute indicates the hierarchical instance name path to the component.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="interconnections">
+		<xs:annotation>
+			<xs:documentation>Connections between internal sub components.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element ref="ipxact:interconnection"/>
+				<xs:element ref="ipxact:monitorInterconnection"/>
+			</xs:choice>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="interfaceType">
+		<xs:annotation>
+			<xs:documentation>A representation of a component/bus interface relation; i.e. a bus interface belonging to a certain component.</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="componentInstanceRef" type="xs:Name" use="required">
+			<xs:annotation>
+				<xs:documentation>Reference to a component instance name.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="busRef" type="xs:Name" use="required">
+			<xs:annotation>
+				<xs:documentation>Reference to the components  bus interface</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="hierInterfaceType">
+		<xs:annotation>
+			<xs:documentation>A representation of an exported interface. The busRef indicates the name of the interface in the containing component.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ipxact:description" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="busRef" type="xs:Name" use="required">
+			<xs:annotation>
+				<xs:documentation>Reference to the components  bus interface</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="monitorInterfaceType">
+		<xs:annotation>
+			<xs:documentation>Hierarchical reference to an interface being monitored or monitoring another interface.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="ipxact:interfaceType">
+				<xs:sequence>
+					<xs:element ref="ipxact:description" minOccurs="0"/>
+					<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+				</xs:sequence>
+				<xs:attribute name="path" type="ipxact:instancePath">
+					<xs:annotation>
+						<xs:documentation>A decending hierarchical (slash separated - example x/y/z) path to the component instance containing the specified component instance in componentInterfaceRef. If not specified the componentInterfaceRef instance shall exist in the current design. </xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:element name="externalPortReference">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:subPortReference" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="ipxact:partSelect" minOccurs="0"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="portRef" type="ipxact:portName" use="required">
+				<xs:annotation>
+					<xs:documentation>A port on the on the referenced component from componentInterfaceRef.</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="activeInterface">
+		<xs:complexType>
+			<xs:complexContent>
+				<xs:extension base="ipxact:interfaceType">
+					<xs:sequence>
+						<xs:element ref="ipxact:description" minOccurs="0"/>
+						<xs:element name="excludePorts" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>The list of physical ports to be excluded from an interface based connection. Analogous to the removing the port map element for the named ports.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="excludePort" maxOccurs="unbounded">
+										<xs:annotation>
+											<xs:documentation>The name of a physical port to be excluded from the interface based connection.</xs:documentation>
+										</xs:annotation>
+										<xs:complexType>
+											<xs:simpleContent>
+												<xs:extension base="ipxact:portName">
+													<xs:attributeGroup ref="ipxact:id.att"/>
+												</xs:extension>
+											</xs:simpleContent>
+										</xs:complexType>
+									</xs:element>
+								</xs:sequence>
+							</xs:complexType>
+						</xs:element>
+						<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+					</xs:sequence>
+				</xs:extension>
+			</xs:complexContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="powerDomainLinks">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="powerDomainLink" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>A power domain link to one external power domain and one or more internal power domains.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="externalPowerDomainReference" type="ipxact:stringExpression">
+								<xs:annotation>
+									<xs:documentation>Reference to a power domain defined on the top component.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="internalPowerDomainReference" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Reference to a power domain defined on an instance</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:Name">
+											<xs:attributeGroup ref="ipxact:id.att"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="componentInstanceInternalPowerDomainReferenceUnique">
+			<xs:selector xpath="ipxact:powerDomainLink/ipxact:internalPowerDomainReference"/>
+			<xs:field xpath="."/>
+		</xs:unique>
+	</xs:element>
+</xs:schema>

@@ -1,0 +1,467 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="fileType.xsd"/>
+	<xs:element name="file">
+		<xs:annotation>
+			<xs:documentation>IP-XACT reference to a file or directory.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="name" type="ipxact:ipxactURI">
+					<xs:annotation>
+						<xs:documentation>Path to the file or directory. If this path is a relative path, then it is relative to the containing XML file. </xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="ipxact:fileType" maxOccurs="unbounded"/>
+				<xs:element name="isStructural" type="xs:boolean" default="false" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Indicates that the current file is purely structural.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="isIncludeFile" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Indicate that the file is include file.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:boolean">
+								<xs:attribute name="externalDeclarations" type="xs:boolean" default="false">
+									<xs:annotation>
+										<xs:documentation>the File contains some declarations that are needed in top file</xs:documentation>
+									</xs:annotation>
+								</xs:attribute>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="logicalName" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Logical name for this file or directory e.g. VHDL library name.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="default" type="xs:boolean" use="optional" default="false">
+									<xs:annotation>
+										<xs:documentation>The logical name shall only be used as a default and another process may override this name.</xs:documentation>
+									</xs:annotation>
+								</xs:attribute>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="exportedName" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Defines exported names that can be accessed externally, e.g. exported function names from a C source file.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="buildCommand" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Command and flags used to build derived files from the sourceName files. If this element is present, the command and/or flags used to to build the file will override or augment any default builders at a higher level.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="command" type="ipxact:stringExpression" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Command used to build this file.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="flags" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Flags given to the build command when building this file. If the optional attribute "append" is "true", this string will be appended to any existing flags, otherwise these flags will replace any existing default flags.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="ipxact:stringExpression">
+											<xs:attribute name="append" type="xs:boolean" use="optional">
+												<xs:annotation>
+													<xs:documentation>"true" indicates that the flags shall be appended to any existing flags, "false"indicates these flags will replace any existing default flags.</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="replaceDefaultFlags" type="ipxact:unsignedBitExpression" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>If true, the value of the sibling element "flags" should replace any default flags specified at a more global level. If this is true and the sibling element "flags" is empty or missing, this has the effect of clearing any default flags.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="targetName" type="ipxact:ipxactURI" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Pathname to the file that is derived (built) from the source file.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:dependency" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="define" type="ipxact:nameValuePairType" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Specifies define symbols that are used in the source file.  The ipxact:name element gives the name to be defined and the text content of the ipxact:value element holds the value.  This element supports full configurability.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="imageType" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Relates the current file to a certain executable image type in the design.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="description" type="xs:string" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>String for describing this file to users</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="fileId" type="xs:token">
+				<xs:annotation>
+					<xs:documentation>Unique ID for this file, referenced in fileSet/function/fileRef</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attributeGroup ref="ipxact:any.att"/>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="fileSet" type="ipxact:fileSetType">
+		<xs:annotation>
+			<xs:documentation>This element specifies a list of unique pathnames to files and directories. It may also include build instructions for the files. If compilation order is important, e.g. for VHDL files, the files have to be provided in compilation order.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="executableImage">
+		<xs:annotation>
+			<xs:documentation>Specifies an executable software image to be loaded into a processors address space. The format of the image is not specified. It could, for example, be an ELF loadfile, or it could be raw binary or ascii hex data for loading directly into a memory model instance.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:nameGroup"/>
+				<xs:element ref="ipxact:parameters" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Additional information about the load module, e.g. stack base addresses, table addresses, etc.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="languageTools" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Default commands and flags for software language tools needed to build the executable image.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="fileBuilder" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>A generic placeholder for any file builder like compilers and assemblers.  It contains the file types to which the command should be applied, and the flags to be used with that command.  </xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element ref="ipxact:fileType"/>
+										<xs:element name="command" type="ipxact:stringExpression">
+											<xs:annotation>
+												<xs:documentation>Default command used to build files of the specified fileType. </xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="flags" type="ipxact:stringExpression" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>Flags given to the build command when building files of this type.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="replaceDefaultFlags" type="ipxact:unsignedBitExpression" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>If true, replace any default flags value with the value in the sibling flags element. Otherwise, append the contents of the sibling flags element to any default flags value.
+
+If the value is true and the "flags" element is empty or missing, this will have the result of clearing any default flags value.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+									</xs:sequence>
+									<xs:attributeGroup ref="ipxact:id.att"/>
+								</xs:complexType>
+							</xs:element>
+							<xs:sequence minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>If a languageTools element contains a linkerFlags element or a linkerCommandFile element, it shall also contain a linker element.</xs:documentation>
+								</xs:annotation>
+								<xs:element name="linker" type="ipxact:stringExpression" minOccurs="1"/>
+								<xs:choice>
+									<xs:sequence minOccurs="1">
+										<xs:element name="linkerFlags" type="ipxact:stringExpression" minOccurs="1"/>
+										<xs:element ref="ipxact:linkerCommandFile" minOccurs="0"/>
+									</xs:sequence>
+									<xs:element ref="ipxact:linkerCommandFile" minOccurs="1"/>
+								</xs:choice>
+							</xs:sequence>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="fileSetRefGroup" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Contains a group of file set references that indicates the set of file sets complying with the tool set of the current executable image.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="ipxact:fileSetRef" maxOccurs="unbounded"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="imageId" type="xs:token" use="required">
+				<xs:annotation>
+					<xs:documentation>Unique ID for the executableImage, referenced in fileSet/function/fileRef</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="imageType" type="xs:Name" use="optional">
+				<xs:annotation>
+					<xs:documentation>Open element to describe the type of image. The contents is model and/or generator specific.</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="linkerCommandFile">
+		<xs:annotation>
+			<xs:documentation>Specifies a linker command file.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="name" type="ipxact:stringExpression">
+					<xs:annotation>
+						<xs:documentation>Linker command file name.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="commandLineSwitch" type="ipxact:stringExpression">
+					<xs:annotation>
+						<xs:documentation>The command line switch to specify the linker command file.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="enable" type="ipxact:unsignedBitExpression">
+					<xs:annotation>
+						<xs:documentation>Specifies whether to generate and enable the linker command file.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="ipxact:generatorRef" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="fileSetRef">
+		<xs:annotation>
+			<xs:documentation>A reference to a fileSet.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="localName" type="xs:Name">
+					<xs:annotation>
+						<xs:documentation>Refers to a fileSet defined within this description.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="dependency">
+		<xs:annotation>
+			<xs:documentation>Specifies a location on which  files or fileSets may be dependent. Typically, this would be a directory that would contain included files.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="ipxact:ipxactURI">
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="fileSets">
+		<xs:annotation>
+			<xs:documentation>List of file sets associated with component.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:fileSet" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="fileBuilderType">
+		<xs:sequence>
+			<xs:element ref="ipxact:fileType"/>
+			<xs:element name="command" type="ipxact:stringExpression" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Default command used to build files of the specified fileType. </xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="flags" type="ipxact:stringExpression" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Flags given to the build command when building files of this type.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="replaceDefaultFlags" type="ipxact:unsignedBitExpression" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If true, replace any default flags value with the value in the sibling flags element. Otherwise, append the contents of the sibling flags element to any default flags value.
+
+If the value is true and the "flags" element is empty or missing, this will have the result of clearing any default flags value.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:simpleType name="returnTypeType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="void"/>
+			<xs:enumeration value="int"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="fileSetType">
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="group" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Identifies this filleSet as belonging to a particular group or having a particular purpose. Examples might be "diagnostics", "boot", "application", "interrupt", "deviceDriver", etc.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:Name">
+							<xs:attributeGroup ref="ipxact:id.att"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ipxact:file" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="defaultFileBuilder" type="ipxact:fileBuilderType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Default command and flags used to build derived files from the sourceName files in this file set.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:dependency" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="function" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Generator information if this file set describes a function. For example, this file set may describe diagnostics for which the DE can generate a diagnostics driver.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="entryPoint" type="xs:Name" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Optional name for the function.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="fileRef" type="xs:token">
+							<xs:annotation>
+								<xs:documentation>A reference to the file that contains the entry point function.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="returnType" type="ipxact:returnTypeType" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Function return type. Possible values are void and int.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="argument" minOccurs="0" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Arguments passed in when the function is called. Arguments are passed in order.
+
+This is an extension of the name-value pair which includes the data type in the ipxact:dataType attribute.  The argument name is in the ipxact:name element and its value is in the ipxact:value element.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:complexContent>
+									<xs:extension base="ipxact:nameValuePairType">
+										<xs:attribute name="dataType" type="ipxact:dataTypeType" use="required">
+											<xs:annotation>
+												<xs:documentation>The data type of the argument as pertains to the language. Example: "int", "double", "char *".</xs:documentation>
+											</xs:annotation>
+										</xs:attribute>
+									</xs:extension>
+								</xs:complexContent>
+							</xs:complexType>
+						</xs:element>
+						<xs:element name="disabled" type="ipxact:unsignedBitExpression" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Specifies if the SW function is enabled. If not present the function is always enabled.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="sourceFile" minOccurs="0" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Location information for the source file of this function.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="sourceName" type="ipxact:ipxactURI">
+										<xs:annotation>
+											<xs:documentation>Source file for the boot load.  Relative names are searched for in the project directory and the source of the component directory.
+    </xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element ref="ipxact:fileType"/>
+								</xs:sequence>
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+					<xs:attribute name="replicate" type="xs:boolean" default="false">
+						<xs:annotation>
+							<xs:documentation>If true directs the generator to compile a separate object module for each instance of the component in the design. If false (default) the function will be called with different arguments for each instance.</xs:documentation>
+						</xs:annotation>
+					</xs:attribute>
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:simpleType name="dataTypeType">
+		<xs:annotation>
+			<xs:documentation>Enumerates C argument data types.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="int"/>
+			<xs:enumeration value="unsigned int"/>
+			<xs:enumeration value="long"/>
+			<xs:enumeration value="unsigned long"/>
+			<xs:enumeration value="float"/>
+			<xs:enumeration value="double"/>
+			<xs:enumeration value="char *"/>
+			<xs:enumeration value="void *"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="generatorRef">
+		<xs:annotation>
+			<xs:documentation>A reference to a generator element.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="xs:string">
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

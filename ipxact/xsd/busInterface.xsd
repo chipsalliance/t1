@@ -1,0 +1,591 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="abstractionDefinition.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="memoryMap.xsd"/>
+	<xs:include schemaLocation="port.xsd"/>
+	<xs:include schemaLocation="autoConfigure.xsd"/>
+	<!--
+	<xs:simpleType name="simpleBitSteeringExpression">
+		<xs:annotation>
+			<xs:documentation>Indicates whether bit steering should be used to map this interface onto a bus of different data width.
+            
+  Values are "on", "off" (defaults to "off").</xs:documentation>
+		</xs:annotation>
+		<xs:restriction>
+			<xs:simpleType>
+				<xs:union memberTypes="ipxact:simpleUnsignedBitExpression">
+					<xs:simpleType>
+						<xs:restriction base="xs:string">
+							<xs:enumeration value="on"/>
+							<xs:enumeration value="off"/>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:union>
+			</xs:simpleType>
+		</xs:restriction>
+	</xs:simpleType>
+-->
+	<xs:simpleType name="endianessType">
+		<xs:annotation>
+			<xs:documentation>'big': means the most significant element of any multi-element  data field is stored at the lowest memory address. 'little' means the least significant element of any multi-element data field is stored at the lowest memory address. If this element is not present the default is 'little' endian.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="big"/>
+			<xs:enumeration value="little"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="bitsInLau" type="ipxact:unsignedPositiveLongintExpression">
+		<xs:annotation>
+			<xs:documentation>The number of bits in the least addressable unit. The default is byte addressable (8 bits).</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="viewRef">
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="xs:NMTOKEN">
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="busInterface" type="ipxact:busInterfaceType">
+		<xs:annotation>
+			<xs:documentation>Describes one of the bus interfaces supported by this component.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="busInterfaces">
+		<xs:annotation>
+			<xs:documentation>A list of bus interfaces supported by this component.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:busInterface" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="busInterfaceType">
+		<xs:annotation>
+			<xs:documentation>Type definition for a busInterface in a component</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="busType" type="ipxact:configurableLibraryRefType">
+				<xs:annotation>
+					<xs:documentation>The bus type of this interface. Refers to bus definition using vendor, library, name, version attributes along with any configurable element values needed to configure this interface.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:abstractionTypes" minOccurs="0"/>
+			<xs:group ref="ipxact:interfaceMode">
+				<xs:annotation>
+					<xs:documentation>Indicates the usage mode of this instance of the bus interface.</xs:documentation>
+				</xs:annotation>
+			</xs:group>
+			<xs:element name="connectionRequired" type="xs:boolean" default="false" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Indicates whether a connection to this interface is required for proper component functionality.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:bitsInLau" minOccurs="0"/>
+			<xs:element name="bitSteering" type="ipxact:unsignedBitExpression" default="0" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Indicates whether bit steering should be used to map this interface onto a bus of different data width.
+
+Values are "0", "1" (defaults to "0").</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="endianness" type="ipxact:endianessType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>'big': means the most significant element of any multi-element  data field is stored at the lowest memory address. 'little' means the least significant element of any multi-element data field is stored at the lowest memory address. If this element is not present the default is 'little' endian.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+		<xs:attributeGroup ref="ipxact:any.att"/>
+	</xs:complexType>
+	<xs:element name="group" type="xs:Name">
+		<xs:annotation>
+			<xs:documentation>Indicates which system interface is being mirrored. Name must match a group name present on one or more ports in the corresonding bus definition.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="channels">
+		<xs:annotation>
+			<xs:documentation>Lists all channel connections between mirror interfaces of this component.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="channel" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Defines a set of mirrored interfaces of this component that are connected to one another.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:element name="busInterfaceRef" minOccurs="2" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Contains the name of one of the bus interfaces that is part of this channel. The ordering of the references may be important to the design environment.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="localName" type="xs:Name"/>
+										<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+									</xs:sequence>
+									<xs:attributeGroup ref="ipxact:id.att"/>
+								</xs:complexType>
+							</xs:element>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="channelConnections">
+			<xs:selector xpath="ipxact:channel/ipxact:busInterfaceRef/ipxact:localName"/>
+			<xs:field xpath="."/>
+		</xs:unique>
+		<xs:unique name="channelName">
+			<xs:selector xpath="ipxact:channel"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:unique>
+	</xs:element>
+	<xs:group name="interfaceMode">
+		<xs:annotation>
+			<xs:documentation>Group of the different modes a busInterface can take on in a component</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element name="initiator">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface can serve as a initiator.  This element encapsulates additional information related to its role as initiator.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="addressSpaceRef" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>If this initiator connects to an addressable bus, this element references the address space it maps to.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:complexContent>
+									<xs:extension base="ipxact:addrSpaceRefType">
+										<xs:sequence>
+											<xs:annotation>
+												<xs:documentation>If the initiator's mapping to the physical address space is not zero based, the baseAddress element may be used to indicate the offset. If not specified the offset is 0. The baseAddress is in units of the addressSpace addressUnitBits</xs:documentation>
+											</xs:annotation>
+											<xs:element name="baseAddress" type="ipxact:signedLongintExpression" minOccurs="0">
+												<xs:annotation>
+													<xs:documentation>Base of an address space.</xs:documentation>
+												</xs:annotation>
+											</xs:element>
+											<xs:element name="modeRef" minOccurs="0" maxOccurs="unbounded">
+												<xs:complexType>
+													<xs:annotation>
+														<xs:documentation>A reference to a mode.</xs:documentation>
+													</xs:annotation>
+													<xs:simpleContent>
+														<xs:extension base="xs:Name">
+															<xs:attributeGroup ref="ipxact:id.att"/>
+														</xs:extension>
+													</xs:simpleContent>
+												</xs:complexType>
+											</xs:element>
+										</xs:sequence>
+									</xs:extension>
+								</xs:complexContent>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="target">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface can serve as a target.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:choice minOccurs="0">
+							<xs:element ref="ipxact:memoryMapRef"/>
+							<xs:element ref="ipxact:transparentBridge" maxOccurs="unbounded"/>
+						</xs:choice>
+						<xs:element name="fileSetRefGroup" minOccurs="0" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>This reference is used to point the filesets that are associated with this target port.
+
+Depending on the target port function, there may be completely different software drivers associated with the different ports. </xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="group" type="xs:Name" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>Abritray name assigned to the collections of fileSets.</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element ref="ipxact:fileSetRef" minOccurs="0" maxOccurs="unbounded"/>
+								</xs:sequence>
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="system">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface is a system interface, neither initiator nor target, with a specific function on the bus.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="ipxact:group"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="mirroredTarget">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface represents a mirrored target interface. All directional constraints on ports are reversed relative to the specification in the bus definition.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence minOccurs="0">
+						<xs:element name="baseAddresses" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Represents a set of remap base addresses.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="remapAddresses" maxOccurs="unbounded">
+										<xs:complexType>
+											<xs:sequence>
+												<xs:element name="remapAddress">
+													<xs:annotation>
+														<xs:documentation>Base of an address block, expressed as the number of bitsInLAU from the containing busInterface. The modeRef element indicates the name of the mode for which this address is valid.</xs:documentation>
+													</xs:annotation>
+													<xs:complexType>
+														<xs:complexContent>
+															<xs:extension base="ipxact:unsignedLongintExpression"/>
+														</xs:complexContent>
+													</xs:complexType>
+												</xs:element>
+												<xs:element ref="ipxact:modeRef" minOccurs="0" maxOccurs="unbounded"/>
+											</xs:sequence>
+											<xs:attributeGroup ref="ipxact:id.att"/>
+										</xs:complexType>
+									</xs:element>
+									<xs:element name="range" type="ipxact:unsignedPositiveLongintExpression">
+										<xs:annotation>
+											<xs:documentation>The address range of mirrored target, expressed as the number of bitsInLAU from the containing busInterface. </xs:documentation>
+										</xs:annotation>
+									</xs:element>
+								</xs:sequence>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="mirroredInitiator">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface represents a mirrored initiator interface. All directional constraints on ports are reversed relative to the specification in the bus definition.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="mirroredSystem">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface represents a mirrored system interface. All directional constraints on ports are reversed relative to the specification in the bus definition.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="ipxact:group"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="monitor">
+				<xs:annotation>
+					<xs:documentation>Indicates that this is a (passive) monitor interface. All of the ports in the interface must be inputs. The type of interface to be monitored is specified with the required interfaceType attribute. The ipxact:group element must be specified if monitoring a system interface.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="ipxact:group" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Indicates which system interface is being monitored. Name must match a group name present on one or more ports in the corresonding bus definition.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+					<xs:attribute name="interfaceMode" use="required">
+						<xs:simpleType>
+							<xs:restriction base="xs:token">
+								<xs:enumeration value="initiator"/>
+								<xs:enumeration value="target"/>
+								<xs:enumeration value="system"/>
+								<xs:enumeration value="mirroredInitiator"/>
+								<xs:enumeration value="mirroredTarget"/>
+								<xs:enumeration value="mirroredSystem"/>
+							</xs:restriction>
+						</xs:simpleType>
+					</xs:attribute>
+				</xs:complexType>
+			</xs:element>
+		</xs:choice>
+	</xs:group>
+	<xs:element name="transparentBridge">
+		<xs:annotation>
+			<xs:documentation>If this element is present, it indicates that the bus interface provides a transparent bridge to another initiator bus interface on the same component.  It has a initiatorRef attribute which contains the name of the other bus interface.
+
+Any target interface can bridge to multiple initiator interfaces, and multiple target interfaces can bridge to the same initiator interface.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="initiatorRef" type="xs:Name" use="required">
+				<xs:annotation>
+					<xs:documentation>The name of the initiator bus interface to which this interface bridges.</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:group name="abstractorInterfaceMode">
+		<xs:annotation>
+			<xs:documentation>Group of the different modes a busInterface can take on in an abstractor</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element name="initiator">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface can serve as a initiator.  This element encapsulates additional information related to its role as initiator.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="target">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface can serve as a target.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="system">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface is a system interface, neither initiator nor target, with a specific function on the bus.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="ipxact:group"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="mirroredTarget">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface represents a mirrored target interface. All directional constraints on ports are reversed relative to the specification in the bus definition.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="mirroredInitiator">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface represents a mirrored initiator interface. All directional constraints on ports are reversed relative to the specification in the bus definition.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="mirroredSystem">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the bus interface represents a mirrored system interface. All directional constraints on ports are reversed relative to the specification in the bus definition.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="ipxact:group"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:choice>
+	</xs:group>
+	<xs:complexType name="abstractorBusInterfaceType">
+		<xs:annotation>
+			<xs:documentation>Type definition for a busInterface in a component</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element ref="ipxact:abstractionTypes" minOccurs="0"/>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+		<xs:attributeGroup ref="ipxact:any.att"/>
+	</xs:complexType>
+	<xs:element name="indirectInterface" type="ipxact:indirectInterfaceType">
+		<xs:annotation>
+			<xs:documentation>Describes one of the bus interfaces supported by this component.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="indirectInterfaces">
+		<xs:annotation>
+			<xs:documentation>A list of bus interfaces supported by this component.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:indirectInterface" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="indirectInterfaceType">
+		<xs:annotation>
+			<xs:documentation>Type definition for a indirectInterface in a component</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element ref="ipxact:indirectAddressRef"/>
+			<xs:element ref="ipxact:indirectDataRef"/>
+			<xs:choice>
+				<xs:element name="memoryMapRef" type="xs:Name">
+					<xs:annotation>
+						<xs:documentation>A reference to a memoryMap. This memoryMap is indirectly accessible through this interface.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="ipxact:transparentBridge" maxOccurs="unbounded"/>
+			</xs:choice>
+			<xs:element ref="ipxact:bitsInLau" minOccurs="0"/>
+			<xs:element name="endianness" type="ipxact:endianessType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>'big': means the most significant element of any multi-element  data field is stored at the lowest memory address. 'little' means the least significant element of any multi-element data field is stored at the lowest memory address. If this element is not present the default is 'little' endian.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+		<xs:anyAttribute namespace="##any" processContents="lax"/>
+	</xs:complexType>
+	<xs:element name="indirectAddressRef">
+		<xs:annotation>
+			<xs:documentation>A reference to a field used for addressing the indirectly accessible memoryMap.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:group ref="ipxact:fieldReferenceGroup"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="indirectDataRef">
+		<xs:annotation>
+			<xs:documentation>A reference to a field used for read/write access to the indirectly accessible memoryMap.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:group ref="ipxact:fieldReferenceGroup"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="abstractionTypes">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="abstractionType" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>The abstraction type/level of this interface. Refers to abstraction definition using vendor, library, name, version attributes along with any configurable element values needed to configure this abstraction. Bus definition can be found through a reference in this file.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="ipxact:viewRef" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>A reference to a view name in the file for which this type applies.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="abstractionRef" type="ipxact:configurableLibraryRefType">
+								<xs:annotation>
+									<xs:documentation>Provides the VLNV of the abstraction type.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="portMaps" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Listing of maps between component ports and bus ports.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="portMap" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>Maps a component's port to a port in a bus description. This is the logical to physical mapping. The logical pin comes from the bus interface and the physical pin from the component.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="logicalPort">
+														<xs:annotation>
+															<xs:documentation>Logical port from abstraction definition</xs:documentation>
+														</xs:annotation>
+														<xs:complexType>
+															<xs:sequence>
+																<xs:element name="name" type="xs:Name">
+																	<xs:annotation>
+																		<xs:documentation>Bus port name as specified inside the abstraction definition</xs:documentation>
+																	</xs:annotation>
+																</xs:element>
+																<xs:element ref="ipxact:range" minOccurs="0"/>
+															</xs:sequence>
+															<xs:attributeGroup ref="ipxact:id.att"/>
+														</xs:complexType>
+													</xs:element>
+													<xs:choice>
+														<xs:element name="physicalPort">
+															<xs:annotation>
+																<xs:documentation>Physical port from this component</xs:documentation>
+															</xs:annotation>
+															<xs:complexType>
+																<xs:sequence>
+																	<xs:element name="name" type="ipxact:portName">
+																		<xs:annotation>
+																			<xs:documentation>Component port name as specified inside the model port section</xs:documentation>
+																		</xs:annotation>
+																	</xs:element>
+																	<xs:element ref="ipxact:partSelect" minOccurs="0"/>
+																	<xs:element name="subPort" minOccurs="0" maxOccurs="unbounded">
+																		<xs:complexType>
+																			<xs:sequence>
+																				<xs:element name="name" type="ipxact:portName">
+																					<xs:annotation>
+																						<xs:documentation>Component port subPort name as specified inside the model port section</xs:documentation>
+																					</xs:annotation>
+																				</xs:element>
+																				<xs:element ref="ipxact:partSelect" minOccurs="0"/>
+																			</xs:sequence>
+																			<xs:attributeGroup ref="ipxact:id.att"/>
+																		</xs:complexType>
+																	</xs:element>
+																</xs:sequence>
+																<xs:attributeGroup ref="ipxact:id.att"/>
+															</xs:complexType>
+														</xs:element>
+														<xs:element name="logicalTieOff" type="ipxact:unsignedBitVectorExpression">
+															<xs:annotation>
+																<xs:documentation>Identifies a value to tie this logical port to.</xs:documentation>
+															</xs:annotation>
+														</xs:element>
+													</xs:choice>
+													<xs:element name="isInformative" type="xs:boolean" default="false" minOccurs="0">
+														<xs:annotation>
+															<xs:documentation>When true, indicates that this portMap element is for information purpose only.</xs:documentation>
+														</xs:annotation>
+													</xs:element>
+													<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+												</xs:sequence>
+												<xs:attributeGroup ref="ipxact:id.att"/>
+												<xs:attribute name="invert" use="optional" default="false">
+													<xs:annotation>
+														<xs:documentation>Indicates that the connection between the logical and physical ports should include an inversion.</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="abstractionTypeViewRefUnique">
+			<xs:selector xpath="ipxact:abstractionType/ipxact:viewRef"/>
+			<xs:field xpath="."/>
+		</xs:unique>
+	</xs:element>
+</xs:schema>

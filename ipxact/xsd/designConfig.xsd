@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="model.xsd"/>
+	<xs:include schemaLocation="subInstances.xsd"/>
+	<xs:element name="designConfiguration">
+		<xs:annotation>
+			<xs:documentation>Top level element for describing the current configuration of a design. Does not describe instance parameterization</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:documentNameGroup"/>
+				<xs:element name="designRef" type="ipxact:libraryRefType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>The design to which this configuration applies</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="generatorChainConfiguration" type="ipxact:configurableLibraryRefType" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Contains the configurable information associated with a generatorChain and its generators. Note that configurable information for generators associated with components is stored in the design file.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="interconnectionConfiguration" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Contains the information about the abstractors required to cross between two interfaces at with different abstractionDefs.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="interconnectionRef" type="xs:Name">
+								<xs:annotation>
+									<xs:documentation>Reference to the interconnection name, monitor interconnection name or possibly a hierConnection interfaceName in a design file.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="abstractorInstances" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>List of abstractor-instances for this interconnection. Multiple abstractor-instances elements may be present for a 1-to-many (broadcast) interconnection. In that case, the optional interfaceRef elements must reference non-overlapping interfaces from the 'many' side of the interconnection.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="interfaceRef" minOccurs="0" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>Defines the broadcast endpoint to which this chain of abstractors applies.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:sequence minOccurs="0">
+													<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+												</xs:sequence>
+												<xs:attribute name="componentRef" type="xs:Name" use="required">
+													<xs:annotation>
+														<xs:documentation>Reference to a component instance nane.</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+												<xs:attribute name="busRef" type="xs:Name" use="required">
+													<xs:annotation>
+														<xs:documentation>Reference to a component bus interface name.</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+												<xs:attributeGroup ref="ipxact:id.att"/>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="abstractorInstance" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>Element to hold a the abstractor reference, the configuration and viewName. If multiple elements are present then the order is the order in which the abstractors should be chained together.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:sequence>
+													<xs:element name="instanceName" type="xs:Name">
+														<xs:annotation>
+															<xs:documentation>Instance name for the abstractor</xs:documentation>
+														</xs:annotation>
+													</xs:element>
+													<xs:element ref="ipxact:displayName" minOccurs="0"/>
+													<xs:element ref="ipxact:shortDescription" minOccurs="0"/>
+													<xs:element ref="ipxact:description" minOccurs="0"/>
+													<xs:element name="abstractorRef" type="ipxact:configurableLibraryRefType">
+														<xs:annotation>
+															<xs:documentation>Abstractor reference</xs:documentation>
+														</xs:annotation>
+													</xs:element>
+													<xs:element name="viewName" type="xs:Name">
+														<xs:annotation>
+															<xs:documentation>The name of the active view for this abstractor instance.</xs:documentation>
+														</xs:annotation>
+													</xs:element>
+												</xs:sequence>
+												<xs:attributeGroup ref="ipxact:id.att"/>
+											</xs:complexType>
+										</xs:element>
+										<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+									</xs:sequence>
+									<xs:attributeGroup ref="ipxact:id.att"/>
+								</xs:complexType>
+							</xs:element>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:unique name="designConfigInterfaceRefUnique">
+						<xs:selector xpath="ipxact:abstractorInstances/ipxact:interfaceRef"/>
+						<xs:field xpath="@componentRef"/>
+						<xs:field xpath="@busRef"/>
+					</xs:unique>
+				</xs:element>
+				<xs:element name="viewConfiguration" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Contains the active views for each instance in the design</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="ipxact:instanceName"/>
+							<xs:element name="view">
+								<xs:annotation>
+									<xs:documentation>The selected view for the instance.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element ref="ipxact:configurableElementValues" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>Parameter values to set in the selected configuredView.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+									</xs:sequence>
+									<xs:attribute name="viewRef" type="xs:NMTOKEN" use="required"/>
+								</xs:complexType>
+							</xs:element>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:choices" minOccurs="0"/>
+				<xs:element ref="ipxact:parameters" minOccurs="0"/>
+				<xs:element ref="ipxact:assertions" minOccurs="0"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+		<xs:key name="designConfigViewInstanceKey">
+			<xs:selector xpath="ipxact:viewConfiguration"/>
+			<xs:field xpath="ipxact:instanceName"/>
+		</xs:key>
+		<xs:key name="designConfigAbstractorInstanceKey">
+			<xs:selector xpath="ipxact:interconnectionConfiguration/ipxact:abstractorInstances/ipxact:abstractorInstance"/>
+			<xs:field xpath="ipxact:instanceName"/>
+		</xs:key>
+		<xs:key name="designConfigInterconnectionRefKey">
+			<xs:selector xpath="ipxact:interconnectionConfiguration"/>
+			<xs:field xpath="ipxact:interconnectionRef"/>
+		</xs:key>
+		<xs:key name="designConfigGeneratorChainRefKey">
+			<xs:selector xpath="ipxact:generatorChainConfiguration"/>
+			<xs:field xpath="@vendor"/>
+			<xs:field xpath="@library"/>
+			<xs:field xpath="@name"/>
+			<xs:field xpath="@version"/>
+		</xs:key>
+		<xs:unique name="designConfigParameterUnique">
+			<xs:selector xpath="ipxact:parameters/ipxact:parameter"/>
+			<xs:field xpath="@parameterId"/>
+		</xs:unique>
+		<xs:key name="designConfigChoiceKey">
+			<xs:selector xpath="ipxact:choices/ipxact:choice/ipxact:name"/>
+			<xs:field xpath="."/>
+		</xs:key>
+		<xs:keyref name="designConfigChoiceRef" refer="ipxact:designConfigChoiceKey">
+			<xs:selector xpath="ipxact:parameters/ipxact:parameter"/>
+			<xs:field xpath="@choiceRef"/>
+		</xs:keyref>
+	</xs:element>
+</xs:schema>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : configurator.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.16 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="file.xsd"/>
+	<xs:element name="configurators">
+		<xs:annotation>
+			<xs:documentation>Set of configurators on a configurable object. The contents of this container element are undefined for version 1.0 of the SPIRIT schema. It is expected that the contents will be defined when the tight generator interface is available. In this release only 'default' configurators are supported.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:any namespace="##any" processContents="lax" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Accepts any element(s) the content provider wants to put here, including elements from the SPIRIT namespace.</xs:documentation>
+					</xs:annotation>
+				</xs:any>
+			</xs:sequence>
+			<xs:anyAttribute namespace="##any" processContents="lax"/>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

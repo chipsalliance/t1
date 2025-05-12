@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : commonStructures.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.10 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="autoConfigure.xsd"/>
+	<xs:complexType name="nameValuePairType">
+		<xs:annotation>
+			<xs:documentation>Used wherever a name value pair is appropriate.  The name is given by the attribute while the value is the element content.
+
+Supports configurability attributes and a cross reference XPath expression.</xs:documentation>
+		</xs:annotation>
+		<xs:simpleContent>
+			<xs:extension base="xs:string">
+				<xs:attribute name="name" type="xs:string" use="required">
+					<xs:annotation>
+						<xs:documentation>The name in a name-value pair.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="crossRef" type="xs:string"/>
+				<xs:attributeGroup ref="spirit:autoConfig"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:complexType name="nameValueTypeType">
+		<xs:annotation>
+			<xs:documentation>Name value pair with data type information.</xs:documentation>
+		</xs:annotation>
+		<xs:simpleContent>
+			<xs:extension base="spirit:nameValuePairType">
+				<xs:attribute name="dataType" type="xs:string">
+					<xs:annotation>
+						<xs:documentation>The data type of the argumen as pertains to the language. Example: "int", "double", "char *".</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:element name="persistentInstanceData" type="spirit:persistentDataType">
+		<xs:annotation>
+			<xs:documentation>A container for any data that is specific to this instance of the design object. The contents are not interpreted or validated by the Design Environment. This element will be saved with the design and restored when the design is loaded. It is indended to be used by generators to store and retrieve instance specific data.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="parameter" type="spirit:nameValuePairType">
+		<xs:annotation>
+			<xs:documentation>A name value pair.  The name is in given by the name attribute.  The value is in the text content of the element.  This element supports all configurability attributes.  It also supports a cross reference attribute which allows it to be associated with other elements in the document through an XPath expression.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:group name="parameterGroup">
+		<xs:annotation>
+			<xs:documentation>A group of parameters.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="spirit:parameter" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:complexType name="persistentDataType">
+		<xs:attribute ref="spirit:id" use="required"/>
+	</xs:complexType>
+	<xs:element name="vendorExtensions">
+		<xs:annotation>
+			<xs:documentation>Container for vendor specific extensions.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:any namespace="##any" processContents="lax" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Accepts any element(s) the content provider wants to put here, including elements from the SPIRIT namespace.</xs:documentation>
+					</xs:annotation>
+				</xs:any>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

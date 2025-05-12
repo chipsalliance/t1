@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : generator.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.18 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="file.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:element name="generatorChain">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="spirit:versionedIdentifier"/>
+				<xs:choice maxOccurs="unbounded">
+					<xs:element name="fileGeneratorSelector">
+						<xs:annotation>
+							<xs:documentation>Select other generator chain files for inclusion into this chain. The boolean attribute "unique" (default false) specifies that only a single generator is valid in this context. If more that one generator is selcted based on the selection criteria, DE will prompt the user to resolve to a single generator.</xs:documentation>
+						</xs:annotation>
+						<xs:complexType>
+							<xs:choice>
+								<xs:element ref="spirit:groupSelector"/>
+								<xs:element name="fileName" type="spirit:libraryRefType">
+									<xs:annotation>
+										<xs:documentation>Select another generator chain using the unique identifier of this generator chain.</xs:documentation>
+									</xs:annotation>
+								</xs:element>
+							</xs:choice>
+							<xs:attribute name="unique" type="xs:boolean" use="optional" default="true"/>
+						</xs:complexType>
+					</xs:element>
+					<xs:element name="componentGeneratorSelector" type="spirit:generatorSelectorType">
+						<xs:annotation>
+							<xs:documentation>Selects generators declared in component description files of the current design for inclusion into this generator chain.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="busGeneratorSelector" type="spirit:generatorSelectorType">
+						<xs:annotation>
+							<xs:documentation>Selects generators declared in bus definition files of the current design for inclusion into this generator chain.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="spirit:generator"/>
+				</xs:choice>
+				<xs:element name="chainGroup" type="xs:Name" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Identifies this generator chain as belonging to the named group. This is used by other generator chains to select this chain for programmatic inclusion.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="spirit:parameter" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="generator">
+		<xs:annotation>
+			<xs:documentation>Specifies a set of generators.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:complexContent>
+				<xs:extension base="spirit:generatorType"/>
+			</xs:complexContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="componentGenerator">
+		<xs:annotation>
+			<xs:documentation>Specifies a set of component generators. The scope attribute applies to component generators and specifies whether the generator should be run for each instance of the entity (or module) or just once for all instances of the entity.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:complexContent>
+				<xs:extension base="spirit:instanceGeneratorType">
+					<xs:attribute name="hidden" type="xs:boolean" use="optional" default="false"/>
+				</xs:extension>
+			</xs:complexContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="groupSelector">
+		<xs:annotation>
+			<xs:documentation>Specifies a set of group names used to select subsequent generators. The attribute "multipleGroupOperator" specifies the OR or AND selection operator if there is more than one group name (default=OR).</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="name" type="xs:Name" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Name used to select a generator or generator chain.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="multipleGroupSelectionOperator" use="optional" default="or">
+				<xs:simpleType>
+					<xs:restriction base="xs:Name">
+						<xs:enumeration value="and"/>
+						<xs:enumeration value="or"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+	<xs:simpleType name="phaseScopeType">
+		<xs:restriction base="xs:NMTOKEN">
+			<xs:enumeration value="global"/>
+			<xs:enumeration value="local"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="phase">
+		<xs:annotation>
+			<xs:documentation>This is an non-negative floating point number that is used to sequence when a generator is run. The generators are run in order starting with zero. There may be multiple generators with the same phase number. In this case, the order should not matter with respect to other generators at the same phase. If no phase number is given the generator will be considered in the "last" phase and these generators will be run in the order in which they are encountered while processing generator elements.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="xs:float">
+					<xs:attribute name="scope" type="spirit:phaseScopeType" default="global"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="instanceGeneratorType">
+		<xs:complexContent>
+			<xs:extension base="spirit:generatorType">
+				<xs:sequence>
+					<xs:element name="group" type="xs:Name" minOccurs="0" maxOccurs="unbounded">
+						<xs:annotation>
+							<xs:documentation>An identifier to specify the generator group. This is used by generator chains for selecting which generators to run.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:sequence>
+				<xs:attribute name="scope" use="optional" default="instance">
+					<xs:annotation>
+						<xs:documentation>The scope attribute applies to component generators and specifies whether the generator should be run for each instance of the entity (or module) or just once for all instances of the entity.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:string">
+							<xs:enumeration value="instance"/>
+							<xs:enumeration value="entity"/>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="generatorSelectorType">
+		<xs:sequence>
+			<xs:element ref="spirit:groupSelector"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="componentGenerators">
+		<xs:annotation>
+			<xs:documentation>List of component generators.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="spirit:componentGenerator" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="generatorType">
+		<xs:annotation>
+			<xs:documentation>Types of generators</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="name" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>The name of this generator.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="spirit:phase" minOccurs="0"/>
+			<xs:element ref="spirit:parameter" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="accessType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Identifies the special requirements that this generator may place up on the DE.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="readOnly" type="xs:boolean" default="false">
+							<xs:annotation>
+								<xs:documentation>If true then this generator will not make changes to the  design.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="hierarchical" type="xs:boolean" default="true">
+							<xs:annotation>
+								<xs:documentation>If true then this generator is capable of running in a hierarchical manner and so the DE must ensure that all lower levels of hierarchy are also made available</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="instanceRequired" type="xs:boolean" default="false">
+							<xs:annotation>
+								<xs:documentation>If true then the generator operates on designated instances, not the whole design. The DE must capture the instances to be operated on.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="subsetOnly" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>If present then this generator only needs a subset of the design information.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="designFile" type="xs:boolean" default="true">
+										<xs:annotation>
+											<xs:documentation>If true then the generator only needs to look at design information.</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element name="componentDefs" type="xs:boolean" default="true">
+										<xs:annotation>
+											<xs:documentation>If true then the generator only needs to look at component related information.</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element name="busDefs" type="xs:boolean" default="true">
+										<xs:annotation>
+											<xs:documentation>If true then the generator only needs to look at bus definition information.</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+								</xs:sequence>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="looseGeneratorExe" type="spirit:spiritURI">
+				<xs:annotation>
+					<xs:documentation>The pathname to the executable file that implements the loose generator</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+</xs:schema>

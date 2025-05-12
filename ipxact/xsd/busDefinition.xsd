@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="port.xsd"/>
+	<xs:include schemaLocation="generator.xsd"/>
+	<xs:include schemaLocation="constraints.xsd"/>
+	<xs:group name="portProperties">
+		<xs:sequence>
+			<xs:choice minOccurs="0">
+				<xs:element name="direction" type="ipxact:componentPortDirectionType" default="out"/>
+				<xs:element ref="ipxact:initiative"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:group>
+	<xs:element name="busDefinition">
+		<xs:annotation>
+			<xs:documentation>Defines the structural information associated with a bus type, independent of the abstraction level.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:documentNameGroup"/>
+				<xs:element name="directConnection" type="xs:boolean">
+					<xs:annotation>
+						<xs:documentation>This element indicates that a initiator interface may be directly connected to a target interface (under certain conditions) for busses of this type.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="broadcast" type="xs:boolean" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>This element indicates that this bus definition supports 'broadcast' mode. This means that it is legal to make one-to-many interface connections.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="isAddressable" type="xs:boolean">
+					<xs:annotation>
+						<xs:documentation>If true, indicates that this is an addressable bus.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="extends" type="ipxact:libraryRefType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Optional name of bus type that this bus definition is compatible with. This bus definition may change the definitions in the existing bus definition</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="maxInitiators" type="ipxact:unsignedIntExpression" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Indicates the maximum number of initiators this bus supports.  If this element is not present, the number of initiators allowed is unbounded. </xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="maxTargets" type="ipxact:unsignedIntExpression" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Indicates the maximum number of targets this bus supports.  If the element is not present, the number of targets allowed is unbounded.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="systemGroupNames" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Indicates the list of system group names that are defined for this bus definition.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="systemGroupName" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Indicates the name of a system group defined for this bus definition.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:Name">
+											<xs:attributeGroup ref="ipxact:id.att"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:choices" minOccurs="0"/>
+				<xs:element ref="ipxact:parameters" minOccurs="0"/>
+				<xs:element ref="ipxact:assertions" minOccurs="0"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+		<xs:key name="systemGroupNameKey">
+			<xs:selector xpath="ipxact:systemGroupNames/ipxact:systemGroupName"/>
+			<xs:field xpath="."/>
+		</xs:key>
+		<xs:unique name="busDefinitionParameterUnique">
+			<xs:selector xpath="ipxact:parameters/ipxact:parameter"/>
+			<xs:field xpath="@parameterId"/>
+		</xs:unique>
+		<xs:key name="busDefinitionChoiceKey">
+			<xs:selector xpath="ipxact:choices/ipxact:choice/ipxact:name"/>
+			<xs:field xpath="."/>
+		</xs:key>
+		<xs:keyref name="busDefinitionChoiceRef" refer="ipxact:busDefinitionChoiceKey">
+			<xs:selector xpath="ipxact:parameters/ipxact:parameter"/>
+			<xs:field xpath="@choiceRef"/>
+		</xs:keyref>
+	</xs:element>
+</xs:schema>

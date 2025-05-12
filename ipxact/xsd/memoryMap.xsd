@@ -1,0 +1,1862 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="file.xsd"/>
+	<xs:include schemaLocation="simpleTypes.xsd"/>
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:simpleType name="accessType">
+		<xs:annotation>
+			<xs:documentation>The read/write accessability of an addess block.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="read-only"/>
+			<xs:enumeration value="write-only"/>
+			<xs:enumeration value="read-write"/>
+			<xs:enumeration value="writeOnce"/>
+			<xs:enumeration value="read-writeOnce"/>
+			<xs:enumeration value="no-access"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="sharedType">
+		<xs:annotation>
+			<xs:documentation>The sharedness of the memoryMap content.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="yes"/>
+			<xs:enumeration value="no"/>
+			<xs:enumeration value="undefined"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="bankAlignmentType">
+		<xs:annotation>
+			<xs:documentation>'serial' or 'parallel' bank alignment.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="serial"/>
+			<xs:enumeration value="parallel"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="usageType">
+		<xs:annotation>
+			<xs:documentation>Describes the usage of an address block.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="memory">
+				<xs:annotation>
+					<xs:documentation>Denotes an address range that can be used for read-write or read-only data storage.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="register">
+				<xs:annotation>
+					<xs:documentation>Denotes an address block that is used to communicate with hardware.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="reserved">
+				<xs:annotation>
+					<xs:documentation>Denotes an address range that must remain unoccupied.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="addressBankType">
+		<xs:annotation>
+			<xs:documentation>Top level bank the specify an address</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="accessHandles" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence minOccurs="1" maxOccurs="unbounded">
+						<xs:element name="accessHandle" type="ipxact:simpleAccessHandle"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:group ref="ipxact:addressSpecifier"/>
+			<xs:choice>
+				<xs:element name="bankDefinitionRef">
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:group ref="ipxact:bankBase"/>
+			</xs:choice>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="bankAlignment" type="ipxact:bankAlignmentType" use="required">
+			<xs:annotation>
+				<xs:documentation>Describes whether this bank's blocks are aligned in 'parallel' or 'serial'.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="addressBankDefinitionType">
+		<xs:annotation>
+			<xs:documentation>Top level bank the specify an address</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="accessHandles" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence minOccurs="1" maxOccurs="unbounded">
+						<xs:element name="accessHandle" type="ipxact:simpleAccessHandle"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:group ref="ipxact:addressSpecifier"/>
+			<xs:choice>
+				<xs:element name="bankDefinitionRef">
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:group ref="ipxact:bankDefinitionBase"/>
+			</xs:choice>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="bankAlignment" type="ipxact:bankAlignmentType" use="required">
+			<xs:annotation>
+				<xs:documentation>Describes whether this bank's blocks are aligned in 'parallel' or 'serial'.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="localAddressBankType">
+		<xs:annotation>
+			<xs:documentation>Top level bank the specify an address</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="accessHandles" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence minOccurs="1" maxOccurs="unbounded">
+						<xs:element name="accessHandle" type="ipxact:simpleAccessHandle"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:group ref="ipxact:addressSpecifier"/>
+			<xs:group ref="ipxact:localBankBase"/>
+		</xs:sequence>
+		<xs:attribute name="bankAlignment" type="ipxact:bankAlignmentType" use="required">
+			<xs:annotation>
+				<xs:documentation>Describes whether this bank's blocks are aligned in 'parallel' or 'serial'.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="addressBlockType">
+		<xs:annotation>
+			<xs:documentation>Top level address block that specify an address</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="accessHandles" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence minOccurs="1" maxOccurs="unbounded">
+						<xs:element name="accessHandle" type="ipxact:slicedAccessHandle"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ipxact:array" minOccurs="0"/>
+			<xs:group ref="ipxact:addressSpecifier"/>
+			<xs:choice>
+				<xs:element name="addressBlockDefinitionRef">
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:group ref="ipxact:addressBlockDefinitionGroup"/>
+			</xs:choice>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+		<xs:attribute name="misalignmentAllowed" type="xs:boolean" use="optional" default="true">
+			<xs:annotation>
+				<xs:documentation>If true, register alignment is not restricted to register size. Defaults to false.           	</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="addrSpaceRefType">
+		<xs:annotation>
+			<xs:documentation>Base type for an element which references an address space.  Reference is kept in an attribute rather than the text value, so that the type may be extended with child elements if necessary.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="addressSpaceRef" type="xs:Name" use="required">
+			<xs:annotation>
+				<xs:documentation>A reference to a unique address space.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="memoryMapRefType">
+		<xs:annotation>
+			<xs:documentation>Base type for an element which references an memory map.  Reference is kept in an attribute rather than the text value, so that the type may be extended with child elements if necessary.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="modeRef" minOccurs="0" maxOccurs="unbounded">
+				<xs:complexType>
+					<xs:annotation>
+						<xs:documentation>A reference to a mode.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleContent>
+						<xs:extension base="xs:Name">
+							<xs:attributeGroup ref="ipxact:id.att"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="memoryMapRef" type="xs:Name" use="required">
+			<xs:annotation>
+				<xs:documentation>A reference to a unique memory map.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="bankedBankType">
+		<xs:annotation>
+			<xs:documentation>Banks nested inside a bank do not specify address.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="accessHandles" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence minOccurs="1" maxOccurs="unbounded">
+						<xs:element name="accessHandle" type="ipxact:simpleAccessHandle"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:choice>
+				<xs:element name="bankDefinitionRef">
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:group ref="ipxact:bankBase"/>
+			</xs:choice>
+		</xs:sequence>
+		<xs:attribute name="bankAlignment" type="ipxact:bankAlignmentType" use="required"/>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="bankedDefinitionBankType">
+		<xs:annotation>
+			<xs:documentation>Banks nested inside a bank do not specify address.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="accessHandles" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence minOccurs="1" maxOccurs="unbounded">
+						<xs:element name="accessHandle" type="ipxact:simpleAccessHandle"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:choice>
+				<xs:element name="bankDefinitionRef">
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:group ref="ipxact:bankDefinitionBase"/>
+			</xs:choice>
+		</xs:sequence>
+		<xs:attribute name="bankAlignment" type="ipxact:bankAlignmentType" use="required"/>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="localBankedBankType">
+		<xs:annotation>
+			<xs:documentation>Banks nested inside a bank do not specify address.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="accessHandles" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence minOccurs="1" maxOccurs="unbounded">
+						<xs:element name="accessHandle" type="ipxact:simpleAccessHandle"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:group ref="ipxact:localBankBase"/>
+		</xs:sequence>
+		<xs:attribute name="bankAlignment" type="ipxact:bankAlignmentType" use="required"/>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="bankedBlockType">
+		<xs:annotation>
+			<xs:documentation>Address blocks inside a bank do not specify address.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="accessHandles" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence minOccurs="1" maxOccurs="unbounded">
+						<xs:element name="accessHandle" type="ipxact:slicedAccessHandle"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:group ref="ipxact:blockSize"/>
+			<xs:group ref="ipxact:addressBlockExtensions"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="bankedSubspaceType">
+		<xs:annotation>
+			<xs:documentation>Subspace references inside banks do not specify an address.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroupOptional"/>
+			<xs:element ref="ipxact:parameters" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Any parameters that may apply to the subspace reference.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="initiatorRef" type="xs:Name" use="required">
+			<xs:annotation>
+				<xs:documentation>For subspaceMap elements, this attribute identifies the initiator that contains the address space to be mapped.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="fieldType">
+		<xs:annotation>
+			<xs:documentation>A field within a register</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="accessHandles" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence minOccurs="1" maxOccurs="unbounded">
+						<xs:element name="accessHandle" type="ipxact:slicedAccessHandle"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="array" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="ipxact:dim" maxOccurs="unbounded"/>
+						<xs:element ref="ipxact:bitStride" minOccurs="0"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="bitOffset" type="ipxact:unsignedIntExpression">
+				<xs:annotation>
+					<xs:documentation>Offset of this field's bit 0 from bit 0 of the register.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:choice>
+				<xs:element name="fieldDefinitionRef">
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:group ref="ipxact:fieldDefinitionGroup"/>
+			</xs:choice>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:group name="memoryMap">
+		<xs:annotation>
+			<xs:documentation>A group elements for a memoryMap</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element ref="ipxact:addressBlock"/>
+			<xs:element ref="ipxact:bank"/>
+			<xs:element ref="ipxact:subspaceMap"/>
+		</xs:choice>
+	</xs:group>
+	<xs:group name="memoryMapDefinitionGroup">
+		<xs:sequence>
+			<xs:choice>
+				<xs:element ref="ipxact:addressBlock" minOccurs="0"/>
+				<xs:element ref="ipxact:bank" minOccurs="0"/>
+			</xs:choice>
+			<xs:element ref="ipxact:addressUnitBits" minOccurs="0"/>
+			<xs:element name="shared" type="ipxact:sharedType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>When the value is 'yes', the contents of the memoryMap are shared by all the references to this memoryMap, when the value is 'no' the contents of the memoryMap is not shared and when the value is 'undefined' (default) the sharing of the memoryMap is undefined.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="memoryMapDefinitionTypeGroup">
+		<xs:sequence>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element ref="ipxact:addressBlock"/>
+				<xs:element name="bank" type="ipxact:addressBankDefinitionType">
+					<xs:annotation>
+						<xs:documentation>An addressable bank of blocks within a bank definition.</xs:documentation>
+					</xs:annotation>
+					<xs:key name="addressBankedDefinition2MMKey">
+						<xs:selector xpath="ipxact:addressBlock|ipxact:bank"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:choice>
+			<xs:element name="memoryRemap" type="ipxact:memoryRemapDefinitionType" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ipxact:addressUnitBits" minOccurs="0"/>
+			<xs:element name="shared" type="ipxact:sharedType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>When the value is 'yes', the contents of the memoryMap are shared by all the references to this memoryMap, when the value is 'no' the contents of the memoryMap is not shared and when the value is 'undefined' (default) the sharing of the memoryMap is undefined.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="memoryMapGroup">
+		<xs:sequence>
+			<xs:group ref="ipxact:memoryMap" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ipxact:memoryRemap" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ipxact:addressUnitBits" minOccurs="0"/>
+			<xs:element name="shared" type="ipxact:sharedType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>When the value is 'yes', the contents of the memoryMap are shared by all the references to this memoryMap, when the value is 'no' the contents of the memoryMap is not shared and when the value is 'undefined' (default) the sharing of the memoryMap is undefined.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:group>
+	<xs:complexType name="memoryMapType">
+		<xs:annotation>
+			<xs:documentation>Map of address space blocks on target target bus interface.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:choice>
+				<xs:element name="memoryMapDefinitionRef">
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:group ref="ipxact:memoryMapGroup" minOccurs="0"/>
+			</xs:choice>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:element name="subspaceMap" type="ipxact:subspaceRefType">
+		<xs:annotation>
+			<xs:documentation>Maps in an address subspace from across a bus bridge.  Its initiatorRef attribute refers by name to the initiator bus interface on the other side of the bridge.  It must match the initiatorRef attribute of a bridge element on the target interface, and that bridge element must be designated as opaque.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="memoryRemap" type="ipxact:memoryRemapType">
+		<xs:annotation>
+			<xs:documentation>Additional memory map elements that are dependent on the component state.</xs:documentation>
+		</xs:annotation>
+		<xs:key name="MRMKey">
+			<xs:selector xpath="ipxact:subspaceMap|ipxact:addressBlock|ipxact:bank"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:unique name="memoryRemapPriorityUnique">
+			<xs:selector xpath="ipxact:modeRef"/>
+			<xs:field xpath="@priority"/>
+		</xs:unique>
+	</xs:element>
+	<xs:complexType name="memoryRemapType">
+		<xs:annotation>
+			<xs:documentation>Map of address space blocks on a target bus interface in a specific remap state.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element ref="ipxact:modeRef" maxOccurs="unbounded"/>
+			<xs:choice>
+				<xs:element name="remapDefinitionRef">
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:group ref="ipxact:memoryMap" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:choice>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="memoryRemapDefinitionType">
+		<xs:annotation>
+			<xs:documentation>Map of address space blocks on a target bus interface in a specific remap state.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element ref="ipxact:modeRef" maxOccurs="unbounded"/>
+			<xs:choice>
+				<xs:element name="remapDefinitionRef">
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:choice maxOccurs="unbounded">
+					<xs:element name="addressBlock" type="ipxact:addressBlockType">
+						<xs:annotation>
+							<xs:documentation>An address block within the bank.  No address information is supplied.</xs:documentation>
+						</xs:annotation>
+						<xs:key name="remapDefinitionRegisterAndRegisterFileAndABKey">
+							<xs:selector xpath="ipxact:register|ipxact:registerFile|ipxact:register/ipxact:alternateRegisters/ipxact:alternateRegister"/>
+							<xs:field xpath="ipxact:name"/>
+						</xs:key>
+					</xs:element>
+					<xs:element name="bank">
+						<xs:annotation>
+							<xs:documentation>A nested bank of blocks within a bank.  No address information is supplied.</xs:documentation>
+						</xs:annotation>
+						<xs:complexType>
+							<xs:complexContent>
+								<xs:extension base="ipxact:bankedDefinitionBankType">
+									<xs:sequence>
+										<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+									</xs:sequence>
+								</xs:extension>
+							</xs:complexContent>
+						</xs:complexType>
+						<xs:key name="memoryRemapDefinition2MMKey">
+							<xs:selector xpath="ipxact:addressBlock|ipxact:bank"/>
+							<xs:field xpath="ipxact:name"/>
+						</xs:key>
+					</xs:element>
+				</xs:choice>
+			</xs:choice>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="localMemoryMapType">
+		<xs:annotation>
+			<xs:documentation>Map of address space blocks on the local memory map of a initiator bus interface.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element ref="ipxact:addressBlock"/>
+				<xs:element name="bank" type="ipxact:localAddressBankType">
+					<xs:annotation>
+						<xs:documentation>Represents a bank of memory made up of address blocks or other banks.  It has a bankAlignment attribute indicating whether its blocks are aligned in 'parallel' (occupying adjacent bit fields) or 'serial' (occupying contiguous addresses). Its child blocks do not contain addresses or bit offsets.</xs:documentation>
+					</xs:annotation>
+					<xs:key name="localBankedMMKey">
+						<xs:selector xpath="ipxact:addressBlock|ipxact:bank"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:choice>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="subspaceRefType">
+		<xs:annotation>
+			<xs:documentation>Address subspace type.  Its subspaceReference attribute references the subspace from which the dimensions are taken.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:annotation>
+				<xs:documentation>Any parameters that may apply to the subspace reference.</xs:documentation>
+			</xs:annotation>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="baseAddress" type="ipxact:signedLongintExpression">
+				<xs:annotation>
+					<xs:documentation>Base of a subspace map. Expressed as the number of addressable units from the containing memoryMap.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:parameters" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Any parameters that may apply to the subspace reference.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="initiatorRef" type="xs:Name" use="required">
+			<xs:annotation>
+				<xs:documentation>For subspaceMap elements, this attribute identifies the initiator that contains the address space to be mapped.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="segmentRef" type="xs:Name">
+			<xs:annotation>
+				<xs:documentation>Refernce to a segment of the addressSpace of the initiatorRef attribute.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:element name="volatile" type="xs:boolean">
+		<xs:annotation>
+			<xs:documentation>Indicates whether the data is volatile.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="fieldAccessPolicyDefinitionRef">
+		<xs:annotation>
+			<xs:documentation>Indicates the accessibility of the data in the field.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="xs:Name">
+					<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="addressBlock" type="ipxact:addressBlockType">
+		<xs:annotation>
+			<xs:documentation>This is a single contiguous block of memory inside a memory map.</xs:documentation>
+		</xs:annotation>
+		<xs:key name="registerAndRegisterFileAndABKey">
+			<xs:selector xpath="ipxact:register|ipxact:registerFile|ipxact:register/ipxact:alternateRegisters/ipxact:alternateRegister"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+	</xs:element>
+	<xs:element name="addressSpaces">
+		<xs:annotation>
+			<xs:documentation>If this component is a bus initiator, this lists all the address spaces
+defined by the component.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="addressSpace" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>This defines a logical space, referenced by a bus initiator.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:group ref="ipxact:blockSize"/>
+							<xs:element name="segments" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Address segments withing an addressSpace </xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="segment" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>Address segment withing an addressSpace </xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:sequence>
+													<xs:group ref="ipxact:nameGroup"/>
+													<xs:element name="addressOffset" type="ipxact:unsignedLongintExpression">
+														<xs:annotation>
+															<xs:documentation>Address offset of the segment within the containing address space.</xs:documentation>
+														</xs:annotation>
+													</xs:element>
+													<xs:element name="range" type="ipxact:unsignedPositiveLongintExpression">
+														<xs:annotation>
+															<xs:documentation>The address range of asegment.  Expressed as the number of addressable units accessible to the segment. 				</xs:documentation>
+														</xs:annotation>
+													</xs:element>
+													<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+												</xs:sequence>
+												<xs:attributeGroup ref="ipxact:id.att"/>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:element ref="ipxact:addressUnitBits" minOccurs="0"/>
+							<xs:element name="localMemoryMap" type="ipxact:localMemoryMapType" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Provides the local memory map of an address space.  Blocks in this memory map are accessable to initiator interfaces on this component that reference this address space.   They are not accessable to any external initiator interface.</xs:documentation>
+								</xs:annotation>
+								<xs:key name="LMMKey">
+									<xs:selector xpath="ipxact:addressBlock|ipxact:bank"/>
+									<xs:field xpath="ipxact:name"/>
+								</xs:key>
+							</xs:element>
+							<xs:element ref="ipxact:parameters" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Data specific to this address space.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:key name="segmentNameKey">
+						<xs:selector xpath="ipxact:segments/ipxact:segment"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="memoryMapRef" type="ipxact:memoryMapRefType">
+		<xs:annotation>
+			<xs:documentation>References the memory map. The name of the memory map is kept in its memoryMapRef attribute.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="memoryMaps">
+		<xs:annotation>
+			<xs:documentation>Lists all the target memory maps defined by the component.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="memoryMap" type="ipxact:memoryMapType" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>The set of address blocks a bus target contributes to the bus' address space.</xs:documentation>
+					</xs:annotation>
+					<xs:key name="memoryMapRemapModeKey">
+						<xs:selector xpath="ipxact:memoryRemap/ipxact:modeRef"/>
+						<xs:field xpath="."/>
+					</xs:key>
+					<xs:key name="memoryMapItemsKey">
+						<xs:selector xpath="ipxact:subspaceMap|ipxact:addressBlock|ipxact:bank|ipxact:memoryRemap"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="bank" type="ipxact:addressBankType">
+		<xs:annotation>
+			<xs:documentation>Represents a bank of memory made up of address blocks or other banks.  It has a bankAlignment attribute indicating whether its blocks are aligned in 'parallel' (occupying adjacent bit fields) or 'serial' (occupying contiguous addresses). Its child blocks do not contain addresses or bit offsets.</xs:documentation>
+		</xs:annotation>
+		<xs:key name="bankedMMKey">
+			<xs:selector xpath="ipxact:subspaceMap|ipxact:addressBlock|ipxact:bank"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+	</xs:element>
+	<xs:element name="baseAddress" type="ipxact:unsignedLongintExpression">
+		<xs:annotation>
+			<xs:documentation>Base of an address block, bank or address space. Expressed as the number of addressable units from the containing memoryMap or localMemoryMap.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="addressUnitBits" type="ipxact:unsignedPositiveLongintExpression">
+		<xs:annotation>
+			<xs:documentation>The number of data bits in an addressable unit. The default is byte addressable (8 bits).</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:group name="addressBlockExtensions">
+		<xs:annotation>
+			<xs:documentation>This is a group of optional elements commonly added to various types of address blocks in a memory map.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:memoryBlockData"/>
+			<xs:group ref="ipxact:registerData" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="addressSpecifier">
+		<xs:annotation>
+			<xs:documentation>This group of elements describes an absolute or relative address of an address block in a memory map.
+
+Note that this is a group, not an element.  It does not appear in the XML, but its contents may.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ipxact:baseAddress"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="bankBase">
+		<xs:annotation>
+			<xs:documentation>This group of elements is common to top level banks and banked banks.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element name="addressBlock" type="ipxact:bankedBlockType">
+					<xs:annotation>
+						<xs:documentation>An address block within the bank.  No address information is supplied.</xs:documentation>
+					</xs:annotation>
+					<xs:key name="bankedRegisterAndRegisterFileAndABKey">
+						<xs:selector xpath="ipxact:register|ipxact:registerFile|ipxact:register/ipxact:alternateRegisters/ipxact:alternateRegister"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+				<xs:element name="bank">
+					<xs:annotation>
+						<xs:documentation>A nested bank of blocks within a bank.  No address information is supplied.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:complexContent>
+							<xs:extension base="ipxact:bankedBankType">
+								<xs:sequence>
+									<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+								</xs:sequence>
+							</xs:extension>
+						</xs:complexContent>
+					</xs:complexType>
+					<xs:key name="banked2MMKey">
+						<xs:selector xpath="ipxact:subspaceMap|ipxact:addressBlock|ipxact:bank"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+				<xs:element name="subspaceMap" type="ipxact:bankedSubspaceType">
+					<xs:annotation>
+						<xs:documentation>A subspace map within the bank.  No address information is supplied.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:choice>
+			<xs:group ref="ipxact:memoryBlockData"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="bankDefinitionBase">
+		<xs:annotation>
+			<xs:documentation>This group of elements is common to top level bank definitions and banked bank definitions.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element name="addressBlock" type="ipxact:bankedBlockType">
+					<xs:annotation>
+						<xs:documentation>An address block within the bank.  No address information is supplied.</xs:documentation>
+					</xs:annotation>
+					<xs:key name="bankedDefinitionRegisterAndRegisterFileAndABKey">
+						<xs:selector xpath="ipxact:register|ipxact:registerFile|ipxact:register/ipxact:alternateRegisters/ipxact:alternateRegister"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+				<xs:element name="bank">
+					<xs:annotation>
+						<xs:documentation>A nested bank of blocks within a bank.  No address information is supplied.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:complexContent>
+							<xs:extension base="ipxact:bankedDefinitionBankType">
+								<xs:sequence>
+									<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+								</xs:sequence>
+							</xs:extension>
+						</xs:complexContent>
+					</xs:complexType>
+					<xs:key name="bankedDefinition2MMKey">
+						<xs:selector xpath="ipxact:addressBlock|ipxact:bank"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:choice>
+			<xs:group ref="ipxact:memoryBlockData"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="localBankBase">
+		<xs:annotation>
+			<xs:documentation>This group of elements is common to top level banks and banked banks.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element name="addressBlock" type="ipxact:bankedBlockType">
+					<xs:annotation>
+						<xs:documentation>An address block within the bank.  No address information is supplied.</xs:documentation>
+					</xs:annotation>
+					<xs:key name="localBankedRegisterAndRegisterFileAndABKey">
+						<xs:selector xpath="ipxact:register|ipxact:registerFile|ipxact:register/ipxact:alternateRegisters/ipxact:alternateRegister"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+				<xs:element name="bank" type="ipxact:localBankedBankType">
+					<xs:annotation>
+						<xs:documentation>A nested bank of blocks within a bank.  No address information is supplied.</xs:documentation>
+					</xs:annotation>
+					<xs:key name="localBankedBankMMKey">
+						<xs:selector xpath="ipxact:addressBlock|ipxact:bank"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:choice>
+			<xs:group ref="ipxact:memoryBlockData"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="blockSize">
+		<xs:annotation>
+			<xs:documentation>This group of elements describes the number of addressable units and the width of a row of an address block in a memory map.
+
+Note that this is a group, not an element.  It does not appear in the XML, but its contents may.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="range" type="ipxact:unsignedPositiveLongintExpression">
+				<xs:annotation>
+					<xs:documentation>The address range of an address block.  Expressed as the number of addressable units accessible to the block. The range and the width are related by the following formulas:
+					number_of_bits_in_block = ipxact:addressUnitBits * ipxact:range
+					number_of_rows_in_block = number_of_bits_in_block / ipxact:width
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="width" type="ipxact:unsignedPositiveIntExpression">
+				<xs:annotation>
+					<xs:documentation>The bit width of a row in the address block. The range and the width are related by the following formulas:
+					number_of_bits_in_block = ipxact:addressUnitBits * ipxact:range
+					number_of_rows_in_block = number_of_bits_in_block / ipxact:width
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="memoryBlockData">
+		<xs:annotation>
+			<xs:documentation>This group of optional elements can be used to provide additional descriptions to an address block or bank.
+
+Note that this is a group, not an element.  It does not appear in the XML, but its contents may.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="usage" type="ipxact:usageType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Indicates the usage of this block.  Possible values are 'memory', 'register' and 'reserved'.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:volatile" minOccurs="0"/>
+			<xs:element ref="ipxact:accessPolicies" minOccurs="0"/>
+			<xs:element ref="ipxact:parameters" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Any additional parameters needed to describe this address block to the generators.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:group>
+	<xs:element name="dim">
+		<xs:annotation>
+			<xs:documentation>Dimensions a register array, the semantics for dim elements are the same as the C language standard for the  layout of memory in multidimensional arrays.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="ipxact:unsignedPositiveLongintExpression">
+					<xs:attributeGroup ref="ipxact:id.att"/>
+					<xs:attribute name="indexVar" type="xs:Name" use="optional">
+						<xs:annotation>
+							<xs:documentation>Name for the index to allow referring to it in names and prosa.</xs:documentation>
+						</xs:annotation>
+					</xs:attribute>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="stride">
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="ipxact:unsignedPositiveLongintExpression">
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="bitStride">
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="ipxact:unsignedPositiveLongintExpression">
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:group name="registerData">
+		<xs:annotation>
+			<xs:documentation>This group of optional elements describes the memory mapped registers of an address block</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element name="register">
+				<xs:annotation>
+					<xs:documentation>A single register</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:group ref="ipxact:nameGroup"/>
+						<xs:element name="accessHandles" minOccurs="0">
+							<xs:complexType>
+								<xs:sequence minOccurs="1" maxOccurs="unbounded">
+									<xs:element name="accessHandle" type="ipxact:simpleAccessHandle"/>
+								</xs:sequence>
+							</xs:complexType>
+						</xs:element>
+						<xs:element ref="ipxact:array" minOccurs="0"/>
+						<xs:element name="addressOffset" type="ipxact:unsignedLongintExpression">
+							<xs:annotation>
+								<xs:documentation>Offset from the address block's baseAddress or the containing register file's addressOffset, expressed as the number of addressUnitBits from the containing memoryMap or localMemoryMap.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:choice>
+							<xs:element name="registerDefinitionRef">
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:Name">
+											<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:group ref="ipxact:registerDefinitionGroup"/>
+						</xs:choice>
+						<xs:element ref="ipxact:alternateRegisters" minOccurs="0"/>
+						<xs:element ref="ipxact:parameters" minOccurs="0"/>
+						<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+					</xs:sequence>
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:complexType>
+				<xs:key name="registerFieldKey">
+					<xs:selector xpath="ipxact:field"/>
+					<xs:field xpath="ipxact:name"/>
+				</xs:key>
+				<!-- IFX PSS 61 -->
+				<xs:unique name="registerFileDimIndexVarUnique">
+					<xs:selector xpath="./ipxact:array/ipxact:dim"/>
+					<xs:field xpath="@indexVar"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element ref="ipxact:registerFile">
+				<xs:annotation>
+					<xs:documentation>A structure of registers and register files</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:choice>
+	</xs:group>
+	<xs:element name="alternateRegisters">
+		<xs:annotation>
+			<xs:documentation>Alternate definitions for the current register</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="alternateRegister" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Alternate definition for the current register</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:element name="accessHandles" minOccurs="0">
+								<xs:complexType>
+									<xs:sequence minOccurs="1" maxOccurs="unbounded">
+										<xs:element name="accessHandle" type="ipxact:simpleAccessHandle"/>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:element ref="ipxact:modeRef" maxOccurs="unbounded"/>
+							<xs:group ref="ipxact:alternateRegisterDefinitionGroup"/>
+							<xs:element ref="ipxact:parameters" minOccurs="0"/>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:unique name="alternateRegisterPriorityUnique">
+						<xs:selector xpath="ipxact:modeRef"/>
+						<xs:field xpath="@priority"/>
+					</xs:unique>
+					<xs:key name="alternateRegisterFieldKey">
+						<xs:selector xpath="ipxact:field"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:key name="alternateRegisterModeRefKey">
+			<xs:selector xpath="ipxact:alternateRegister/ipxact:modeRef"/>
+			<xs:field xpath="."/>
+		</xs:key>
+		<xs:unique name="alternateRegisterNameUnique">
+			<xs:selector xpath="ipxact:alternateRegister"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:unique>
+	</xs:element>
+	<xs:element name="enumeratedValues">
+		<xs:annotation>
+			<xs:documentation>Enumerates specific values that can be assigned to the bit field.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:choice>
+				<xs:element name="enumerationDefinitionRef">
+					<xs:annotation>
+						<xs:documentation>References an enumeration to be found in a local or external library.  The four attributes define the VLNV of the referenced element.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="enumeratedValue" type="ipxact:enumeratedValueType" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Enumerates specific values that can be assigned to the bit field. The name of this enumerated value. This may be used as a token in generating code.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:choice>
+		</xs:complexType>
+		<xs:key name="enumKey">
+			<xs:selector xpath="ipxact:enumeratedValue"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+	</xs:element>
+	<xs:complexType name="enumeratedValueType">
+		<xs:annotation>
+			<xs:documentation>Enumerates specific values that can be assigned to the bit field. The name of this enumerated value. This may be used as a token in generating code.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="value" type="ipxact:unsignedBitVectorExpression">
+				<xs:annotation>
+					<xs:documentation>Enumerated bit field value.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="usage" default="read-write">
+			<xs:annotation>
+				<xs:documentation>Usage for the enumeration. 'read' for a software read access. 'write' for a software write access. 'read-write' for a software read or write access.</xs:documentation>
+			</xs:annotation>
+			<xs:simpleType>
+				<xs:restriction base="xs:string">
+					<xs:enumeration value="read"/>
+					<xs:enumeration value="write"/>
+					<xs:enumeration value="read-write"/>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:simpleType name="modifiedWriteValueType">
+		<xs:restriction base="xs:Name">
+			<xs:enumeration value="oneToClear"/>
+			<xs:enumeration value="oneToSet"/>
+			<xs:enumeration value="oneToToggle"/>
+			<xs:enumeration value="zeroToClear"/>
+			<xs:enumeration value="zeroToSet"/>
+			<xs:enumeration value="zeroToToggle"/>
+			<xs:enumeration value="clear"/>
+			<xs:enumeration value="set"/>
+			<xs:enumeration value="modify"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="readActionType">
+		<xs:restriction base="xs:Name">
+			<xs:enumeration value="clear"/>
+			<xs:enumeration value="set"/>
+			<xs:enumeration value="modify"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="accessRestrictionType">
+		<xs:sequence>
+			<xs:element ref="ipxact:modeRef" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="readAccessMask" type="ipxact:unsignedBitVectorExpression" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Mask to be anded with the readable bits in this field to determine the readabe bits in this access mode. If not present, the value defaults to "all ones" meaning that read access is not blocked.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="writeAccessMask" type="ipxact:unsignedBitVectorExpression" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Mask to be anded with the writable bits in this field to determine the writeable bits in this access mode.  If not present, the value defaults to "all ones" meaning that write access is not blocked.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="accessRestrictionsType">
+		<xs:sequence>
+			<xs:element name="accessRestriction" type="ipxact:accessRestrictionType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Access mode.</xs:documentation>
+				</xs:annotation>
+				<xs:unique name="accessRestrictionPriorityUnique">
+					<xs:selector xpath="ipxact:modeRef"/>
+					<xs:field xpath="@priority"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="fieldAccessPropertiesType">
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="accessPropertiesType">
+		<xs:sequence/>
+		<xs:attribute name="accessEntryTypeRef" type="xs:Name">
+			<xs:annotation>
+				<xs:documentation>Reference to a user defined accessEntryType. Assumed to be DEFAULT if not present.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:group name="fieldData">
+		<xs:annotation>
+			<xs:documentation>Additional field data</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="fieldAccessPolicies" minOccurs="0">
+				<xs:complexType>
+					<xs:complexContent>
+						<xs:extension base="ipxact:fieldAccessPropertiesType">
+							<xs:sequence>
+								<xs:element name="fieldAccessPolicy" maxOccurs="unbounded">
+									<xs:complexType>
+										<xs:sequence>
+											<xs:element ref="ipxact:modeRef" minOccurs="0" maxOccurs="unbounded"/>
+											<xs:choice>
+												<xs:element ref="ipxact:fieldAccessPolicyDefinitionRef" minOccurs="0"/>
+												<xs:sequence>
+													<xs:element ref="ipxact:access" minOccurs="0"/>
+													<xs:element ref="ipxact:modifiedWriteValue" minOccurs="0"/>
+													<xs:element ref="ipxact:writeValueConstraint" minOccurs="0"/>
+													<xs:element ref="ipxact:readAction" minOccurs="0"/>
+													<xs:element ref="ipxact:readResponse" minOccurs="0"/>
+												</xs:sequence>
+											</xs:choice>
+											<xs:element name="broadcasts" minOccurs="0">
+												<xs:complexType>
+													<xs:sequence>
+														<xs:element name="broadcastTo" maxOccurs="unbounded">
+															<xs:complexType>
+																<xs:group ref="ipxact:fieldReferenceGroup"/>
+																<xs:attributeGroup ref="ipxact:id.att"/>
+															</xs:complexType>
+														</xs:element>
+													</xs:sequence>
+												</xs:complexType>
+											</xs:element>
+											<xs:element ref="ipxact:accessRestrictions" minOccurs="0">
+												<xs:annotation>
+													<xs:documentation>Access restrictions</xs:documentation>
+												</xs:annotation>
+											</xs:element>
+											<xs:element name="testable" minOccurs="0">
+												<xs:annotation>
+													<xs:documentation>Can the field be tested with an automated register test routine. The presumed value is true if not specified.</xs:documentation>
+												</xs:annotation>
+												<xs:complexType>
+													<xs:simpleContent>
+														<xs:extension base="xs:boolean">
+															<xs:attribute name="testConstraint" default="unconstrained">
+																<xs:annotation>
+																	<xs:documentation>Constraint for an automated register test routine. 'unconstrained' (default) means may read and write all legal values. 'restore' means may read and write legal values but the value must be restored to the initially read value before accessing another register. 'writeAsRead' has limitations on testability where only the value read before a write may be written to the field. 'readOnly' has limitations on testability where values may only be read from the field.</xs:documentation>
+																</xs:annotation>
+																<xs:simpleType>
+																	<xs:restriction base="xs:string">
+																		<xs:enumeration value="unconstrained"/>
+																		<xs:enumeration value="restore"/>
+																		<xs:enumeration value="writeAsRead"/>
+																		<xs:enumeration value="readOnly"/>
+																	</xs:restriction>
+																</xs:simpleType>
+															</xs:attribute>
+														</xs:extension>
+													</xs:simpleContent>
+												</xs:complexType>
+											</xs:element>
+											<xs:element name="reserved" type="ipxact:unsignedBitExpression" default="0" minOccurs="0">
+												<xs:annotation>
+													<xs:documentation>Indicates that the field should be documented as reserved. The presumed value is '0' if not present.</xs:documentation>
+												</xs:annotation>
+											</xs:element>
+											<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+										</xs:sequence>
+										<xs:attributeGroup ref="ipxact:id.att"/>
+									</xs:complexType>
+									<xs:unique name="accessFieldpolicyPriorityUnique">
+										<xs:selector xpath="ipxact:modeRef"/>
+										<xs:field xpath="@priority"/>
+									</xs:unique>
+								</xs:element>
+							</xs:sequence>
+						</xs:extension>
+					</xs:complexContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ipxact:enumeratedValues" minOccurs="0"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:complexType name="writeValueConstraintType">
+		<xs:annotation>
+			<xs:documentation>A constraint on the values that can be written to this field. Absence of this element implies that any value that fits can be written to it.</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element name="writeAsRead" type="xs:boolean">
+				<xs:annotation>
+					<xs:documentation>writeAsRead indicates that only a value immediately read before a write is a legal value to be written.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="useEnumeratedValues" type="xs:boolean">
+				<xs:annotation>
+					<xs:documentation>useEnumeratedValues indicates that only write enumeration value shall be legal values to be written.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:sequence>
+				<xs:element name="minimum" type="ipxact:unsignedBitVectorExpression">
+					<xs:annotation>
+						<xs:documentation>The minimum legal value that may be written to a field</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="maximum" type="ipxact:unsignedBitVectorExpression">
+					<xs:annotation>
+						<xs:documentation>The maximum legal value that may be written to a field</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:sequence>
+		</xs:choice>
+	</xs:complexType>
+	<xs:element name="registerFile">
+		<xs:annotation>
+			<xs:documentation>A structure of registers and register files</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:nameGroup"/>
+				<xs:element name="accessHandles" minOccurs="0">
+					<xs:complexType>
+						<xs:sequence minOccurs="1" maxOccurs="unbounded">
+							<xs:element name="accessHandle" type="ipxact:simpleAccessHandle"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:array" minOccurs="0"/>
+				<xs:element name="addressOffset" type="ipxact:unsignedLongintExpression">
+					<xs:annotation>
+						<xs:documentation>Offset from the address block's baseAddress or the containing register file's addressOffset, expressed as the number of addressUnitBits from the containing memoryMap or localMemoryMap.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:choice>
+					<xs:element name="registerFileDefinitionRef">
+						<xs:complexType>
+							<xs:simpleContent>
+								<xs:extension base="xs:Name">
+									<xs:attribute name="typeDefinitions" type="xs:Name" use="required"/>
+								</xs:extension>
+							</xs:simpleContent>
+						</xs:complexType>
+					</xs:element>
+					<xs:group ref="ipxact:registerFileDefinitionGroup"/>
+				</xs:choice>
+				<xs:element ref="ipxact:parameters" minOccurs="0"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+		<xs:key name="registerAndRegisterFile1Key">
+			<xs:selector xpath="ipxact:register|ipxact:registerFile|ipxact:register/ipxact:alternateRegisters/ipxact:alternateRegister"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:unique name="registerDimIndexVarUnique">
+			<xs:selector xpath="./ipxact:array/ipxact:dim"/>
+			<xs:field xpath="@indexVar"/>
+		</xs:unique>
+	</xs:element>
+	<xs:group name="fieldDefinitionGroup">
+		<xs:annotation>
+			<xs:documentation>Field definition specific information</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="typeIdentifier" type="xs:Name" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Identifier name used to indicate that multiple field elements contain the exact same information for the elements in the fieldDefinitionGroup.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:choice>
+				<xs:sequence>
+					<xs:element name="bitWidth" type="ipxact:unsignedPositiveIntExpression">
+						<xs:annotation>
+							<xs:documentation>Width of the field in bits.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="volatile" type="xs:boolean" default="false" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>Indicates whether the data is volatile. The presumed value is 'false' if not present.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="resets" minOccurs="0">
+						<xs:complexType>
+							<xs:sequence>
+								<xs:element ref="ipxact:reset" maxOccurs="unbounded">
+									<xs:annotation>
+										<xs:documentation>BitField reset value</xs:documentation>
+									</xs:annotation>
+								</xs:element>
+							</xs:sequence>
+						</xs:complexType>
+					</xs:element>
+				</xs:sequence>
+				<xs:element name="aliasOf">
+					<xs:complexType>
+						<xs:group ref="ipxact:fieldReferenceGroup"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:choice>
+			<xs:group ref="ipxact:fieldData"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="registerFileDefinitionGroup">
+		<xs:annotation>
+			<xs:documentation>Register file defnition specific information</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="typeIdentifier" type="xs:Name" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Identifier name used to indicate that multiple registerFile elements contain the exact same information except for the elements in the registerFileInstanceGroup.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="range" type="ipxact:unsignedPositiveLongintExpression">
+				<xs:annotation>
+					<xs:documentation>The range of a register file.  Expressed as the number of addressable units accessible to the block. Specified in units of addressUnitBits.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:accessPolicies" minOccurs="0"/>
+			<xs:group ref="ipxact:registerData" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="addressBlockDefinitionGroup">
+		<xs:annotation>
+			<xs:documentation>Address block definition specific information</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="typeIdentifier" type="xs:Name" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Identifier name used to indicate that multiple addressBlock elements contain the exact same information except for the elements in the addressBlockInstanceGroup.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:group ref="ipxact:blockSize"/>
+			<xs:group ref="ipxact:memoryBlockData"/>
+			<xs:group ref="ipxact:registerData" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="registerDefinitionGroup">
+		<xs:annotation>
+			<xs:documentation>Register definition specific information</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="typeIdentifier" type="xs:Name" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Identifier name used to indicate that multiple register elements contain the exact same information for the elements in the registerDefinitionGroup.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="size" type="ipxact:unsignedPositiveIntExpression">
+				<xs:annotation>
+					<xs:documentation>Width of the register in bits.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:volatile" minOccurs="0"/>
+			<xs:element ref="ipxact:accessPolicies" minOccurs="0"/>
+			<xs:sequence minOccurs="1" maxOccurs="unbounded">
+				<xs:element name="field" type="ipxact:fieldType">
+					<xs:annotation>
+						<xs:documentation>Describes individual bit fields within the register.</xs:documentation>
+					</xs:annotation>
+					<xs:unique name="fieldResetTypeRefKey">
+						<xs:selector xpath="ipxact:resets/ipxact:reset"/>
+						<xs:field xpath="@resetTypeRef"/>
+					</xs:unique>
+				</xs:element>
+			</xs:sequence>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="alternateRegisterDefinitionGroup">
+		<xs:annotation>
+			<xs:documentation>Alternate register definition specific information</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="typeIdentifier" type="xs:Name" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Identifier name used to indicate that multiple register elements contain the exact same information for the elements in the alternateRegisterDefinitionGroup.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:volatile" minOccurs="0"/>
+			<xs:element ref="ipxact:accessPolicies" minOccurs="0"/>
+			<xs:sequence minOccurs="1" maxOccurs="unbounded">
+				<xs:element name="field" type="ipxact:fieldType">
+					<xs:annotation>
+						<xs:documentation>Describes individual bit fields within the register.</xs:documentation>
+					</xs:annotation>
+					<xs:unique name="alternateFieldResetTypeKey">
+						<xs:selector xpath="ipxact:resets/ipxact:reset"/>
+						<xs:field xpath="@resetTypeRef"/>
+					</xs:unique>
+					<xs:unique name="alternateFieldDimIndexVarUnique">
+						<xs:selector xpath="./ipxact:array/ipxact:dim"/>
+						<xs:field xpath="@indexVar"/>
+					</xs:unique>
+				</xs:element>
+			</xs:sequence>
+		</xs:sequence>
+	</xs:group>
+	<xs:element name="reset">
+		<xs:annotation>
+			<xs:documentation>Register value at reset.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="value" type="ipxact:unsignedBitVectorExpression">
+					<xs:annotation>
+						<xs:documentation>The value itself.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="mask" type="ipxact:unsignedBitVectorExpression" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Mask to be anded with the value before comparing to the reset value.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="resetTypeRef" type="xs:Name">
+				<xs:annotation>
+					<xs:documentation>Reference to a user defined resetType. Assumed to be HARD if not present.</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="externalTypeDefinitions">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:nameGroup"/>
+				<xs:element name="typeDefinitionsRef" type="ipxact:configurableLibraryRefType">
+					<xs:annotation>
+						<xs:documentation>References a type definitions to be found in an external file.  The four attributes define the VLNV of the referenced document.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="ipxact:viewLinks" minOccurs="0"/>
+				<xs:element ref="ipxact:modeLinks" minOccurs="0"/>
+				<xs:element ref="ipxact:resetTypeLinks" minOccurs="0"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="enumerationDefinitions">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="enumerationDefinition" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:element name="width" type="ipxact:unsignedPositiveIntExpression">
+								<xs:annotation>
+									<xs:documentation>Definition width used to resolve the value.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="enumeratedValue" type="ipxact:enumeratedValueType" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Enumerates specific values that can be assigned to the bit field. The name of this enumerated value. This may be used as a token in generating code.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:key name="enumerationDefinitionEnumeratedValueKey">
+						<xs:selector xpath="ipxact:enumeratedValue"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="fieldAccessPolicyDefinitions">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="fieldAccessPolicyDefinition" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:element ref="ipxact:access" minOccurs="0"/>
+							<xs:element ref="ipxact:modifiedWriteValue" minOccurs="0"/>
+							<xs:element ref="ipxact:writeValueConstraint" minOccurs="0"/>
+							<xs:element ref="ipxact:readAction" minOccurs="0"/>
+							<xs:element ref="ipxact:readResponse" minOccurs="0"/>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="fieldDefinitions">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="fieldDefinition" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:element name="typeIdentifier" type="xs:Name" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Identifier name used to indicate that multiple field elements contain the exact same information for the elements in the fieldDefinitionGroup.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="bitWidth" type="ipxact:unsignedPositiveIntExpression">
+								<xs:annotation>
+									<xs:documentation>Width of the field in bits.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="volatile" type="xs:boolean" default="false" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Indicates whether the data is volatile. The presumed value is 'false' if not present.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="resets" minOccurs="0">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element ref="ipxact:reset" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>BitField reset value</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:group ref="ipxact:fieldData"/>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:unique name="fieldDefinitionResetTypeRefKey">
+						<xs:selector xpath="ipxact:resets/ipxact:reset"/>
+						<xs:field xpath="@resetTypeRef"/>
+					</xs:unique>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="registerDefinitions">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="registerDefinition" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:group ref="ipxact:registerDefinitionGroup"/>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:key name="registerDefinitionFieldKey">
+						<xs:selector xpath="ipxact:field"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="registerFileDefinitions">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="registerFileDefinition" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:group ref="ipxact:registerFileDefinitionGroup"/>
+							<xs:element ref="ipxact:addressUnitBits" minOccurs="0"/>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:key name="registerFileDefinitionRegisterAndRegisterFileKey">
+						<xs:selector xpath="ipxact:register|ipxact:registerFile"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="addressBlockDefinitions">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="addressBlockDefinition" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:group ref="ipxact:addressBlockDefinitionGroup"/>
+							<xs:element ref="ipxact:addressUnitBits" minOccurs="0"/>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:key name="addressBlockDefinitionRegisterAndRegisterFileAndAlternateRegisterKey">
+						<xs:selector xpath="ipxact:register|ipxact:registerFile|ipxact:register/ipxact:alternateRegisters/ipxact:alternateRegister"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="bankDefinitions">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="bankDefinition" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:group ref="ipxact:bankDefinitionBase"/>
+							<xs:element ref="ipxact:addressUnitBits" minOccurs="0"/>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:key name="bankDefinitionAddressBlockAndBankKey">
+						<xs:selector xpath="ipxact:addressBlock|ipxact:bank"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="memoryMapDefinitions">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="memoryMapDefinition" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:group ref="ipxact:memoryMapDefinitionTypeGroup" minOccurs="0"/>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:key name="memoryMapDefinitionRemapModeKey">
+						<xs:selector xpath="ipxact:memoryRemap/ipxact:modeRef"/>
+						<xs:field xpath="."/>
+					</xs:key>
+					<xs:key name="memoryMapDefinitionItemsKey">
+						<xs:selector xpath="ipxact:addressBlock|ipxact:bank|ipxact:memoryRemap"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="memoryRemapDefinitions">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="memoryRemapDefinition" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:group ref="ipxact:nameGroup"/>
+							<xs:choice maxOccurs="unbounded">
+								<xs:element ref="ipxact:addressBlock"/>
+								<xs:element name="bank" type="ipxact:addressBankDefinitionType">
+									<xs:annotation>
+										<xs:documentation>An addressable bank of blocks within a bank definition.</xs:documentation>
+									</xs:annotation>
+									<xs:key name="remapDefinition2MMKey">
+										<xs:selector xpath="ipxact:addressBlock|ipxact:bank"/>
+										<xs:field xpath="ipxact:name"/>
+									</xs:key>
+								</xs:element>
+							</xs:choice>
+							<xs:element ref="ipxact:addressUnitBits" minOccurs="0"/>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:key name="memoryRemapDefinitionItemsKey">
+						<xs:selector xpath="ipxact:addressBlock|ipxact:bank"/>
+						<xs:field xpath="ipxact:name"/>
+					</xs:key>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="modeRef">
+		<xs:annotation>
+			<xs:documentation>A reference to a mode.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="xs:Name">
+					<xs:attribute name="priority" type="xs:nonNegativeInteger" use="required"/>
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="array">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:dim" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Dimensions a memory-map element array, the semantics for dim elements are the same as the C language standard for the  layout of memory in multidimensional arrays.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="ipxact:stride" minOccurs="0"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="access" type="ipxact:accessType"/>
+	<xs:element name="modifiedWriteValue">
+		<xs:annotation>
+			<xs:documentation>If present this element describes the modification of field data caused by a write operation. 'oneToClear' means that in a bitwise fashion each write data bit of a one will clear the corresponding bit in the field. 'oneToSet' means that in a bitwise fashion each write data bit of a one will set the corresponding bit in the field.  'oneToToggle' means that in a bitwise fashion each write data bit of a one will toggle the corresponding bit in the field. 'zeroToClear' means that in a bitwise fashion each write data bit of a zero will clear the corresponding bit in the field. 'zeroToSet' means that in a bitwise fashion each write data bit of a zero will set the corresponding bit in the field. 'zeroToToggle' means that in a bitwise fashion each write data bit of a zero will toggle the corresponding bit in the field. 'clear' means any write to this field clears the field. 'set' means any write to the field sets the field. 'modify' means any write to this field may modify that data. If this element is not present the write operation data is written.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="ipxact:modifiedWriteValueType">
+					<xs:attribute name="modify" type="xs:Name"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="writeValueConstraint" type="ipxact:writeValueConstraintType">
+		<xs:annotation>
+			<xs:documentation>The legal values that may be written to a field. If not specified the legal values are not specified.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="readAction">
+		<xs:annotation>
+			<xs:documentation>A list of possible actions for a read to set the field after the read. 'clear' means that after a read the field is cleared. 'set' means that after a read the field is set. 'modify' means after a read the field is modified. If not present the field value is not modified after a read.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="ipxact:readActionType">
+					<xs:attribute name="modify" type="xs:Name"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="readResponse" type="ipxact:unsignedBitVectorExpression"/>
+	<xs:element name="accessRestrictions" type="ipxact:accessRestrictionsType">
+		<xs:annotation>
+			<xs:documentation>Access modes.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="accessPolicies">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="accessPolicy" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="ipxact:modeRef" minOccurs="0" maxOccurs="unbounded"/>
+							<xs:element name="access" type="ipxact:accessType" minOccurs="0"/>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+					<xs:unique name="accessPolicyPriorityUnique">
+						<xs:selector xpath="ipxact:modeRef"/>
+						<xs:field xpath="@priority"/>
+					</xs:unique>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

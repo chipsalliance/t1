@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="busDefinition.xsd"/>
+	<xs:include schemaLocation="component.xsd"/>
+	<xs:include schemaLocation="design.xsd"/>
+	<xs:include schemaLocation="designConfig.xsd"/>
+	<xs:include schemaLocation="abstractionDefinition.xsd"/>
+	<xs:include schemaLocation="catalog.xsd"/>
+	<xs:include schemaLocation="abstractor.xsd"/>
+	<xs:include schemaLocation="typeDefinitions.xsd"/>
+	<!-- <xs:include schemaLocation="memoryMapDefinition.xsd"/> -->
+	<!-- <xs:include schemaLocation="addressBlockDefinition.xsd"/> -->
+	<!-- <xs:include schemaLocation="registerFileDefinition.xsd"/> -->
+	<!-- <xs:include schemaLocation="registerDefinition.xsd"/> -->
+	<!-- <xs:include schemaLocation="fieldDefinition.xsd"/> -->
+	<!-- <xs:include schemaLocation="enumerationDefinition.xsd"/> -->
+	<xs:group name="IPXACTDocumentTypes">
+		<xs:annotation>
+			<xs:documentation>This IP-XACT schema documentation is part of the IP-XACT standard deliverables. The diagrams in this documentation represent the relationships between elements of the schema together with their attributes and expected values. Valid IP-XACT XML files must have a top-level type that is one of the elements listed here.</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element ref="ipxact:busDefinition">
+				<xs:annotation>
+					<xs:documentation>To define all elements and attributes supported when defining a bus.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:abstractionDefinition"/>
+			<!--			<xs:element ref="ipxact:memoryMapDefinition"/>
+			<xs:element ref="ipxact:addressBlockDefinition"/>
+			<xs:element ref="ipxact:registerFileDefinition"/>
+			<xs:element ref="ipxact:registerDefinition"/>
+			<xs:element ref="ipxact:fieldDefinition"/>
+			<xs:element ref="ipxact:enumerationDefinition"/>
+-->
+			<xs:element ref="ipxact:component">
+				<xs:annotation>
+					<xs:documentation>To define all elements and attributes supported when defining a component.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:abstractor"/>
+			<xs:element ref="ipxact:design">
+				<xs:annotation>
+					<xs:documentation>To define all elements and attributes supported when defining a design and its configured components</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:generatorChain">
+				<xs:annotation>
+					<xs:documentation>To define all elements and attributes supported for defining generator chains.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:designConfiguration"/>
+			<xs:element ref="ipxact:catalog"/>
+			<xs:element ref="ipxact:typeDefinitions"/>
+		</xs:choice>
+	</xs:group>
+</xs:schema>

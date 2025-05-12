@@ -502,6 +502,30 @@ in
     installPath = "https/repo1.maven.org/maven2/jakarta/platform/jakartaee-api-parent/9.1.0";
   };
 
+  "javax.activation_javax.activation-api-1.2.0" = fetchMaven {
+    name = "javax.activation_javax.activation-api-1.2.0";
+    urls = [
+      "https://repo1.maven.org/maven2/javax/activation/javax.activation-api/1.2.0/javax.activation-api-1.2.0.jar"
+      "https://repo1.maven.org/maven2/javax/activation/javax.activation-api/1.2.0/javax.activation-api-1.2.0.pom"
+    ];
+    hash = "sha256-ZfL2pHqPgL+7hktCI/pG3yKATkzMKOzYDXkQBpaMph8=";
+    installPath = "https/repo1.maven.org/maven2/javax/activation/javax.activation-api/1.2.0";
+  };
+
+  "net.java_jvnet-parent-1" = fetchMaven {
+    name = "net.java_jvnet-parent-1";
+    urls = [ "https://repo1.maven.org/maven2/net/java/jvnet-parent/1/jvnet-parent-1.pom" ];
+    hash = "sha256-pxb7CzQHhXY70QgMIsVo80ME7N+S0Eyv7196xFxPHMg=";
+    installPath = "https/repo1.maven.org/maven2/net/java/jvnet-parent/1";
+  };
+
+  "net.java_jvnet-parent-5" = fetchMaven {
+    name = "net.java_jvnet-parent-5";
+    urls = [ "https://repo1.maven.org/maven2/net/java/jvnet-parent/5/jvnet-parent-5.pom" ];
+    hash = "sha256-L6zzG1WwyalibW8K8CLiK/d7uu2l/5xIfDQOGILEpYQ=";
+    installPath = "https/repo1.maven.org/maven2/net/java/jvnet-parent/5";
+  };
+
   "net.openhft_java-parent-pom-1.1.28" = fetchMaven {
     name = "net.openhft_java-parent-pom-1.1.28";
     urls = [
@@ -1346,6 +1370,13 @@ in
     installPath = "https/repo1.maven.org/maven2/com/github/scopt/scopt_2.13/4.1.0";
   };
 
+  "com.sun.activation_all-1.2.0" = fetchMaven {
+    name = "com.sun.activation_all-1.2.0";
+    urls = [ "https://repo1.maven.org/maven2/com/sun/activation/all/1.2.0/all-1.2.0.pom" ];
+    hash = "sha256-YMSR2gYICMiYhf+2jvRJ6bp2eIOCQwLGfN+ZG3BDKzE=";
+    installPath = "https/repo1.maven.org/maven2/com/sun/activation/all/1.2.0";
+  };
+
   "com.thoughtworks.paranamer_paranamer-2.8" = fetchMaven {
     name = "com.thoughtworks.paranamer_paranamer-2.8";
     urls = [
@@ -1662,6 +1693,25 @@ in
     installPath = "https/repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils-parent/4.15";
   };
 
+  "javax.xml.bind_jaxb-api-2.3.1" = fetchMaven {
+    name = "javax.xml.bind_jaxb-api-2.3.1";
+    urls = [
+      "https://repo1.maven.org/maven2/javax/xml/bind/jaxb-api/2.3.1/jaxb-api-2.3.1.jar"
+      "https://repo1.maven.org/maven2/javax/xml/bind/jaxb-api/2.3.1/jaxb-api-2.3.1.pom"
+    ];
+    hash = "sha256-c4vUj03rpOcr+CAQ3pGP0HwnQUq1agwhUYS6Csx44Rw=";
+    installPath = "https/repo1.maven.org/maven2/javax/xml/bind/jaxb-api/2.3.1";
+  };
+
+  "javax.xml.bind_jaxb-api-parent-2.3.1" = fetchMaven {
+    name = "javax.xml.bind_jaxb-api-parent-2.3.1";
+    urls = [
+      "https://repo1.maven.org/maven2/javax/xml/bind/jaxb-api-parent/2.3.1/jaxb-api-parent-2.3.1.pom"
+    ];
+    hash = "sha256-3hcJVaq2BDgmFBPrtCuzYpV/WVsmdEZIK9OIGVFmihk=";
+    installPath = "https/repo1.maven.org/maven2/javax/xml/bind/jaxb-api-parent/2.3.1";
+  };
+
   "org.apache.commons_commons-lang3-3.17.0" = fetchMaven {
     name = "org.apache.commons_commons-lang3-3.17.0";
     urls = [
@@ -1811,6 +1861,16 @@ in
     ];
     hash = "sha256-sM5GWZ8/K1Jchj4V3FTvaWhfSJiHq0PKtQpd5W94Hps=";
     installPath = "https/repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.13/1.1.2";
+  };
+
+  "org.scala-lang.modules_scala-parser-combinators_2.13-2.4.0" = fetchMaven {
+    name = "org.scala-lang.modules_scala-parser-combinators_2.13-2.4.0";
+    urls = [
+      "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.13/2.4.0/scala-parser-combinators_2.13-2.4.0.jar"
+      "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.13/2.4.0/scala-parser-combinators_2.13-2.4.0.pom"
+    ];
+    hash = "sha256-SKS4V89Hb+pv/BUWnnpiet3ZRk4sui9ogdUdfIcWJeM=";
+    installPath = "https/repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.13/2.4.0";
   };
 
   "org.scala-lang.modules_scala-xml_2.13-2.2.0" = fetchMaven {
@@ -1994,4 +2054,4 @@ in
   };
 
 }
-# Project Source Hash:sha256-LJdwUExWEN3aCn01c78YlsYQSx8fTF+xeiUxgECadws=
+# Project Source Hash:sha256-s3CtptYW7a6+qGGjXuNMh2SLMAYXp9+bsy6/YLlr1JQ=

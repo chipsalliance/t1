@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : model.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.22 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="file.xsd"/>
+	<xs:include schemaLocation="signal.xsd"/>
+	<xs:complexType name="viewType">
+		<xs:sequence>
+			<xs:element name="name" type="xs:NMTOKEN" default="default">
+				<xs:annotation>
+					<xs:documentation>Name of the view. Must be unique within a component</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="envIdentifier" type="xs:string" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>This is a string such as "ModelsimVerilog", used to uniquely identify the hardware environment. More than one indicates that the same information applies to multiple environments.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="language" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The hardware description language used such as "verilog" or "vhdl". If the attribute "strict" is "true", this value must match the language being generated for the design.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:token">
+							<xs:attribute name="strict" type="xs:boolean"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="modelName" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>HDL-specific name to identify the model.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="defaultFileBuilder" type="spirit:fileBuilderType" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="spirit:fileSetRef" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:group ref="spirit:parameterGroup"/>
+			<xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="hwModelType">
+		<xs:annotation>
+			<xs:documentation>Hardware model information.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="views" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>View container</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="view" type="spirit:viewType" minOccurs="0" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="signals" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Signal container</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="spirit:signal" minOccurs="0" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="hwParameters" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Hardware parameter name value pairs container</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="hwParameter" type="spirit:nameValueTypeType" minOccurs="0" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>A hardware parameter name value pair.  The name is given in an attribute.  The value is the element value. The dataType (applicable to high level modeling) is given in the dataType attribute. The name should be identical to the RTL (VHDL generic or Verilog parameter)</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="hwModel" type="spirit:hwModelType">
+		<xs:annotation>
+			<xs:documentation>Hardware model information.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+</xs:schema>

@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : file.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.11 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="fileType.xsd"/>
+	<xs:element name="file">
+		<xs:annotation>
+			<xs:documentation>SPIRIT reference to a file or directory.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="name">
+					<xs:annotation>
+						<xs:documentation>Path to the file or directory.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="spirit:spiritURI">
+								<xs:attributeGroup ref="spirit:autoConfig"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:group ref="spirit:fileType"/>
+				<xs:element name="logicalName" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Logical name for this file or directory e.g. VHDL library name.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="default" type="xs:string" use="optional"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="exportedName" type="xs:Name" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Defines exported names that can be accessed externally, e.g. exported function names from a C source file.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="buildCommand" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Command and flags used to build derived files from the sourceName files. If this element is present, the command and/or flags used to to build the file will override or augment any default builders at a higher level.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="command" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Command used to build this file.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attributeGroup ref="spirit:autoConfig"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="flags" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Flags given to the build command when building this file. If the optional attribute "append" is "true", this string will be appended to any existing flags, otherwise these flags will replace any existing default flags.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="append" type="xs:boolean" use="optional"/>
+											<xs:attributeGroup ref="spirit:autoConfig"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="replaceDefaultFlags" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>If true, the value of the sibling element "flags" should replace any default flags specified at a more global level. If this is true and the sibling element "flags" is empty or missing, this has the effect of clearing any default flags.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:boolean">
+											<xs:attributeGroup ref="spirit:autoConfig"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="targetName" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Pathname to the file that is derived (built) from the source file.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="spirit:spiritURI">
+											<xs:attributeGroup ref="spirit:autoConfig"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="spirit:dependency" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="define" type="spirit:nameValuePairType" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Specifies define symbols that are used in the source file.  The spirit:name attribute gives the name to be defined and the text content of the element holds the value.  This element supports full configurability.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="imageType" type="xs:string" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Relates the current file to a certain executable image type in the design.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="fileId" type="xs:ID"/>
+			<xs:anyAttribute namespace="##other" processContents="lax"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="fileSet" type="spirit:fileSetType">
+		<xs:annotation>
+			<xs:documentation>This element specifies a list of unique pathnames to files and directories. It may also include build instructions for the files. If compilation order is important, e.g. for VHDL files, the files have to be provided in compilation order.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="executableImage">
+		<xs:annotation>
+			<xs:documentation>Specifies an executable software image to be loaded into a processors address space. The format of the image is not specified. It could, for example, be an ELF loadfile, or it could be raw binary or ascii hex data for loading directly into a memory model instance.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="name">
+					<xs:annotation>
+						<xs:documentation>Name of the executable image file.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="spirit:spiritURI">
+								<xs:attributeGroup ref="spirit:autoConfig"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="spirit:parameter" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Additional information about the load module, e.g. stack base addresses, table addresses, etc.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="languageTools" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Default commands and flags for software language tools needed to build the executable image.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="fileBuilder" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>A generic placeholder for any file builder like compilers and assemblers.  It contains the file types to which the command should be applied, and the flags to be used with that command.  </xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:group ref="spirit:fileType"/>
+										<xs:element name="command">
+											<xs:annotation>
+												<xs:documentation>Default command used to build files of the specified fileType. </xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:string">
+														<xs:attributeGroup ref="spirit:autoConfig"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="flags" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>Flags given to the build command when building files of this type.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:string">
+														<xs:attributeGroup ref="spirit:autoConfig"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="replaceDefaultFlags" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>If true, replace any default flags value with the value in the sibling flags element. Otherwise, append the contents of the sibling flags element to any default flags value.
+
+If the value is true and the "flags" element is empty or missing, this will have the result of clearing any default flags value.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:boolean">
+														<xs:attributeGroup ref="spirit:autoConfig"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="linker" minOccurs="0">
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attributeGroup ref="spirit:autoConfig"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="linkerFlags" minOccurs="0">
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attributeGroup ref="spirit:autoConfig"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="linkerCommandFile" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Specifies a linker command file.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="name">
+											<xs:annotation>
+												<xs:documentation>Linker command file name.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="spirit:spiritURI">
+														<xs:attributeGroup ref="spirit:autoConfig"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="commandLineSwitch">
+											<xs:annotation>
+												<xs:documentation>The command line switch to specify the linker command file.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:string">
+														<xs:attributeGroup ref="spirit:autoConfig"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="enable">
+											<xs:annotation>
+												<xs:documentation>Specifies whether to generate and enable the linker command file.</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="xs:boolean">
+														<xs:attributeGroup ref="spirit:bool.prompt.att"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+										<xs:element ref="spirit:configuratorRef" minOccurs="0"/>
+										<xs:element ref="spirit:generatorRef" minOccurs="0" maxOccurs="unbounded"/>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="fileSetRefGroup" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Contains a group of file set references that indicates the set of file sets complying with the tool set of the current executable image.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="spirit:fileSetRef" minOccurs="0" maxOccurs="unbounded"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="id" type="xs:ID" use="required"/>
+			<xs:attribute name="imageType" type="xs:Name" use="optional"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="fileSetRef" type="xs:NMTOKEN">
+		<xs:annotation>
+			<xs:documentation>A reference to a fileSet.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="dependency" type="spirit:spiritURI">
+		<xs:annotation>
+			<xs:documentation>Specifies a location on which  files or fileSets may be dependent. Typically, this would be a directory that would contain included files.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="fileSets">
+		<xs:annotation>
+			<xs:documentation>List of file sets associated with component.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="spirit:fileSet" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="fileBuilderType">
+		<xs:sequence>
+			<xs:group ref="spirit:fileType"/>
+			<xs:element name="command" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Default command used to build files of the specified fileType. </xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:string">
+							<xs:attributeGroup ref="spirit:autoConfig"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="flags" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Flags given to the build command when building files of this type.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:string">
+							<xs:attributeGroup ref="spirit:autoConfig"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="replaceDefaultFlags" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If true, replace any default flags value with the value in the sibling flags element. Otherwise, append the contents of the sibling flags element to any default flags value.
+
+If the value is true and the "flags" element is empty or missing, this will have the result of clearing any default flags value.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:boolean">
+							<xs:attributeGroup ref="spirit:autoConfig"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="fileSetType">
+		<xs:sequence>
+			<xs:element name="owner" type="spirit:libraryRefType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Specifies the original owner of the fileSet, used when importing fileSets from other components, as in Hierarchical components, to allow the parent component to correctly locate files imported from subcomponents</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="group" type="xs:Name" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Identifies this filleSet as belonging to a particular group or having a particular purpose. Examples might be "diagnostics", "boot", "application", "interrupt", "deviceDriver", etc.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="spirit:file" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="defaultFileBuilder" type="spirit:fileBuilderType" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="spirit:dependency" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element name="swFunction" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Generator information if this file set describes a sw function. For example, this file set may describe diagnostics for which the DE can generate a diagnostics driver.
+
+The boolean attribute "replicate", if true (default is false), directs the generator to compile a separate object module for each instance of the component in the design. Otherwise the single function will be called with different arguments for each instance (e.g. baseAddress).</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="entryPoint" type="xs:Name" minOccurs="0"/>
+						<xs:element name="fileRef" type="xs:IDREF">
+							<xs:annotation>
+								<xs:documentation>A reference to the file that contains the entry point function.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="returnType" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Function return type. See the enumerations.</xs:documentation>
+							</xs:annotation>
+							<xs:simpleType>
+								<xs:restriction base="xs:string">
+									<xs:enumeration value="void"/>
+									<xs:enumeration value="int"/>
+								</xs:restriction>
+							</xs:simpleType>
+						</xs:element>
+						<xs:element name="argument" minOccurs="0" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Arguments passed in when the function is called. Arguments are passed in order.
+
+This is an extension of the name-value pair which includes the data type in the spirit:dataType attribute.  The argument name is in the spirit:name attribute and its value is in the text content of the element.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:simpleContent>
+									<xs:extension base="spirit:nameValuePairType">
+										<xs:attribute name="dataType" type="spirit:dataTypeType" use="required"/>
+									</xs:extension>
+								</xs:simpleContent>
+							</xs:complexType>
+						</xs:element>
+						<xs:element name="enabled" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Specifies if the SW function is enabled. Default is true.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:simpleContent>
+									<xs:extension base="xs:boolean">
+										<xs:attributeGroup ref="spirit:bool.prompt.att"/>
+									</xs:extension>
+								</xs:simpleContent>
+							</xs:complexType>
+						</xs:element>
+						<xs:element name="sourceFile" minOccurs="0" maxOccurs="unbounded">
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="sourceName">
+										<xs:annotation>
+											<xs:documentation>Source file for the boot load.  Relative names are searched for in the project directory and the source of the component directory.
+    </xs:documentation>
+										</xs:annotation>
+										<xs:complexType>
+											<xs:simpleContent>
+												<xs:extension base="spirit:spiritURI">
+													<xs:attributeGroup ref="spirit:autoConfig"/>
+												</xs:extension>
+											</xs:simpleContent>
+										</xs:complexType>
+									</xs:element>
+									<xs:group ref="spirit:fileType"/>
+								</xs:sequence>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+					<xs:attribute name="replicate" type="xs:boolean"/>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="fileSetId" type="xs:NMTOKEN" use="required"/>
+	</xs:complexType>
+	<xs:simpleType name="spiritURI">
+		<xs:annotation>
+			<xs:documentation>SPIRIT URI, like a standard xs:anyURI except that it can contain environment variables in the ${ } form, to be replaced by their value to provide the underlying URI</xs:documentation>
+		</xs:annotation>
+		<xs:union memberTypes="xs:anyURI"/>
+	</xs:simpleType>
+	<xs:simpleType name="dataTypeType">
+		<xs:annotation>
+			<xs:documentation>Enumerates C argument data types.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="int"/>
+			<xs:enumeration value="unsigned int"/>
+			<xs:enumeration value="long"/>
+			<xs:enumeration value="unsigned long"/>
+			<xs:enumeration value="float"/>
+			<xs:enumeration value="double"/>
+			<xs:enumeration value="char *"/>
+			<xs:enumeration value="void *"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="generatorRef" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>A reference to a generator element.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="configuratorRef" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>A reference to a configurator element.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+</xs:schema>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="simpleTypes.xsd"/>
+	<xs:simpleType name="simpleFileType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="unknown"/>
+			<xs:enumeration value="cSource"/>
+			<xs:enumeration value="cppSource"/>
+			<xs:enumeration value="asmSource"/>
+			<xs:enumeration value="vhdlSource"/>
+			<xs:enumeration value="vhdlSource-87"/>
+			<xs:enumeration value="vhdlSource-93"/>
+			<xs:enumeration value="vhdlSource-2002"/>
+			<xs:enumeration value="vhdlSource-2008"/>
+			<xs:enumeration value="verilogSource"/>
+			<xs:enumeration value="verilogSource-95"/>
+			<xs:enumeration value="verilogSource-2001"/>
+			<xs:enumeration value="verilogSource-2005"/>
+			<xs:enumeration value="swObject"/>
+			<xs:enumeration value="swObjectLibrary"/>
+			<xs:enumeration value="vhdlBinaryLibrary"/>
+			<xs:enumeration value="verilogBinaryLibrary"/>
+			<xs:enumeration value="unelaboratedHdl"/>
+			<xs:enumeration value="executableHdl"/>
+			<xs:enumeration value="systemVerilogSource"/>
+			<xs:enumeration value="systemVerilogSource-3.0"/>
+			<xs:enumeration value="systemVerilogSource-3.1"/>
+			<xs:enumeration value="systemVerilogSource-3.1a"/>
+			<xs:enumeration value="systemVerilogSource-2009"/>
+			<xs:enumeration value="systemVerilogSource-2012"/>
+			<xs:enumeration value="systemVerilogSource-2017"/>
+			<xs:enumeration value="systemCSource"/>
+			<xs:enumeration value="systemCSource-2.0"/>
+			<xs:enumeration value="systemCSource-2.0.1"/>
+			<xs:enumeration value="systemCSource-2.1"/>
+			<xs:enumeration value="systemCSource-2.2"/>
+			<xs:enumeration value="systemCSource-2.3"/>
+			<xs:enumeration value="systemCBinaryLibrary"/>
+			<xs:enumeration value="veraSource"/>
+			<xs:enumeration value="eSource"/>
+			<xs:enumeration value="perlSource"/>
+			<xs:enumeration value="tclSource"/>
+			<xs:enumeration value="OVASource"/>
+			<xs:enumeration value="SVASource"/>
+			<xs:enumeration value="pslSource"/>
+			<xs:enumeration value="SDC"/>
+			<xs:enumeration value="vhdlAmsSource"/>
+			<xs:enumeration value="verilogAmsSource"/>
+			<xs:enumeration value="systemCAmsSource"/>
+			<xs:enumeration value="libertySource"/>
+			<xs:enumeration value="spiceSource"/>
+			<xs:enumeration value="systemRDL"/>
+			<xs:enumeration value="systemRDL-1.0"/>
+			<xs:enumeration value="systemRDL-2.0"/>
+			<xs:enumeration value="user"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="fileType">
+		<xs:annotation>
+			<xs:documentation>Enumerated file types known by IP-XACT.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="ipxact:simpleFileType">
+					<xs:attribute name="user" type="xs:string"/>
+					<xs:attribute name="libext" type="xs:string"/>
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

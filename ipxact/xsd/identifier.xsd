@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="simpleTypes.xsd"/>
+	<xs:include schemaLocation="subInstances.xsd"/>
+	<xs:group name="baseIdentifier">
+		<xs:annotation>
+			<xs:documentation>Base IP-XACT identifier group. Identify an IP-XACT document by its by vendor, library and name.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence/>
+	</xs:group>
+	<xs:group name="versionedIdentifier">
+		<xs:annotation>
+			<xs:documentation>This group of elements identifies a top level item (e.g. a component or a bus definition)  with vendor, library, name and a version number. </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="vendor" type="xs:Name">
+				<xs:annotation>
+					<xs:documentation>Name of the vendor who supplies this file.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="library" type="xs:Name">
+				<xs:annotation>
+					<xs:documentation>Name of the logical library this element belongs to.  </xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="name" type="xs:NMTOKEN">
+				<xs:annotation>
+					<xs:documentation>The name of the object.  </xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="version" type="xs:NMTOKEN">
+				<xs:annotation>
+					<xs:documentation>Indicates the version of the named element.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="documentNameGroup">
+		<xs:annotation>
+			<xs:documentation>Base IP-XACT document reference type. Contains vendor, library, name and version attributes.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:versionedIdentifier"/>
+			<xs:element name="displayName" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Name for display purposes. Typically a few words providing a more detailed and/or user-friendly name than the vlnv.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:shortDescription" minOccurs="0"/>
+			<xs:element ref="ipxact:description" minOccurs="0"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:attributeGroup name="libraryRefGroup">
+		<xs:annotation>
+			<xs:documentation>Base IP-XACT document reference.  Contains vendor, library, name and version attributes.</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="vendor" type="xs:Name" use="required"/>
+		<xs:attribute name="library" type="xs:Name" use="required"/>
+		<xs:attribute name="name" type="xs:NMTOKEN" use="required"/>
+		<xs:attribute name="version" type="xs:NMTOKEN" use="required"/>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:attributeGroup>
+	<xs:complexType name="libraryRefType">
+		<xs:annotation>
+			<xs:documentation>Base IP-XACT document reference type. Contains vendor, library, name and version attributes.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="ipxact:libraryRefGroup">
+			<xs:annotation>
+				<xs:documentation>Base IP-XACT document reference.  Contains vendor, library, name and version attributes.</xs:documentation>
+			</xs:annotation>
+		</xs:attributeGroup>
+	</xs:complexType>
+	<xs:complexType name="configurableLibraryRefType">
+		<xs:annotation>
+			<xs:documentation>Base IP-XACT document reference type for configurable top-level objects. Contains vendor, library, name and version attributes along with configurable element values.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ipxact:configurableElementValues" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:libraryRefGroup">
+			<xs:annotation>
+				<xs:documentation>Base IP-XACT document reference.  Contains vendor, library, name and version attributes.</xs:documentation>
+			</xs:annotation>
+		</xs:attributeGroup>
+	</xs:complexType>
+</xs:schema>

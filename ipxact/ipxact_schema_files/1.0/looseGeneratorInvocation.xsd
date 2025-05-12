@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : looseGeneratorInvocation.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.11 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="generator.xsd"/>
+	<xs:element name="looseGeneratorInvocation">
+		<xs:annotation>
+			<xs:documentation>Specifies the information required to invoke a loosely coupled generator</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="designFile">
+					<xs:annotation>
+						<xs:documentation>Path to description of top level design</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="busDefinitionFiles" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>The list of bus definition files currently in use within the design</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="busDefinitionFile" type="spirit:resolvedLibraryRefType" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Path to a bus definition file used within design. Attributes VLNV used to indicate which bus definition this file represents.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="componentDefinitionFiles" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>The list of component definition files currently needed to define all the components within the design.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="componentDefinitionFile" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Path to component definition file. This component definition is the component definition as it appears in the DE; i.e. after having been transformed by any PMD info, and including any instance specific settings such as parameter values. The instanceRef attribute is the name of the instance that this file describes.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType mixed="true">
+									<xs:attribute name="instanceRef" type="xs:string" use="required">
+										<xs:annotation>
+											<xs:documentation>Reference handle for this component definition</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="parameters" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>List of values of configurable settings for this generator invocation</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="spirit:parameter" maxOccurs="unbounded"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="selectedInstances" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>The list of instances to be worked upon by the generator, no instances selected indicates whole design</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="selectedInstance" type="xs:string" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Instance name of selected instance that the generator is expected to work upon. This may be a hierarchical instance name.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="phaseNumber" type="xs:double">
+					<xs:annotation>
+						<xs:documentation>The non-negative floating point phase number associated with this generator invocation</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="groupName" type="xs:string">
+					<xs:annotation>
+						<xs:documentation>The generator group name associated with this generator invocation</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

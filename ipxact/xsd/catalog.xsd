@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:Q1="ipxact" xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="fileType.xsd"/>
+	<xs:annotation>
+		<xs:documentation>This is the IP-XACT catalog definition</xs:documentation>
+	</xs:annotation>
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:complexType name="ipxactFilesType">
+		<xs:annotation>
+			<xs:documentation>Contains a list of IP-XACT files to include.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="ipxactFile" type="ipxact:ipxactFileType" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="catalog">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:documentNameGroup"/>
+				<xs:element name="catalogs" type="ipxact:ipxactFilesType" minOccurs="0"/>
+				<xs:element name="busDefinitions" type="ipxact:ipxactFilesType" minOccurs="0"/>
+				<xs:element name="abstractionDefinitions" type="ipxact:ipxactFilesType" minOccurs="0"/>
+				<xs:element name="components" type="ipxact:ipxactFilesType" minOccurs="0"/>
+				<xs:element name="abstractors" type="ipxact:ipxactFilesType" minOccurs="0"/>
+				<xs:element name="designs" type="ipxact:ipxactFilesType" minOccurs="0"/>
+				<xs:element name="designConfigurations" type="ipxact:ipxactFilesType" minOccurs="0"/>
+				<xs:element name="generatorChains" type="ipxact:ipxactFilesType" minOccurs="0"/>
+				<xs:element name="typeDefinitions" type="ipxact:ipxactFilesType" minOccurs="0"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+		<xs:unique name="catalogFileNameUnique">
+			<xs:selector xpath=".//ipxact:ipxactFile"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:unique>
+		<xs:unique name="catalogVLNVUnique">
+			<xs:selector xpath=".//ipxact:ipxactFile/ipxact:vlnv"/>
+			<xs:field xpath="@vendor"/>
+			<xs:field xpath="@library"/>
+			<xs:field xpath="@name"/>
+			<xs:field xpath="@version"/>
+		</xs:unique>
+	</xs:element>
+	<xs:complexType name="ipxactFileType">
+		<xs:sequence>
+			<xs:element name="vlnv" type="ipxact:libraryRefType">
+				<xs:annotation>
+					<xs:documentation>VLNV of the IP-XACT file being cataloged.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="name" type="ipxact:ipxactURI">
+				<xs:annotation>
+					<xs:documentation>Name of the IP-XACT file being cataloged.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:description" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+</xs:schema>

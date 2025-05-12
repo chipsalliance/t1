@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+    <xs:include schemaLocation="commonStructures.xsd"/>
+    <xs:include schemaLocation="autoConfigure.xsd"/>
+    <xs:include schemaLocation="signalDrivers.xsd"/>
+    
+    <xs:simpleType name="cellFunctionValueType">
+        <xs:annotation>
+            <xs:documentation>Indicates legal cell function values.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:token">
+            <xs:enumeration value="nand2"/>
+            <xs:enumeration value="buf"/>
+            <xs:enumeration value="inv"/>
+            <xs:enumeration value="mux21"/>
+            <xs:enumeration value="dff"/>
+            <xs:enumeration value="latch"/>
+            <xs:enumeration value="xor2"/>
+            <xs:enumeration value="other"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="cellClassValueType">
+        <xs:annotation>
+            <xs:documentation>Indicates legal cell class values.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:token">
+            <xs:enumeration value="combinational"/>
+            <xs:enumeration value="sequential"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="cellStrengthValueType">
+        <xs:annotation>
+            <xs:documentation>Indicates legal cell strength values.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:token">
+            <xs:enumeration value="low"/>
+            <xs:enumeration value="median"/>
+            <xs:enumeration value="high"/>
+        </xs:restriction>
+    </xs:simpleType>
+    
+    <xs:simpleType name="edgeValueType">
+        <xs:annotation>
+            <xs:documentation>Indicates legal values for edge specification attributes.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:token">
+            <xs:enumeration value="rise"/>
+            <xs:enumeration value="fall"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="delayValueType">
+        <xs:annotation>
+            <xs:documentation>Indicates the type of delay value - minimum or maximum delay.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:token">
+            <xs:enumeration value="min"/>
+            <xs:enumeration value="max"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="delayPercentageType">
+        <xs:annotation>
+            <xs:documentation>Type used to record percentage values.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:float">
+            <xs:minInclusive value="0.0"/>
+            <xs:maxInclusive value="100.0"/>
+        </xs:restriction>
+    </xs:simpleType>
+    
+    <xs:complexType name="otherClocks">
+        <xs:annotation>
+            <xs:documentation>List of clocks associated with the component that are not associated with ports. Set the clockSource attribute on the clockDriver to indicate the source of a clock not associated with a particular component port.</xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element ref="ipxact:otherClockDriver" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:element name="cellSpecification">
+        <xs:annotation>
+            <xs:documentation>Used to provide a generic description of a technology library cell.</xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:choice>
+                <xs:element name="cellFunction">
+                    <xs:annotation>
+                        <xs:documentation>Defines a technology library cell in library independent fashion, based on specification of a cell function and strength.</xs:documentation>
+                    </xs:annotation>
+          				<xs:complexType>
+          				  <xs:simpleContent>
+          				    <xs:extension base="ipxact:cellFunctionValueType">
+          				      <xs:attribute name="other" type="xs:token"/>
+          				    </xs:extension>
+          				  </xs:simpleContent>
+          				</xs:complexType>
+                </xs:element>
+                <xs:element name="cellClass" type="ipxact:cellClassValueType">
+                    <xs:annotation>
+                        <xs:documentation>Defines a technology library cell in library independent fashion, based on specification of a cell class and strength.</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+            </xs:choice>
+            <xs:attribute name="cellStrength" type="ipxact:cellStrengthValueType">
+                <xs:annotation>
+                    <xs:documentation>Indicates the desired strength of the specified cell.</xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="timingConstraint">
+        <xs:annotation>
+            <xs:documentation>Defines a timing constraint for the associated port. The constraint is relative to the clock specified by the clockName attribute. The clockEdge indicates which clock edge the constraint is associated with (default is rising edge). The delayType attribute can be specified to further refine the constraint.</xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:simpleContent>
+                <xs:extension base="ipxact:delayPercentageType">
+                    <xs:attribute name="clockEdge" type="ipxact:edgeValueType">
+                        <xs:annotation>
+                            <xs:documentation>Indicates the clock edge that a timing constraint is relative to.</xs:documentation>
+                        </xs:annotation>
+                    </xs:attribute>
+                    <xs:attribute name="delayType" type="ipxact:delayValueType">
+                        <xs:annotation>
+                            <xs:documentation>Indicates the type of delay in a timing constraint - minimum or maximum.</xs:documentation>
+                        </xs:annotation>
+                    </xs:attribute>
+                    <xs:attribute name="clockName" type="ipxact:portName" use="required">
+                        <xs:annotation>
+                            <xs:documentation>Indicates the name of the clock to which this constraint applies.</xs:documentation>
+                        </xs:annotation>
+                    </xs:attribute>
+                    <xs:attributeGroup ref="ipxact:id.att"/>
+                </xs:extension>
+            </xs:simpleContent>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="driveConstraint">
+        <xs:annotation>
+            <xs:documentation>Defines a constraint indicating how an input is to be driven. The preferred methodology is to specify a library cell in technology independent fashion. The implemention tool should assume that the associated port is driven by the specified cell, or that the drive strength of the input port is indicated by the specified resistance value.</xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="ipxact:cellSpecification"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="loadConstraint">
+        <xs:annotation>
+            <xs:documentation>Defines a constraint indicating the type of load on an output port.</xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="ipxact:cellSpecification"/>
+                <xs:element name="count" type="ipxact:unsignedPositiveIntExpression" default="3" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>Indicates how many loads of the specified cell are connected. If not present, 3 is assumed.</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="constraintSet">
+        <xs:annotation>
+            <xs:documentation>Defines constraints that apply to a component port. If multiple constraintSet elements are used, each must have a unique value for the constraintSetId attribute.</xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:group ref="ipxact:nameGroupOptional"/>
+                <xs:element name="vector" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>The optional element vector specify the bits of a vector for which the constraints apply. The vaules of left and right must be within the range of the port. If the vector is not specified then the constraints apply to all the bits of the port.</xs:documentation>
+                    </xs:annotation>
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="left" type="ipxact:unsignedIntExpression">
+                                <xs:annotation>
+                                    <xs:documentation>The optional elements left and right can be used to select a bit-slice of a vector. </xs:documentation>
+                                </xs:annotation>
+                            </xs:element>
+                            <xs:element name="right" type="ipxact:unsignedIntExpression">
+                                <xs:annotation>
+                                    <xs:documentation>The optional elements left and right can be used to select a bit-slice of a vector. </xs:documentation>
+                                </xs:annotation>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element ref="ipxact:driveConstraint" minOccurs="0"/>
+                <xs:element ref="ipxact:loadConstraint" minOccurs="0"/>
+                <xs:element ref="ipxact:timingConstraint" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="constraintSetId" type="xs:NMTOKEN" default="default">
+                <xs:annotation>
+                    <xs:documentation>Indicates a name for this set of constraints. Constraints are tied to a view using this name in the constraintSetRef element.</xs:documentation>
+                </xs:annotation>
+            </xs:attribute>
+            <xs:attributeGroup ref="ipxact:id.att"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="constraintSets">
+        <xs:annotation>
+            <xs:documentation>List of constraintSet elements for a component port.</xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="ipxact:constraintSet" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="constraintSetRef">
+        <xs:annotation>
+            <xs:documentation>A reference to a set of port constraints.</xs:documentation>
+        </xs:annotation>
+      	<xs:complexType>
+      	    <xs:sequence>
+          		<xs:element name="localName" type="xs:NMTOKEN"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+      	    </xs:sequence>
+      	    <xs:attributeGroup ref="ipxact:id.att"/>
+      	</xs:complexType>
+    </xs:element>
+    <xs:complexType name="abstractionDefPortConstraintsType">
+        <xs:annotation>
+            <xs:documentation>Defines constraints that apply to a wire type port in an abstraction definition. </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:sequence>
+                <xs:element ref="ipxact:timingConstraint" maxOccurs="unbounded"/>
+                <xs:element ref="ipxact:driveConstraint" minOccurs="0"/>
+                <xs:element ref="ipxact:loadConstraint" minOccurs="0"/>
+            </xs:sequence>
+            <xs:sequence>
+                <xs:element ref="ipxact:driveConstraint"/>
+                <xs:element ref="ipxact:loadConstraint" minOccurs="0"/>
+            </xs:sequence>
+            <xs:sequence>
+                <xs:element ref="ipxact:loadConstraint"/>
+            </xs:sequence>
+        </xs:choice>
+    </xs:complexType>
+</xs:schema>

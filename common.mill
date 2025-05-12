@@ -5,6 +5,7 @@ package build
 
 import mill._
 import mill.scalalib._
+import os.Path
 
 trait HasChisel extends ScalaModule {
   // Define these for building chisel from source
@@ -145,6 +146,58 @@ trait OMReaderModule extends ScalaModule {
       "--enable-preview"
     )
   )
+}
+
+trait IpxactModule extends ScalaModule {
+  def scalaxbIvy:                Dep
+  def jxabRuntimeIvy:            Dep
+  def scalaXmlIvy:               Dep
+  def scalaParserCombinatorsIvy: Dep
+  def jaxbApiIvy:                Dep
+  def scalaxbRT:                 T[Agg[BoundDep]] = T(Agg(scalaxbIvy, jxabRuntimeIvy).map(Lib.depToBoundDep(_, scalaVersion())))
+
+  override def ivyDeps:      T[Agg[Dep]] = T(super.ivyDeps() ++ Agg(jaxbApiIvy, scalaXmlIvy, scalaParserCombinatorsIvy))
+  def scalaxbDefaultPackage: T[String]
+
+  // Command line Options as documented on http://scalaxb.org
+  def scalaxbOptions: Target[Seq[String]] = T[Seq[String]] { Seq() }
+
+  def xsdPath:  Target[Path] = T { millSourcePath }
+  def wsdlPath: Target[Path] = T { millSourcePath }
+
+  def xsdSources:  Target[IndexedSeq[PathRef]] = T { os.walk(xsdPath()).filter(_.ext == "xsd").map(PathRef(_)) }
+  def wsdlSources: Target[IndexedSeq[PathRef]] = T { os.walk(wsdlPath()).filter(_.ext == "wsdl").map(PathRef(_)) }
+
+  def scalaxbArguments =
+    T[Seq[String]] {
+      scalaxbOptions() ++
+        Seq[String]("--default-package", scalaxbDefaultPackage()) ++
+        (wsdlSources() ++ xsdSources()).map(_.path.toString)
+    }
+
+  override def generatedSources =
+    super.generatedSources() ++ scalaxbGeneratedSources()
+
+  def scalaxbClasspath: Task[Agg[PathRef]] = resolveDeps(scalaxbRT)
+
+  def scalaxbGeneratedSources =
+    T[Seq[PathRef]] {
+      val dest = T.ctx().dest
+      val args: Seq[String] =
+        Seq("--outdir", dest.toString) ++ scalaxbArguments()
+      T.ctx().log.info(s"scalaxb ${args.mkString(" ")}")
+
+      mill.util.Jvm.callProcess(
+        mainClass = "scalaxb.compiler.Main",
+        classPath = scalaxbClasspath().map(_.path).toSeq,
+        jvmArgs = forkArgs(),
+        env = forkEnv(),
+        mainArgs = args,
+        cwd = forkWorkingDir()
+      )
+
+      Seq(PathRef(dest)).flatMap(p => os.walk(p.path)).map(PathRef(_))
+    }
 }
 
 trait StdlibModule extends ScalaModule with HasChisel {

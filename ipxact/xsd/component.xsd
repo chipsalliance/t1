@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2018 sp1 (x64) (http://www.altova.com) by ARM Limited (ARM Limited) -->
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="busInterface.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="generator.xsd"/>
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="model.xsd"/>
+	<xs:include schemaLocation="subInstances.xsd"/>
+	<xs:include schemaLocation="constraints.xsd"/>
+	<xs:complexType name="componentType">
+		<xs:annotation>
+			<xs:documentation>Component-specific extension to componentType</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:documentNameGroup"/>
+			<xs:element name="typeDefinitions" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence minOccurs="0">
+						<xs:element ref="ipxact:externalTypeDefinitions" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="powerDomains" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="powerDomain" maxOccurs="unbounded">
+							<xs:complexType>
+								<xs:sequence>
+									<xs:group ref="ipxact:nameGroup"/>
+									<xs:element ref="ipxact:alwaysOn" minOccurs="0"/>
+									<xs:element name="subDomainOf" type="xs:Name" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>Reference to a power domain defined on this component</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element ref="ipxact:parameters" minOccurs="0"/>
+									<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+								</xs:sequence>
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ipxact:busInterfaces" minOccurs="0"/>
+			<xs:element ref="ipxact:indirectInterfaces" minOccurs="0"/>
+			<xs:element ref="ipxact:channels" minOccurs="0"/>
+			<xs:element name="modes" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A list of user defined component modes.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="mode" maxOccurs="unbounded">
+							<xs:complexType>
+								<xs:sequence>
+									<xs:group ref="ipxact:nameGroup"/>
+									<xs:element name="portSlice" minOccurs="0" maxOccurs="unbounded">
+										<xs:complexType>
+											<xs:sequence>
+												<xs:group ref="ipxact:nameGroup"/>
+												<xs:element name="portRef">
+													<xs:complexType>
+														<xs:attribute name="portRef" type="ipxact:portName" use="required"/>
+													</xs:complexType>
+												</xs:element>
+												<xs:element ref="ipxact:subPortReference" minOccurs="0" maxOccurs="unbounded"/>
+												<xs:element ref="ipxact:partSelect" minOccurs="0"/>
+											</xs:sequence>
+											<xs:attributeGroup ref="ipxact:id.att"/>
+										</xs:complexType>
+									</xs:element>
+									<xs:element name="fieldSlice" minOccurs="0" maxOccurs="unbounded">
+										<xs:annotation>
+											<xs:documentation>Reference to a register field slice</xs:documentation>
+										</xs:annotation>
+										<xs:complexType>
+											<xs:sequence>
+												<xs:group ref="ipxact:nameGroup"/>
+												<xs:group ref="ipxact:fieldSliceReferenceGroup"/>
+											</xs:sequence>
+											<xs:attributeGroup ref="ipxact:id.att"/>
+										</xs:complexType>
+									</xs:element>
+									<xs:element name="condition" type="ipxact:unresolvedUnsignedBitExpression" minOccurs="0"/>
+									<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+								</xs:sequence>
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ipxact:addressSpaces" minOccurs="0"/>
+			<xs:element ref="ipxact:memoryMaps" minOccurs="0"/>
+			<xs:element ref="ipxact:model" minOccurs="0"/>
+			<xs:element ref="ipxact:componentGenerators" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Generator list is tools-specific.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:choices" minOccurs="0"/>
+			<xs:element ref="ipxact:fileSets" minOccurs="0"/>
+			<xs:element name="clearboxElements" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A list of clearboxElements</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="clearboxElement" type="ipxact:clearboxElementType" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>A clearboxElement is a useful way to identify elements of a component that can not be identified through other means such as internal signals and non-software accessible registers.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="cpus" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>cpu's in the component</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="cpu" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Describes a processor in this component.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:sequence>
+									<xs:group ref="ipxact:nameGroup">
+										<xs:annotation>
+											<xs:documentation>The name of the cpu instance relative to the platform core.</xs:documentation>
+										</xs:annotation>
+									</xs:group>
+									<xs:group ref="ipxact:blockSize"/>
+									<xs:element name="regions" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>Address regions within a cpu system address map.</xs:documentation>
+										</xs:annotation>
+										<xs:complexType>
+											<xs:sequence>
+												<xs:element name="region" maxOccurs="unbounded">
+													<xs:annotation>
+														<xs:documentation>Address region within a system address map.</xs:documentation>
+													</xs:annotation>
+													<xs:complexType>
+														<xs:sequence>
+															<xs:group ref="ipxact:nameGroup"/>
+															<xs:element name="addressOffset" type="ipxact:unsignedLongintExpression">
+																<xs:annotation>
+																	<xs:documentation>Address offset of the region within the system address map.</xs:documentation>
+																</xs:annotation>
+															</xs:element>
+															<xs:element name="range" type="ipxact:unsignedPositiveLongintExpression">
+																<xs:annotation>
+																	<xs:documentation>The address range of region. Expressed as the number of addressable units accessible to the region.			</xs:documentation>
+																</xs:annotation>
+															</xs:element>
+															<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+														</xs:sequence>
+														<xs:attributeGroup ref="ipxact:id.att"/>
+													</xs:complexType>
+												</xs:element>
+											</xs:sequence>
+										</xs:complexType>
+									</xs:element>
+									<xs:element ref="ipxact:addressUnitBits" minOccurs="0"/>
+									<xs:element ref="ipxact:executableImage" minOccurs="0" maxOccurs="unbounded"/>
+									<xs:element name="memoryMapRef" type="xs:Name">
+										<xs:annotation>
+											<xs:documentation>Indicates which memory maps into this cpu.</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element ref="ipxact:parameters" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>Data specific to the cpu.</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+								</xs:sequence>
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:complexType>
+							<xs:unique name="regionNameUnique">
+								<xs:selector xpath="ipxact:regions/ipxact:region"/>
+								<xs:field xpath="ipxact:name"/>
+							</xs:unique>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+				<xs:unique name="cpuNameUnique">
+					<xs:selector xpath="ipxact:cpu"/>
+					<xs:field xpath="ipxact:name"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element name="otherClockDrivers" type="ipxact:otherClocks" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Defines a set of clock drivers that are not directly associated with an input port of the component.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="resetTypes" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A list of user defined resetTypes applicable to this component.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="resetType" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>A user defined reset policy</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:sequence>
+									<xs:group ref="ipxact:nameGroup"/>
+									<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+								</xs:sequence>
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element ref="ipxact:assertions" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:element name="component" type="ipxact:componentType">
+		<xs:annotation>
+			<xs:documentation>This is the root element for all non platform-core components.</xs:documentation>
+		</xs:annotation>
+		<xs:key name="indirectInterfaceKey">
+			<xs:selector xpath="ipxact:indirectInterfaces/ipxact:indirectInterface"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:key name="interfaceKey">
+			<xs:selector xpath="ipxact:busInterfaces/ipxact:busInterface"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="interfaceRef" refer="ipxact:interfaceKey">
+			<xs:selector xpath="ipxact:busInterfaces/ipxact:busInterface/ipxact:target/ipxact:transparentBridge"/>
+			<xs:field xpath="@initiatorRef"/>
+		</xs:keyref>
+		<xs:keyref name="indirectInterfaceInitiatorRef" refer="ipxact:interfaceKey">
+			<xs:selector xpath="ipxact:indirectInterfaces/ipxact:indirectInterface/ipxact:transparentBridge"/>
+			<xs:field xpath="@initiatorRef"/>
+		</xs:keyref>
+		<xs:keyref name="channelInterfaceRef" refer="ipxact:interfaceKey">
+			<xs:selector xpath="ipxact:channels/ipxact:channel/ipxact:busInterfaceRef/ipxact:localName"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:keyref name="subspaceMapRef" refer="ipxact:interfaceKey">
+			<xs:selector xpath=".//ipxact:subspaceMap"/>
+			<xs:field xpath="@initiatorRef"/>
+		</xs:keyref>
+		<xs:key name="addressSpaceKey">
+			<xs:selector xpath="ipxact:addressSpaces/ipxact:addressSpace"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="addressSpaceRef" refer="ipxact:addressSpaceKey">
+			<xs:selector xpath=".//ipxact:addressSpaceRef"/>
+			<xs:field xpath="@addressSpaceRef"/>
+		</xs:keyref>
+		<xs:key name="memoryMapKey">
+			<xs:selector xpath="ipxact:memoryMaps/ipxact:memoryMap"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="memoryMapRef" refer="ipxact:memoryMapKey">
+			<xs:selector xpath=".//ipxact:memoryMapRef"/>
+			<xs:field xpath="@memoryMapRef"/>
+		</xs:keyref>
+		<xs:keyref name="indirectMemoryMapRef" refer="ipxact:memoryMapKey">
+			<xs:selector xpath="ipxact:indirectInterfaces/ipxact:indirectInterface/ipxact:memoryMapRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:keyref name="cpuMemoryMapRef" refer="ipxact:memoryMapKey">
+			<xs:selector xpath="ipxact:cpus/ipxact:cpu/ipxact:memoryMapRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:unique name="parameterConstraint">
+			<xs:selector xpath=".//ipxact:parameter | .//ipxact:moduleParameter | .//ipxact:typeParameter"/>
+			<xs:field xpath="@parameterId"/>
+		</xs:unique>
+		<xs:unique name="resetTypeKey">
+			<xs:selector xpath="ipxact:resetTypes/ipxact:resetType"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:unique>
+		<xs:keyref name="resetTypeRef" refer="ipxact:resetTypeKey">
+			<xs:selector xpath=".//ipxact:field/ipxact:resets/ipxact:reset | .//ipxact:ports/ipxact:port/ipxact:isReset"/>
+			<xs:field xpath="@resetTypeRef"/>
+		</xs:keyref>
+		<xs:key name="componentChoiceKey">
+			<xs:selector xpath="ipxact:choices/ipxact:choice/ipxact:name"/>
+			<xs:field xpath="."/>
+		</xs:key>
+		<xs:keyref name="componentChoiceRef" refer="ipxact:componentChoiceKey">
+			<xs:selector xpath=".//ipxact:parameter | .//ipxact:moduleParameter | .//ipxact:typeParameter"/>
+			<xs:field xpath="@choiceRef"/>
+		</xs:keyref>
+		<xs:key name="componentViewKey">
+			<xs:selector xpath="ipxact:model/ipxact:views/ipxact:view"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="componentTypeDefViewRef" refer="ipxact:componentViewKey">
+			<xs:selector xpath=".//ipxact:viewRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:keyref name="componentViewLinkViewRef" refer="ipxact:componentViewKey">
+			<xs:selector xpath=".//ipxact:viewLink/ipxact:viewReference"/>
+			<xs:field xpath="@viewRef"/>
+		</xs:keyref>
+		<xs:key name="fileSetKey">
+			<xs:selector xpath=".//ipxact:fileSet"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="fileSetRef" refer="ipxact:fileSetKey">
+			<xs:selector xpath=".//ipxact:fileSetRef"/>
+			<xs:field xpath="ipxact:localName"/>
+		</xs:keyref>
+		<xs:key name="executableImageKey">
+			<xs:selector xpath=".//ipxact:executableImage"/>
+			<xs:field xpath="@imageId"/>
+		</xs:key>
+		<xs:unique name="executableImageName">
+			<xs:selector xpath=".//ipxact:executableImage"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:unique>
+		<xs:unique name="fileKey">
+			<xs:selector xpath=".//ipxact:file"/>
+			<xs:field xpath="@fileId"/>
+		</xs:unique>
+		<xs:keyref name="fileRef" refer="ipxact:fileKey">
+			<xs:selector xpath=".//ipxact:function"/>
+			<xs:field xpath="ipxact:fileRef"/>
+		</xs:keyref>
+		<xs:key name="modeKey">
+			<xs:selector xpath="ipxact:modes/ipxact:mode"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="memoryRemapModeRef" refer="ipxact:modeKey">
+			<xs:selector xpath="ipxact:memoryMaps/ipxact:memoryMap/ipxact:memoryRemap/ipxact:modeRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:keyref name="componentModeLinkModeRef" refer="ipxact:modeKey">
+			<xs:selector xpath=".//ipxact:modeLink/ipxact:modeReference"/>
+			<xs:field xpath="@modeRef"/>
+		</xs:keyref>
+		<xs:keyref name="componentModeRef" refer="ipxact:modeKey">
+			<xs:selector xpath=".//ipxact:modeRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:key name="portKey">
+			<xs:selector xpath="ipxact:model/ipxact:ports/ipxact:port"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="portMapPortRef" refer="ipxact:portKey">
+			<xs:selector xpath="ipxact:busInterfaces/ipxact:busInterface/ipxact:abstractionTypes/ipxact:abstractionType/ipxact:portMaps/ipxact:portMap/ipxact:physicalPort/ipxact:name"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:keyref name="portSlicePortRef" refer="ipxact:portKey">
+			<xs:selector xpath="ipxact:modes/ipxact:mode/ipxact:portSlice/ipxact:portRef"/>
+			<xs:field xpath="@portRef"/>
+		</xs:keyref>
+		<!--		<xs:keyref name="remapStatePortRef" refer="ipxact:portKey">
+			<xs:selector xpath="ipxact:remapStates/ipxact:remapState/ipxact:remapPorts/ipxact:remapPort"/>
+			<xs:field xpath="@portRef"/>
+		</xs:keyref>
+-->
+		<xs:key name="clearboxKey">
+			<xs:selector xpath="ipxact:clearboxElements/ipxact:clearboxElement"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="clearboxRef" refer="ipxact:clearboxKey">
+			<xs:selector xpath="ipxact:model/ipxact:instantiations/ipxact:componentInstantiation/ipxact:clearboxElementRefs/ipxact:clearboxElementRef"/>
+			<xs:field xpath="@name"/>
+		</xs:keyref>
+		<xs:key name="componentGeneratorKey">
+			<xs:selector xpath="ipxact:componentGenerators/ipxact:componentGenerator"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="componentGeneratorRef" refer="ipxact:componentGeneratorKey">
+			<xs:selector xpath=".//ipxact:generatorRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:key name="powerDomainKey">
+			<xs:selector xpath="ipxact:powerDomains/ipxact:powerDomain"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="powerDomainRef" refer="ipxact:powerDomainKey">
+			<xs:selector xpath=".//ipxact:powerDomainRef | .//ipxact:subDomainOf"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:keyref name="powerEnQualifierPowerDomainRef" refer="ipxact:powerDomainKey">
+			<xs:selector xpath=".//ipxact:isPowerEn"/>
+			<xs:field xpath="@powerDomainRef"/>
+		</xs:keyref>
+		<xs:key name="externalTypeDefinitionsKey">
+			<xs:selector xpath="ipxact:typeDefinitions/ipxact:externalTypeDefinitions"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="componentTypeDefinitionsRef" refer="ipxact:externalTypeDefinitionsKey">
+			<xs:selector xpath=".//ipxact:*"/>
+			<xs:field xpath="@typeDefinitions"/>
+		</xs:keyref>
+	</xs:element>
+	<xs:simpleType name="simpleClearboxType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="signal"/>
+			<xs:enumeration value="pin"/>
+			<xs:enumeration value="interface"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="clearboxElementType">
+		<xs:annotation>
+			<xs:documentation>Defines a clear box reference point within the component.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="clearboxType" type="ipxact:simpleClearboxType">
+				<xs:annotation>
+					<xs:documentation>Indicates the type of the element. The pin and signal types refer to elements within the HDL description. The interface type refers to a group of signals addressed as a single unit.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="driveable" type="xs:boolean" default="false" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If true, indicates that the clear box element can be driven (e.g. have a new value forced into it).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+</xs:schema>

@@ -13,22 +13,42 @@ import mill.util.Jvm
 import coursier.maven.MavenRepository
 
 object v {
-  val scala        = "2.13.16"
-  val scala3       = "3.6.2"
-  val mainargs     = ivy"com.lihaoyi::mainargs:0.5.0"
-  val oslib        = ivy"com.lihaoyi::os-lib:0.9.1"
-  val upickle      = ivy"com.lihaoyi::upickle:3.3.1"
-  val spire        = ivy"org.typelevel::spire:latest.integration"
-  val evilplot     = ivy"io.github.cibotech::evilplot:latest.integration"
-  val omlib        = ivy"me.jiuyang::omlib::0.0.0+0-no-vcs-SNAPSHOT"
-  val chisel       = ivy"org.chipsalliance::chisel:0.0.0+0-no-vcs-SNAPSHOT"
-  val chiselPlugin = ivy"org.chipsalliance:::chisel-plugin:0.0.0+0-no-vcs-SNAPSHOT"
-  val axi4         = ivy"org.chipsalliance::axi4-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
-  val dwbb         = ivy"org.chipsalliance::dwbb-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
-  val jtag         = ivy"org.chipsalliance::jtag-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
-  val arithmetic   = ivy"me.jiuyang::arithmetic-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
-  val rvdecoderdb  = ivy"me.jiuyang::rvdecoderdb-jvm:0.0.0+0-no-vcs-SNAPSHOT"
-  val hardfloat    = ivy"edu.berkeley.cs::hardfloat-snapshot:0.0.0-SNAPSHOT"
+  val scala                  = "2.13.16"
+  val scala3                 = "3.6.2"
+  val mainargs               = ivy"com.lihaoyi::mainargs:0.5.0"
+  val oslib                  = ivy"com.lihaoyi::os-lib:0.9.1"
+  val upickle                = ivy"com.lihaoyi::upickle:3.3.1"
+  val jxabRuntime            = ivy"org.glassfish.jaxb:jaxb-runtime:2.3.6"
+  val scalaxb                = ivy"org.scalaxb::scalaxb:1.7.3"
+  val scalaXml               = ivy"org.scala-lang.modules::scala-xml:2.3.0"
+  val scalaParserCombinators = ivy"org.scala-lang.modules::scala-parser-combinators:2.4.0"
+  val jaxbApi                = ivy"javax.xml.bind:jaxb-api:2.3.1"
+  val spire                  = ivy"org.typelevel::spire:latest.integration"
+  val evilplot               = ivy"io.github.cibotech::evilplot:latest.integration"
+  val omlib                  = ivy"me.jiuyang::omlib::0.0.0+0-no-vcs-SNAPSHOT"
+  val chisel                 = ivy"org.chipsalliance::chisel:0.0.0+0-no-vcs-SNAPSHOT"
+  val chiselPlugin           = ivy"org.chipsalliance:::chisel-plugin:0.0.0+0-no-vcs-SNAPSHOT"
+  val axi4                   = ivy"org.chipsalliance::axi4-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
+  val dwbb                   = ivy"org.chipsalliance::dwbb-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
+  val jtag                   = ivy"org.chipsalliance::jtag-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
+  val arithmetic             = ivy"me.jiuyang::arithmetic-snapshot:0.0.0+0-no-vcs-SNAPSHOT"
+  val rvdecoderdb            = ivy"me.jiuyang::rvdecoderdb-jvm:0.0.0+0-no-vcs-SNAPSHOT"
+  val hardfloat              = ivy"edu.berkeley.cs::hardfloat-snapshot:0.0.0-SNAPSHOT"
+}
+
+object ipxact extends Ipxact
+
+trait Ipxact extends common.IpxactModule with ScalafmtModule {
+  def scalaVersion          = v.scala
+  def scalaxbDefaultPackage = "me.jiuyang.ipxact"
+  def scalaxbIvy:                Dep = v.scalaxb
+  def jxabRuntimeIvy:            Dep = v.jxabRuntime
+  def scalaXmlIvy:               Dep = v.scalaXml
+  def scalaParserCombinatorsIvy: Dep = v.scalaParserCombinators
+  def jaxbApiIvy:                Dep = v.jaxbApi
+
+  def scalaxbOptions = Seq("--no-dispatch-client", "--named-attributes")
+  def xsdPath        = millSourcePath / "xsd"
 }
 
 object stdlib extends Stdlib

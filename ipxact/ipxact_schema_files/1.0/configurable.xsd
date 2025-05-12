@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : configurable.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.9 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:simpleType name="resolveType">
+		<xs:annotation>
+			<xs:documentation>Determines how a property is resolved.  Immediate means the value is included in the XML document and cannot be changed by the user.  User means the value must be obtained from the user.  Optional means the user is given the opportunity to supply a value, but can leave the entry blank.  Dependent means the value depends on the value of other properties.  A dependency expression must be supplied in the dependency attribute.  Generated means the value will be provided by a generator.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="immediate">
+				<xs:annotation>
+					<xs:documentation>Property value is included in the XML file.  It cannot be configured.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="user">
+				<xs:annotation>
+					<xs:documentation>Property content can be modified thorugh confiugration.  Modofications will be saved with the design.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="dependent">
+				<xs:annotation>
+					<xs:documentation>Property value is expressed as an XPath expression which may refer to other properties.  The expression must appear in the dendency attribute.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="generated">
+				<xs:annotation>
+					<xs:documentation>Generators may modify this property.  Modifications do not get saved with the design.</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:attribute name="resolve" type="spirit:resolveType">
+		<xs:annotation>
+			<xs:documentation>Determines how a property value is resolved.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:attribute name="id" type="xs:ID">
+		<xs:annotation>
+			<xs:documentation>ID attribute for uniquely identifying an element within its document.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:attribute name="dependency" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>Required on properties with a resolve = "dependent" attribute.  This is an XPath expression supplying the resultant value in terms of other properties in the component file.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:attributeGroup name="configurable">
+		<xs:annotation>
+			<xs:documentation>Base set of attributes for an element to be configurable.</xs:documentation>
+		</xs:annotation>
+		<xs:attribute ref="spirit:resolve"/>
+		<xs:attribute ref="spirit:id"/>
+		<xs:attribute ref="spirit:dependency"/>
+		<xs:anyAttribute namespace="##other" processContents="lax"/>
+	</xs:attributeGroup>
+</xs:schema>

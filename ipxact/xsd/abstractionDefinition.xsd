@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="port.xsd"/>
+	<xs:include schemaLocation="generator.xsd"/>
+	<xs:include schemaLocation="constraints.xsd"/>
+	<xs:simpleType name="presenceType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="required"/>
+			<xs:enumeration value="illegal"/>
+			<xs:enumeration value="optional"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="direction">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="in"/>
+			<xs:enumeration value="out"/>
+			<xs:enumeration value="inout"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="presence" type="ipxact:presenceType" default="optional">
+		<xs:annotation>
+			<xs:documentation>If this element is present, the
+            existance of the port is controlled by the specified
+            value. valid values are 'illegal', 'required' and
+            'optional'.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:group name="transactionalPort">
+		<xs:annotation>
+			<xs:documentation>Group of elements used in a transactional port.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ipxact:presence" minOccurs="0"/>
+			<xs:element name="initiative" default="requires" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the type of access is restricted to the specified value.</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:enumeration value="requires"/>
+						<xs:enumeration value="provides"/>
+						<xs:enumeration value="both"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element ref="ipxact:kind" minOccurs="0"/>
+			<xs:element name="busWidth" type="ipxact:unsignedPositiveIntExpression" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the width must match</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:protocol" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the name must match</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="wirePort">
+		<xs:annotation>
+			<xs:documentation>Group of elements used in a wire port.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ipxact:presence" minOccurs="0"/>
+			<xs:element name="width" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Number of bits required to represent this port. Absence of this element indicates unconstrained number of bits, i.e. the component will define the number of bits in this port. The logical numbering of the port starts at 0 to width-1.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:complexContent>
+						<xs:extension base="ipxact:unsignedPositiveIntExpression">
+							<xs:attribute name="allBits" type="xs:boolean" default="false">
+								<xs:annotation>
+									<xs:documentation>false: mapping is optional, any number of bits can be mapped.
+true: mapping is required  the full width is supposed to be mapped.</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+						</xs:extension>
+					</xs:complexContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="direction" type="ipxact:direction" default="out" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the direction of this port is restricted to the specified value. The direction is relative to the non-mirrored interface.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:sequence minOccurs="0">
+				<xs:element name="modeConstraints" type="ipxact:abstractionDefPortConstraintsType">
+					<xs:annotation>
+						<xs:documentation>Specifies default constraints for the enclosing wire type port. If the mirroredModeConstraints element is not defined, then these constraints applied to this port when it appears in a 'mode' bus interface or a mirrored-'mode' bus interface. Otherwise they only apply when the port appears in a 'mode' bus interface.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="mirroredModeConstraints" type="ipxact:abstractionDefPortConstraintsType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Specifies default constraints for the enclosing wire type port when it appears in a mirrored-'mode' bus interface. </xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:sequence>
+		</xs:sequence>
+	</xs:group>
+	<xs:element name="abstractionDefinition">
+		<xs:annotation>
+			<xs:documentation>Define the ports and other information of a particular abstraction of the bus</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:documentNameGroup"/>
+				<xs:element name="busType" type="ipxact:libraryRefType">
+					<xs:annotation>
+						<xs:documentation>Reference to the busDefinition that this abstractionDefinition implements.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="extends" type="ipxact:libraryRefType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Optional name of abstraction type that this abstraction definition is compatible with. This abstraction definition may change the definitions of ports in the existing abstraction definition and add new ports, the ports in the original abstraction are not deleted but may be marked illegal to disallow their use.
+				This abstraction definition may only extend another abstraction definition if the bus type of this abstraction definition extends the bus type of the extended abstraction definition</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="ports">
+					<xs:annotation>
+						<xs:documentation>This is a list of logical ports defined by the bus.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="port" maxOccurs="unbounded">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="logicalName" type="xs:Name">
+											<xs:annotation>
+												<xs:documentation>The assigned name of this port in bus specifications.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element ref="ipxact:displayName" minOccurs="0"/>
+										<xs:element ref="ipxact:shortDescription" minOccurs="0"/>
+										<xs:element ref="ipxact:description" minOccurs="0"/>
+										<xs:element name="match" type="xs:boolean" default="false" minOccurs="0">
+											<xs:annotation>
+												<xs:documentation>If this element is enabled (true) it is an error if the port is not mapped on both sides of the connection.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:sequence>
+											<xs:choice>
+												<xs:element ref="ipxact:wire"/>
+												<xs:element name="transactional">
+													<xs:annotation>
+														<xs:documentation>A port that carries complex information modeled at a high level of abstraction.</xs:documentation>
+													</xs:annotation>
+													<xs:complexType>
+														<xs:sequence>
+															<xs:element name="qualifier" type="ipxact:qualifierType" minOccurs="0">
+																<xs:annotation>
+																	<xs:documentation>The type of information this port carries A transactional port can carry both address and data information.</xs:documentation>
+																</xs:annotation>
+															</xs:element>
+															<xs:element name="onSystem" minOccurs="0" maxOccurs="unbounded">
+																<xs:annotation>
+																	<xs:documentation>Defines constraints for this port when present in a system bus interface with a matching group name.</xs:documentation>
+																</xs:annotation>
+																<xs:complexType>
+																	<xs:sequence>
+																		<xs:element name="group" type="xs:Name">
+																			<xs:annotation>
+																				<xs:documentation>Used to group system ports into different groups within a common bus.</xs:documentation>
+																			</xs:annotation>
+																		</xs:element>
+																		<xs:group ref="ipxact:transactionalPort"/>
+																	</xs:sequence>
+																	<xs:attributeGroup ref="ipxact:id.att"/>
+																</xs:complexType>
+															</xs:element>
+															<xs:element name="onInitiator" minOccurs="0">
+																<xs:annotation>
+																	<xs:documentation>Defines constraints for this port when present in a initiator bus interface.</xs:documentation>
+																</xs:annotation>
+																<xs:complexType>
+																	<xs:group ref="ipxact:transactionalPort"/>
+																</xs:complexType>
+															</xs:element>
+															<xs:element name="onTarget" minOccurs="0">
+																<xs:annotation>
+																	<xs:documentation>Defines constraints for this port when present in a target bus interface.</xs:documentation>
+																</xs:annotation>
+																<xs:complexType>
+																	<xs:group ref="ipxact:transactionalPort"/>
+																</xs:complexType>
+															</xs:element>
+														</xs:sequence>
+													</xs:complexType>
+												</xs:element>
+											</xs:choice>
+											<xs:element ref="ipxact:packets" minOccurs="0"/>
+										</xs:sequence>
+										<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+									</xs:sequence>
+									<xs:attributeGroup ref="ipxact:id.att"/>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:choices" minOccurs="0"/>
+				<xs:element ref="ipxact:parameters" minOccurs="0"/>
+				<xs:element ref="ipxact:assertions" minOccurs="0"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+		<xs:key name="busDefPortKey">
+			<xs:selector xpath="ipxact:ports/ipxact:port"/>
+			<xs:field xpath="ipxact:logicalName"/>
+		</xs:key>
+		<xs:keyref name="timingConstraintKeyRef" refer="ipxact:busDefPortKey">
+			<xs:selector xpath=".//ipxact:timingConstraint"/>
+			<xs:field xpath="@clockName"/>
+		</xs:keyref>
+		<xs:unique name="abstractionDefinitionParameterUnique">
+			<xs:selector xpath="ipxact:parameters/ipxact:parameter"/>
+			<xs:field xpath="@parameterId"/>
+		</xs:unique>
+		<xs:key name="abstractionDefinitionChoiceKey">
+			<xs:selector xpath="ipxact:choices/ipxact:choice/ipxact:name"/>
+			<xs:field xpath="."/>
+		</xs:key>
+		<xs:keyref name="abstractionDefinitionChoiceRef" refer="ipxact:abstractionDefinitionChoiceKey">
+			<xs:selector xpath="ipxact:parameters/ipxact:parameter"/>
+			<xs:field xpath="@choiceRef"/>
+		</xs:keyref>
+	</xs:element>
+	<xs:element name="packets" type="ipxact:portPacketsType"/>
+	<xs:element name="wire">
+		<xs:annotation>
+			<xs:documentation>A port that carries logic or an array of logic values</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="qualifier" type="ipxact:qualifierType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>The type of information this port carries A wire port can carry both address and data, but may not mix this with a clock or reset</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="onSystem" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Defines constraints for this port when present in a system bus interface with a matching group name.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="group" type="xs:Name">
+								<xs:annotation>
+									<xs:documentation>Used to group system ports into different groups within a common bus.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:group ref="ipxact:wirePort"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="onInitiator" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Defines constraints for this port when present in a initiator bus interface.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:group ref="ipxact:wirePort"/>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="onTarget" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Defines constraints for this port when present in a target bus interface.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:group ref="ipxact:wirePort"/>
+					</xs:complexType>
+				</xs:element>
+				<xs:choice minOccurs="0">
+					<xs:element name="defaultValue" type="ipxact:unsignedBitVectorExpression">
+						<xs:annotation>
+							<xs:documentation>Indicates the default value for this wire port.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="ipxact:requiresDriver"/>
+				</xs:choice>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="file.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:element name="generatorChain">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:documentNameGroup"/>
+				<xs:choice maxOccurs="unbounded">
+					<xs:element name="generatorChainSelector">
+						<xs:annotation>
+							<xs:documentation>Select other generator chain files for inclusion into this chain. The boolean attribute "unique" (default false) specifies that only a single generator is valid in this context. If more that one generator is selected based on the selection criteria, DE will prompt the user to resolve to a single generator.</xs:documentation>
+						</xs:annotation>
+						<xs:complexType>
+							<xs:choice>
+								<xs:element ref="ipxact:groupSelector"/>
+								<xs:element name="generatorChainRef" type="ipxact:configurableLibraryRefType">
+									<xs:annotation>
+										<xs:documentation>Select another generator chain using the unique identifier of this generator chain.</xs:documentation>
+									</xs:annotation>
+								</xs:element>
+							</xs:choice>
+							<xs:attribute name="unique" type="xs:boolean" use="optional" default="false">
+								<xs:annotation>
+									<xs:documentation>Specifies that only a single generator is valid in this context. If more that one generator is selcted based on the selection criteria, DE will prompt the user to resolve to a single generator.</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+							<xs:attributeGroup ref="ipxact:id.att"/>
+						</xs:complexType>
+					</xs:element>
+					<xs:element name="componentGeneratorSelector" type="ipxact:generatorSelectorType">
+						<xs:annotation>
+							<xs:documentation>Selects generators declared in components of the current design for inclusion into this generator chain.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="ipxact:generator"/>
+				</xs:choice>
+				<xs:element name="chainGroup" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Identifies this generator chain as belonging to the named group. This is used by other generator chains to select this chain for programmatic inclusion.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:choices" minOccurs="0"/>
+				<xs:element ref="ipxact:parameters" minOccurs="0"/>
+				<xs:element ref="ipxact:assertions" minOccurs="0"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="hidden" type="xs:boolean" use="optional" default="false">
+				<xs:annotation>
+					<xs:documentation>If this attribute is true then the generator should not be presented to the user, it may be part of a chain and has no useful meaning when invoked standalone.</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+		<xs:unique name="generatorParameterUnique">
+			<xs:selector xpath=".//ipxact:parameters/ipxact:parameter"/>
+			<xs:field xpath="@parameterId"/>
+		</xs:unique>
+		<xs:key name="generatorConfigChoiceKey">
+			<xs:selector xpath="ipxact:choices/ipxact:choice/ipxact:name"/>
+			<xs:field xpath="."/>
+		</xs:key>
+		<xs:keyref name="generatorConfigChoiceRef" refer="ipxact:generatorConfigChoiceKey">
+			<xs:selector xpath=".//ipxact:parameters/ipxact:parameter"/>
+			<xs:field xpath="@choiceRef"/>
+		</xs:keyref>
+	</xs:element>
+	<xs:element name="generator">
+		<xs:annotation>
+			<xs:documentation>Specifies a set of generators.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:complexContent>
+				<xs:extension base="ipxact:generatorType"/>
+			</xs:complexContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="componentGenerator" type="ipxact:instanceGeneratorType">
+		<xs:annotation>
+			<xs:documentation>Specifies a set of component generators. The scope attribute applies to component generators and specifies whether the generator should be run for each instance of the entity (or module) or just once for all instances of the entity.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="abstractorGenerator" type="ipxact:instanceGeneratorType">
+		<xs:annotation>
+			<xs:documentation>Specifies a set of abstractor generators. The scope attribute applies to abstractor generators and specifies whether the generator should be run for each instance of the entity (or module) or just once for all instances of the entity.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="groupSelector">
+		<xs:annotation>
+			<xs:documentation>Specifies a set of group names used to select subsequent generators. The attribute "multipleGroupOperator" specifies the OR or AND selection operator if there is more than one group name (default=OR).</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="name" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Specifies a generator group name or a generator chain group name to be selected for inclusion in the generator chain.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="multipleGroupSelectionOperator" use="optional" default="or">
+				<xs:annotation>
+					<xs:documentation>Specifies the OR or AND selection operator if there is more than one group name.</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:Name">
+						<xs:enumeration value="and"/>
+						<xs:enumeration value="or"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:attribute>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="phase" type="ipxact:realExpression">
+		<xs:annotation>
+			<xs:documentation>This is an non-negative floating point number that is used to sequence when a generator is run. The generators are run in order starting with zero. There may be multiple generators with the same phase number. In this case, the order should not matter with respect to other generators at the same phase. If no phase number is given the generator will be considered in the "last" phase and these generators will be run in the order in which they are encountered while processing generator elements.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="instanceGeneratorType">
+		<xs:complexContent>
+			<xs:extension base="ipxact:generatorType">
+				<xs:sequence>
+					<xs:element name="group" minOccurs="0" maxOccurs="unbounded">
+						<xs:annotation>
+							<xs:documentation>An identifier to specify the generator group. This is used by generator chains for selecting which generators to run.</xs:documentation>
+						</xs:annotation>
+						<xs:complexType>
+							<xs:simpleContent>
+								<xs:extension base="xs:Name">
+									<xs:attributeGroup ref="ipxact:id.att"/>
+								</xs:extension>
+							</xs:simpleContent>
+						</xs:complexType>
+					</xs:element>
+				</xs:sequence>
+				<xs:attribute name="scope" use="optional" default="instance">
+					<xs:annotation>
+						<xs:documentation>The scope attribute applies to component generators and specifies whether the generator should be run for each instance of the entity (or module) or just once for all instances of the entity.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:string">
+							<xs:enumeration value="instance"/>
+							<xs:enumeration value="entity"/>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:attribute>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="generatorSelectorType">
+		<xs:sequence>
+			<xs:element ref="ipxact:groupSelector"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:element name="componentGenerators">
+		<xs:annotation>
+			<xs:documentation>List of component generators.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:componentGenerator" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="abstractorGenerators">
+		<xs:annotation>
+			<xs:documentation>List of abstractor generators.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:abstractorGenerator" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:simpleType name="apiType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="TGI_2009"/>
+			<xs:enumeration value="TGI_2014_BASE"/>
+			<xs:enumeration value="TGI_2014_EXTENDED"/>
+			<xs:enumeration value="TGI_2022_BASE"/>
+			<xs:enumeration value="TGI_2022_EXTENDED"/>
+			<xs:enumeration value="none"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="transportMethodType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="file"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="generatorType">
+		<xs:annotation>
+			<xs:documentation>Types of generators</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element ref="ipxact:phase" minOccurs="0"/>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element name="apiType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Indicates the type of API used by the generator. Valid value are TGI_2009, TGI_2014_BASE, TGI_2014_EXTENDED, TGI_2022_BASE, TGI_2022_EXTENDED, and none. If this element is not present, TGI_2022_BASE is assumed. The type TGI_2009 indicates a generator using the 1685-2009 version of the TGI API. The types TGI_2014_BASE and TGI_2014_EXTENDED indicate a generator using the 1685-2014 version of the TGI API. Types TGI_2009, TGI_2014_BASE, and TGI_2014_EXTENDED are not part of the 1685-2022 version of the standard and may not be supported by Design Environments</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="ipxact:apiType">
+							<xs:attributeGroup ref="ipxact:id.att"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="apiService" default="SOAP" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Communication Mechanism. Can be one of SOAP or REST (defaults to SOAP)</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:enumeration value="SOAP"/>
+						<xs:enumeration value="REST"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="transportMethods" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="transportMethod">
+							<xs:annotation>
+								<xs:documentation>Defines a SOAP transport protocol other than HTTP which is supported by this generator. The only other currently supported protocol is 'file'.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:simpleContent>
+									<xs:extension base="ipxact:transportMethodType">
+										<xs:attributeGroup ref="ipxact:id.att"/>
+									</xs:extension>
+								</xs:simpleContent>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="generatorExe" type="ipxact:ipxactURI">
+				<xs:annotation>
+					<xs:documentation>The pathname to the executable file that implements the generator</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="hidden" type="xs:boolean" use="optional" default="false">
+			<xs:annotation>
+				<xs:documentation>If this attribute is true then the generator should not be presented to the user, it may be part of a chain and has no useful meaning when invoked standalone.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+</xs:schema>

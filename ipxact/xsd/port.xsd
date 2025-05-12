@@ -1,0 +1,1161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="constraints.xsd"/>
+	<xs:include schemaLocation="file.xsd"/>
+	<xs:include schemaLocation="subInstances.xsd"/>
+	<xs:include schemaLocation="busInterface.xsd"/>
+	<xs:simpleType name="componentPortDirectionType">
+		<xs:annotation>
+			<xs:documentation>The direction of a component port.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="in"/>
+			<xs:enumeration value="out"/>
+			<xs:enumeration value="inout"/>
+			<xs:enumeration value="phantom"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="portType">
+		<xs:annotation>
+			<xs:documentation>A port description, giving a name and an access type for high level ports. </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroupPort"/>
+			<xs:choice>
+				<xs:annotation>
+					<xs:documentation>Port style</xs:documentation>
+				</xs:annotation>
+				<xs:element name="wire" type="ipxact:portWireType">
+					<xs:annotation>
+						<xs:documentation>Defines a port whose type resolves to simple bits.</xs:documentation>
+					</xs:annotation>
+					<xs:unique name="WireVectorId">
+						<xs:selector xpath="ipxact:vectors/ipxact:vector"/>
+						<xs:field xpath="@vectorId"/>
+					</xs:unique>
+				</xs:element>
+				<xs:element name="transactional" type="ipxact:portTransactionalType">
+					<xs:annotation>
+						<xs:documentation>Defines a port that implements or uses a service that can be implemented with functions or methods.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="structured" type="ipxact:portStructuredType">
+					<xs:annotation>
+						<xs:documentation>Represents a port that has subport structure.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:choice>
+			<xs:element ref="ipxact:fieldMaps" minOccurs="0"/>
+			<xs:element ref="ipxact:arrays" minOccurs="0"/>
+			<xs:element name="access" type="ipxact:portAccessType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Port access characteristics.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="abstractorPortType">
+		<xs:annotation>
+			<xs:documentation>A port description, giving a name and an access type for high level ports. </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroupPort"/>
+			<xs:choice>
+				<xs:annotation>
+					<xs:documentation>Port style</xs:documentation>
+				</xs:annotation>
+				<xs:element name="wire" type="ipxact:abstractorPortWireType">
+					<xs:annotation>
+						<xs:documentation>Defines a port whose type resolves to simple bits.</xs:documentation>
+					</xs:annotation>
+					<xs:unique name="AbstractWireVectorIdUnique">
+						<xs:selector xpath="ipxact:vectors/ipxact:vector"/>
+						<xs:field xpath="@vectorId"/>
+					</xs:unique>
+				</xs:element>
+				<xs:element name="transactional" type="ipxact:abstractorPortTransactionalType">
+					<xs:annotation>
+						<xs:documentation>Defines a port that implements or uses a service that can be implemented with functions or methods.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="structured" type="ipxact:abstractorPortStructuredType">
+					<xs:annotation>
+						<xs:documentation>Represents a port that has subport structure.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:choice>
+			<xs:element ref="ipxact:arrays" minOccurs="0"/>
+			<xs:element name="access" type="ipxact:portAccessType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Port access characteristics.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:simpleType name="initiativeType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="requires"/>
+			<xs:enumeration value="provides"/>
+			<xs:enumeration value="both"/>
+			<xs:enumeration value="phantom"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="initiative" type="ipxact:initiativeType">
+		<xs:annotation>
+			<xs:documentation>If this element is present, the type of access is restricted to the specified value.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="busWidth" type="ipxact:unsignedIntExpression">
+		<xs:annotation>
+			<xs:documentation>defines the bus size in bits. This can be the result of an expression.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="protocol">
+		<xs:annotation>
+			<xs:documentation>defines the protocol type. Defaults to tlm_base_protocol_type for TLM sockets</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="protocolType">
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="ipxact:protocolTypeType">
+								<xs:attribute name="custom" type="xs:string"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:payload" minOccurs="0"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:simpleType name="protocolTypeType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="tlm"/>
+			<xs:enumeration value="custom"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="kindType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="tlm_port"/>
+			<xs:enumeration value="tlm_socket"/>
+			<xs:enumeration value="simple_socket"/>
+			<xs:enumeration value="multi_socket"/>
+			<xs:enumeration value="custom"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="kind">
+		<xs:annotation>
+			<xs:documentation>Defines the protocol type. Defaults to tlm_base_protocol_type for TLM sockets</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="ipxact:kindType">
+					<xs:attribute name="custom" type="xs:string"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:simpleType name="simplePortAccessType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="ref"/>
+			<xs:enumeration value="ptr"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:element name="portAccessType" type="ipxact:simplePortAccessType">
+		<xs:annotation>
+			<xs:documentation>Indicates how a netlister accesses a port. 'ref' means accessed by reference (default) and 'ptr' means accessed by pointer.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="payload">
+		<xs:annotation>
+			<xs:documentation>defines the structure of data transported by this port</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="name" type="xs:string" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Defines the name of the payload. For example: TLM2 or TLM1</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="type">
+					<xs:annotation>
+						<xs:documentation>Defines the type of the payload. </xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:string">
+							<xs:enumeration value="generic"/>
+							<xs:enumeration value="specific"/>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:element>
+				<xs:element name="extension" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Defines the name of the payload extension. If attribute is not specified, it is by default optional.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attribute name="mandatory" type="xs:boolean" use="optional" default="false">
+									<xs:annotation>
+										<xs:documentation>True if the payload extension is mandatory.</xs:documentation>
+									</xs:annotation>
+								</xs:attribute>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="typeParameters">
+		<xs:annotation>
+			<xs:documentation>list of port type parameters (e.g. template or constructor parameters for a systemC port or socket)</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:typeParameter" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="ipxact:serviceTypeDef" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="typeParameterNameUnique">
+			<xs:selector xpath="./ipxact:typeParameter"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:unique>
+	</xs:element>
+	<xs:element name="typeParameter" type="ipxact:moduleParameterType">
+		<xs:annotation>
+			<xs:documentation>A typed parameter name value pair. The optional attribute dataType defines the type of the value and the usageType attribute indicates how the parameter is to be used.
+			</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="transTypeDef">
+		<xs:annotation>
+			<xs:documentation>Definition of a single transactional type defintion</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="typeName" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>The name of the port type. Can be any predefined type such sc_port or sc_export in SystemC or any user-defined type such as tlm_port.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attribute name="exact" type="xs:boolean" default="true">
+									<xs:annotation>
+										<xs:documentation>When false, defines that the type is an abstract type that may not be related to an existing type in the language of the referenced view.</xs:documentation>
+									</xs:annotation>
+								</xs:attribute>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="typeDefinition" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Where the definition of the type is contained. For SystemC and SystemVerilog it is the include file containing the type definition.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:typeParameters" minOccurs="0"/>
+				<xs:element name="viewRef" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>A reference to a view name in the file for which this type applies.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:NMTOKEN">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="serviceTypeDef">
+		<xs:annotation>
+			<xs:documentation>Definition of a single service type defintion</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="typeName">
+					<xs:annotation>
+						<xs:documentation>The name of the service type. Can be any predefined type such as booean or integer or any user-defined type such as addr_type or data_type.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attribute name="implicit" type="xs:boolean" default="false">
+									<xs:annotation>
+										<xs:documentation>Defines that the typeName supplied for this service is implicit and a netlister should not declare this service in
+a language specific top-level netlist </xs:documentation>
+									</xs:annotation>
+								</xs:attribute>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="typeDefinition" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Where the definition of the type is contained if the type if not part of the language. For SystemC and SystemVerilog it is the include file containing the type definition.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:typeParameters" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="wireTypeDef">
+		<xs:annotation>
+			<xs:documentation>Definition of a single wire type defintion that can relate to multiple views.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="typeName" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>The name of the logic type. Examples could be std_logic, std_ulogic, std_logic_vector, sc_logic, ...</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attribute name="constrained">
+									<xs:annotation>
+										<xs:documentation>Defines the types for the port has constrained the number of bits in the vector</xs:documentation>
+									</xs:annotation>
+									<xs:simpleType>
+										<xs:list itemType="xs:Name"/>
+									</xs:simpleType>
+								</xs:attribute>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="typeDefinition" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Where the definition of the type is contained. For std_logic, this is contained in IEEE.std_logic_1164.all. For sc_logic, this is contained in systemc.h. For VHDL this is the library and package as defined by the "used" statement. For SystemC and SystemVerilog it is the include file required. For verilog this is not needed.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="viewRef" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>A reference to a view name in the file for which this type applies.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:NMTOKEN">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="wireTypeDefs">
+		<xs:annotation>
+			<xs:documentation>The group of wire type definitions. If no match to a viewName is found then the default language types are to be used. See the User Guide for these default types.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:wireTypeDef" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="wireTypeDefsKey">
+			<xs:selector xpath="ipxact:wireTypeDef/ipxact:viewRef"/>
+			<xs:field xpath="."/>
+		</xs:unique>
+	</xs:element>
+	<xs:element name="transTypeDefs">
+		<xs:annotation>
+			<xs:documentation>The group of transactional type definitions. If no match to a viewName is found then the default language types are to be used. See the User Guide for these default types.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:transTypeDef" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="transTypeDefsKey">
+			<xs:selector xpath="ipxact:transTypeDef/ipxact:viewRef"/>
+			<xs:field xpath="."/>
+		</xs:unique>
+	</xs:element>
+	<xs:element name="port">
+		<xs:annotation>
+			<xs:documentation>Describes port characteristics.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:complexContent>
+				<xs:extension base="ipxact:portType"/>
+			</xs:complexContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="fieldMap">
+		<xs:annotation>
+			<xs:documentation>Maps slices of this port to component field slices.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="fieldSlice">
+					<xs:annotation>
+						<xs:documentation>Reference to a register field slice</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:group ref="ipxact:fieldSliceReferenceGroup"/>
+					</xs:complexType>
+				</xs:element>
+				<xs:element ref="ipxact:subPortReference" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="ipxact:partSelect" minOccurs="0"/>
+				<xs:element name="modeRef" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>A reference to a mode.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:Name">
+								<xs:attribute name="priority" type="xs:nonNegativeInteger" use="required"/>
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="fieldMaps">
+		<xs:annotation>
+			<xs:documentation>Listing of maps between component port slices and field slices.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:fieldMap" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="portWireType">
+		<xs:annotation>
+			<xs:documentation>Wire port type for a component.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="direction" type="ipxact:componentPortDirectionType">
+				<xs:annotation>
+					<xs:documentation>The direction of a wire style port. The basic directions for a port are 'in' for input ports, 'out' for output port and 'inout' for bidirectional and tristate ports. 
+A value of 'phantom' is also allowed and define a port that exist on the IP-XACT component but not on the HDL model.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="qualifier" type="ipxact:qualifierType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The type of information this port carries a wire port can carry both address and data, but may not mix this with a clock or reset.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="vectors" type="ipxact:extendedVectorsType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Vectored information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:wireTypeDefs" minOccurs="0"/>
+			<xs:element ref="ipxact:domainTypeDefs" minOccurs="0"/>
+			<xs:element ref="ipxact:signalTypeDefs" minOccurs="0"/>
+			<xs:element ref="ipxact:drivers" minOccurs="0"/>
+			<xs:element ref="ipxact:constraintSets" minOccurs="0"/>
+			<xs:element name="powerConstraints" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Wire port power constraints.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="powerConstraint" type="ipxact:wirePowerConstraintType" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Single wire port set of power constraints.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="allLogicalDirectionsAllowed" type="xs:boolean" use="optional" default="false">
+			<xs:annotation>
+				<xs:documentation>True if logical ports with different directions from the physical port direction may be mapped onto this port. Forbidden for phantom ports, which always allow logical ports with all direction value to be mapped onto the physical port. Also ignored for inout ports, since any logical port maybe mapped to a physical inout port.            	</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="portTransactionalType">
+		<xs:annotation>
+			<xs:documentation>Transactional port type.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ipxact:initiative">
+				<xs:annotation>
+					<xs:documentation>Defines how the port accesses this service.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:kind" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Define the kind of transactional port</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:busWidth" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Defines the bus width in bits.This can be the result of an expression.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="qualifier" type="ipxact:qualifierType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The type of information this port carries A transactional port can carry both address and data information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:protocol" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Defines the protocol type. Defaults to tlm_base_protocol_type for TLM sockets</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:transTypeDefs" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Definition of the port type expressed in the default language for this port (i.e. SystemC or SystemV).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="connection" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Bounds number of legal connections.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="maxConnections" type="ipxact:unsignedIntExpression" default="0" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Indicates the maximum number of connections this port supports. If this element is not present or set to 0 it implies an unbounded number of allowed connections.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="minConnections" type="ipxact:unsignedIntExpression" default="1" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Indicates the minimum number of connections this port supports. If this element is not present, the minimum number of allowed connections is 1.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="powerConstraints" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Wire port power constraints.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="powerConstraint" type="ipxact:transactionalPowerConstraintType" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Single wire port set of power constraints.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="allLogicalInitiativesAllowed" type="xs:boolean" use="optional" default="false">
+			<xs:annotation>
+				<xs:documentation>True if logical ports with different initiatives from the physical port initiative may be mapped onto this port. Forbidden for phantom ports, which always allow logical ports with all initiatives value to be mapped onto the physical port. Also ignored for "both" ports, since any logical port may be mapped to a physical "both" port.
+				</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="abstractorPortTransactionalType">
+		<xs:annotation>
+			<xs:documentation>Transactional port type.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="ipxact:initiative">
+				<xs:annotation>
+					<xs:documentation>Defines how the port accesses this service.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:kind" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Define the kind of transactional port</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:busWidth" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Defines the bus width in bits.This can be the result of an expression.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="qualifier" type="ipxact:qualifierType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The type of information this port carries A transactional port can carry both address and data information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:protocol" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Defines the protocol type. Defaults to tlm_base_protocol_type for TLM sockets</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:transTypeDefs" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Definition of the port type expressed in the default language for this port (i.e. SystemC or SystemV).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="connection" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Bounds number of legal connections.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="maxConnections" type="ipxact:unsignedIntExpression" default="0" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Indicates the maximum number of connections this port supports. If this element is not present or set to 0 it implies an unbounded number of allowed connections.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="minConnections" type="ipxact:unsignedIntExpression" default="1" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Indicates the minimum number of connections this port supports. If this element is not present, the minimum number of allowed connections is 1.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="allLogicalInitiativesAllowed" type="xs:boolean" use="optional" default="false">
+			<xs:annotation>
+				<xs:documentation>True if logical ports with different initiatives from the physical port initiative may be mapped onto this port. Forbidden for phantom ports, which always allow logical ports with all initiatives value to be mapped onto the physical port. Also ignored for "both" ports, since any logical port may be mapped to a physical "both" port.
+				</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="abstractorPortWireType">
+		<xs:annotation>
+			<xs:documentation>Wire port type for an abstractor.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:restriction base="ipxact:portWireType">
+				<xs:sequence>
+					<xs:element name="direction" type="ipxact:componentPortDirectionType"/>
+					<xs:element name="qualifier" type="ipxact:qualifierType" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>The type of information this port carries a wire port can carry both address and data, but may not mix this with a clock or reset.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="vectors" type="ipxact:extendedVectorsType" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>Vectored information.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element ref="ipxact:wireTypeDefs" minOccurs="0"/>
+					<xs:element ref="ipxact:domainTypeDefs" minOccurs="0"/>
+					<xs:element ref="ipxact:signalTypeDefs" minOccurs="0"/>
+					<xs:element ref="ipxact:drivers" minOccurs="0"/>
+				</xs:sequence>
+			</xs:restriction>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="extendedVectorsType">
+		<xs:sequence>
+			<xs:element name="vector" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Left and right ranges of the vector.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="ipxact:left"/>
+						<xs:element ref="ipxact:right"/>
+					</xs:sequence>
+					<xs:attribute name="vectorId" type="xs:Name"/>
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="portAccessType">
+		<xs:sequence>
+			<xs:element ref="ipxact:portAccessType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Indicates how a netlister accesses a port. 'ref' means accessed by reference (default) and 'ptr' means accessed through a pointer.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="accessHandles" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence maxOccurs="unbounded">
+						<xs:element name="accessHandle" type="ipxact:portAccessHandle"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="signalTypeDef">
+		<xs:annotation>
+			<xs:documentation>Definition of a single signal type defintion that can relate to multiple views.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="signalType">
+					<xs:annotation>
+						<xs:documentation>defines the signal type for the port. Continuous-conservative is a signal which is continuous in time and quantity, where the quantity represents voltage and current to capture the conservative behavior of an electrical network (i. e. Kirchhoff’s Laws apply), and which has no direction. Continuous-non-conservative is a directed signal which is continuous in time and quantity, where the quantity represents either a voltage or a current (often called signal flow). In this case it only captures the non-conservative behavior of a set of interconnected components. Discrete is a directed sampled signal which is time-discrete and value-continuous (the value may also be quantified), where the value represents either a voltage or a current (other representations are possible also). It captures the non-conservative behavior of a set of interconnected components. Digital is a time-discrete and value-discrete signal. The interpretation of the signal values is described by the wireTypeDefs.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:string">
+							<xs:enumeration value="continuous-conservative"/>
+							<xs:enumeration value="continuous-non-conservative"/>
+							<xs:enumeration value="discrete"/>
+							<xs:enumeration value="digital"/>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:element>
+				<xs:element name="viewRef" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>A reference to a view in the file for which this type applies.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:NMTOKEN">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="domainTypeDef">
+		<xs:annotation>
+			<xs:documentation>Definition of a single domain type defintion that can relate to multiple views.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="typeName" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>The name of the domain.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="typeDefinition" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Where the definition of the type is contained.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:string">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="viewRef" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>A reference to a view in the file for which this type applies.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:NMTOKEN">
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="domainTypeDefs">
+		<xs:annotation>
+			<xs:documentation>The group of domain type definitions.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:domainTypeDef" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="domainTypeDefsKey">
+			<xs:selector xpath="ipxact:domainTypeDef/ipxact:viewRef"/>
+			<xs:field xpath="."/>
+		</xs:unique>
+	</xs:element>
+	<xs:element name="signalTypeDefs">
+		<xs:annotation>
+			<xs:documentation>The group of signal type definitions.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:signalTypeDef" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="signalTypeDefsKey">
+			<xs:selector xpath="ipxact:signalTypeDef/ipxact:viewRef"/>
+			<xs:field xpath="."/>
+		</xs:unique>
+	</xs:element>
+	<xs:complexType name="portPacketsType">
+		<xs:sequence>
+			<xs:element name="packet" type="ipxact:portPacketType" minOccurs="1" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="portPacketType">
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="endianness" type="ipxact:endianessType" minOccurs="0"/>
+			<xs:element name="packetFields" type="ipxact:portPacketFieldsType" minOccurs="1"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="portPacketFieldsType">
+		<xs:sequence>
+			<xs:element name="packetField" type="ipxact:portPacketFieldType" minOccurs="1" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="portPacketFieldType">
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroup"/>
+			<xs:element name="width" type="ipxact:unresolvedUnsignedPositiveIntExpression"/>
+			<xs:element name="value" type="ipxact:unsignedBitVectorExpression" minOccurs="0"/>
+			<xs:element name="endianness" type="ipxact:endianessType" minOccurs="0"/>
+			<!-- add a type reference here after PSS 73 -->
+			<xs:element name="qualifier" type="ipxact:qualifierType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The type of information this port carries a wire port can carry both address and data, but may not mix this with a clock or reset.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:element name="arrays">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="array" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Specific left and right array bounds.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element ref="ipxact:left"/>
+							<xs:element ref="ipxact:right"/>
+						</xs:sequence>
+						<xs:attribute name="arrayId" type="xs:Name"/>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="ArrayIdUnique">
+			<xs:selector xpath="ipxact:array"/>
+			<xs:field xpath="@arrayId"/>
+		</xs:unique>
+	</xs:element>
+	<xs:element name="structPortTypeDefs">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="structPortTypeDef" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="typeName">
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="constrained">
+												<xs:annotation>
+													<xs:documentation>Defines the types for the port has constrained the number of bits in the vector</xs:documentation>
+												</xs:annotation>
+												<xs:simpleType>
+													<xs:list itemType="xs:Name"/>
+												</xs:simpleType>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="typeDefinition" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Where the definition of the type is contained. For SystemC and SystemVerilog it is the include file containing the type definition.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attributeGroup ref="ipxact:id.att"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="typeParameters" minOccurs="0">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element ref="ipxact:typeParameter" maxOccurs="unbounded"/>
+									</xs:sequence>
+								</xs:complexType>
+								<xs:unique name="structPortTypeDefTypeParameterNameUnique">
+									<xs:selector xpath="./ipxact:typeParameter"/>
+									<xs:field xpath="ipxact:name"/>
+								</xs:unique>
+							</xs:element>
+							<xs:element name="role" type="xs:string" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>Indicates the role that this structured port plays in the connection.  Only valid for structured ports with structType='interface'. In SystemVerilog, this indicates the modport for the SystemVerilog interface corresponding to this structuredPortType. </xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="viewRef" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>A reference to a view name in the file for which this type applies.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:NMTOKEN">
+											<xs:attributeGroup ref="ipxact:id.att"/>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="structPortTypeDefTypeNameUnique">
+			<xs:selector xpath="ipxact:structPortTypeDef"/>
+			<xs:field xpath="ipxact:typeName"/>
+		</xs:unique>
+	</xs:element>
+	<xs:complexType name="subPortType">
+		<xs:annotation>
+			<xs:documentation>A port description, giving a name and an access type for high level ports. </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroupPort"/>
+			<xs:choice>
+				<xs:annotation>
+					<xs:documentation>Port style</xs:documentation>
+				</xs:annotation>
+				<xs:element name="wire" type="ipxact:portWireType">
+					<xs:annotation>
+						<xs:documentation>Defines a port whose type resolves to simple bits.</xs:documentation>
+					</xs:annotation>
+					<xs:unique name="SubPortWireVectorIdUnique">
+						<xs:selector xpath="ipxact:vectors/ipxact:vector"/>
+						<xs:field xpath="@vectorId"/>
+					</xs:unique>
+				</xs:element>
+				<xs:element name="structured" type="ipxact:portStructuredType"/>
+			</xs:choice>
+			<xs:element ref="ipxact:arrays" minOccurs="0"/>
+			<xs:element name="access" type="ipxact:portAccessType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Port access characteristics.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+		<xs:attribute name="isIO" type="xs:boolean">
+			<xs:annotation>
+				<xs:documentation>When present and set to 'true' identifies this port as being an I/O to the containing structure port type.  Only valid for subPorts contained in a structured port with structType='interface'.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="abstractorSubPortType">
+		<xs:annotation>
+			<xs:documentation>A port description, giving a name and an access type for high level ports. </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroupPort"/>
+			<xs:choice>
+				<xs:annotation>
+					<xs:documentation>Port style</xs:documentation>
+				</xs:annotation>
+				<xs:element name="wire" type="ipxact:abstractorPortWireType">
+					<xs:annotation>
+						<xs:documentation>Defines a port whose type resolves to simple bits.</xs:documentation>
+					</xs:annotation>
+					<xs:unique name="AbstractorSubPortWireVectorIdUnique">
+						<xs:selector xpath="ipxact:vectors/ipxact:vector"/>
+						<xs:field xpath="@vectorId"/>
+					</xs:unique>
+				</xs:element>
+				<xs:element name="structured" type="ipxact:abstractorPortStructuredType"/>
+			</xs:choice>
+			<xs:element ref="ipxact:arrays" minOccurs="0"/>
+			<xs:element name="access" type="ipxact:portAccessType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Port access characteristics.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+		<xs:attribute name="isIO" type="xs:boolean">
+			<xs:annotation>
+				<xs:documentation>When present and set to 'true' identifies this port as being an I/O to the containing structure port type.  Only valid for subPorts contained in a structured port with structType='interface'.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="portStructuredType">
+		<xs:sequence>
+			<xs:group ref="ipxact:structTypeGroup">
+				<xs:annotation>
+					<xs:documentation>Determines the type of structured port.  Can be one of "struct', 'union', or 'interface'.</xs:documentation>
+				</xs:annotation>
+			</xs:group>
+			<xs:element name="vectors" type="ipxact:extendedVectorsType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Vectored information.</xs:documentation>
+				</xs:annotation>
+				<xs:unique name="StructuredPortVectorIdUnique">
+					<xs:selector xpath="ipxact:vector"/>
+					<xs:field xpath="@vectorId"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element name="subPorts" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="subPort" type="ipxact:subPortType" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+				<xs:unique name="structuredPortUnique">
+					<xs:selector xpath="ipxact:subPort"/>
+					<xs:field xpath="ipxact:name"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element ref="ipxact:structPortTypeDefs"/>
+		</xs:sequence>
+		<xs:attribute name="packed" type="xs:boolean" default="true">
+			<xs:annotation>
+				<xs:documentation>When not present or set to 'true' indicates that this structured port is 'packed'.  If present and set to 'false', indicates that this structured port is 'unpacked'.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="abstractorPortStructuredType">
+		<xs:sequence>
+			<xs:group ref="ipxact:structTypeGroup">
+				<xs:annotation>
+					<xs:documentation>Determines the type of structured port.  Can be one of "struct', 'union', or 'interface'.</xs:documentation>
+				</xs:annotation>
+			</xs:group>
+			<xs:element name="vectors" type="ipxact:extendedVectorsType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Vectored information.</xs:documentation>
+				</xs:annotation>
+				<xs:unique name="AbstractStructuredPortVectorIdUnique">
+					<xs:selector xpath="ipxact:vector"/>
+					<xs:field xpath="@vectorId"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element name="subPorts">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="subPort" type="ipxact:abstractorSubPortType" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+				<xs:unique name="abstractorPortUnique">
+					<xs:selector xpath="ipxact:subPort"/>
+					<xs:field xpath="ipxact:name"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element ref="ipxact:structPortTypeDefs"/>
+		</xs:sequence>
+		<xs:attribute name="packed" type="xs:boolean" default="true">
+			<xs:annotation>
+				<xs:documentation>When not present or set to 'true' indicates that this structured port is 'packed'.  If present and set to 'false', indicates that this structured port is 'unpacked'.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="wirePowerConstraintType">
+		<xs:sequence>
+			<xs:element ref="ipxact:powerDomainRef"/>
+			<xs:element ref="ipxact:range" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="transactionalPowerConstraintType">
+		<xs:sequence>
+			<xs:element ref="ipxact:powerDomainRef"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:element name="powerDomainRef" type="xs:Name">
+		<xs:annotation>
+			<xs:documentation>Power domain. It is the user’s responsibility to ensure it matches an existing power domain in UPF/CPF file.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="alwaysOn" type="ipxact:unsignedBitExpression">
+		<xs:annotation>
+			<xs:documentation>Boolean value. If set to true, then the domain/port is always powered, whatever its power domain. Only applies for output ports.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:group name="structTypeGroup">
+		<xs:choice>
+			<xs:element name="struct">
+				<xs:complexType>
+					<xs:attribute name="direction" type="ipxact:componentPortDirectionType">
+						<xs:annotation>
+							<xs:documentation>The direction of a wire style port. The basic directions for a port are 'in' for input ports, 'out' for output port and 'inout' for bidirectional and tristate ports. 
+A value of 'phantom' is also allowed and define a port that exist on the IP-XACT component but not on the HDL model.</xs:documentation>
+						</xs:annotation>
+					</xs:attribute>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="union">
+				<xs:complexType>
+					<xs:attribute name="direction" type="ipxact:componentPortDirectionType">
+						<xs:annotation>
+							<xs:documentation>The direction of a wire style port. The basic directions for a port are 'in' for input ports, 'out' for output port and 'inout' for bidirectional and tristate ports. 
+A value of 'phantom' is also allowed and define a port that exist on the IP-XACT component but not on the HDL model.</xs:documentation>
+						</xs:annotation>
+					</xs:attribute>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="interface">
+				<xs:complexType>
+					<xs:attribute name="phantom" type="xs:boolean"/>
+				</xs:complexType>
+			</xs:element>
+		</xs:choice>
+	</xs:group>
+</xs:schema>

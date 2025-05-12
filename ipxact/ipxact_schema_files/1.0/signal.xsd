@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : signal.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.14 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="signalDrivers.xsd"/>
+	<xs:simpleType name="componentSignalDirectionType">
+		<xs:annotation>
+			<xs:documentation>The direction of a component signal.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="in"/>
+			<xs:enumeration value="out"/>
+			<xs:enumeration value="inout"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="signalType">
+		<xs:sequence>
+			<xs:element name="name" type="xs:NMTOKEN">
+				<xs:annotation>
+					<xs:documentation>The name of the signal.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="direction" type="spirit:componentSignalDirectionType"/>
+			<xs:sequence minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Specific left and right vector bounds. Signal width is
+max(left,right)-min(left,right)+1 When the bounds are not present, a scalar signal is assumed.</xs:documentation>
+				</xs:annotation>
+				<xs:element name="left">
+					<xs:annotation>
+						<xs:documentation>Left vector bound.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:nonNegativeInteger">
+								<xs:attributeGroup ref="spirit:long.prompt.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="right">
+					<xs:annotation>
+						<xs:documentation>Right vector bound.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:nonNegativeInteger">
+								<xs:attributeGroup ref="spirit:long.prompt.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:choice minOccurs="0">
+				<xs:element name="defaultValue" type="spirit:signalValueType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>The initial or default value on the signal.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="spirit:clockDriver" minOccurs="0"/>
+				<xs:element ref="spirit:singleShotDriver" minOccurs="0"/>
+			</xs:choice>
+			<xs:element name="export" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Specifies whether a signal is to be exported out of the module.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:boolean">
+							<xs:attributeGroup ref="spirit:bool.prompt.att"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="signal" type="spirit:signalType">
+		<xs:annotation>
+			<xs:documentation>Describes signal charateristics.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+</xs:schema>

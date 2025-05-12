@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description: autoConfigure.xsd
+// Author:      SPIRIT Schema Working Group
+// Version:     $Revision: 1.10 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="configurable.xsd"/>
+	<xs:simpleType name="formatType">
+		<xs:annotation>
+			<xs:documentation>This is a hint to the user interface on how to obtain the value for user defined properties.  Float means a floating point number is expected.  Long means an integer is expected.  Bool means a boolean (true, false) is expected and choice means the user must pick from a list of possible values.  A choiceRef attribute is required for choice formats.  String means any text is acceptable.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="float"/>
+			<xs:enumeration value="long"/>
+			<xs:enumeration value="bool"/>
+			<xs:enumeration value="choice"/>
+			<xs:enumeration value="string"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:attribute name="format" type="spirit:formatType">
+		<xs:annotation>
+			<xs:documentation>This is a hint to the user interface about the data format to require for user resolved properties.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:attribute name="prompt" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>Provides a string used to prompt the user for user-resolved property values.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:attribute name="minimum" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>For user-resolved properties with numeric values, this indicates the minimum value allowed.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:attribute name="maximum" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>For user-resolved properties with numeric values, this indicates the maximum value allowed.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:simpleType name="rangeTypeType">
+		<xs:annotation>
+			<xs:documentation>This type is used to indicate how the minimum and maximum attributes values should be interpreted. For purposes of this attribute, an int is 4 bytes and a long is 8 bytes.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="float"/>
+			<xs:enumeration value="int"/>
+			<xs:enumeration value="unsigned int"/>
+			<xs:enumeration value="long"/>
+			<xs:enumeration value="unsigned long"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:attribute name="rangeType" type="spirit:rangeTypeType">
+		<xs:annotation>
+			<xs:documentation>Indicates the data type of the range attributes (minimum and maximum). For reasons of backward compatibility, this attribute is assumed to have the value 'double' if not present.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:attribute name="order" type="xs:float">
+		<xs:annotation>
+			<xs:documentation>For components with auto-generated configuration forms, the user-resolved properties with order attibutes will be presented in ascending order.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:attribute name="choiceRef" type="xs:Name">
+		<xs:annotation>
+			<xs:documentation>For user defined properties with a "choice" format, refers the choice element enumarating the values to choose from.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:attribute name="choiceStyle">
+		<xs:annotation>
+			<xs:documentation>For user resolved properties with a "choice" format, this indicates whether the choices should be presented as radio buttons or as a combo box.</xs:documentation>
+		</xs:annotation>
+		<xs:simpleType>
+			<xs:restriction base="xs:token">
+				<xs:enumeration value="radio">
+					<xs:annotation>
+						<xs:documentation>Display choice as radio buttons (default).</xs:documentation>
+					</xs:annotation>
+				</xs:enumeration>
+				<xs:enumeration value="combo">
+					<xs:annotation>
+						<xs:documentation>Display choice as combo box.</xs:documentation>
+					</xs:annotation>
+				</xs:enumeration>
+			</xs:restriction>
+		</xs:simpleType>
+	</xs:attribute>
+	<xs:attribute name="direction">
+		<xs:annotation>
+			<xs:documentation>For user resolved properties with a "choice" format and a radio button presentation style, this indicates whether the buttons should be aligned horizontally or vertically.</xs:documentation>
+		</xs:annotation>
+		<xs:simpleType>
+			<xs:restriction base="xs:token">
+				<xs:enumeration value="vertical">
+					<xs:annotation>
+						<xs:documentation>Display radio buttons vertically</xs:documentation>
+					</xs:annotation>
+				</xs:enumeration>
+				<xs:enumeration value="horizontal">
+					<xs:annotation>
+						<xs:documentation>Display radio buttons horizontally (default)</xs:documentation>
+					</xs:annotation>
+				</xs:enumeration>
+			</xs:restriction>
+		</xs:simpleType>
+	</xs:attribute>
+	<xs:attribute name="configGroups" type="xs:NMTOKENS">
+		<xs:annotation>
+			<xs:documentation>Tags configurable properties so that they may be auto-configured by different ui generators.  Can also be applied to top-level uiIcons to designate which auto-configured forms they will be added to.
+
+This is a white-space delimited list of groups so a property may be configured by more than one configurator.</xs:documentation>
+		</xs:annotation>
+	</xs:attribute>
+	<xs:attributeGroup name="bool.att">
+		<xs:annotation>
+			<xs:documentation>Use this attribute group on boolean elements for which the schema supplies a default prompt attribute.</xs:documentation>
+		</xs:annotation>
+		<xs:attribute ref="spirit:format" default="bool">
+			<xs:annotation>
+				<xs:documentation>This is a hint to the user interface about the data format to require for user resolved properties.
+
+The bool.att attribute group sets the default format to "bool".</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="spirit:common.att"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="bool.prompt.att">
+		<xs:annotation>
+			<xs:documentation>Use this attribute group on boolean elements.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="spirit:bool.att"/>
+		<xs:attribute ref="spirit:prompt"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="long.att">
+		<xs:annotation>
+			<xs:documentation>Use this attribute group on long integer elements for which the schema supplies a default prompt attribute.</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="format" type="spirit:formatType" default="long">
+			<xs:annotation>
+				<xs:documentation>This is a hint to the user interface about the data format to require for user resolved properties.
+
+The long.att attribute group sets the default format to "long".</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="spirit:common.att"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="long.prompt.att">
+		<xs:annotation>
+			<xs:documentation>Use this attribute group on long integer elements.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="spirit:long.att"/>
+		<xs:attribute ref="spirit:prompt"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="general.att">
+		<xs:annotation>
+			<xs:documentation>Synonym for autoConfig.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="spirit:autoConfig"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="common.att">
+		<xs:annotation>
+			<xs:documentation>For internal use only.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="spirit:configurable"/>
+		<xs:attribute ref="spirit:minimum">
+			<xs:annotation>
+				<xs:documentation>For user-resolved properties with numeric values, this indicates the minimum value allowed.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute ref="spirit:maximum">
+			<xs:annotation>
+				<xs:documentation>For user-resolved properties with numeric values, this indicates the maximum value allowed.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute ref="spirit:rangeType"/>
+		<xs:attribute ref="spirit:order">
+			<xs:annotation>
+				<xs:documentation>For components with auto-generated configuration forms, the user-resolved properties with order attibutes will be presented in ascending order.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute ref="spirit:choiceRef">
+			<xs:annotation>
+				<xs:documentation>For user resolved properties with a "choice" format, this refers to a uiChoice element in the ui section of the component file.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute ref="spirit:choiceStyle"/>
+		<xs:attribute ref="spirit:direction"/>
+		<xs:attribute ref="spirit:configGroups"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="autoConfig">
+		<xs:annotation>
+			<xs:documentation>Use this attribute group to allow all attributes associated with autoconfigurability.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="spirit:common.att"/>
+		<xs:attribute ref="spirit:format"/>
+		<xs:attribute ref="spirit:prompt"/>
+	</xs:attributeGroup>
+	<xs:element name="choices">
+		<xs:annotation>
+			<xs:documentation>Choices used by user defined properties of spirit:formatType ="choice"</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="choice" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Non-empty set of legal values for a user defined property of type spirit:formatType="choice" .</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="name" type="xs:Name">
+								<xs:annotation>
+									<xs:documentation>Choice key, available for reference by the spirit:choiceRef attribute of user defined properties of type spirit:formatType="choice".</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="enumeration" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>A possible value of spirit:choice</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="xs:string">
+											<xs:attribute name="text" type="xs:string">
+												<xs:annotation>
+													<xs:documentation>When specified, displayed in place of the spirit:enumeration value </xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="help" type="xs:string">
+												<xs:annotation>
+													<xs:documentation>Text that may be displayed if the user requests help about the meaning of an element</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

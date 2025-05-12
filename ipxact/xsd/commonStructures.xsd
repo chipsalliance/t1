@@ -1,0 +1,1134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="autoConfigure.xsd"/>
+	<xs:include schemaLocation="simpleTypes.xsd"/>
+	<xs:element name="parameter" type="ipxact:parameterType">
+		<xs:annotation>
+			<xs:documentation>A name value pair.  The name is specified by the name element.  The value is in the text content of the value element.  This value element supports all configurability attributes.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="assertion">
+		<xs:annotation>
+			<xs:documentation>Provides an expression for describing valid parameter value settings.  If a assertion assert expression evaluates false, the name, displayName and/or description can be used to communicate the assertion failure.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:nameGroup"/>
+				<xs:element name="assert" type="ipxact:unsignedBitExpression"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="assertions">
+		<xs:annotation>
+			<xs:documentation>List of assertions about allowed parameter values.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:assertion" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="qualifierType">
+		<xs:sequence>
+			<xs:element name="isAddress" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port contains address information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="isData" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port contains data information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="isClock" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port contains only clock information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="isReset" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port contains only reset information.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:boolean">
+							<xs:attribute name="level">
+								<xs:annotation>
+									<xs:documentation>Assertion level</xs:documentation>
+								</xs:annotation>
+								<xs:simpleType>
+									<xs:restriction base="xs:string">
+										<xs:enumeration value="low"/>
+										<xs:enumeration value="high"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:attribute>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="isValid" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port signifies that the data on the interface is currently valid</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="isInterrupt" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port contains only interrupt information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="isClockEn" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port indicates that an associated conditional clock should be turned on.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:boolean">
+							<xs:attribute name="level">
+								<xs:annotation>
+									<xs:documentation>Assertion level</xs:documentation>
+								</xs:annotation>
+								<xs:simpleType>
+									<xs:restriction base="xs:string">
+										<xs:enumeration value="low"/>
+										<xs:enumeration value="high"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:attribute>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="isPowerEn" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port indicates that an associated power domain should be activated.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:boolean">
+							<xs:attribute name="level">
+								<xs:annotation>
+									<xs:documentation>Assertion level</xs:documentation>
+								</xs:annotation>
+								<xs:simpleType>
+									<xs:restriction base="xs:string">
+										<xs:enumeration value="low"/>
+										<xs:enumeration value="high"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:attribute>
+							<xs:attribute name="powerDomainRef" type="xs:string">
+								<xs:annotation>
+									<xs:documentation>PowerDomain references</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="isOpcode" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port determines the interpretation of other signals in the interface.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="isProtection" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port implements a protection signal.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="isFlowControl" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port is used by the interface’s flow control mechanism.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:boolean">
+							<xs:attribute name="flowType">
+								<xs:annotation>
+									<xs:documentation>Controlled flow type</xs:documentation>
+								</xs:annotation>
+								<xs:simpleType>
+									<xs:restriction base="xs:string">
+										<xs:enumeration value="credit-return"/>
+										<xs:enumeration value="ready"/>
+										<xs:enumeration value="busy"/>
+										<xs:enumeration value="user"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:attribute>
+							<xs:attribute name="user" type="xs:string">
+								<xs:annotation>
+									<xs:documentation>User flow type information</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="isUser" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port is used for user defined behavior.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:boolean">
+							<xs:attribute name="user" type="xs:string">
+								<xs:annotation>
+									<xs:documentation>User behaviour</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="isRequest" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port implements a request signal.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="isResponse" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>If this element is present, the port implements a response signal.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:element name="parameters">
+		<xs:annotation>
+			<xs:documentation>A collection of parameters and associated value assertions.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:parameter" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+		<!--		
+		<xs:unique name="parameterNameUnique">
+			<xs:selector xpath="./ipxact:parameter"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:unique>
+-->
+	</xs:element>
+	<xs:element name="vendorExtensions">
+		<xs:annotation>
+			<xs:documentation>Container for vendor specific extensions.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:any namespace="##any" processContents="lax" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Accepts any element(s) the content provider wants to put here, including elements from the ipxact namespace.</xs:documentation>
+					</xs:annotation>
+				</xs:any>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:group name="nameGroup">
+		<xs:annotation>
+			<xs:documentation>A group of elements for name (xs:name), displayName and description</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="name" type="xs:Name">
+				<xs:annotation>
+					<xs:documentation>Unique name</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:displayName" minOccurs="0"/>
+			<xs:element ref="ipxact:shortDescription" minOccurs="0"/>
+			<xs:element ref="ipxact:description" minOccurs="0"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:complexType name="portAccessHandle">
+		<xs:sequence>
+			<xs:element name="viewRef" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>A list of views this accessHandle is applicable to. Note this element is optional, if it is not present the accessHandle applies to all views.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:Name">
+							<xs:attributeGroup ref="ipxact:id.att"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="indices" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>For a multi dimensional IP-XACT object, indices can be specified to select the element the accessHandle applies to. This is an index into a multi-dimensional array and follows C-semantics for indexing.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="index" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>An index into the IP-XACT object.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:simpleContent>
+									<xs:extension base="ipxact:unsignedIntExpression">
+										<xs:attributeGroup ref="ipxact:id.att"/>
+									</xs:extension>
+								</xs:simpleContent>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="slices" type="ipxact:portSlicesType"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="force" type="xs:boolean" default="true"/>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="slicedAccessHandle">
+		<xs:sequence>
+			<xs:element name="viewRef" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>A list of views this accessHandle is applicable to. Note this element is optional, if it is not present the accessHandle applies to all views.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:Name">
+							<xs:attributeGroup ref="ipxact:id.att"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="slices" type="ipxact:slicesType"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attribute name="force" type="xs:boolean" default="true"/>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="simpleAccessHandle">
+		<xs:sequence>
+			<xs:element name="viewRef" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>A list of views this accessHandle is applicable to. Note this element is optional, if it is not present the accessHandle applies to all views.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="xs:Name">
+							<xs:attributeGroup ref="ipxact:id.att"/>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="pathSegments">
+				<xs:annotation>
+					<xs:documentation>An ordered list of pathSegment elements. When concatenated with a desired separator the elements in this form a HDL path for the parent slice into the referenced view.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="pathSegment" type="ipxact:pathSegmentType" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="slicesType">
+		<xs:annotation>
+			<xs:documentation>Each slice specifies the HDL path for part of the parent IP-XACT object. The slices must be concatenated to calculate the entire path. If there is only one slice, it is assumed to be the path for the entire IP-XACT object.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="slice" type="ipxact:sliceType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>The HDL path for a slice of the IP-XACT object.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="sliceType">
+		<xs:annotation>
+			<xs:documentation>Contains the HDL path information for a slice of the IP-XACT object. </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="pathSegments">
+				<xs:annotation>
+					<xs:documentation>An ordered list of pathSegment elements. When concatenated with a desired separator the elements in this form a HDL path for the parent slice into the referenced view.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="pathSegment" type="ipxact:pathSegmentType" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ipxact:range" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A range to be applied to the concatenation of the above path segments</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="pathSegmentType">
+		<xs:annotation>
+			<xs:documentation>Identifies one level of hierarchy in the view specifed by viewNameRef. This is a simple name and optionally some indices into a multi dimensional element.</xs:documentation>
+		</xs:annotation>
+		<xs:simpleContent>
+			<xs:extension base="ipxact:unresolvedStringExpression">
+				<xs:attributeGroup ref="ipxact:id.att"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:complexType name="portSlicesType">
+		<xs:annotation>
+			<xs:documentation>Each slice specifies the HDL path for part of the parent IP-XACT object. The slices must be concatenated to calculate the entire path. If there is only one slice, it is assumed to be the path for the entire IP-XACT object.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="slice" type="ipxact:portSliceType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>The HDL path for a slice of the IP-XACT object.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="portSliceType">
+		<xs:annotation>
+			<xs:documentation>Contains the HDL path information for a slice of the IP-XACT object. </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="pathSegments">
+				<xs:annotation>
+					<xs:documentation>An ordered list of pathSegment elements. When concatenated with a desired separator the elements in this form a HDL path for the parent slice into the referenced view.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="pathSegment" type="ipxact:portPathSegmentType" maxOccurs="unbounded"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element ref="ipxact:range" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A range to be applied to the concatenation of the above path segments</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:complexType name="portPathSegmentType">
+		<xs:annotation>
+			<xs:documentation>Identifies one level of hierarchy in the view specifed by viewNameRef. This is a simple name and optionally some indices into a multi dimensional element.</xs:documentation>
+		</xs:annotation>
+		<xs:simpleContent>
+			<xs:extension base="ipxact:stringExpression">
+				<xs:attributeGroup ref="ipxact:id.att"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:element name="right" type="ipxact:unsignedIntExpression">
+		<xs:annotation>
+			<xs:documentation>The optional element right specifies the right boundary.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="left" type="ipxact:unsignedIntExpression">
+		<xs:annotation>
+			<xs:documentation>The optional element left specifies the left boundary.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:group name="nameGroupOptional">
+		<xs:annotation>
+			<xs:documentation>A group of elements for name (xs:name), displayName and description where the name is optional</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="name" type="xs:Name" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Unique name</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:displayName" minOccurs="0"/>
+			<xs:element ref="ipxact:shortDescription" minOccurs="0"/>
+			<xs:element ref="ipxact:description" minOccurs="0"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="nameGroupNMTOKEN">
+		<xs:annotation>
+			<xs:documentation>A group of elements for name(xs:NMTOKEN), displayName and description</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="name" type="xs:NMTOKEN">
+				<xs:annotation>
+					<xs:documentation>Unique name</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:displayName" minOccurs="0"/>
+			<xs:element ref="ipxact:shortDescription" minOccurs="0"/>
+			<xs:element ref="ipxact:description" minOccurs="0"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="nameGroupPort">
+		<xs:annotation>
+			<xs:documentation>A group of elements for name(portName), displayName and description</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="name" type="ipxact:portName">
+				<xs:annotation>
+					<xs:documentation>Unique name</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:displayName" minOccurs="0"/>
+			<xs:element ref="ipxact:shortDescription" minOccurs="0"/>
+			<xs:element ref="ipxact:description" minOccurs="0"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:complexType name="parameterType">
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroupString"/>
+			<xs:element ref="ipxact:vectors" minOccurs="0"/>
+			<xs:element name="arrays" type="ipxact:configurableArrays" minOccurs="0"/>
+			<xs:element ref="ipxact:value"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+		<xs:attributeGroup ref="ipxact:parameter.att"/>
+		<xs:attributeGroup ref="ipxact:parameter.resolve.att"/>
+		<xs:attributeGroup ref="ipxact:any.att"/>
+	</xs:complexType>
+	<xs:complexType name="moduleParameterType">
+		<xs:annotation>
+			<xs:documentation>Name value pair with data type information.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroupString"/>
+			<xs:element name="vectors" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="vector" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>Left and right ranges of the vector.</xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element ref="ipxact:left"/>
+									<xs:element ref="ipxact:right"/>
+								</xs:sequence>
+								<xs:attribute name="vectorId" type="xs:Name"/>
+								<xs:attributeGroup ref="ipxact:id.att"/>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+				<xs:unique name="ModuleParameterVectorIdUnique">
+					<xs:selector xpath="ipxact:vector"/>
+					<xs:field xpath="@vectorId"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element name="arrays" type="ipxact:moduleParameterArrays" minOccurs="0">
+				<xs:unique name="ModuleParameterArrayIdUnique">
+					<xs:selector xpath="ipxact:array"/>
+					<xs:field xpath="@arrayId"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element ref="ipxact:value"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+		<xs:attributeGroup ref="ipxact:parameter.att"/>
+		<xs:attributeGroup ref="ipxact:parameter.resolve.att"/>
+		<xs:attributeGroup ref="ipxact:any.att"/>
+		<xs:attribute name="dataType" type="xs:string">
+			<xs:annotation>
+				<xs:documentation>The data type of the argument as pertains to the language. Example: "int", "double", "char *".</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="usageType" default="typed">
+			<xs:annotation>
+				<xs:documentation>Indicates the type of the module parameter. Legal values are defined in the attribute enumeration list. Default value is 'typed'.</xs:documentation>
+			</xs:annotation>
+			<xs:simpleType>
+				<xs:restriction base="xs:string">
+					<xs:enumeration value="nontyped"/>
+					<xs:enumeration value="typed"/>
+					<xs:enumeration value="runtime"/>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:attribute>
+		<xs:attribute name="dataTypeDefinition" type="xs:string">
+			<xs:annotation>
+				<xs:documentation>The dataTypeDefinition references a file, which is included in the filesetRef referenced from the componentInstantiation.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="constrained">
+			<xs:annotation>
+				<xs:documentation>Indicates for which vectors and arrays the number of bits in the type declaration is fixed by referencing the vectorId and arrayId values. The values are separated by whitespace.</xs:documentation>
+			</xs:annotation>
+			<xs:simpleType>
+				<xs:list itemType="xs:Name"/>
+			</xs:simpleType>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="nameValuePairType">
+		<xs:annotation>
+			<xs:documentation>Name and value type for use in resolvable elements</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:nameGroupString"/>
+			<xs:element ref="ipxact:value"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:element name="vector">
+		<xs:annotation>
+			<xs:documentation>Left and right ranges of the vector.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:left"/>
+				<xs:element ref="ipxact:right"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+			<!-- <xs:attribute name="vectorId" type="xs:Name"/> -->
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="vectors">
+		<xs:annotation>
+			<xs:documentation>Vectored information.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:vector" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="range">
+		<xs:annotation>
+			<xs:documentation>Left and right bound of a reference into a vector.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:left"/>
+				<xs:element ref="ipxact:right"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="partSelect">
+		<xs:annotation>
+			<xs:documentation>Bit range definition.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:choice>
+				<xs:element ref="ipxact:range"/>
+				<xs:sequence>
+					<xs:element ref="ipxact:indices"/>
+					<xs:element ref="ipxact:range" minOccurs="0"/>
+				</xs:sequence>
+			</xs:choice>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="subPortReference">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:partSelect" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="subPortRef" type="ipxact:portName" use="required">
+				<xs:annotation>
+					<xs:documentation>A subPort on the referenced structured port.</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="addressBlockRef">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:indices" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="addressBlockRef" type="xs:Name" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="registerFileRef">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:indices" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="registerFileRef" type="xs:Name" use="required"/>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="registerRef">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:indices" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="registerRef" type="xs:Name" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="alternateRegisterRef">
+		<xs:complexType>
+			<xs:attribute name="alternateRegisterRef" type="xs:Name" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="fieldRef">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="ipxact:indices" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attribute name="fieldRef" type="xs:Name" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="bankRef">
+		<xs:complexType>
+			<xs:attribute name="bankRef" type="xs:Name" use="required"/>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="memoryRemapRef">
+		<xs:complexType>
+			<xs:attribute name="memoryRemapRef" type="xs:Name" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:group name="fieldSliceReferenceGroup">
+		<xs:sequence>
+			<xs:choice>
+				<xs:element name="addressSpaceRef">
+					<xs:complexType>
+						<xs:attribute name="addressSpaceRef" type="xs:Name" use="required"/>
+					</xs:complexType>
+				</xs:element>
+				<xs:sequence>
+					<xs:element name="memoryMapRef">
+						<xs:complexType>
+							<xs:attribute name="memoryMapRef" type="xs:Name" use="required"/>
+						</xs:complexType>
+					</xs:element>
+					<xs:element ref="ipxact:memoryRemapRef" minOccurs="0"/>
+				</xs:sequence>
+			</xs:choice>
+			<xs:element ref="ipxact:bankRef" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ipxact:addressBlockRef"/>
+			<xs:element ref="ipxact:registerFileRef" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ipxact:registerRef"/>
+			<xs:element ref="ipxact:alternateRegisterRef" minOccurs="0"/>
+			<xs:element ref="ipxact:fieldRef"/>
+			<xs:element ref="ipxact:range" minOccurs="0"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="fieldReferenceGroup">
+		<xs:sequence>
+			<xs:choice minOccurs="0">
+				<xs:element name="addressSpaceRef">
+					<xs:complexType>
+						<xs:attribute name="addressSpaceRef" type="xs:Name" use="required"/>
+					</xs:complexType>
+				</xs:element>
+				<xs:sequence>
+					<xs:element name="memoryMapRef">
+						<xs:complexType>
+							<xs:attribute name="memoryMapRef" type="xs:Name" use="required"/>
+						</xs:complexType>
+					</xs:element>
+					<xs:element ref="ipxact:memoryRemapRef" minOccurs="0"/>
+				</xs:sequence>
+			</xs:choice>
+			<xs:element ref="ipxact:bankRef" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ipxact:addressBlockRef" minOccurs="0"/>
+			<xs:element ref="ipxact:registerFileRef" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="ipxact:registerRef" minOccurs="0"/>
+			<xs:element ref="ipxact:alternateRegisterRef" minOccurs="0"/>
+			<xs:element ref="ipxact:fieldRef"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:complexType name="configurableArrays">
+		<xs:sequence>
+			<xs:element name="array" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Specific left and right array bounds.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="ipxact:left"/>
+						<xs:element ref="ipxact:right"/>
+					</xs:sequence>
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="moduleParameterArrays">
+		<xs:sequence>
+			<xs:element name="array" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Specific left and right array bounds.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element ref="ipxact:left"/>
+						<xs:element ref="ipxact:right"/>
+					</xs:sequence>
+					<xs:attribute name="arrayId" type="xs:Name"/>
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="value" type="ipxact:stringExpression">
+		<xs:annotation>
+			<xs:documentation>The value of the parameter.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:group name="nameGroupString">
+		<xs:annotation>
+			<xs:documentation>A group of elements for name(xs:string), displayName and description</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="name" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Unique name</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:displayName" minOccurs="0"/>
+			<xs:element ref="ipxact:shortDescription" minOccurs="0"/>
+			<xs:element ref="ipxact:description" minOccurs="0"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:element name="displayName" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>Element name for display purposes. Typically a few words providing a more detailed and/or user-friendly name than the ipxact:name.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="shortDescription" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>Brief description suitable for titles, software comments and pop-up windows. Being a SystemVerilog expression the text can be constructed using parameters, e.g, by concatentation or $sformatf().</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="description" type="xs:string">
+		<xs:annotation>
+			<xs:documentation>Full description string, typically for documentation</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="indicesType">
+		<xs:sequence>
+			<xs:element ref="ipxact:index" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="modeLinks">
+		<xs:annotation>
+			<xs:documentation>A set of links between internal and external modes defined in the typeDefinitions document.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="modeLink" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>A link between one external mode and one internal mode.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="externalModeReference">
+								<xs:annotation>
+									<xs:documentation>Reference to a mode defined in the linked external type definitions.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:attribute name="modeRef" type="xs:Name" use="required">
+										<xs:annotation>
+											<xs:documentation>Reference to a specific mode.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="modeReference">
+								<xs:annotation>
+									<xs:documentation>Reference to a mode defined internally.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:attribute name="modeRef" type="xs:Name" use="required">
+										<xs:annotation>
+											<xs:documentation>Reference to a specific mode.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+								</xs:complexType>
+							</xs:element>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="modeLinksModeReferenceUnique">
+			<xs:selector xpath="ipxact:modeLink/ipxact:modeReference"/>
+			<xs:field xpath="@modeRef"/>
+		</xs:unique>
+	</xs:element>
+	<xs:element name="viewLinks">
+		<xs:annotation>
+			<xs:documentation>A set of links between internal and external views defined in the typeDefinitions document.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="viewLink" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>A link between one external view and one internal view.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="externalViewReference">
+								<xs:annotation>
+									<xs:documentation>Reference to a view defined in the linked external type definitions.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:attribute name="viewRef" type="xs:Name" use="required">
+										<xs:annotation>
+											<xs:documentation>Reference to a specific view.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="viewReference">
+								<xs:annotation>
+									<xs:documentation>Reference to a view defined internally.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:attribute name="viewRef" type="xs:Name" use="required">
+										<xs:annotation>
+											<xs:documentation>Reference to a specific view.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+								</xs:complexType>
+							</xs:element>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="viewLinksViewReferenceUnique">
+			<xs:selector xpath="ipxact:viewLink/ipxact:viewReference"/>
+			<xs:field xpath="@viewRef"/>
+		</xs:unique>
+	</xs:element>
+	<xs:element name="resetTypeLinks">
+		<xs:annotation>
+			<xs:documentation>A set of links between internal and external resetTypes defined in the typeDefinitions document.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="resetTypeLink" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>A link between one external reset type and one internal resetType.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="externalResetTypeReference">
+								<xs:annotation>
+									<xs:documentation>Reference to a resetType defined in the linked external type definitions.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:attribute name="resetTypeRef" type="xs:Name" use="required">
+										<xs:annotation>
+											<xs:documentation>Reference to a specific resetType.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="resetTypeReference">
+								<xs:annotation>
+									<xs:documentation>Reference to a resetType defined internally.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:attribute name="resetTypeRef" type="xs:Name" use="required">
+										<xs:annotation>
+											<xs:documentation>Reference to a specific resetType</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+								</xs:complexType>
+							</xs:element>
+							<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+		<xs:unique name="resetTypeLinksViewReferenceUnique">
+			<xs:selector xpath="ipxact:resetTypeLink/ipxact:resetTypeReference"/>
+			<xs:field xpath="@resetTypeRef"/>
+		</xs:unique>
+	</xs:element>
+	<xs:element name="index">
+		<xs:annotation>
+			<xs:documentation>An index into an object in the referenced view.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:simpleContent>
+				<xs:extension base="ipxact:unsignedIntExpression">
+					<xs:attributeGroup ref="ipxact:id.att"/>
+				</xs:extension>
+			</xs:simpleContent>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="indices" type="ipxact:indicesType"/>
+	<xs:attributeGroup name="parameter.att">
+		<xs:attribute name="parameterId" type="xs:Name">
+			<xs:annotation>
+				<xs:documentation>ID attribute for uniquely identifying a parameter within its document. Attribute is used to refer to this from a configurable element.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="prompt" type="xs:string">
+			<xs:annotation>
+				<xs:documentation>Provides a string used to prompt the user for user-resolved property values.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="choiceRef" type="xs:Name">
+			<xs:annotation>
+				<xs:documentation>For user defined properties, refers the choice element enumerating the values to choose from.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="order" type="xs:float">
+			<xs:annotation>
+				<xs:documentation>For components with auto-generated configuration forms, the user-resolved properties with order attibutes will be presented in ascending order.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="configGroups" type="xs:NMTOKENS">
+			<xs:annotation>
+				<xs:documentation>Tags configurable properties so that they may be grouped together.  Configurable properties with matching values for this attribute are contained in the same group. The format of this attribute is a string. There is no semantic meaning to this attribute.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="minimum" type="xs:string">
+			<xs:annotation>
+				<xs:documentation>For user-resolved properties with numeric values, this indicates the minimum value allowed. Only valid for the types: byte, shortint, int, longint, shortreal and real. The type of this value is the same as the type of the parameter-value, which is specified by the parameter-type attribute.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="maximum" type="xs:string">
+			<xs:annotation>
+				<xs:documentation>For user-resolved properties with numeric values, this indicates the maximum value allowed. Only valid for the types: byte, shortint, int, longint, shortreal and real. The type of this value is the same as the type of the parameter-value, which is specified by the parameter-type attribute.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="type" type="ipxact:formatType" default="string">
+			<xs:annotation>
+				<xs:documentation>Specifies the type of the value of the parameter. A parameter of type byte is resolved to an 8-bit integer value, shortint is resolved to a 16-bit integer value, int is resolved to a 32-bit integer value, longint is resolved to a 64-bit integer value, shortreal is resolved to a 32-bit floating point value, real is resolved to a 64-bit floating point value, bit is by default resolved to a one bit value, unless a vector size has been specified and the string type is resolved to a string value.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="sign" type="ipxact:signType">
+			<xs:annotation>
+				<xs:documentation>Specify the signedness explicitly. The data types byte, shortint, int, longint default to signed. The data type bit defaults to unsigned. When setting this values for the data types string, real and shortreal the setting is ignored.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="prefix">
+			<xs:annotation>
+				<xs:documentation>Defines the prefix that precedes the unit of a value. The prefix is not applied to the value (e.g. in calculations).</xs:documentation>
+			</xs:annotation>
+			<xs:simpleType>
+				<xs:restriction base="xs:string">
+					<xs:enumeration value="deca"/>
+					<xs:enumeration value="hecto"/>
+					<xs:enumeration value="kilo"/>
+					<xs:enumeration value="mega"/>
+					<xs:enumeration value="giga"/>
+					<xs:enumeration value="tera"/>
+					<xs:enumeration value="peta"/>
+					<xs:enumeration value="exa"/>
+					<xs:enumeration value="zetta"/>
+					<xs:enumeration value="yotta"/>
+					<xs:enumeration value="deci"/>
+					<xs:enumeration value="centi"/>
+					<xs:enumeration value="milli"/>
+					<xs:enumeration value="micro"/>
+					<xs:enumeration value="nano"/>
+					<xs:enumeration value="pico"/>
+					<xs:enumeration value="femto"/>
+					<xs:enumeration value="atto"/>
+					<xs:enumeration value="zepto"/>
+					<xs:enumeration value="yocto"/>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:attribute>
+		<xs:attribute name="unit">
+			<xs:annotation>
+				<xs:documentation>Defines the unit of the value.</xs:documentation>
+			</xs:annotation>
+			<xs:simpleType>
+				<xs:restriction base="xs:string">
+					<xs:enumeration value="second"/>
+					<xs:enumeration value="ampere"/>
+					<xs:enumeration value="kelvin"/>
+					<xs:enumeration value="hertz"/>
+					<xs:enumeration value="joule"/>
+					<xs:enumeration value="watt"/>
+					<xs:enumeration value="coulomb"/>
+					<xs:enumeration value="volt"/>
+					<xs:enumeration value="farad"/>
+					<xs:enumeration value="ohm"/>
+					<xs:enumeration value="siemens"/>
+					<xs:enumeration value="henry"/>
+					<xs:enumeration value="Celsius"/>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:attribute>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="parameter.unit.att">
+		<xs:attribute name="unit">
+			<xs:annotation>
+				<xs:documentation>Defines the unit of the value.</xs:documentation>
+			</xs:annotation>
+			<xs:simpleType>
+				<xs:restriction base="xs:string">
+					<xs:enumeration value="second"/>
+					<xs:enumeration value="ampere"/>
+					<xs:enumeration value="kelvin"/>
+					<xs:enumeration value="hertz"/>
+					<xs:enumeration value="joule"/>
+					<xs:enumeration value="watt"/>
+					<xs:enumeration value="coulomb"/>
+					<xs:enumeration value="volt"/>
+					<xs:enumeration value="farad"/>
+					<xs:enumeration value="ohm"/>
+					<xs:enumeration value="siemens"/>
+					<xs:enumeration value="henry"/>
+					<xs:enumeration value="Celsius"/>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:attribute>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="parameter.resolve.att">
+		<xs:attribute name="resolve" default="immediate">
+			<xs:annotation>
+				<xs:documentation>Determines how a property value can be configured.</xs:documentation>
+			</xs:annotation>
+			<xs:simpleType>
+				<xs:annotation>
+					<xs:documentation>Determines how a parameter is resolved. User means the value must be obtained from the user. Generated means the value will be provided by a generator.</xs:documentation>
+				</xs:annotation>
+				<xs:restriction base="xs:token">
+					<xs:enumeration value="immediate">
+						<xs:annotation>
+							<xs:documentation>Property content cannot be modified through configuration.</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value="user">
+						<xs:annotation>
+							<xs:documentation>Property content can be modified through configuration. Modifications will be saved with the design.</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+					<xs:enumeration value="generated">
+						<xs:annotation>
+							<xs:documentation>Generators may modify this property. Modifications get saved with the design.</xs:documentation>
+						</xs:annotation>
+					</xs:enumeration>
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:attribute>
+	</xs:attributeGroup>
+</xs:schema>

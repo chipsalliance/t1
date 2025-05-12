@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : subInstances.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.14 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="autoConfigure.xsd"/>
+	<xs:element name="configuration">
+		<xs:annotation>
+			<xs:documentation>All configuration information for a contained component or channel instance.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="spirit:configurableElement" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="configurableElement">
+		<xs:annotation>
+			<xs:documentation>Describes the configurable content of an element in the instance.  May contain text and/or child elements.
+
+The required referenceId attribute refers to the ID attribute of the configurable element.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType mixed="true">
+			<xs:sequence>
+				<xs:any namespace="##any" processContents="skip" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+			<xs:attribute name="referenceId" type="xs:Name" use="required"/>
+			<xs:attributeGroup ref="spirit:autoConfig"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="instanceName" type="xs:Name">
+		<xs:annotation>
+			<xs:documentation>An instance name assigned to subcomponent instances and contained channels, that is unique within the parent component.</xs:documentation>
+		</xs:annotation>
+	</xs:element>
+	<xs:element name="componentInstance">
+		<xs:annotation>
+			<xs:documentation>Component instance element.  The instance name is contained in the unique-value instanceName attribute.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="spirit:instanceName"/>
+				<xs:element name="componentRef" type="spirit:libraryRefType">
+					<xs:annotation>
+						<xs:documentation>References a component to be found in an external library.  The name attribute gives the name of the component and the version attribute speicifies which version of the component to use.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="spirit:configuration" minOccurs="0"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="componentInstances">
+		<xs:annotation>
+			<xs:documentation>Sub instances of internal components.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="spirit:componentInstance" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="adHocConnection">
+		<xs:annotation>
+			<xs:documentation>Represents an ad-hoc connection between component pins.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="export" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Specifies whether this ad-hoc connection will be exported out of the design.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:simpleContent>
+							<xs:extension base="xs:boolean">
+								<xs:attributeGroup ref="spirit:bool.prompt.att"/>
+							</xs:extension>
+						</xs:simpleContent>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="pinReference" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:attribute name="componentRef" type="xs:Name" use="required"/>
+						<xs:attribute name="signalRef" type="xs:Name" use="required"/>
+						<xs:attribute name="left" type="xs:nonNegativeInteger"/>
+						<xs:attribute name="right" type="xs:nonNegativeInteger"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="name" type="xs:string" use="optional"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="adHocConnections">
+		<xs:annotation>
+			<xs:documentation>Defines the set of ad-hoc connections in a design. An ad-hoc connection represents a connection between two component pins which were not connected as a result of interface connections (i.e.the pin to pin connection was made explicitly and is represented explicitly).</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="spirit:adHocConnection" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="interconnection">
+		<xs:annotation>
+			<xs:documentation>Describes a connection from the interace of one comonent to the interface of another component through its attributes.
+
+ The component1Ref and busInterface1Ref attributes indicate the instance name and bus interface name of one end of the connection. The component2Ref and busInterface2Ref attributes indicate the instance name and bus interface name of the other end of he connection. </xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:attribute name="component1Ref" type="xs:Name" use="required"/>
+			<xs:attribute name="busInterface1Ref" type="xs:Name" use="required"/>
+			<xs:attribute name="component2Ref" type="xs:Name" use="required"/>
+			<xs:attribute name="busInterface2Ref" type="xs:Name" use="required"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="interconnections">
+		<xs:annotation>
+			<xs:documentation>Connections between internal sub components.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="spirit:interconnection" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="busInterface.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="generator.xsd"/>
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="model.xsd"/>
+	<xs:include schemaLocation="subInstances.xsd"/>
+	<xs:include schemaLocation="constraints.xsd"/>
+	<xs:complexType name="abstractorType">
+		<xs:annotation>
+			<xs:documentation>Abstractor-specific extension to abstractorType</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="ipxact:documentNameGroup"/>
+			<xs:element name="abstractorMode">
+				<xs:annotation>
+					<xs:documentation>Define the mode for the interfaces on this abstractor. 
+
+For initiator the first interface connects to the initiator, the second connects to the mirroredInitiator
+
+For target the first interface connects to the mirroredTarget the second connects to the target
+
+For direct the first interface connects to the initiator, the second connects to the target
+
+For system the first interface connects to the system, the second connects to the mirroredSystem. For system the group attribute is required</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:simpleContent>
+						<xs:extension base="ipxact:abstractorModeType">
+							<xs:attribute name="group" type="xs:Name">
+								<xs:annotation>
+									<xs:documentation>Define the system group if the mode is set to system</xs:documentation>
+								</xs:annotation>
+							</xs:attribute>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="busType" type="ipxact:libraryRefType">
+				<xs:annotation>
+					<xs:documentation>The bus type of both interfaces. Refers to bus definition using vendor, library, name, version attributes.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="abstractorInterfaces">
+				<xs:annotation>
+					<xs:documentation>The interfaces supported by this abstractor</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="abstractorInterface" type="ipxact:abstractorBusInterfaceType" minOccurs="2" maxOccurs="2">
+							<xs:annotation>
+								<xs:documentation>An abstractor must have exactly 2 Interfaces.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="model" type="ipxact:abstractorModelType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Model information.</xs:documentation>
+				</xs:annotation>
+				<xs:key name="abstractorInstantiationsKey">
+					<xs:selector xpath="./ipxact:instantiations/ipxact:componentInstantiation"/>
+					<xs:field xpath="./ipxact:name"/>
+				</xs:key>
+				<xs:keyref name="abstractorInstantiationsRef" refer="ipxact:abstractorInstantiationsKey">
+					<xs:selector xpath="./ipxact:views/ipxact:view/ipxact:componentInstantiationRef"/>
+					<xs:field xpath="."/>
+				</xs:keyref>
+			</xs:element>
+			<xs:element ref="ipxact:abstractorGenerators" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Generator list is tools-specific.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element ref="ipxact:choices" minOccurs="0"/>
+			<xs:element ref="ipxact:fileSets" minOccurs="0"/>
+			<xs:element ref="ipxact:parameters" minOccurs="0"/>
+			<xs:element ref="ipxact:assertions" minOccurs="0"/>
+			<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="ipxact:id.att"/>
+	</xs:complexType>
+	<xs:element name="abstractor" type="ipxact:abstractorType">
+		<xs:annotation>
+			<xs:documentation>This is the root element for abstractors</xs:documentation>
+		</xs:annotation>
+		<xs:key name="abstractorInterfaceKey">
+			<xs:selector xpath="ipxact:abstractorInterfaces/ipxact:abstractorInterface"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:key name="abstractorChoiceKey">
+			<xs:selector xpath="ipxact:choices/ipxact:choice"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="abstractorChoiceRef" refer="ipxact:abstractorChoiceKey">
+			<xs:selector xpath=".//ipxact:*"/>
+			<xs:field xpath="@choiceRef"/>
+		</xs:keyref>
+		<xs:key name="abstractorViewKey">
+			<xs:selector xpath="ipxact:model/ipxact:views/ipxact:view"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="abstractorTypeDefViewRef" refer="ipxact:abstractorViewKey">
+			<xs:selector xpath=".//ipxact:viewRef"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:keyref name="abstractorViewLinkViewRef" refer="ipxact:abstractorViewKey">
+			<xs:selector xpath=".//ipxact:viewLink/ipxact:viewReference"/>
+			<xs:field xpath="@viewRef"/>
+		</xs:keyref>
+		<xs:key name="abstractorFileSetKey">
+			<xs:selector xpath=".//ipxact:fileSet"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="abstractorFileSetRef" refer="ipxact:abstractorFileSetKey">
+			<xs:selector xpath=".//ipxact:fileSetRef"/>
+			<xs:field xpath="ipxact:localName"/>
+		</xs:keyref>
+		<xs:key name="abstractorPortKey">
+			<xs:selector xpath="ipxact:model/ipxact:ports/ipxact:port"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:key>
+		<xs:keyref name="abstractorportRef" refer="ipxact:abstractorPortKey">
+			<xs:selector xpath="ipxact:abstractorInterfaces/ipxact:abstractorInterface/ipxact:abstractionTypes/ipxact:abstractionType/ipxact:portMaps/ipxact:portMap/ipxact:physicalPort/ipxact:name"/>
+			<xs:field xpath="."/>
+		</xs:keyref>
+		<xs:unique name="abstractorParameterUnique">
+			<xs:selector xpath=".//ipxact:parameter | .//ipxact:moduleParameter | .//ipxact:typeParameter"/>
+			<xs:field xpath="@parameterId"/>
+		</xs:unique>
+		<xs:unique name="abstractorFileUnique">
+			<xs:selector xpath=".//ipxact:file"/>
+			<xs:field xpath="@fileId"/>
+		</xs:unique>
+	</xs:element>
+	<xs:simpleType name="abstractorModeType">
+		<xs:annotation>
+			<xs:documentation>Mode for this abstractor</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="initiator"/>
+			<xs:enumeration value="target"/>
+			<xs:enumeration value="direct"/>
+			<xs:enumeration value="system"/>
+		</xs:restriction>
+	</xs:simpleType>
+</xs:schema>

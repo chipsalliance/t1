@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : busDefinition.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.19 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" elementFormDefault="qualified" attributeFormDefault="qualified">
+  <xs:include schemaLocation="identifier.xsd"/>
+  <xs:include schemaLocation="configurator.xsd"/>
+  <xs:include schemaLocation="commonStructures.xsd"/>
+  <xs:include schemaLocation="generator.xsd"/>
+  <xs:include schemaLocation="signal.xsd"/>
+  <xs:group name="strengthGroup">
+    <xs:sequence>
+      <xs:element name="strength" default="strong">
+        <xs:annotation>
+          <xs:documentation>The strength of the signal. "strong" (default) or "weak"</xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="strong"/>
+            <xs:enumeration value="weak"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:group>
+  <xs:group name="busDefSignalWidthDir">
+    <xs:annotation>
+      <xs:documentation>Width and direction of a bus interface signal</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="bitWidth" type="xs:positiveInteger" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>Number of bits required to represent this signal. Absence of this element indicates unconstrained number of bits, i.e. the component will define th enumber of bits in this signal.</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="direction" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>If this element is present, the direction of this signal is restricted to the specified value. The direction is relative to the non-mirrored interface.</xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:union>
+            <xs:simpleType>
+              <xs:restriction base="spirit:componentSignalDirectionType">
+                <xs:enumeration value="in"/>
+                <xs:enumeration value="out"/>
+                <xs:enumeration value="inout"/>
+              </xs:restriction>
+            </xs:simpleType>
+            <xs:simpleType>
+              <xs:restriction base="xs:token">
+                <xs:enumeration value="illegal"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:union>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:group>
+  <xs:element name="busDefinition">
+    <xs:annotation>
+      <xs:documentation>Defines the signals and high-level function of a bus.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="spirit:versionedIdentifier"/>
+        <xs:element name="directConnection" type="xs:boolean" default="true" minOccurs="0">
+          <xs:annotation>
+            <xs:documentation>When present this element indicates that a master interface may be directly connected to a slave interface (under certain conditions) for busses of this type.</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="extends" type="spirit:libraryRefType" minOccurs="0">
+          <xs:annotation>
+            <xs:documentation>Optional name of bus type that this bus definition is compatible with. This bus definition may change the definitions of signals in the existing bus definition and add new signals, the signals in the original bus are not deleted but may be marked illegal to disallow their use.</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="maxMasters" type="xs:nonNegativeInteger" minOccurs="0">
+          <xs:annotation>
+            <xs:documentation>Indicates the maximum number of masters this bus supports.  Default value of zero means unbounded. </xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="maxSlaves" type="xs:nonNegativeInteger" minOccurs="0">
+          <xs:annotation>
+            <xs:documentation>Indicates the maximum number of slaves this bus supports.  Default value of zero means unbounded.</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="signals">
+          <xs:annotation>
+            <xs:documentation>This is a list of logical signals defined by the bus.</xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="signal" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="logicalName" type="xs:Name">
+                      <xs:annotation>
+                        <xs:documentation>The assigned name of this signal in bus specifications.</xs:documentation>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:choice>
+                      <xs:element name="isAddress" type="xs:boolean" minOccurs="0">
+                        <xs:annotation>
+                          <xs:documentation>If this element is present, the signal contains address information.</xs:documentation>
+                        </xs:annotation>
+                      </xs:element>
+                      <xs:element name="isData" type="xs:boolean" minOccurs="0">
+                        <xs:annotation>
+                          <xs:documentation>If this element is present, the signal contains data information.</xs:documentation>
+                        </xs:annotation>
+                      </xs:element>
+                      <xs:element name="isClock" type="xs:boolean" minOccurs="0">
+                        <xs:annotation>
+                          <xs:documentation>If this element is present, the signal contains clock information.</xs:documentation>
+                        </xs:annotation>
+                      </xs:element>
+                      <xs:element name="isReset" type="xs:boolean" minOccurs="0">
+                        <xs:annotation>
+                          <xs:documentation>Is this element is present, the signal contains reset information.</xs:documentation>
+                        </xs:annotation>
+                      </xs:element>
+                    </xs:choice>
+                    <xs:element ref="spirit:requiresDriver" minOccurs="0"/>
+                    <xs:element name="onSystem" minOccurs="0" maxOccurs="unbounded">
+                      <xs:annotation>
+                        <xs:documentation>Defines constraints for this signal when present in a system bus interface with a matching group name.</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="group" type="xs:Name">
+                            <xs:annotation>
+                              <xs:documentation>Used to group system signals into different groups within a common bus.</xs:documentation>
+                            </xs:annotation>
+                          </xs:element>
+                          <xs:group ref="spirit:busDefSignalWidthDir"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="onMaster" minOccurs="0">
+                      <xs:annotation>
+                        <xs:documentation>Defines constraints for this signal when present in a master bus interface.</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:group ref="spirit:busDefSignalWidthDir"/>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="onSlave" minOccurs="0">
+                      <xs:annotation>
+                        <xs:documentation>Defines constraints for this signal when present in a slave bus interface.</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:group ref="spirit:busDefSignalWidthDir"/>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="defaultValue" minOccurs="0">
+                      <xs:annotation>
+                        <xs:documentation>Default value for the signal when used as an input and it ends up  being unconnected. Ignored for signals that require a singleShot or clock type driver. This value may be overridden by a defaultValue on a component pin.</xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:choice>
+                          <xs:group ref="spirit:strengthGroup"/>
+                          <xs:sequence>
+                            <xs:element name="value">
+                              <xs:annotation>
+                                <xs:documentation>The value of a signal. 1 or 0 for single bit signals, unsigned numeric otherwise.</xs:documentation>
+                              </xs:annotation>
+                            </xs:element>
+                            <xs:group ref="spirit:strengthGroup" minOccurs="0"/>
+                          </xs:sequence>
+                        </xs:choice>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="spirit:choices" minOccurs="0"/>
+        <xs:element ref="spirit:vendorExtensions" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+    <xs:key name="busDefChoiceKey">
+      <xs:selector xpath="spirit:choices/spirit:choice"/>
+      <xs:field xpath="spirit:name"/>
+    </xs:key>
+    <xs:keyref name="busDefChoiceRef" refer="spirit:busDefChoiceKey">
+      <xs:selector xpath=".//*"/>
+      <xs:field xpath="@spirit:choiceRef"/>
+    </xs:keyref>
+  </xs:element>
+</xs:schema>

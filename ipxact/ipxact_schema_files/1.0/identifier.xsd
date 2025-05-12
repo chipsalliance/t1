@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : identifier.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.10 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:group name="baseIdentifier">
+		<xs:annotation>
+			<xs:documentation>Base SPIRIT identifier group. Identify a SPIRIT document by its by vendor, library and name.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="vendor" type="xs:Name">
+				<xs:annotation>
+					<xs:documentation>Name of the vendor who supplies this file.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="library" type="xs:Name">
+				<xs:annotation>
+					<xs:documentation>Name of the logical library this component belongs to.  Note that a physical library may contain components from multiple logical libraries.  Logical libraries are displayes in component browser.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="name" type="xs:NMTOKEN">
+				<xs:annotation>
+					<xs:documentation>The name of the object.  Must match the root name of the XML file and the directory name it or its version directory belongs to.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="identifier">
+		<xs:annotation>
+			<xs:documentation>This group of elements identifies a design and a PMD -  with an optional version number -.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="spirit:baseIdentifier"/>
+			<xs:element name="version" type="xs:NMTOKEN" minOccurs="0"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:group name="versionedIdentifier">
+		<xs:annotation>
+			<xs:documentation>This group of elements identifies a component of a bus definition - with a mandatory a version number-.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:group ref="spirit:baseIdentifier"/>
+			<xs:element name="version" type="xs:NMTOKEN"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:attributeGroup name="libraryRefGroup">
+		<xs:annotation>
+			<xs:documentation>Base SPIRIT document reference.  Contains vendor, library, name and optional version attributes.</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="vendor" type="xs:Name" use="required"/>
+		<xs:attribute name="library" type="xs:Name" use="required"/>
+		<xs:attribute name="name" type="xs:NMTOKEN" use="required"/>
+		<xs:attribute name="version" type="xs:NMTOKEN"/>
+	</xs:attributeGroup>
+	<xs:complexType name="libraryRefType">
+		<xs:annotation>
+			<xs:documentation>Base SPIRIT document reference type. Contains vendor, library, name and optional version attributes.</xs:documentation>
+		</xs:annotation>
+		<xs:attributeGroup ref="spirit:libraryRefGroup"/>
+	</xs:complexType>
+	<xs:complexType name="resolvedLibraryRefType">
+		<xs:annotation>
+			<xs:documentation>Resolved SPIRIT document reference type. Contains vendor, library, name and optional version attributes and the URI of the referenced SPIRIT document</xs:documentation>
+		</xs:annotation>
+		<xs:simpleContent>
+			<xs:extension base="xs:anyURI">
+				<xs:attributeGroup ref="spirit:libraryRefGroup"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+</xs:schema>

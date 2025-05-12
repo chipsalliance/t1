@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="subInstances.xsd"/>
+	<xs:include schemaLocation="model.xsd"/>
+	<xs:include schemaLocation="port.xsd"/>
+	<xs:element name="design">
+		<xs:annotation>
+			<xs:documentation>Root element for a platform design.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="ipxact:documentNameGroup"/>
+				<xs:element ref="ipxact:componentInstances" minOccurs="0"/>
+				<xs:element ref="ipxact:interconnections" minOccurs="0"/>
+				<xs:element ref="ipxact:adHocConnections" minOccurs="0"/>
+				<xs:element ref="ipxact:choices" minOccurs="0"/>
+				<xs:element ref="ipxact:parameters" minOccurs="0"/>
+				<xs:element ref="ipxact:assertions" minOccurs="0"/>
+				<xs:element ref="ipxact:vendorExtensions" minOccurs="0"/>
+			</xs:sequence>
+			<xs:attributeGroup ref="ipxact:id.att"/>
+		</xs:complexType>
+		<xs:key name="designComponentInstanceKey">
+			<xs:selector xpath="ipxact:componentInstances/ipxact:componentInstance"/>
+			<xs:field xpath="ipxact:instanceName"/>
+		</xs:key>
+		<xs:keyref name="designInterconnectionActiveInstanceRef" refer="ipxact:designComponentInstanceKey">
+			<xs:selector xpath="ipxact:interconnections/ipxact:interconnection/ipxact:activeInterface"/>
+			<xs:field xpath="@componentInstanceRef"/>
+		</xs:keyref>
+		<xs:keyref name="designAdhocConnectionActiveInstanceRef" refer="ipxact:designComponentInstanceKey">
+			<xs:selector xpath="ipxact:adHocConnections/ipxact:adHocConnection/ipxact:portReferences/ipxact:internalPortReference"/>
+			<xs:field xpath="@componentInstanceRef"/>
+		</xs:keyref>
+		<xs:unique name="designInterconnectionName">
+			<xs:selector xpath=".//ipxact:interconnection|.//ipxact:monitorInterconnection"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:unique>
+		<xs:unique name="designAdHocName">
+			<xs:selector xpath=".//ipxact:adHocConnection"/>
+			<xs:field xpath="ipxact:name"/>
+		</xs:unique>
+		<xs:unique name="designParameterUnique">
+			<xs:selector xpath="ipxact:parameters/ipxact:parameter"/>
+			<xs:field xpath="@parameterId"/>
+		</xs:unique>
+		<xs:key name="designChoiceKey">
+			<xs:selector xpath="ipxact:choices/ipxact:choice/ipxact:name"/>
+			<xs:field xpath="."/>
+		</xs:key>
+		<xs:keyref name="designChoiceRef" refer="ipxact:designChoiceKey">
+			<xs:selector xpath="ipxact:parameters/ipxact:parameter"/>
+			<xs:field xpath="@choiceRef"/>
+		</xs:keyref>
+	</xs:element>
+</xs:schema>

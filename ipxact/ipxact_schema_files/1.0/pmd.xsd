@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+// Description : pmd.xsd
+// Author : SPIRIT Schema Working Group
+// Version:     $Revision: 1.12 $
+// Date:        $Date: 2004/11/30 20:58:15 $
+// Tag:         $Name: V1_0 $
+//
+// Copyright (c) 2004 SPIRIT.  All rights reserved.
+// www.spiritconsortium.com
+//
+// THIS WORK FORMS PART OF A SPIRIT CONSORTIUM SPECIFICATION.
+// THIS WORK CONTAINS TRADE SECRETS AND PROPRIETARY INFORMATION
+// WHICH IS THE EXCLUSIVE PROPERTY OF INDIVIDUAL MEMBERS OF THE
+// SPIRIT CONSORTIUM. USE OF THESE MATERIALS ARE GOVERNED BY
+// THE LEGAL TERMS AND CONDITIONS OUTLINED IN THE THE SPIRIT
+// SPECIFICATION DISCLAIMER AVAILABLE FROM
+// www.spiritconsortium.org
+-->
+<xs:schema targetNamespace="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:spirit="http://www.spiritconsortium.org/XMLSchema/SPIRIT/1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:include schemaLocation="commonStructures.xsd"/>
+	<xs:include schemaLocation="identifier.xsd"/>
+	<xs:include schemaLocation="generator.xsd"/>
+	<xs:element name="pmd">
+		<xs:annotation>
+			<xs:documentation>The root element of the platform meta-data definition file. This file defines the Platform meta-data to be applied to specific IP</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:group ref="spirit:identifier"/>
+				<xs:element name="appliesTo">
+					<xs:annotation>
+						<xs:documentation>Defines the components that this pmd applies to. When the user tries to add any of those components, this pmd will be applied.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="componentRef" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>A vendor-library-name-version identifier used to refer to components.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:complexContent>
+										<xs:extension base="spirit:libraryRefType">
+											<xs:sequence>
+												<xs:element name="displayLabel" minOccurs="0">
+													<xs:annotation>
+														<xs:documentation>A display label to override the original component's display label if this 3MD will apply.</xs:documentation>
+													</xs:annotation>
+													<xs:simpleType>
+														<xs:restriction base="xs:string">
+															<xs:whiteSpace value="collapse"/>
+														</xs:restriction>
+													</xs:simpleType>
+												</xs:element>
+											</xs:sequence>
+										</xs:extension>
+									</xs:complexContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="dependsOn">
+					<xs:annotation>
+						<xs:documentation>Defines the components that  must exist in the current design for this pmd to apply. The pmd will only apply if an instance of each components declared in this list exists in the design. If the list is empty then this pmd file will apply unconditionaly.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="componentRef" type="spirit:libraryRefType" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>A vendor-library-name-version identifier used to refer to components.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="transformer">
+					<xs:annotation>
+						<xs:documentation>The transformer element contains references to the actual code that will make the transformation. If there are multiple elements, they will be applied in sequence. i.e., the affected component document will pass through a pipeline of transformers with each child element representing a step in a pipeline.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:choice maxOccurs="unbounded">
+							<xs:element name="xslt">
+								<xs:annotation>
+									<xs:documentation>An XSLT transformer that will transform the document based on rules defined in the xsl file mentioned here.</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="styleSheet" type="spirit:spiritURI">
+											<xs:annotation>
+												<xs:documentation>The relative path to the xsl stylesheet to be used for transformation.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+										<xs:element name="parameter" type="spirit:nameValuePairType" minOccurs="0" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>Parameters to be passed to the xslt stylesheet at run time.</xs:documentation>
+											</xs:annotation>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:choice>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

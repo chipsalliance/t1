@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to Accellera Systems Initiative Inc. (Accellera) under one or
+  more contributor license agreements.  See the NOTICE file distributed
+  with this work for additional information regarding copyright ownership.
+  Accellera licenses this file to you under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with the
+  License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing
+  permissions and limitations under the License.
+-->
+<xs:schema xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" elementFormDefault="qualified">
+	<xs:import schemaLocation="xml.xsd" namespace="http://www.w3.org/XML/1998/namespace"/>
+  <xs:include schemaLocation="simpleTypes.xsd"/>
+	<xs:simpleType name="formatType">
+		<xs:annotation>
+			<xs:documentation>This is an indication on the format of the value. bit: 1-bit or more (vector) bits unsigned integer, byte: 8-bit signed integer, shortint: 16-bit signed integer, int: 32-bit signed integer, longint: 64-bit signed integer, shortreal: 32-bit signed floating point number, real: 64-bit signed floating point number, string: textual information.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="bit"/>
+			<xs:enumeration value="byte"/>
+			<xs:enumeration value="shortint"/>
+			<xs:enumeration value="int"/>
+			<xs:enumeration value="longint"/>
+			<xs:enumeration value="shortreal"/>
+			<xs:enumeration value="real"/>
+			<xs:enumeration value="string"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="signType">
+		<xs:annotation>
+			<xs:documentation>This is an indication of the signedness of the value.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="signed"/>
+			<xs:enumeration value="unsigned"/>
+		</xs:restriction>
+	</xs:simpleType>
+		<xs:simpleType name="delayValueUnitType">
+		<xs:annotation>
+			<xs:documentation>Indicates legal units for delay values.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="ps"/>
+			<xs:enumeration value="ns"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:attributeGroup name="any.att">
+		<xs:anyAttribute namespace="##other" processContents="lax"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="id.att">
+		<xs:annotation>
+			<xs:documentation>Contains the xml:id attribute used for annotating elements with a unique identifiers. See http://www.w3.org/TR/xml-id for more information.</xs:documentation>
+		</xs:annotation>
+		<xs:attribute ref="xml:id"/>
+	</xs:attributeGroup>
+	<xs:element name="choices">
+		<xs:annotation>
+			<xs:documentation>Choices used by elements with an attribute ipxact:choiceRef.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="choice" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Non-empty set of legal values for a elements with an attribute ipxact:choiceRef.</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="name" type="xs:Name">
+								<xs:annotation>
+									<xs:documentation>Choice key, available for reference by the ipxact:choiceRef attribute.</xs:documentation>
+								</xs:annotation>
+							</xs:element>
+							<xs:element name="enumeration" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>One possible value of ipxact:choice</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:simpleContent>
+										<xs:extension base="ipxact:complexBaseExpression">
+											<xs:attribute name="text" type="xs:string">
+												<xs:annotation>
+													<xs:documentation>When specified, displayed in place of the ipxact:enumeration value </xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+											<xs:attribute name="help" type="xs:string">
+												<xs:annotation>
+													<xs:documentation>Text that may be displayed if the user requests help about the meaning of an element</xs:documentation>
+												</xs:annotation>
+											</xs:attribute>
+                      <xs:attributeGroup ref="ipxact:id.att"/>											
+										</xs:extension>
+									</xs:simpleContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+						<xs:attributeGroup ref="ipxact:id.att"/>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>
