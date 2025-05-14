@@ -104,6 +104,7 @@ let
       codegen = casesSelf.callPackage ./codegen { };
       rvv_bench = casesSelf.callPackage ./rvv_bench { };
       pytorch = casesSelf.callPackage ./pytorch { };
+      iree-pytorch = casesSelf.callPackage ./iree-pytorch { };
       disp = casesSelf.callPackage ./disp { };
       emurt-test = casesSelf.callPackage ./emurt/tests { };
       eval = casesSelf.callPackage ./eval { };
@@ -125,6 +126,7 @@ let
       codegen
       rvv_bench
       pytorch
+      iree-pytorch
       disp
       emurt-test
       eval
