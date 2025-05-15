@@ -60,10 +60,7 @@
     },
     "flake-parts_2": {
       "inputs": {
-        "nixpkgs-lib": [
-          "mill-ivy-fetcher",
-          "nixpkgs"
-        ]
+        "nixpkgs-lib": ["mill-ivy-fetcher", "nixpkgs"]
       },
       "locked": {
         "lastModified": 1743550720,
@@ -172,11 +169,11 @@
     },
     "nixpkgs-for-llvm": {
       "locked": {
-        "lastModified": 1746599159,
-        "narHash": "sha256-Q1DAb1rMhDw3T4kkHubtFkV1LKjKIpzlWZw9hu3M8m4=",
+        "lastModified": 1742960832,
+        "narHash": "sha256-xdp71QH76Q0esAJi4+5xDzpgBQNFpq8xn6UNfyT/s9w=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "40a6f0475937feb83579edf91b5897ad49c09f76",
+        "rev": "24693557f72603e8f2c514ee26854d5c2aad9090",
         "type": "github"
       },
       "original": {
@@ -323,10 +320,7 @@
     },
     "treefmt-nix": {
       "inputs": {
-        "nixpkgs": [
-          "mill-ivy-fetcher",
-          "nixpkgs"
-        ]
+        "nixpkgs": ["mill-ivy-fetcher", "nixpkgs"]
       },
       "locked": {
         "lastModified": 1743748085,
