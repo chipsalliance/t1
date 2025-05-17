@@ -100,10 +100,17 @@ rec {
               rev = "bb123ff9401b517d877de4ed6fd9ea61edf49dbb";
               hash = "sha256-6ca5FhSsG5Qik7wi6Vn3OmUmKR/hULSDniu4JLo+5jM=";
             };
+            vscalePatch = prev.fetchpatch {
+              url = "https://github.com/llvm/llvm-project/pull/140195.patch";
+              hash = "sha256-fevg7xQ/9RuOvGnT9uBhBAoM0wq+hB0tvidsg2LkxG8=";
+              stripLen = 1;
+            };
           in
           llvmPackages.clang-unwrapped.override {
             monorepoSrc = llvmSrc;
-            libllvm = llvmPackages.libllvm.override { monorepoSrc = llvmSrc; };
+            libllvm = (llvmPackages.libllvm.override { monorepoSrc = llvmSrc; }).overrideAttrs (old: {
+              patches = old.patches ++ [ vscalePatch ];
+            });
           };
       in
       rv32_buildPkgs.wrapCCWith rec {
