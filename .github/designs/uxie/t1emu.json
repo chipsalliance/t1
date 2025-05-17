@@ -9,14 +9,6 @@
   "asm.smoke": 5370,
   "intrinsic.conv2d_less_m2": 2895,
   "intrinsic.linear_normalization": 3085,
-  "intrinsic.softmax": 4934,
-  "rvv_bench.ascii_to_utf16": 11075,
-  "rvv_bench.ascii_to_utf32": 5197,
-  "rvv_bench.byteswap": 5087491,
-  "rvv_bench.mandelbrot": 218725,
-  "rvv_bench.memcpy": 40017,
-  "rvv_bench.memset": 12454,
-  "rvv_bench.mergelines": 36038,
-  "rvv_bench.strlen": 19676,
-  "rvv_bench.utf8_count": 186188
+  "intrinsic.softmax": 4934
 }
+

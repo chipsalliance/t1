@@ -434,15 +434,6 @@
   "mlir.hello": 425,
   "mlir.rvv_vp_intrinsic_add": 820,
   "mlir.rvv_vp_intrinsic_add_scalable": 1131,
-  "mlir.stripmining": 50639,
-  "rvv_bench.ascii_to_utf16": 813186,
-  "rvv_bench.ascii_to_utf32": 273629,
-  "rvv_bench.byteswap": 612624,
-  "rvv_bench.chacha20": 41874,
-  "rvv_bench.memcpy": 943062,
-  "rvv_bench.memset": 443617,
-  "rvv_bench.mergelines": 599654,
-  "rvv_bench.poly1305": 41874,
-  "rvv_bench.strlen": 275578,
-  "rvv_bench.utf8_count": 2341052
+  "mlir.stripmining": 50639
 }
+
