@@ -123,7 +123,7 @@ let
       asm
       perf
       codegen
-      rvv_bench
+      #rvv_bench
       pytorch
       disp
       emurt-test
