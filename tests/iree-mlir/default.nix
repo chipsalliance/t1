@@ -59,7 +59,7 @@ let
         $CC -c -fPIC $ireeCFlags run.c -o run.o
         $CC -c -fPIC $ireeCFlags ${test-c} -o test.o
         $CC -c -fPIC $ireeCFlags ${device_embedded_sync-c} -I . -o device_embedded_sync.o
-        $CC -T${linkerScript} ${t1main} run.o test.o mlir_module_dylib.o device_embedded_sync.o \
+        $CC -lm -T${linkerScript} ${t1main} run.o test.o mlir_module_dylib.o device_embedded_sync.o \
           -liree_vm_impl \
           -liree_base_base \
           -liree_base_internal_synchronization \

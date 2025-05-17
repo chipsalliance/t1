@@ -23,6 +23,7 @@ object CSR extends SerializableModuleElaborator {
     @arg(name = "vLen") vLen:                       Int,
     @arg(name = "xLen") xLen:                       Int,
     @arg(name = "fLen") fLen:                       Int,
+    @arg(name = "tew") tew:                         Option[Int],
     @arg(name = "hartIdLen") hartIdLen:             Int,
     @arg(name = "mcontextWidth") mcontextWidth:     Int,
     @arg(name = "scontextWidth") scontextWidth:     Int,
@@ -40,12 +41,14 @@ object CSR extends SerializableModuleElaborator {
     @arg(name = "usingAtomics") usingAtomics:       Boolean,
     @arg(name = "usingDebug") usingDebug:           Boolean,
     @arg(name = "usingMulDiv") usingMulDiv:         Boolean,
-    @arg(name = "usingVector") usingVector: Boolean) {
+    @arg(name = "usingVector") usingVector:         Boolean,
+    @arg(name = "usingZVMA") usingZVMA: Boolean) {
     def convert: CSRParameter = CSRParameter(
       useAsyncReset:   Boolean,
       vLen:            Int,
       xLen:            Int,
       fLen:            Int,
+      tew:             Option[Int],
       hartIdLen:       Int,
       mcontextWidth:   Int,
       scontextWidth:   Int,
@@ -63,7 +66,8 @@ object CSR extends SerializableModuleElaborator {
       usingAtomics:    Boolean,
       usingDebug:      Boolean,
       usingMulDiv:     Boolean,
-      usingVector:     Boolean
+      usingVector:     Boolean,
+      usingZVMA:       Boolean
     )
   }
 

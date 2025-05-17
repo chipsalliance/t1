@@ -68,6 +68,7 @@ case class RocketParameter(
   clockGate:              Boolean,
   instructionSets:        Set[String],
   vLen:                   Int,
+  tew:                    Option[Int],
   usingUser:              Boolean,
   hartIdLen:              Int,
   nPMPs:                  Int,
@@ -94,6 +95,7 @@ case class RocketParameter(
     extends SerializableModuleParameter {
   // interface to T1
   def usingVector = hasInstructionSet("rv_v")
+  def usingXsfmm  = instructionSets.exists(_.startsWith("rv_xsfmm"))
 
   // fixed for now
   def usingRVE = false
@@ -255,6 +257,7 @@ case class RocketParameter(
     vLen:              Int,
     xLen:              Int,
     fLen.getOrElse(0): Int,
+    tew:               Option[Int],
     hartIdLen:         Int,
     mcontextWidth:     Int,
     scontextWidth:     Int,
@@ -272,7 +275,8 @@ case class RocketParameter(
     usingAtomics:      Boolean,
     usingDebug:        Boolean,
     usingMulDiv:       Boolean,
-    usingVector:       Boolean
+    usingVector:       Boolean,
+    usingXsfmm:        Boolean
   )
   val decoderParameter = DecoderParameter(
     instructionSets,
@@ -461,6 +465,7 @@ class Rocket(val parameter: RocketParameter)
   def usingAtomics:            Boolean     = parameter.usingAtomics
   def usingMulDiv:             Boolean     = parameter.usingMulDiv
   def usingVector:             Boolean     = parameter.usingVector
+  def usingXsfmm:              Boolean     = parameter.usingXsfmm
   def pipelinedMul:            Boolean     = parameter.pipelinedMul
   def usingCompressed:         Boolean     = parameter.usingCompressed
   def usingFPU:                Boolean     = parameter.usingFPU
@@ -1281,6 +1286,11 @@ class Rocket(val parameter: RocketParameter)
     csr.io.rw.cmd   := parameter.csrParameter.maskCmd(wbRegValid, wbRegDecodeOutput(parameter.decoderParameter.csr))
     csr.io.rw.wdata := wbRegWdata
     csr.io.vectorCsr.foreach(_ := wbRegDecodeOutput(parameter.decoderParameter.vectorCSR))
+    csr.io.setVlType.foreach { t =>
+      t.tm := wbRegDecodeOutput(parameter.decoderParameter.setTm)
+      t.tn := wbRegDecodeOutput(parameter.decoderParameter.setTn)
+      t.tk := wbRegDecodeOutput(parameter.decoderParameter.setTk)
+    }
     csr.io.wbRegRS2.foreach(_ := wbRegRS2)
 
     io.bpwatch.zip(wbRegWphit).zip(csr.io.bp)
