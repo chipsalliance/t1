@@ -513,16 +513,6 @@
   "mlir.stripmining": 15569,
   "mlir.vectoradd": 13812,
   "pytorch.demo": 35165,
-  "pytorch.matmul": 75035,
-  "rvv_bench.ascii_to_utf16": 810407,
-  "rvv_bench.ascii_to_utf32": 273292,
-  "rvv_bench.byteswap": 607697,
-  "rvv_bench.chacha20": 41874,
-  "rvv_bench.mandelbrot": 559012,
-  "rvv_bench.memcpy": 937104,
-  "rvv_bench.memset": 435694,
-  "rvv_bench.mergelines": 581158,
-  "rvv_bench.poly1305": 41874,
-  "rvv_bench.strlen": 258282,
-  "rvv_bench.utf8_count": 2266749
+  "pytorch.matmul": 75035
 }
+
