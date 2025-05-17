@@ -5,13 +5,6 @@
   "mlir.hello": 145,
   "mlir.rvv_vp_intrinsic_add": 495,
   "mlir.rvv_vp_intrinsic_add_scalable": 723,
-  "mlir.stripmining": 47258,
-  "rvv_bench.ascii_to_utf16": 17475,
-  "rvv_bench.ascii_to_utf32": 6503,
-  "rvv_bench.byteswap": 81545,
-  "rvv_bench.memcpy": 59286,
-  "rvv_bench.memset": 21110,
-  "rvv_bench.mergelines": 43618,
-  "rvv_bench.strlen": 34370,
-  "rvv_bench.utf8_count": 241317
+  "mlir.stripmining": 47258
 }
+
