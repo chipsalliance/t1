@@ -61,14 +61,19 @@ case class DecoderParameter(
   val instructions: Seq[Instruction] =
     org.chipsalliance.rvdecoderdb
       .instructions(
-        org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader)
+        org.chipsalliance.rvdecoderdb.extractResource(getClass.getClassLoader),
+        Some(org.chipsalliance.rvdecoderdb.extractCustomResource(getClass.getClassLoader))
       )
       .filter(instruction =>
-        (
-          instructionSets ++
-            // Four mandatory instruction sets.
-            Seq("rv_i", "rv_zicsr", "rv_zifencei", "rv_system")
-        ).contains(instruction.instructionSet.name)
+        instruction.instructionSet.name match {
+          case "rv_xsfmm" => instructionSets.exists(_.startsWith("rv_xsfmm"))
+          case name       =>
+            (
+              instructionSets ++
+                // Four mandatory instruction sets.
+                Seq("rv_i", "rv_zicsr", "rv_zifencei", "rv_system")
+            ).contains(name)
+        }
       )
       .toSeq
       .filter {
@@ -87,6 +92,9 @@ case class DecoderParameter(
 
   private def xLen64: Boolean = instructions.map(_.instructionSet.name).exists(_.startsWith("rv64_"))
 
+  private def hasAnyMatchSet(predicate: String => Boolean): Boolean =
+    instructions.flatMap(_.instructionSets.map(_.name)).exists(predicate)
+
   private def fLen0: Boolean = !fLen32 && !fLen64
 
   private def fLen32: Boolean = hasAnySetIn("rv_f", "rv32_f", "rv64_f")
@@ -96,6 +104,7 @@ case class DecoderParameter(
   private val useFPU    = !fLen0
   private val useMulDiv = hasAnySetIn("rv_m", "rv64_m")
   private val useVector = hasAnySetIn("rv_v")
+  private val useZvma   = hasAnyMatchSet(_.startsWith("rv_xsfmm"))
 
   private val instructionDecodePatterns: Seq[RocketDecodePattern]                         = instructions.map(RocketDecodePattern.apply)
   private val instructionDecodeFields:   Seq[DecodeField[RocketDecodePattern, _ <: Data]] = Seq(
@@ -120,7 +129,8 @@ case class DecoderParameter(
   ) ++
     (if (useFPU) Seq(fp, rfs1, rfs2, rfs3, wfd, dp) else None) ++
     (if (useMulDiv) if (pipelinedMul) Seq(mul, div) else Seq(div) else None) ++
-    (if (useVector) Seq(vector, vectorLSU, vectorCSR, vectorReadFRs1) else None)
+    (if (useVector) Seq(vector, vectorLSU, vectorCSR, vectorReadFRs1) else None) ++
+    (if (useZvma) Seq(setTk, setTm, setTn) else None)
   private val Y = BitPat.Y()
   private val N = BitPat.N()
 
@@ -706,7 +716,7 @@ case class DecoderParameter(
   object vector extends BoolDecodeField[RocketDecodePattern] {
     override def name: String = "vector"
 
-    override def genTable(op: RocketDecodePattern): BitPat = if (op.instruction.instructionSet.name == "rv_v") Y else N
+    override def genTable(op: RocketDecodePattern): BitPat = if (op.instruction.instructionSet.name == "rv_v" || op.instruction.instructionSet.name.startsWith("rv_xsfmm")) Y else N
   }
 
   object vectorLSU extends BoolDecodeField[RocketDecodePattern] {
@@ -725,6 +735,24 @@ case class DecoderParameter(
     override def name: String = "vectorReadFRs1"
 
     override def genTable(op: RocketDecodePattern): BitPat = if (op.vectorReadFRegFile) Y else N
+  }
+
+  object setTk extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "setTk"
+
+    override def genTable(op: RocketDecodePattern): BitPat = if (op.instruction.name == "vsettk") Y else N
+  }
+
+  object setTm extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "setTm"
+
+    override def genTable(op: RocketDecodePattern): BitPat = if (op.instruction.name == "vsettm") Y else N
+  }
+
+  object setTn extends BoolDecodeField[RocketDecodePattern] {
+    override def name: String = "setTn"
+
+    override def genTable(op: RocketDecodePattern): BitPat = if (op.instruction.name == "vsettn") Y else N
   }
 
   // fpu decode
@@ -914,11 +942,13 @@ class FPUDecoderInterface(parameter: DecoderParameter) extends Bundle {
 case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
   override def bitPat: BitPat = BitPat("b" + instruction.encoding.toString)
   def isVector = instruction.instructionSet.name == "rv_v"
-  def isVectorCSR = Seq("vsetvl", "vsetivli", "vsetvli").contains(instruction.name)
+  def isVectorCSR = Seq("vsetvl", "vsetivli", "vsetvli", "vsettm", "vsettn", "vsettk").contains(instruction.name)
   def isVectorLSU = instruction.name match {
     // unit stride
     // load/store(t) sz element
     case s"v${t}e${sz}.v" if (t == "l") || (t == "s")                                       => true
+    // zvma load/store
+    case s"v${t}te${sz}" if (t == "l") || (t == "s")                                        => true
     // alias to vl(s)e1.v
     case s"v${t}m.v" if (t == "l") || (t == "s")                                            => true
     // load/store(t) element w/ first fault
@@ -949,6 +979,7 @@ case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
     case s"v${op}.s.x" => true
     // set vl
     case s"vsetvl${i}" => true
+    case s"vsett${i}" => true
     case _ => false
   })
   def vectorReadRs2 = instruction.name match {
@@ -956,6 +987,8 @@ case class RocketDecodePattern(instruction: Instruction) extends DecodePattern {
     case s"vsetvl" => true
     // stride
     case s"v${t}se${sz}.v" if (t == "l") || (t == "s") => true
+    // zvma load/store
+    case s"v${t}te${sz}" if (t == "l") || (t == "s") => true
     case _ => false
   }
 }

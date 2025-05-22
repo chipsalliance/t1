@@ -43,6 +43,7 @@ let
           ./../../t1rocket/src
           ./../../t1rocketemu/src
           ./../../stdlib/src
+          ./../../custom-instructions
         ];
       };
 
