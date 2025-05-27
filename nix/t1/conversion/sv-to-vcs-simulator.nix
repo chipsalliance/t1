@@ -54,6 +54,7 @@ let
       "-F"
       "${rtl}/filelist.f"
     ]
+    ++ (rtl.layersDirs |> map (dir: "+incdir+${rtl}/${dir}"))
     ++ lib.optionals (topModule != null) [
       "-top"
       topModule

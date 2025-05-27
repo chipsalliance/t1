@@ -8,13 +8,21 @@
   outputName,
   mlirbc,
   mfcArgs,
+  enableLayers,
 }:
 
 assert lib.assertMsg (builtins.typeOf mfcArgs == "list") "mfcArgs is not a list";
+assert lib.assertMsg (builtins.typeOf enableLayers == "list") "enableLayers is not a list";
 
+let
+  enabledLayersDirs =
+    enableLayers |> lib.map (str: "./" + lib.replaceStrings [ "." ] [ "/" ] (lib.toLower str));
+in
 stdenvNoCC.mkDerivation {
   name = outputName;
   nativeBuildInputs = [ circt ];
+
+  passthru.layersDirs = enabledLayersDirs;
 
   buildCommand = ''
     mkdir -p $out
@@ -26,7 +34,7 @@ stdenvNoCC.mkDerivation {
     # https://github.com/llvm/circt/pull/7543
     echo "[nix] fixing generated filelist.f"
     pushd $out >/dev/null
-    find . -mindepth 1 -name '*.sv' -type f > $out/filelist.f
+    find . ${lib.concatStringsSep " " enabledLayersDirs} -maxdepth 1 -name "*.sv" -type f -print > ./filelist.f
     popd >/dev/null
   '';
 }

@@ -73,6 +73,12 @@ forEachConfig (
           "--verification-flavor=sva"
           "--lowering-options=verifLabels,omitVersionComment,emittedLineLength=240,locationInfoStyle=none"
         ];
+        enableLayers = [
+          "verification"
+          "verification.assert"
+          "verification.assume"
+          "verification.cover"
+        ];
       };
 
       omreader = runCommand "wrap-omreader" { } ''

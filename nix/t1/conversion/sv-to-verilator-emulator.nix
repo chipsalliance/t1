@@ -44,6 +44,7 @@ let
       "-F"
       verilatorFilelist
     ]
+    ++ (rtl.layersDirs |> map (dir: "+incdir+${rtl}/${dir}"))
     ++ lib.optionals (topModule != null) [
       "--top"
       topModule
