@@ -27,8 +27,8 @@ pub struct FrameBuffer {
   holding: Option<Holding>,
 }
 
-const DISPLAY_WIDTH: u32 = 960;
-const DISPLAY_HEIGHT: u32 = 720;
+const DISPLAY_WIDTH: u32 = 64;
+const DISPLAY_HEIGHT: u32 = 64;
 
 const REG_START: u32 = 0x1FF0000;
 

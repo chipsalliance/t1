@@ -1,0 +1,13 @@
+#ifndef LV_CONF_H
+#define LV_CONF_H
+
+#define LV_FONT_MONTSERRAT_20 1
+#define LV_FONT_MONTSERRAT_24 1
+#define LV_FONT_MONTSERRAT_26 1
+
+#define LV_USE_DEMO_WIDGETS 1
+#define LV_USE_DEMO_BENCHMARK 1
+
+#define LV_COLOR_DEPTH 24
+
+#endif
