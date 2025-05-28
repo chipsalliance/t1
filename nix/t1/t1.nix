@@ -81,18 +81,23 @@ forEachConfig (
         ];
       };
 
-      omreader = runCommand "wrap-omreader" { } ''
-        mkdir -p $out/bin
-        tee -a $out/bin/omreader <<EOF
-        #!${runtimeShell}
-        exec ${t1Scope.omreader-unwrapped}/bin/omreader \
-          ${lib.replaceStrings [ "elaborator" ] [ "omreader" ] generator.fullClassName} \
-          --mlirbc-file ${self.lowered-mlirbc}/${self.lowered-mlirbc.name} \
-          $@
-        EOF
+      omreader =
+        runCommand "wrap-omreader"
+          {
+            meta.mainProgram = "omreader";
+          }
+          ''
+            mkdir -p $out/bin
+            tee -a $out/bin/omreader <<EOF
+            #!${runtimeShell}
+            exec ${t1Scope.omreader-unwrapped}/bin/omreader \
+              ${lib.replaceStrings [ "elaborator" ] [ "omreader" ] generator.fullClassName} \
+              --mlirbc-file ${self.lowered-mlirbc}/${self.lowered-mlirbc.name} \
+              $@
+            EOF
 
-        chmod +x $out/bin/omreader
-      '';
+            chmod +x $out/bin/omreader
+          '';
       rtlDesignMetadataJson =
         runCommand "get-rtl-design-metadata-from-om"
           {
