@@ -7,8 +7,7 @@
   "mlir.stripmining": 14492,
   "asm.mmm": 50719,
   "asm.smoke": 8153,
-  "intrinsic.conv2d_less_m2": 2816,
-  "intrinsic.linear_normalization": 3532,
-  "intrinsic.softmax": 7169
+  "intrinsic.conv2d_less_m2": 2825,
+  "intrinsic.linear_normalization": 3415,
+  "intrinsic.softmax": 7014
 }
-
