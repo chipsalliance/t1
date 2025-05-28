@@ -444,5 +444,6 @@
   "rvv_bench.mergelines": 599654,
   "rvv_bench.poly1305": 41874,
   "rvv_bench.strlen": 275578,
-  "rvv_bench.utf8_count": 2341052
+  "rvv_bench.utf8_count": 2341052,
+  "lvgl.simple": 724335
 }

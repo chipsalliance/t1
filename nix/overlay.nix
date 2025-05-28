@@ -113,7 +113,7 @@ rec {
 
         # link against emurt
         extraPackages = [ final.emurt ];
-        nixSupport.cc-cflags = [ "-lemurt" ];
+        nixSupport.cc-ldflags = [ "-lemurt" ];
       };
   };
 

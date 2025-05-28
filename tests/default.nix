@@ -3,7 +3,6 @@
   newScope,
   rv32-stdenv,
   runCommand,
-
   rtlDesignMetadata,
 }:
 
@@ -107,6 +106,7 @@ let
       disp = casesSelf.callPackage ./disp { };
       emurt-test = casesSelf.callPackage ./emurt/tests { };
       eval = casesSelf.callPackage ./eval { };
+      lvgl = casesSelf.callPackage ./lvgl { };
     })
   );
 
@@ -128,6 +128,7 @@ let
       disp
       emurt-test
       eval
+      lvgl
       ;
   };
 
