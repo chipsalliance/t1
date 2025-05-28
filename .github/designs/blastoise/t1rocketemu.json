@@ -499,10 +499,10 @@
   "codegen.vxor_vx": 158716,
   "codegen.vzext_vf2": 16259,
   "codegen.vzext_vf4": 5035,
-  "intrinsic.conv2d_less_m2": 2927,
-  "intrinsic.linear_normalization": 3784,
-  "intrinsic.matmul": 84907,
-  "intrinsic.softmax": 7232,
+  "intrinsic.conv2d_less_m2": 2889,
+  "intrinsic.linear_normalization": 3782,
+  "intrinsic.matmul": 101680,
+  "intrinsic.softmax": 7250,
   "mlir.axpy_masked": 5634,
   "mlir.conv": 133015,
   "mlir.hello": 426,
@@ -512,7 +512,6 @@
   "mlir.rvv_vp_intrinsic_add_scalable": 1244,
   "mlir.stripmining": 15569,
   "mlir.vectoradd": 13812,
-  "pytorch.demo": 35165,
-  "pytorch.matmul": 75035
+  "pytorch.demo": 34981,
+  "pytorch.matmul": 75182
 }
-

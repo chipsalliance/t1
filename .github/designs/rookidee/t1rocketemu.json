@@ -430,10 +430,9 @@
   "codegen.vxor_vx": 119082,
   "codegen.vzext_vf2": 14329,
   "codegen.vzext_vf4": 4239,
-  "intrinsic.conv2d_less_m2": 2969,
+  "intrinsic.conv2d_less_m2": 2932,
   "mlir.hello": 425,
   "mlir.rvv_vp_intrinsic_add": 820,
   "mlir.rvv_vp_intrinsic_add_scalable": 1131,
   "mlir.stripmining": 50639
 }
-
