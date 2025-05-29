@@ -44,7 +44,7 @@ class TestBench(val parameter: T1Parameter)
       Map(
         "T1_VLEN"      -> parameter.vLen,
         "T1_DLEN"      -> parameter.dLen,
-        "T1_SPIKE_ISA" -> parameter.spikeMarch
+        "T1_SPIKE_ISA" -> parameter.spikeMarch.split("_").filter(!_.startsWith("xsfmm")).mkString("_")
       )
     ) {
       override def desiredName = "VerbatimModule"
