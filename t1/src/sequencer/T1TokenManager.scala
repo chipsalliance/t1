@@ -57,7 +57,8 @@ class T1TokenManager(parameter: T1Parameter) extends Module {
       lsuWriteV0(laneIndex).valid,
       indexToOH(lsuWriteV0(laneIndex).bits, parameter.chainingSize)
     ).asUInt
-    val v0WriteIssue = instructionIssue.valid && instructionIssue.bits.writeV0 && instructionIssue.bits.toLane
+    val v0WriteIssue =
+      instructionIssue.valid && instructionIssue.bits.writeV0 && (instructionIssue.bits.toLane || instructionIssue.bits.isLoadStore)
     val clear: UInt = instructionFinish(laneIndex)
     val updateOH = maskAnd(v0WriteIssue, issueIndex1H).asUInt
     updateBooleanToken(updateOH | lsuWriteSet, clear)
