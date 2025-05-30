@@ -42,7 +42,9 @@ case class LSUParameter(
   lsuReadShifterSize:  Seq[Int],
   name:                String,
   useXsfmm:            Boolean,
-  TE: Int) {
+  TE:                  Int,
+  matrixAluRowSize:    Int,
+  matrixAluColSize: Int) {
   val sewMin: Int = 8
 
   val chaining1HBits: Int = 2 << log2Ceil(chainingSize)
@@ -107,7 +109,9 @@ case class LSUParameter(
     vlen = vLen,
     dlen = datapathWidth * laneNumber,
     elen = datapathWidth,
-    TE = TE
+    TE = TE,
+    matrixAluRowSize = matrixAluRowSize,
+    matrixAluColSize = matrixAluColSize
   )
 }
 

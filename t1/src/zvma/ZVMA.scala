@@ -13,18 +13,20 @@ object ZVMAParameter {
 }
 
 case class ZVMAParameter(
-  vlen: Int,
-  dlen: Int,
-  elen: Int,
-  TE:   Int)
+  vlen:             Int,
+  dlen:             Int,
+  elen:             Int,
+  TE:               Int,
+  matrixAluRowSize: Int,
+  matrixAluColSize: Int)
     extends SerializableModuleParameter {
   val tmWidth: Int = log2Ceil(TE + 1)
   val tnWidth: Int = log2Ceil(vlen + 1)
 
   // The minimum execution unit is a 2 * 2 square matrix
   // todo: param from config
-  val aluRowSize = 2
-  val aluColSize = 2
+  val aluRowSize = matrixAluRowSize
+  val aluColSize = matrixAluRowSize
 
   val dataIndexBit: Int = log2Ceil(vlen * 8 / dlen + 1)
 

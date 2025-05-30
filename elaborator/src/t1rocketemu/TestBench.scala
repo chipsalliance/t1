@@ -68,23 +68,25 @@ object TestBench extends SerializableModuleElaborator {
 
   @main
   case class T1RocketTileParameterMain(
-    @arg(name = "instructionSets") instructionSets: Seq[String],
-    @arg(name = "cacheBlockBytes") cacheBlockBytes: Int,
-    @arg(name = "nPMPs") nPMPs:                     Int,
-    @arg(name = "cacheable") cacheable:             BitSet,
-    @arg(name = "sideEffects") sideEffects:         BitSet,
-    @arg(name = "dcacheNSets") dcacheNSets:         Int,
-    @arg(name = "dcacheNWays") dcacheNWays:         Int,
-    @arg(name = "dcacheRowBits") dcacheRowBits:     Int,
-    @arg(name = "iCacheNSets") iCacheNSets:         Int,
-    @arg(name = "iCacheNWays") iCacheNWays:         Int,
-    @arg(name = "iCachePrefetch") iCachePrefetch:   Boolean,
-    @arg(name = "dLen") dLen:                       Int,
-    @arg(name = "laneScale") laneScale:             Int,
-    @arg(name = "chainingSize") chainingSize:       Int,
-    @arg(name = "vrfBankSize") vrfBankSize:         Int,
-    @arg(name = "vrfRamType") vrfRamType:           RamType,
-    @arg(name = "vfuInstantiateParameter") vfuInstantiateParameter: String) {
+    @arg(name = "instructionSets") instructionSets:                 Seq[String],
+    @arg(name = "cacheBlockBytes") cacheBlockBytes:                 Int,
+    @arg(name = "nPMPs") nPMPs:                                     Int,
+    @arg(name = "cacheable") cacheable:                             BitSet,
+    @arg(name = "sideEffects") sideEffects:                         BitSet,
+    @arg(name = "dcacheNSets") dcacheNSets:                         Int,
+    @arg(name = "dcacheNWays") dcacheNWays:                         Int,
+    @arg(name = "dcacheRowBits") dcacheRowBits:                     Int,
+    @arg(name = "iCacheNSets") iCacheNSets:                         Int,
+    @arg(name = "iCacheNWays") iCacheNWays:                         Int,
+    @arg(name = "iCachePrefetch") iCachePrefetch:                   Boolean,
+    @arg(name = "dLen") dLen:                                       Int,
+    @arg(name = "laneScale") laneScale:                             Int,
+    @arg(name = "chainingSize") chainingSize:                       Int,
+    @arg(name = "vrfBankSize") vrfBankSize:                         Int,
+    @arg(name = "vrfRamType") vrfRamType:                           RamType,
+    @arg(name = "vfuInstantiateParameter") vfuInstantiateParameter: String,
+    @arg(name = "matrixAluRowSize") matrixAluRowSize:               Option[Int],
+    @arg(name = "matrixAluColSize") matrixAluColSize: Option[Int]) {
     def convert: T1RocketTileParameter = {
       val vLen = instructionSets.collectFirst { case s"zvl${vlen}b" =>
         vlen.toInt
@@ -117,7 +119,9 @@ object TestBench extends SerializableModuleElaborator {
           zvbb = zvbb,
           chainingSize = chainingSize,
           laneScale = laneScale
-        )
+        ),
+        matrixAluRowSize,
+        matrixAluColSize
       )
     }
   }

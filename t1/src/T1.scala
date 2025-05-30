@@ -132,7 +132,9 @@ case class T1Parameter(
   vrfBankSize:             Int,
   vrfRamType:              RamType,
   // TODO: simplify it. this is user-level API.
-  vfuInstantiateParameter: VFUInstantiateParameter)
+  vfuInstantiateParameter: VFUInstantiateParameter,
+  matrixAluRowSize:        Option[Int],
+  matrixAluColSize:        Option[Int])
     extends SerializableModuleParameter {
   // TODO: expose it with the Property API
   override def toString: String =
@@ -144,6 +146,8 @@ case class T1Parameter(
         case RamType.p0rp1w   => "First Port Read, Second Port Write."
         case RamType.p0rwp1rw => "Dual Ports Read Write."
       }}
+       |matrixAluRowSize: ${matrixAluRowSize.getOrElse(0)}
+       |matrixAluColSize: ${matrixAluColSize.getOrElse(0)}
        |""".stripMargin
 
   def vLen: Int = extensions.collectFirst { case s"zvl${vlen}b" =>
@@ -370,7 +374,17 @@ case class T1Parameter(
     lsuReadShifterSize = lsuReadShifterSize,
     name = "main",
     useXsfmm = useXsfmm,
-    TE = TE
+    TE = TE,
+    matrixAluRowSize = matrixAluRowSize.getOrElse(
+      if (useXsfmm) {
+        throw new Exception("xsfmm is enabled but matrixAluRowSize is not specified")
+      } else { 0 }
+    ),
+    matrixAluColSize = matrixAluColSize.getOrElse(
+      if (useXsfmm) {
+        throw new Exception("xsfmm is enabled but matrixAluColSize is not specified")
+      } else { 0 }
+    )
   )
   def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
   def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0, 1)

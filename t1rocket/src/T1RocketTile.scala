@@ -69,7 +69,9 @@ case class T1RocketTileParameter(
   chainingSize:            Int,
   vrfBankSize:             Int,
   vrfRamType:              RamType,
-  vfuInstantiateParameter: VFUInstantiateParameter)
+  vfuInstantiateParameter: VFUInstantiateParameter,
+  matrixAluRowSize:        Option[Int],
+  matrixAluColSize:        Option[Int])
     extends SerializableModuleParameter {
   require(instructionSets.count(Seq("zve32x", "zve32f").contains) == 1, "at least support one Zve32x or Zve32f")
 
@@ -374,7 +376,9 @@ case class T1RocketTileParameter(
     },
     vrfBankSize = vrfBankSize,
     vrfRamType = vrfRamType,
-    vfuInstantiateParameter = vfuInstantiateParameter
+    vfuInstantiateParameter = vfuInstantiateParameter,
+    matrixAluRowSize = matrixAluRowSize,
+    matrixAluColSize = matrixAluColSize
   )
 
   def instructionFetchParameter: AXI4BundleParameter = frontendParameter.instructionFetchParameter
