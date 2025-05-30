@@ -195,6 +195,10 @@ case class LaneParameter(
   // outstanding of MaskExchangeUnit.maskReq
   val maskRequestQueueSize: Int = 8
 
+  val lsuSize = 1
+  // lane + lsu + top + mask unit
+  val idWidth: Int = log2Ceil(laneNumber + lsuSize + 1 + 1)
+
   /** Parameter for [[VRF]] */
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor, vrfRamType)
 }
@@ -230,26 +234,32 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * Bus width. find a real world case for using `narrow` and `widen` aggressively.
     */
   @public
-  val readBusPort: Vec[RingPort[ReadBusData]] = IO(Vec(2, new RingPort(new ReadBusData(parameter))))
+  val readBusPort: Vec[RingPort[ReadBusData]] = IO(Vec(2, new RingPort(new ReadBusData(parameter.datapathWidth, parameter.idWidth))))
 
   /** VRF Write Interface. only used for `narrow` an `widen` TODO: benchmark the usecase for tuning the Ring Bus width.
     * find a real world case for using `narrow` and `widen` aggressively.
     */
   @public
-  val writeBusPort: Vec[RingPort[WriteBusData]] = IO(Vec(2, new RingPort(new WriteBusData(parameter))))
+  val writeBusPort: Vec[RingPort[WriteBusData]] = IO(Vec(2, new RingPort(new WriteBusData(
+    parameter.datapathWidth,
+    parameter.instructionIndexBits,
+    parameter.groupNumberBits,
+    parameter.idWidth
+  ))))
 
   /** request from [[T1.decode]] to [[Lane]]. */
   @public
-  val laneRequest: DecoupledIO[LaneRequest] = IO(Flipped(Decoupled(new LaneRequest(parameter))))
+  val laneRequest: DecoupledIO[LaneRequest] = IO(Flipped(Decoupled(new LaneRequest(
+    parameter.instructionIndexBits,
+    parameter.decoderParam,
+    parameter.datapathWidth,
+    parameter.vlMaxBits,
+    parameter.laneNumber,
+    parameter.dataPathByteWidth
+  ))))
 
   @public
-  val maskUnitRequest: ValidIO[MaskUnitExeReq] = IO(Valid(new MaskUnitExeReq(parameter)))
-
-  @public
-  val maskRequestToLSU: Bool = IO(Output(Bool()))
-
-  @public
-  val tokenIO: LaneTokenBundle = IO(new LaneTokenBundle)
+  val maskUnitRequest: DecoupledIO[MaskUnitExeReq] = IO(Decoupled(new MaskUnitExeReq(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)))
 
   /** for LSU and V accessing lane, this is not a part of ring, but a direct connection. */
   @public
@@ -309,10 +319,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   @public
   val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
 
-  /** How many dataPath will writ by instruction in this lane */
-  @public
-  val writeCount:       UInt =
-    IO(Input(UInt((parameter.vlMaxBits - log2Ceil(parameter.laneNumber) - log2Ceil(parameter.dataPathByteWidth)).W)))
   @public
   val writeQueueValid:  UInt = IO(UInt(parameter.chaining1HBits.W))
   @public
@@ -632,8 +638,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val stage3EnqSelect: DecoupledIO[LaneStage3Enqueue]     = maskStage.map { mask =>
       mask.enqueue <> stage3EnqWire
       maskUnitRequest <> mask.maskReq
-      maskRequestToLSU <> mask.maskRequestToLSU
-      tokenIO <> mask.tokenIO
+      maskUnitRequest.bits.maskRequestToLSU <> mask.maskRequestToLSU
       mask.dequeue
     }.getOrElse(stage3EnqWire)
     stage3.enqueue <> stage3EnqSelect
@@ -1133,6 +1138,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   // @todo @Clo91eaf lane can take request from Sequencer
   laneRequest.ready := slotFree
 
+  val writeCount = laneRequest.bits.writeCount
   val instructionFinishAndNotReportByTop: Bool =
     entranceControl.instructionFinished && !laneRequest.bits.decodeResult(Decoder.readOnly) && (writeCount === 0.U)
   val needWaitCrossWrite:                 Bool = laneRequest.bits.decodeResult(Decoder.crossWrite) && csrInterface.vl.orR
