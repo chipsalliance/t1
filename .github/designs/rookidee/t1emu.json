@@ -1,9 +1,0 @@
-{
-  "asm.mmm": 55928,
-  "asm.smoke": 8425,
-  "intrinsic.conv2d_less_m2": 2886,
-  "mlir.hello": 145,
-  "mlir.rvv_vp_intrinsic_add": 495,
-  "mlir.rvv_vp_intrinsic_add_scalable": 723,
-  "mlir.stripmining": 47258
-}
