@@ -15,15 +15,15 @@
   };
   chisel = {
     pname = "chisel";
-    version = "d6da96565a7bb25c83a15a1948864c2b8638dd55";
+    version = "456303b4850b9e2fffacbfe7cfa843a175c13fa2";
     src = fetchFromGitHub {
       owner = "chipsalliance";
       repo = "chisel";
-      rev = "d6da96565a7bb25c83a15a1948864c2b8638dd55";
+      rev = "456303b4850b9e2fffacbfe7cfa843a175c13fa2";
       fetchSubmodules = false;
-      sha256 = "sha256-3NyYy77HjLD13AULm09Ikjf0w5Hj/Z2FobaB65SR2eY=";
+      sha256 = "sha256-MoVLxrK1bPo/2i3nJhGbWBwSMVjMFzld+1q2Zi4M1N4=";
     };
-    date = "2025-05-24";
+    date = "2025-05-28";
   };
   chisel-interface = {
     pname = "chisel-interface";
@@ -63,14 +63,14 @@
   };
   zaozi = {
     pname = "zaozi";
-    version = "f9d51e942d06367f1227742c77fd1996237fc3eb";
+    version = "a0471bc9aae4d62a8561310b406c56c223b0eb28";
     src = fetchFromGitHub {
       owner = "sequencer";
       repo = "zaozi";
-      rev = "f9d51e942d06367f1227742c77fd1996237fc3eb";
+      rev = "a0471bc9aae4d62a8561310b406c56c223b0eb28";
       fetchSubmodules = false;
-      sha256 = "sha256-0k38DY5bmpsVUKkRpNPr2KfSWhxF8upwCmNb43pdJS4=";
+      sha256 = "sha256-qf0l24lrO78J42HkhTyh9jaOK8AEEkcoGJVDkJI5vHE=";
     };
-    date = "2025-05-24";
+    date = "2025-05-30";
   };
 }
