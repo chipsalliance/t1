@@ -6,6 +6,7 @@ package org.chipsalliance.t1.rtl
 import chisel3._
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util.{Decoupled, DecoupledIO, Valid, ValidIO, log2Ceil}
+import interface.LaneIFParameter
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
 import org.chipsalliance.t1.rtl.lsu.LSUParameter
 import org.chipsalliance.t1.rtl.vrf.VRFParam
@@ -824,9 +825,9 @@ class WriteBusData(datapathWidth: Int, instructionIndexBits: Int, groupNumberBit
   val sink: UInt = UInt(idWidth.W)
 }
 
-class MaskRequest(parameter: LaneIFParameter) extends Bundle {
+class MaskRequest(maskGroupSizeBits: Int) extends Bundle {
   /** select which mask group. */
-  val maskSelect: UInt = UInt(parameter.maskGroupSizeBits.W)
+  val maskSelect: UInt = UInt(maskGroupSizeBits.W)
 
   /** The sew of instruction which is requesting for mask. */
   val maskSelectSew: UInt = UInt(2.W)
@@ -839,8 +840,8 @@ class LaneResponse(chaining1HBits: Int) extends Bundle {
   val writeQueueValid:  UInt = UInt(chaining1HBits.W)
 }
 
-class MaskUnitRequest(parameter: LaneIFParameter) extends Bundle {
-  val request = new MaskUnitExeReq(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)
+class MaskUnitRequest(eLen: Int, datapathWidth: Int, instructionIndexBits: Int, fpuEnable: Boolean) extends Bundle {
+  val request = new MaskUnitExeReq(eLen, datapathWidth, instructionIndexBits, fpuEnable)
   val toLSU: Bool = Bool()
 }
 
@@ -900,7 +901,7 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
 
   // lane output => interface input
   // opcode 0
-  val maskRequest: DecoupledIO[MaskRequest] = Flipped(Decoupled(new MaskRequest(parameter)))
+  val maskRequest: DecoupledIO[MaskRequest] = Flipped(Decoupled(new MaskRequest(parameter.maskGroupSizeBits)))
 
   // opcode 1
   val readVrfAck: DecoupledIO[UInt] = Flipped(Decoupled(UInt(parameter.datapathWidth.W)))
@@ -909,7 +910,7 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   val readBusDeq: DecoupledIO[ReadBusData] = Flipped(Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth)))
 
   // opcode 3
-  val maskUnitRequest: DecoupledIO[MaskUnitRequest] = Flipped(Decoupled(new MaskUnitRequest(parameter)))
+  val maskUnitRequest: DecoupledIO[MaskUnitRequest] = Flipped(Decoupled(new MaskUnitRequest(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)))
 
   // opcode 4
   val writeBusDeq: DecoupledIO[WriteBusData] = Flipped(Decoupled(new WriteBusData(

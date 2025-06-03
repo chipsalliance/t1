@@ -4,33 +4,14 @@
 package org.chipsalliance.t1.rtl
 
 import chisel3._
-import chisel3.experimental.hierarchy.{instantiable, public, Instance, Instantiate}
+import chisel3.experimental.hierarchy.{Instance, Instantiate, instantiable, public}
 import chisel3.experimental.{SerializableModule, SerializableModuleParameter}
-import chisel3.probe.{define, Probe, ProbeValue}
+import chisel3.probe.{Probe, ProbeValue, define}
 import chisel3.properties.{AnyClassType, ClassType, Property}
 import chisel3.ltl.{CoverProperty, Sequence}
 import chisel3.util.experimental.BitSet
 import chisel3.util.experimental.decode.DecodeBundle
-import chisel3.util.{
-  isPow2,
-  log2Ceil,
-  scanLeftOr,
-  scanRightOr,
-  BitPat,
-  Decoupled,
-  DecoupledIO,
-  Enum,
-  Fill,
-  FillInterleaved,
-  Mux1H,
-  OHToUInt,
-  Pipe,
-  PriorityEncoder,
-  RegEnable,
-  UIntToOH,
-  Valid,
-  ValidIO
-}
+import chisel3.util.{BitPat, Decoupled, DecoupledIO, Enum, Fill, FillInterleaved, Mux1H, OHToUInt, Pipe, PriorityEncoder, RegEnable, UIntToOH, Valid, ValidIO, isPow2, log2Ceil, scanLeftOr, scanRightOr}
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4RWIrrevocable}
 import org.chipsalliance.rvdecoderdb.Instruction
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
@@ -387,7 +368,7 @@ case class T1Parameter(
     )
   )
   def vrfParam:   VRFParam       = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
-  def adderParam: LaneAdderParam = LaneAdderParam(datapathWidth, 0, 1)
+  def laneIFParam = LaneIFParameter(vLen, eLen, datapathWidth, laneNumber, chainingSize, fpuEnable, decoderParam)
 
   require(isPow2(laneNumber))
 }
@@ -459,6 +440,13 @@ class T1(val parameter: T1Parameter)
 
   val lsu:    Instance[LSU]           = Instantiate(new LSU(parameter.lsuParameters))
   val decode: Instance[VectorDecoder] = Instantiate(new VectorDecoder(parameter.decoderParam))
+
+  /** instantiate lanes. */
+  val laneVec: Seq[Instance[Lane]] = Seq.tabulate(parameter.laneNumber)(_ => Instantiate(new Lane(parameter.laneParam)))
+
+  /** instantiate lane interface. */
+  val laneIFVec: Seq[Instance[LaneInterface]] = Seq.tabulate(parameter.laneNumber)(_ => Instantiate(new LaneInterface(parameter.laneIFParam)))
+
   omInstance.decoderIn := Property(decode.om.asAnyClassType)
   val maskUnit: Instance[MaskUnit] = Instantiate(new MaskUnit(parameter))
   maskUnit.io.clock        := implicitClock
@@ -704,11 +692,25 @@ class T1(val parameter: T1Parameter)
 
   // Close to top
   val laneRequestSourceWire: Vec[DecoupledIO[LaneRequest]] = Wire(
-    Vec(parameter.laneNumber, Decoupled(new LaneRequest(parameter.laneParam)))
+    Vec(parameter.laneNumber, Decoupled(new LaneRequest(
+      parameter.instructionIndexBits,
+      parameter.decoderParam,
+      parameter.datapathWidth,
+      parameter.laneParam.vlMaxBits,
+      parameter.laneNumber,
+      parameter.laneParam.dataPathByteWidth
+    )))
   )
   // Close to lane
   val laneRequestSinkWire:   Vec[DecoupledIO[LaneRequest]] = Wire(
-    Vec(parameter.laneNumber, Decoupled(new LaneRequest(parameter.laneParam)))
+    Vec(parameter.laneNumber, Decoupled(new LaneRequest(
+      parameter.instructionIndexBits,
+      parameter.decoderParam,
+      parameter.datapathWidth,
+      parameter.laneParam.vlMaxBits,
+      parameter.laneNumber,
+      parameter.laneParam.dataPathByteWidth
+    )))
   )
 
   laneRequestSourceWire.zipWithIndex.foreach { case (source, index) =>
@@ -771,7 +773,7 @@ class T1(val parameter: T1Parameter)
     requestReg.bits.issue.vl
   )
 
-  laneRequestSourceWire.foreach { request =>
+  laneRequestSourceWire.zipWithIndex.foreach { case (request, index) =>
     request.valid                 := requestRegDequeue.fire
     // hard wire
     request.bits.instructionIndex := requestReg.bits.instructionIndex
@@ -805,43 +807,25 @@ class T1(val parameter: T1Parameter)
     // index type EEW Decoded in the instruction
     request.bits.csrInterface.vSew := vSewSelect
     request.bits.csrInterface.vl   := evlForLane
+
+    // 2 + 3 = 5
+    val rowWith:      Int  = log2Ceil(parameter.datapathWidth / 8) + log2Ceil(parameter.laneNumber)
+    val writeCounter: UInt = (requestReg.bits.writeByte >> rowWith).asUInt +
+      (requestReg.bits.writeByte(rowWith - 1, 0) > ((parameter.datapathWidth / 8) * index).U)
+    request.bits.writeCount := writeCounter
   }
 
-  /** instantiate lanes. TODO: move instantiate to top of class.
-    */
-  val laneVec: Seq[Instance[Lane]] = Seq.tabulate(parameter.laneNumber) { index =>
-    val lane: Instance[Lane] = Instantiate(new Lane(parameter.laneParam))
-    lane.laneRequest.valid           := laneRequestSinkWire(index).valid && laneRequestSinkWire(index).bits.issueInst
-    lane.laneRequest.bits            := laneRequestSinkWire(index).bits
-    lane.laneRequest.bits.issueInst  := laneRequestSinkWire(index).fire
-    laneRequestSinkWire(index).ready := !laneRequestSinkWire(index).bits.issueInst || lane.laneRequest.ready
 
+  laneVec.zipWithIndex.foreach { case (lane, index) =>
+    val laneIF = laneIFVec(index)
+    lane.laneRequest <> laneIF.io.laneRequest
     lane.laneIndex := index.U
+    laneIF.io.laneIndex := index.U
+    lane.vrfReadAddressChannel <> laneIF.io.vrfReadRequest
 
-    connectVrfAccess(
-      Seq(parameter.maskUnitReadShifterSize(index), parameter.lsuReadShifterSize(index)),
-      Seq(parameter.maskUnitReadTokenSize(index), parameter.lsuReadTokenSize(index)),
-      Some(parameter.vrfReadLatency)
-    )(
-      VecInit(Seq(maskUnit.io.readChannel(index), lsu.vrfReadDataPorts(index))),
-      lane.vrfReadAddressChannel,
-      0,
-      Some(lane.vrfReadDataChannel),
-      Some(Seq(maskUnit.io.readResult(index), lsu.vrfReadResults(index)))
-    )
-
-    connectVrfAccess(
-      Seq(parameter.maskUnitReadShifterSize(index), parameter.lsuReadShifterSize(index)),
-      Seq(parameter.maskUnitReadTokenSize(index), parameter.lsuReadTokenSize(index))
-    )(
-      VecInit(Seq(maskUnit.io.exeResp(index), lsu.vrfWritePort(index))),
-      lane.vrfWriteChannel,
-      0,
-      releaseSource = Some(Seq(maskUnit.io.writeRelease(index), lsu.writeRelease(index)))
-    )
     lane.writeFromMask := maskUnit.io.exeResp(index).fire
 
-    lsu.offsetReadResult(index).valid := lane.maskUnitRequest.valid && lane.maskRequestToLSU
+    lsu.offsetReadResult(index).valid := lane.maskUnitRequest.valid && lane.maskUnitRequest.bits.maskRequestToLSU
     lsu.offsetReadResult(index).bits  := lane.maskUnitRequest.bits.source2
     lsu.offsetReadIndex(index)        := lane.maskUnitRequest.bits.index
 
@@ -862,11 +846,6 @@ class T1(val parameter: T1Parameter)
     lane.lsuLastReport := lsuLastPipe | maskLastPipe
 
     lane.loadDataInLSUWriteQueue := lsu.dataInWriteQueue(index)
-    // 2 + 3 = 5
-    val rowWith:      Int  = log2Ceil(parameter.datapathWidth / 8) + log2Ceil(parameter.laneNumber)
-    val writeCounter: UInt = (requestReg.bits.writeByte >> rowWith).asUInt +
-      (requestReg.bits.writeByte(rowWith - 1, 0) > ((parameter.datapathWidth / 8) * index).U)
-    lane.writeCount := Pipe(true.B, writeCounter, parameter.laneRequestShifterSize(index)).bits
 
     // token manager
     tokenManager.instructionFinish(index) := instructionFinishedPipe
@@ -922,7 +901,7 @@ class T1(val parameter: T1Parameter)
   maskUnit.io.gatherData.ready              := requestRegDequeue.fire
 
   maskUnit.io.exeReq.zip(laneVec).foreach { case (maskInput, lane) =>
-    maskInput.valid := lane.maskUnitRequest.valid && !lane.maskRequestToLSU
+    maskInput.valid := lane.maskUnitRequest.valid && !lane.maskUnitRequest.bits.maskRequestToLSU
     maskInput.bits  := lane.maskUnitRequest.bits
   }
 
