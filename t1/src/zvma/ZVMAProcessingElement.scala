@@ -31,7 +31,7 @@ class ZVMAProcessingElement(val parameter: ZVMAParameter)
   val stateVec: Seq[SRAMInterface[UInt]] = Seq.tabulate(parameter.subArrayRamBank) { i =>
     SRAM(
       size = parameter.ramDepth,
-      tpe = UInt((parameter.elen * 4).W),
+      tpe = UInt((32 * 4).W),
       numReadPorts = 0,
       numWritePorts = 0,
       numReadwritePorts = 1
