@@ -935,3 +935,8 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
 
   val laneIndex: UInt = Input(UInt(parameter.laneNumberBits.W))
 }
+
+class LSURequestInterface(dataWidth: Int, chainingSize: Int, vlWidth: Int) extends Bundle {
+  val request = new LSURequest(dataWidth, chainingSize)
+  val csrInterface = new CSRInterface(vlWidth)
+}
