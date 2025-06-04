@@ -165,6 +165,16 @@ class LSUInterfaceIO(parameter: LSUIFParameter) extends Bundle {
   val outputVirtualChannelVec: Vec[Vec[DecoupledIO[LaneVirtualChannel]]] = Vec(3, Vec(parameter.laneNumber,
     Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth))
   ))
+
+  // this -> lsu PC
+  // opcode 0
+  val lsuRequest = Decoupled(new LSURequestInterface(parameter.datapathWidthBits, parameter.chainingSize, parameter.vlMaxBits))
+
+  // opcode 5
+  val lsuReportToTop: DecoupledIO[LSUReport] = Flipped(Decoupled(new LSUReport(parameter.chaining1HBits)))
+
+  val topInputVC: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(1, Flipped(Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth))))
+  val topOutputVC: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(1, Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)))
 }
 
 class LSUInterface(val parameter: LSUIFParameter)
@@ -190,7 +200,7 @@ class LSUInterface(val parameter: LSUIFParameter)
       require(pc.bits.getWidth <= parameter.dataWidth, "channel width error.")
       vc.bits.data := pc.bits.asUInt
       vc.bits.opcode := opcode.U
-      vc.bits.sourceID := (parameter.laneNumber + 1).U
+      vc.bits.sourceID := parameter.laneNumber.U
       vc.bits.sinkID := li.U
       vc.bits.last := false.B
     }
@@ -207,9 +217,40 @@ class LSUInterface(val parameter: LSUIFParameter)
       vc.ready := pc.ready
       pc.bits := vc.bits.data(pc.bits.getWidth - 1, 0).asTypeOf(pc.bits)
       when(vc.fire) {
-        assert(vc.bits.sinkID === (parameter.laneNumber + 1).U)
+        assert(vc.bits.sinkID === parameter.laneNumber.U)
         assert(vc.bits.opcode === opcode.U)
       }
+    }
+  }
+
+  // lsu <-> sequencer
+  val topFromLSU = Seq(io.lsuReportToTop)
+  val opcodeTopFromLSU = Seq(5)
+  topFromLSU.zipWithIndex.foreach {case (pc, index) =>
+    val vc = io.topOutputVC(index)
+    val opcode: Int = opcodeTopFromLSU(index)
+
+    vc.valid := pc.valid
+    pc.ready := vc.ready
+    require(pc.bits.getWidth <= parameter.dataWidth, "channel width error.")
+    vc.bits.data := pc.bits.asUInt
+    vc.bits.opcode := opcode.U
+    vc.bits.sourceID := parameter.laneNumber.U
+    vc.bits.sinkID := (parameter.laneNumber + 1).U
+    vc.bits.last := false.B
+  }
+
+  val topToLSU = Seq(io.lsuRequest)
+  val opcodeTopToLSU = Seq(0)
+  topToLSU.zipWithIndex.foreach { case (pc, index) =>
+    val vc = io.topInputVC(index)
+    val opcode: Int = opcodeTopToLSU(index)
+    pc.valid := vc.valid
+    vc.ready := pc.ready
+    pc.bits := vc.bits.data(pc.bits.getWidth - 1, 0).asTypeOf(pc.bits)
+    when(vc.fire) {
+      assert(vc.bits.sinkID === parameter.laneNumber.U)
+      assert(vc.bits.opcode === opcode.U)
     }
   }
 }
