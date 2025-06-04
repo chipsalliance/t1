@@ -108,7 +108,7 @@ case class LSUParameter(
   def zvmaParam = ZVMAParameter(
     vlen = vLen,
     dlen = datapathWidth * laneNumber,
-    elen = datapathWidth,
+    elen = eLen,
     TE = TE,
     matrixAluRowSize = matrixAluRowSize,
     matrixAluColSize = matrixAluColSize
