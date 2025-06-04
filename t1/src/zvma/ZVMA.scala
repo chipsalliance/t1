@@ -38,7 +38,8 @@ case class ZVMAParameter(
   // If an instruction col index is fixed (such as mv), a higher bank may be required.
   val subArrayRamBank     = 2
 
-  val ramDepth: Int = TE * TE * 32 * 4 / (elen * 4 * aluRowSize * aluColSize * subArrayRamBank)
+  // The minimum unit is 32 * 2 * 2, so ram width is 32 * 4
+  val ramDepth: Int = TE * TE * 32 * 4 / (32 * 4 * aluRowSize * aluColSize * subArrayRamBank)
 }
 
 class ZVMCsrInterface(parameter: ZVMAParameter) extends Bundle {
