@@ -55,7 +55,12 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
 
   @public
   val crossWritePort: Option[Vec[DecoupledIO[WriteBusData]]] =
-    Option.when(isLastSlot)(IO(Vec(2, Decoupled(new WriteBusData(parameter)))))
+    Option.when(isLastSlot)(IO(Vec(2, Decoupled(new WriteBusData(
+      parameter.datapathWidth,
+      parameter.instructionIndexBits,
+      parameter.groupNumberBits,
+      parameter.idWidth
+    )))))
 
   val stageValidReg: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
 

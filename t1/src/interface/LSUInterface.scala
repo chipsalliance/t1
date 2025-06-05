@@ -136,7 +136,7 @@ class LSUInterfaceIO(parameter: LSUIFParameter) extends Bundle {
   val lsuReport: Vec[DecoupledIO[LSUReport]] = Vec(parameter.laneNumber, Flipped(Decoupled(new LSUReport(parameter.chaining1HBits))))
 
   // opcode 6
-  val vrfWriteRequest: Vec[DecoupledIO[VrfWrite]] = Vec(parameter.laneNumber, Flipped(Decoupled(new VrfWrite(
+  val vrfWriteRequest: Vec[DecoupledIO[VRFWriteRequest]] = Vec(parameter.laneNumber, Flipped(Decoupled(new VRFWriteRequest(
     parameter.regNumBits,
     parameter.vrfOffsetBits,
     parameter.instructionIndexBits,
@@ -148,8 +148,8 @@ class LSUInterfaceIO(parameter: LSUIFParameter) extends Bundle {
   // opcode 1
   val readVrfAck: Vec[DecoupledIO[UInt]] = Vec(parameter.laneNumber, Decoupled(UInt(parameter.datapathWidth.W)))
 
-  // opcode 2
-  val maskRequestAck: Vec[DecoupledIO[MaskRequestAck]] = Vec(parameter.laneNumber, Decoupled(new MaskRequestAck(parameter.maskGroupWidth)))
+  // opcode 3
+  val maskUnitRequest: Vec[DecoupledIO[MaskUnitExeReq]] = Vec(parameter.laneNumber, Decoupled(new MaskUnitExeReq(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)))
 
   // opcode 5
   val v0Update: Vec[DecoupledIO[V0Update]] = Vec(parameter.laneNumber, Decoupled(new V0Update(parameter.datapathWidth, parameter.vrfOffsetBits)))
@@ -206,8 +206,8 @@ class LSUInterface(val parameter: LSUIFParameter)
     }
   }
 
-  val physicalChannelToLSU: Seq[Vec[_ >: DecoupledIO[UInt] with DecoupledIO[MaskRequestAck] with DecoupledIO[V0Update] <: DecoupledIO[Data]]] = Seq(io.readVrfAck, io.maskRequestAck, io.v0Update)
-  val opcodeToLSU: Seq[Int] = Seq(1, 2, 5)
+  val physicalChannelToLSU: Seq[Vec[_ >: DecoupledIO[UInt] with DecoupledIO[MaskUnitExeReq] with DecoupledIO[V0Update] <: DecoupledIO[Data]]] = Seq(io.readVrfAck, io.maskUnitRequest, io.v0Update)
+  val opcodeToLSU: Seq[Int] = Seq(1, 3, 5)
   physicalChannelToLSU.zipWithIndex.foreach { case (pcVec, index) =>
     val inputVCVec: Vec[DecoupledIO[LaneVirtualChannel]] = io.inputVirtualChannelVec(index)
     val opcode: Int = opcodeToLSU(index)
