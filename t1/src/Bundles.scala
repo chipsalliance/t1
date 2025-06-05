@@ -787,20 +787,6 @@ class LSUReport(chaining1HBits: Int) extends Bundle {
   val last: UInt = UInt(chaining1HBits.W)
 }
 
-class VrfWrite(
-                regNumBits: Int,
-                vrfOffsetBits: Int,
-                instructionIndexBits: Int,
-                datapathWidth: Int
-              ) extends Bundle {
-  val writeRequest: VRFWriteRequest = new VRFWriteRequest(
-    regNumBits,
-    vrfOffsetBits,
-    instructionIndexBits,
-    datapathWidth
-  )
-}
-
 class ReadBusData(datapathWidth: Int, idWidth: Int) extends Bundle {
 
   /** data field of the bus. */
@@ -838,11 +824,6 @@ class LaneResponse(chaining1HBits: Int) extends Bundle {
   val vxsatReport:         UInt = UInt(chaining1HBits.W)
   // todo
   val writeQueueValid:  UInt = UInt(chaining1HBits.W)
-}
-
-class MaskUnitRequest(eLen: Int, datapathWidth: Int, instructionIndexBits: Int, fpuEnable: Boolean) extends Bundle {
-  val request = new MaskUnitExeReq(eLen, datapathWidth, instructionIndexBits, fpuEnable)
-  val toLSU: Bool = Bool()
 }
 
 class LaneVirtualChannel(dataWidth: Int, opcodeWidth: Int, idWidth: Int) extends Bundle {
@@ -886,13 +867,18 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   val readBusEnq: DecoupledIO[ReadBusData] = Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth))
 
   // opcode 4
-  val writeBusEnq: DecoupledIO[WriteBusData] = Decoupled(new WriteBusData(parameter))
+  val writeBusEnq: DecoupledIO[WriteBusData] = Decoupled(new WriteBusData(
+    parameter.datapathWidth,
+    parameter.instructionIndexBits,
+    parameter.groupNumberBits,
+    parameter.idWidth
+  ))
 
   // opcode 5
   val lsuReport: DecoupledIO[LSUReport] = Decoupled(new LSUReport(parameter.chaining1HBits))
 
   // opcode 6
-  val vrfWriteRequest: DecoupledIO[VrfWrite] = Decoupled(new VrfWrite(
+  val vrfWriteRequest: DecoupledIO[VRFWriteRequest] = Decoupled(new VRFWriteRequest(
     parameter.regNumBits,
     parameter.vrfOffsetBits,
     parameter.instructionIndexBits,
@@ -910,7 +896,7 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   val readBusDeq: DecoupledIO[ReadBusData] = Flipped(Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth)))
 
   // opcode 3
-  val maskUnitRequest: DecoupledIO[MaskUnitRequest] = Flipped(Decoupled(new MaskUnitRequest(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)))
+  val maskUnitRequest: DecoupledIO[MaskUnitExeReq] = Flipped(Decoupled(new MaskUnitExeReq(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)))
 
   // opcode 4
   val writeBusDeq: DecoupledIO[WriteBusData] = Flipped(Decoupled(new WriteBusData(

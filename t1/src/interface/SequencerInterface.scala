@@ -9,7 +9,7 @@ import chisel3.util._
 import org.chipsalliance.t1.rtl.decoder.DecoderParam
 
 
-case class SequencerIFParam(
+case class SequencerIFParameter(
                             vLen:                             Int,
                             eLen:                             Int,
                             datapathWidth:                    Int,
@@ -120,7 +120,7 @@ case class SequencerIFParam(
   val opcodeWidth: Int = log2Ceil(7)
 }
 
-class SequencerInterfaceIO(parameter: SequencerIFParam) extends Bundle {
+class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
   val clock: Clock = Input(Clock())
   val reset: Reset = Input(Reset())
 
@@ -143,7 +143,7 @@ class SequencerInterfaceIO(parameter: SequencerIFParam) extends Bundle {
   val maskRequestAck: Vec[DecoupledIO[MaskRequestAck]] = Vec(parameter.laneNumber, Flipped(Decoupled(new MaskRequestAck(parameter.maskGroupWidth))))
 
   // opcode 6
-  val vrfWriteRequest: Vec[DecoupledIO[VrfWrite]] = Vec(parameter.laneNumber, Flipped(Decoupled(new VrfWrite(
+  val vrfWriteRequest: Vec[DecoupledIO[VRFWriteRequest]] = Vec(parameter.laneNumber, Flipped(Decoupled(new VRFWriteRequest(
     parameter.regNumBits,
     parameter.vrfOffsetBits,
     parameter.instructionIndexBits,
@@ -158,7 +158,7 @@ class SequencerInterfaceIO(parameter: SequencerIFParam) extends Bundle {
   val readVrfAck = Vec(parameter.laneNumber, Decoupled(UInt(parameter.datapathWidth.W)))
 
   // opcode 3
-  val maskUnitRequest = Vec(parameter.laneNumber, Decoupled(new MaskUnitRequest(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)))
+  val maskUnitRequest = Vec(parameter.laneNumber, Decoupled(new MaskUnitExeReq(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)))
 
   // opcode 5
   val v0Update = Vec(parameter.laneNumber, Decoupled(new V0Update(parameter.datapathWidth, parameter.vrfOffsetBits)))
@@ -185,9 +185,9 @@ class SequencerInterfaceIO(parameter: SequencerIFParam) extends Bundle {
   val topOutputVC: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(1, Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)))
 }
 
-class SequencerInterface (val parameter: SequencerIFParam)
+class SequencerInterface (val parameter: SequencerIFParameter)
   extends FixedIORawModule(new SequencerInterfaceIO(parameter))
-    with SerializableModule[SequencerIFParam]
+    with SerializableModule[SequencerIFParameter]
     with ImplicitClock
     with ImplicitReset {
 
