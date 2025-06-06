@@ -6,7 +6,6 @@ package org.chipsalliance.t1.rtl
 import chisel3._
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util.{Decoupled, DecoupledIO, Valid, ValidIO, log2Ceil}
-import interface.LaneIFParameter
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
 import org.chipsalliance.t1.rtl.lsu.LSUParameter
 import org.chipsalliance.t1.rtl.vrf.VRFParam
@@ -269,9 +268,9 @@ class CSRInterface(vlWidth: Int) extends Bundle {
 
 // @todo change this name:(
 class RingPort[T <: Data](gen: T) extends Bundle {
-  val enq:        ValidIO[T] = Flipped(Valid(gen))
+  val enq: DecoupledIO[T] = Flipped(Decoupled(gen))
   val enqRelease: Bool       = Output(Bool())
-  val deq:        ValidIO[T] = Valid(gen)
+  val deq: DecoupledIO[T] = Decoupled(gen)
   val deqRelease: Bool       = Input(Bool())
 }
 
@@ -890,7 +889,7 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   val maskRequest: DecoupledIO[MaskRequest] = Flipped(Decoupled(new MaskRequest(parameter.maskGroupSizeBits)))
 
   // opcode 1
-  val readVrfAck: DecoupledIO[UInt] = Flipped(Decoupled(UInt(parameter.datapathWidth.W)))
+  val `readVrfAck`: DecoupledIO[UInt] = Flipped(Decoupled(UInt(parameter.datapathWidth.W)))
 
   // opcode 2
   val readBusDeq: DecoupledIO[ReadBusData] = Flipped(Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth)))

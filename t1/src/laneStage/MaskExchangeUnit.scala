@@ -45,6 +45,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   )
   maskReq.bits.index   := enqueue.bits.instructionIndex
   maskReq.bits.ffo     := enqueue.bits.ffoSuccess
+  maskReq.bits.maskRequestToLSU := enqueue.bits.loadStore
 
   maskReq.bits.fpReduceValid.zip(enqueue.bits.fpReduceValid).foreach { case (sink, source) => sink := source }
 

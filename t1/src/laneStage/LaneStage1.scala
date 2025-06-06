@@ -99,13 +99,13 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   @public
   val readBusDequeue: Option[Vec[DecoupledIO[ReadBusData]]] = Option.when(isLastSlot)(
     IO(
-      Vec(2, Flipped(Decoupled(new ReadBusData(parameter: LaneParameter))))
+      Vec(2, Flipped(Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth))))
     )
   )
 
   @public
   val readBusRequest: Option[Vec[DecoupledIO[ReadBusData]]] =
-    Option.when(isLastSlot)(IO(Vec(2, Decoupled(new ReadBusData(parameter)))))
+    Option.when(isLastSlot)(IO(Vec(2, Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth)))))
 
   val groupCounter: UInt = enqueue.bits.groupCounter
 
