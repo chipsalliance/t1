@@ -235,7 +235,7 @@ class SequencerInterface (val parameter: SequencerIFParameter)
   val topToLSU = Seq(io.lsuRequest)
   val opcodeTopToLSU = Seq(0)
   topToLSU.zipWithIndex.foreach {case (pc, index) =>
-    val vc = io.topInputVC(index)
+    val vc = io.topOutputVC(index)
     val opcode: Int = opcodeTopToLSU(index)
 
     vc.valid := pc.valid
@@ -251,7 +251,7 @@ class SequencerInterface (val parameter: SequencerIFParameter)
   val topFromLSU = Seq(io.lsuReportToTop)
   val opcodeTopFromLSU = Seq(5)
   topFromLSU.zipWithIndex.foreach { case (pc, index) =>
-    val vc = io.topOutputVC(index)
+    val vc = io.topInputVC(index)
     val opcode: Int = opcodeTopFromLSU(index)
     pc.valid := vc.valid
     vc.ready := pc.ready

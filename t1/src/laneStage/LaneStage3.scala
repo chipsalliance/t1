@@ -98,6 +98,7 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
       port.bits.data             := pipeEnqueue.get.crossWriteData(index)
       port.bits.counter          := pipeEnqueue.get.groupCounter
       port.bits.instructionIndex := pipeEnqueue.get.instructionIndex
+      port.bits.sink             := 0.U
       when(port.fire) {
         sendState(index) := true.B
       }

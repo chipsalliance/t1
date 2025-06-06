@@ -129,6 +129,10 @@ class MaskUnit(val parameter: T1Parameter)
   val gatherData        = io.gatherData
   val gatherRead        = io.gatherRead
 
+  // todo: handle
+  io.tokenIO.foreach {tk =>
+    tk.maskRequestRelease := true.B
+  }
   // todo: param
   val readQueueSize:          Int = 4
   val readVRFLatency:         Int = 3

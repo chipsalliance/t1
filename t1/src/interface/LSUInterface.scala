@@ -157,7 +157,7 @@ class LSUInterfaceIO(parameter: LSUIFParameter) extends Bundle {
   // virtual channel: lane <-> if
 
   // lane -> if
-  val inputVirtualChannelVec: Vec[Vec[DecoupledIO[LaneVirtualChannel]]] = Vec(2, Vec(parameter.laneNumber,
+  val inputVirtualChannelVec: Vec[Vec[DecoupledIO[LaneVirtualChannel]]] = Vec(3, Vec(parameter.laneNumber,
     Flipped(Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)))
   ))
 

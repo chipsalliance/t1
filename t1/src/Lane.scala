@@ -329,6 +329,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   @public
   val laneProbe = IO(Output(Probe(new LaneProbe(parameter), layers.Verification)))
 
+  // todo: handle
+  readBusPort.foreach {rp =>
+    rp.enq.ready := true.B
+  }
+  writeBusPort.foreach {rp =>
+    rp.enq.ready := true.B
+  }
   // TODO: remove
   dontTouch(writeBusPort)
   val csrInterface: CSRInterface = laneRequest.bits.csrInterface
