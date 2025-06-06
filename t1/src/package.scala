@@ -312,6 +312,16 @@ package object rtl {
     }
   }
 
+  def connectNode[T <: Data](source: DecoupledIO[T], sink: DecoupledIO[T])(queueSize: Int): Unit = {
+    val nodeQueue = Queue(source, queueSize)
+    sink <> nodeQueue
+  }
+
+  def connectNode[T <: Data](source: DecoupledIO[T])(queueSize: Int): DecoupledIO[T] = {
+    val nodeQueue = Queue(source, queueSize)
+    nodeQueue
+  }
+
   def instantiateVFU(
     parameter:          VFUInstantiateParameter
   )(requestVec:         Vec[SlotRequestToVFU],
