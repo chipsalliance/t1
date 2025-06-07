@@ -22,7 +22,7 @@
     },
     "chisel": {
         "cargoLocks": null,
-        "date": "2025-06-02",
+        "date": "2025-06-07",
         "extract": null,
         "name": "chisel",
         "passthru": null,
@@ -34,12 +34,12 @@
             "name": null,
             "owner": "chipsalliance",
             "repo": "chisel",
-            "rev": "7468313eb0073dad5f11304fe795d2bc917b02d9",
-            "sha256": "sha256-UPBr3WJSkAlUgA/XUTgE/Z29zRQ4Gw0YohMOW04dYi8=",
+            "rev": "74f6f3962e2147effa87e33f195971b27eec5a4b",
+            "sha256": "sha256-ABYWTZvohObiW7iML5b5Jx201zAJuygrYalj2RJxu3w=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "7468313eb0073dad5f11304fe795d2bc917b02d9"
+        "version": "74f6f3962e2147effa87e33f195971b27eec5a4b"
     },
     "chisel-interface": {
         "cargoLocks": null,
@@ -106,7 +106,7 @@
     },
     "zaozi": {
         "cargoLocks": null,
-        "date": "2025-05-30",
+        "date": "2025-06-07",
         "extract": null,
         "name": "zaozi",
         "passthru": null,
@@ -118,11 +118,11 @@
             "name": null,
             "owner": "sequencer",
             "repo": "zaozi",
-            "rev": "a0471bc9aae4d62a8561310b406c56c223b0eb28",
-            "sha256": "sha256-qf0l24lrO78J42HkhTyh9jaOK8AEEkcoGJVDkJI5vHE=",
+            "rev": "5e3d890e76aa3ae78c2a6af3a8e77c9f3b660e64",
+            "sha256": "sha256-k54jvPeeSX2r/Sat6TDfF4XCsIpNcjsk54br/67vhBY=",
             "sparseCheckout": [],
             "type": "github"
         },
-        "version": "a0471bc9aae4d62a8561310b406c56c223b0eb28"
+        "version": "5e3d890e76aa3ae78c2a6af3a8e77c9f3b660e64"
     }
 }
