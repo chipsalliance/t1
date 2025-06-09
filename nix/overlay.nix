@@ -160,4 +160,6 @@ rec {
   };
 
   t1 = final.callPackage ./t1 { };
+
+  asl-interpreter = final.callPackage ./pkgs/asl-interpreter.nix { };
 }
