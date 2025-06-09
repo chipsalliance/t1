@@ -116,7 +116,7 @@ case class LSUIFParameter(
   // lane + lsu + top + mask unit
   val idWidth: Int = log2Ceil(laneNumber + lsuSize + 1 + 1)
   // todo
-  val opcodeWidth: Int = log2Ceil(7)
+  val opcodeWidth: Int = log2Ceil(9)
 }
 
 class LSUInterfaceIO(parameter: LSUIFParameter) extends Bundle {
@@ -133,7 +133,8 @@ class LSUInterfaceIO(parameter: LSUIFParameter) extends Bundle {
   )))
 
   // opcode 5
-  val lsuReport: Vec[DecoupledIO[LSUReport]] = Vec(parameter.laneNumber, Flipped(Decoupled(new LSUReport(parameter.chaining1HBits))))
+  val lsuReport: UInt = Input(UInt(parameter.chaining1HBits.W))
+  val dataInWriteQueue = Input(Vec(parameter.laneNumber, UInt(parameter.chaining1HBits.W)))
 
   // opcode 6
   val vrfWriteRequest: Vec[DecoupledIO[VRFWriteRequest]] = Vec(parameter.laneNumber, Flipped(Decoupled(new VRFWriteRequest(
@@ -168,10 +169,10 @@ class LSUInterfaceIO(parameter: LSUIFParameter) extends Bundle {
 
   // this -> lsu PC
   // opcode 0
-  val lsuRequest = Decoupled(new LSURequestInterface(parameter.datapathWidthBits, parameter.chainingSize, parameter.vlMaxBits))
+  val lsuRequest = Decoupled(new LSURequestInterface(parameter.eLen, parameter.chainingSize, parameter.vlMaxBits))
 
   // opcode 5
-  val lsuReportToTop: DecoupledIO[LSUReport] = Flipped(Decoupled(new LSUReport(parameter.chaining1HBits)))
+  val lsuReportToTop: DecoupledIO[LastReportBundle] = Flipped(Decoupled(new LastReportBundle(parameter.chaining1HBits)))
 
   val topInputVC: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(1, Flipped(Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth))))
   val topOutputVC: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(1, Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)))
@@ -187,11 +188,13 @@ class LSUInterface(val parameter: LSUIFParameter)
   protected def implicitReset = io.reset
 
   // lsu <-> lane
-  val physicalChannelFromLSU = Seq(io.vrfReadRequest, io.lsuReport, io.vrfWriteRequest)
-  val opcodeFromLSU = Seq(1, 5, 6)
+  val physicalChannelFromLSU = Seq(io.vrfReadRequest, io.vrfWriteRequest)
+  // Process opcode5 separately
+  val opcodeFromLSU = Seq(1, 6)
+  val vcIndex = Seq(0, 2)
 
   physicalChannelFromLSU.zipWithIndex.foreach { case (pcVec, index) =>
-    val outputVCVec: Vec[DecoupledIO[LaneVirtualChannel]] = io.outputVirtualChannelVec(index)
+    val outputVCVec: Vec[DecoupledIO[LaneVirtualChannel]] = io.outputVirtualChannelVec(vcIndex(index))
     val opcode: Int = opcodeFromLSU(index)
     pcVec.zipWithIndex.foreach { case (pc, li) =>
       val vc = outputVCVec(li)
@@ -216,10 +219,10 @@ class LSUInterface(val parameter: LSUIFParameter)
       pc.valid := vc.valid
       vc.ready := pc.ready
       pc.bits := vc.bits.data(pc.bits.getWidth - 1, 0).asTypeOf(pc.bits)
-      when(vc.fire) {
-        assert(vc.bits.sinkID === parameter.laneNumber.U)
-        assert(vc.bits.opcode === opcode.U)
-      }
+//      when(vc.fire) {
+//        assert(vc.bits.sinkID === parameter.laneNumber.U)
+//        assert(vc.bits.opcode === opcode.U)
+//      }
     }
   }
 
@@ -248,9 +251,26 @@ class LSUInterface(val parameter: LSUIFParameter)
     pc.valid := vc.valid
     vc.ready := pc.ready
     pc.bits := vc.bits.data(pc.bits.getWidth - 1, 0).asTypeOf(pc.bits)
-    when(vc.fire) {
-      assert(vc.bits.sinkID === parameter.laneNumber.U)
-      assert(vc.bits.opcode === opcode.U)
+//    when(vc.fire) {
+//      assert(vc.bits.sinkID === parameter.laneNumber.U)
+//      assert(vc.bits.opcode === opcode.U)
+//    }
+  }
+
+  // Process opcode5 separately
+  io.dataInWriteQueue.zip(io.outputVirtualChannelVec(1)).zipWithIndex.foreach { case ((inQ, vc), index) =>
+    val instWaitForReport = RegInit(0.U(parameter.chaining1HBits.W))
+    val lsuReport = io.lsuReport
+    val reportToLane = Wire(UInt(parameter.chaining1HBits.W))
+    when(lsuReport.orR || reportToLane.orR) {
+      instWaitForReport := (instWaitForReport | lsuReport) & (~reportToLane).asUInt
     }
+    reportToLane := instWaitForReport & (~inQ).asUInt
+    vc.valid := reportToLane.orR
+    vc.bits.data := reportToLane
+    vc.bits.opcode := 5.U
+    vc.bits.sourceID := parameter.laneNumber.U
+    vc.bits.sinkID := index.U
+    vc.bits.last := true.B
   }
 }

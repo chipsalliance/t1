@@ -619,8 +619,6 @@ class LSU(param: LSUParameter) extends Module {
     unitVec.map(m => Mux(m.status.last, indexToOH(m.status.instructionIndex, param.chainingSize), 0.U)).reduce(_ | _) |
       zvmaLastReport
   tokenIO.offsetGroupRelease := otherUnit.offsetRelease.asUInt
-  loadUnit.writeReadyForLsu  := writeReadyForLsu
-  storeUnit.vrfReadyToStore  := vrfReadyToStore
 
   val unitOrder:            Bool = instIndexLE(loadUnit.status.instructionIndex, storeUnit.status.instructionIndex)
   val loadAddressConflict:  Bool = (loadUnit.status.startAddress >= storeUnit.status.startAddress) &&

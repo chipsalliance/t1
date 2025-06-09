@@ -782,7 +782,7 @@ class MaskRequestAck(maskGroupWidth: Int) extends Bundle {
   val data: UInt = UInt(maskGroupWidth.W)
 }
 
-class LSUReport(chaining1HBits: Int) extends Bundle {
+class LastReportBundle(chaining1HBits: Int) extends Bundle {
   val last: UInt = UInt(chaining1HBits.W)
 }
 
@@ -874,7 +874,7 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   ))
 
   // opcode 5
-  val lsuReport: DecoupledIO[LSUReport] = Decoupled(new LSUReport(parameter.chaining1HBits))
+  val lsuReport: DecoupledIO[LastReportBundle] = Decoupled(new LastReportBundle(parameter.chaining1HBits))
 
   // opcode 6
   val vrfWriteRequest: DecoupledIO[VRFWriteRequest] = Decoupled(new VRFWriteRequest(
@@ -884,12 +884,15 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
     parameter.datapathWidth
   ))
 
+  // opcode 7
+  val maskUnitReport: DecoupledIO[LastReportBundle] = Decoupled(new LastReportBundle(parameter.chaining1HBits))
+
   // lane output => interface input
   // opcode 0
   val maskRequest: DecoupledIO[MaskRequest] = Flipped(Decoupled(new MaskRequest(parameter.maskGroupSizeBits)))
 
   // opcode 1
-  val `readVrfAck`: DecoupledIO[UInt] = Flipped(Decoupled(UInt(parameter.datapathWidth.W)))
+  val readVrfAck: DecoupledIO[UInt] = Flipped(Decoupled(UInt(parameter.datapathWidth.W)))
 
   // opcode 2
   val readBusDeq: DecoupledIO[ReadBusData] = Flipped(Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth)))
@@ -911,10 +914,13 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   // opcode 6
   val laneResponse: DecoupledIO[LaneResponse] = Flipped(Decoupled(new LaneResponse(parameter.chaining1HBits)))
 
-  val inputVirtualChannelVec: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(7, Flipped(Decoupled(
+  // opcode 7
+  val maskWriteRelease: DecoupledIO[EmptyBundle] = Flipped(Decoupled(new EmptyBundle()))
+
+  val inputVirtualChannelVec: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(8, Flipped(Decoupled(
     new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
   )))
-  val outputVirtualChannelVec: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(7, Decoupled(
+  val outputVirtualChannelVec: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(8, Decoupled(
     new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
   ))
 

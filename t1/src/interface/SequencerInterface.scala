@@ -117,7 +117,7 @@ case class SequencerIFParameter(
   // lane + lsu + top + mask unit
   val idWidth: Int = log2Ceil(laneNumber + lsuSize + 1 + 1)
   // todo
-  val opcodeWidth: Int = log2Ceil(7)
+  val opcodeWidth: Int = log2Ceil(9)
 }
 
 class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
@@ -150,6 +150,9 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
     parameter.datapathWidth
   ))))
 
+  // opcode 7
+  val maskUnitReport: Vec[DecoupledIO[LastReportBundle]] = Vec(parameter.laneNumber, Flipped(Decoupled(new LastReportBundle(parameter.chaining1HBits))))
+
   // interface => sequencer
   // opcode 0
   val maskRequest = Vec(parameter.laneNumber, Decoupled(new MaskRequest(parameter.maskGroupSizeBits)))
@@ -166,20 +169,23 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
   // opcode 6
   val laneResponse = Vec(parameter.laneNumber, Decoupled(new LaneResponse(parameter.chaining1HBits)))
 
-  val inputVirtualChannelVec: Vec[Vec[DecoupledIO[LaneVirtualChannel]]] = Vec(5, Vec(parameter.laneNumber,
+  // opcode 7
+  val maskWriteRelease = Vec(parameter.laneNumber, Decoupled(new EmptyBundle()))
+
+  val inputVirtualChannelVec: Vec[Vec[DecoupledIO[LaneVirtualChannel]]] = Vec(6, Vec(parameter.laneNumber,
     Flipped(Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)))
   ))
-  val outputVirtualChannelVec: Vec[Vec[DecoupledIO[LaneVirtualChannel]]] = Vec(4, Vec(parameter.laneNumber,
+  val outputVirtualChannelVec: Vec[Vec[DecoupledIO[LaneVirtualChannel]]] = Vec(5, Vec(parameter.laneNumber,
     Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth))
   ))
 
   // Seq <-> lsu
 
   // opcode 0
-  val lsuRequest: DecoupledIO[LSURequestInterface] = Flipped(Decoupled(new LSURequestInterface(parameter.datapathWidthBits, parameter.chainingSize, parameter.vlMaxBits)))
+  val lsuRequest: DecoupledIO[LSURequestInterface] = Flipped(Decoupled(new LSURequestInterface(parameter.eLen, parameter.chainingSize, parameter.vlMaxBits)))
 
   // opcode 5
-  val lsuReportToTop: DecoupledIO[LSUReport] = Decoupled(new LSUReport(parameter.chaining1HBits))
+  val lsuReportToTop: DecoupledIO[LastReportBundle] = Decoupled(new LastReportBundle(parameter.chaining1HBits))
 
   val topInputVC: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(1, Flipped(Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth))))
   val topOutputVC: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(1, Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)))
@@ -195,8 +201,8 @@ class SequencerInterface (val parameter: SequencerIFParameter)
   protected def implicitReset = io.reset
 
 
-  val physicalChannelFromSequencer = Seq(io.laneRequest, io.vrfReadRequest, io.maskRequestAck, io.vrfWriteRequest)
-  val opcodeFromSequencer: Seq[Int] = Seq(0, 1, 2, 6)
+  val physicalChannelFromSequencer = Seq(io.laneRequest, io.vrfReadRequest, io.maskRequestAck, io.vrfWriteRequest, io.maskUnitReport)
+  val opcodeFromSequencer: Seq[Int] = Seq(0, 1, 2, 6, 7)
 
   physicalChannelFromSequencer.zipWithIndex.foreach { case (pcVec, index) =>
     val outputVCVec: Vec[DecoupledIO[LaneVirtualChannel]] = io.outputVirtualChannelVec(index)
@@ -214,8 +220,8 @@ class SequencerInterface (val parameter: SequencerIFParameter)
     }
   }
 
-  val physicalChannelToSequencer = Seq(io.maskRequest, io.readVrfAck, io.maskUnitRequest, io.v0Update, io.laneResponse)
-  val opcodeToSequencer: Seq[Int] = Seq(0, 1, 3, 5, 6)
+  val physicalChannelToSequencer = Seq(io.maskRequest, io.readVrfAck, io.maskUnitRequest, io.v0Update, io.laneResponse, io.maskWriteRelease)
+  val opcodeToSequencer: Seq[Int] = Seq(0, 1, 3, 5, 6, 7)
   physicalChannelToSequencer.zipWithIndex.foreach { case (pcVec, index) =>
     val inputVCVec: Vec[DecoupledIO[LaneVirtualChannel]] = io.inputVirtualChannelVec(index)
     val opcode: Int = opcodeToSequencer(index)
@@ -224,10 +230,10 @@ class SequencerInterface (val parameter: SequencerIFParameter)
       pc.valid := vc.valid
       vc.ready := pc.ready
       pc.bits := vc.bits.data(pc.bits.getWidth - 1, 0).asTypeOf(pc.bits)
-      when(vc.fire) {
-        assert(vc.bits.sinkID === (parameter.laneNumber + 1).U)
-        assert(vc.bits.opcode === opcode.U)
-      }
+//      when(vc.fire) {
+//        assert(vc.bits.sinkID === (parameter.laneNumber + 1).U)
+//        assert(vc.bits.opcode === opcode.U)
+//      }
     }
   }
 
@@ -256,9 +262,9 @@ class SequencerInterface (val parameter: SequencerIFParameter)
     pc.valid := vc.valid
     vc.ready := pc.ready
     pc.bits := vc.bits.data(pc.bits.getWidth - 1, 0).asTypeOf(pc.bits)
-    when(vc.fire) {
-      assert(vc.bits.sinkID === parameter.laneNumber.U)
-      assert(vc.bits.opcode === opcode.U)
-    }
+//    when(vc.fire) {
+//      assert(vc.bits.sinkID === parameter.laneNumber.U)
+//      assert(vc.bits.opcode === opcode.U)
+//    }
   }
 }

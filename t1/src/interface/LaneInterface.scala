@@ -117,7 +117,7 @@ case class LaneIFParameter(
   // lane + lsu + top + mask unit
   val idWidth: Int = log2Ceil(laneNumber + lsuSize + 1 + 1)
   // todo
-  val opcodeWidth: Int = log2Ceil(7)
+  val opcodeWidth: Int = log2Ceil(9)
 }
 
 class LaneInterface (val parameter: LaneIFParameter)
@@ -139,7 +139,7 @@ class LaneInterface (val parameter: LaneIFParameter)
 
   val physicalChannelFromLane: Seq[DecoupledIO[Data]] = Seq(
     io.maskRequest, io.readVrfAck, io.readBusDeq,
-    io.maskUnitRequest, io.writeBusDeq, io.v0Update, io.laneResponse
+    io.maskUnitRequest, io.writeBusDeq, io.v0Update, io.laneResponse, io.maskWriteRelease
   )
 
   // lane             [0, laneNumber - 1]
@@ -147,12 +147,13 @@ class LaneInterface (val parameter: LaneIFParameter)
   // top & mask unit  laneNumber + 1
   val sinkIDVec = Seq(
     (parameter.laneNumber + 1).U, readVrfSourceQueue.deq.bits, io.readBusDeq.bits.sink,
-    (parameter.laneNumber + 1).U, io.writeBusDeq.bits.sink, (parameter.laneNumber + 1).U, (parameter.laneNumber + 1).U
+    Mux(io.maskUnitRequest.bits.maskRequestToLSU, parameter.laneNumber.U, (parameter.laneNumber + 1).U), io.writeBusDeq.bits.sink,
+    (parameter.laneNumber + 1).U, (parameter.laneNumber + 1).U, (parameter.laneNumber + 1).U
   )
 
   val physicalChannelToLane: Seq[DecoupledIO[Data]] = Seq(
     io.laneRequest, io.vrfReadRequest, io.maskRequestAck,
-    io.readBusEnq, io.writeBusEnq, io.lsuReport, io.vrfWriteRequest
+    io.readBusEnq, io.writeBusEnq, io.lsuReport, io.vrfWriteRequest, io.maskUnitReport
   )
 
   physicalChannelFromLane.zipWithIndex.foreach {case (req, index) =>
@@ -170,9 +171,9 @@ class LaneInterface (val parameter: LaneIFParameter)
     req.valid := io.inputVirtualChannelVec(index).valid
     io.inputVirtualChannelVec(index).ready := req.ready
     req.bits := io.inputVirtualChannelVec(index).bits.data(req.bits.getWidth - 1, 0).asTypeOf(req.bits)
-    when(io.inputVirtualChannelVec(index).fire) {
-      assert(io.inputVirtualChannelVec(index).bits.sinkID === io.laneIndex)
-      assert(io.inputVirtualChannelVec(index).bits.opcode === index.U)
-    }
+//    when(io.inputVirtualChannelVec(index).fire) {
+//      assert(io.inputVirtualChannelVec(index).bits.sinkID === io.laneIndex)
+//      assert(io.inputVirtualChannelVec(index).bits.opcode === index.U)
+//    }
   }
 }

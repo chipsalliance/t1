@@ -43,8 +43,6 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   @public
   val vrfReadResults:  Vec[ValidIO[UInt]] = IO(Input(Vec(param.laneNumber, Valid(UInt(param.datapathWidth.W)))))
   @public
-  val vrfReadyToStore: Bool               = IO(Input(Bool()))
-  @public
   val storeResponse = IO(Input(Bool()))
 
   // store unit probe
@@ -61,8 +59,6 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   val isLastRead:                  Bool = dataGroup === lastDataGroupReg
 
   // stage1, 读vrf
-  // todo: need hazardCheck?
-  val hazardCheck:     Bool               = RegEnable(vrfReadyToStore && !lsuRequest.valid, false.B, lsuRequest.valid || vrfReadyToStore)
   // read stage dequeue ready need all source valid, Or add a queue to coordinate
   val vrfReadQueueVec: Seq[QueueIO[UInt]] = Seq.tabulate(param.laneNumber)(_ =>
     Queue.io(UInt(param.datapathWidth.W), param.storeUnitReadOutStanding, flow = true, pipe = true)
@@ -329,6 +325,6 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
       define(vrfReadDataPortIsValidProbe(i), ProbeValue(port.valid))
       define(vrfReadDataPortIsReadyProbe(i), ProbeValue(port.ready))
     })
-    define(vrfReadyToStoreProbe, ProbeValue(vrfReadyToStore))
+    define(vrfReadyToStoreProbe, ProbeValue(true.B))
   }
 }
