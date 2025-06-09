@@ -222,7 +222,7 @@ impl State {
   }
 
   pub fn get_frm(&self) -> u32 {
-    unsafe { state_get_frm(self.state) as u32 } 
+    unsafe { state_get_frm(self.state) as u32 }
   }
 
   pub fn set_mcycle(&self, mcycle: usize) {
