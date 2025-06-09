@@ -13,6 +13,7 @@ env:
 
 jobs:
   gen-test-plan:
+    if: '! github.event.pull_request.draft'
     name: "Generate test plan"
     runs-on: [self-hosted, linux, nixos]
     outputs:
@@ -101,7 +102,7 @@ jobs:
     # Don't run report when:
     #   - user cancel ( we don't need report at this case )
     #   - PR from outside repository ( we don't have permission to push commit into fork repository )
-    if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository && ! github.event.pull_request.draft }}
     needs: [run-testcases]
     runs-on: [self-hosted, linux, nixos]
     permissions:

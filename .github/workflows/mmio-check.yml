@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   build-emulators:
+    if: '! github.event.pull_request.draft'
     name: "Build Emulators"
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
