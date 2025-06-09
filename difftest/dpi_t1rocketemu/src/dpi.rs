@@ -183,13 +183,7 @@ struct RetAxiPopB {
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn axi_pop_B(
-  reset: u8,
-  channel_id: u64,
-  data_width: u64,
-
-  ret: *mut RetAxiPopB,
-) {
+unsafe extern "C" fn axi_pop_B(reset: u8, channel_id: u64, data_width: u64, ret: *mut RetAxiPopB) {
   let ret = unsafe { &mut *ret };
   ret.bvalid = 0;
   if reset != 0 {
@@ -209,9 +203,11 @@ unsafe extern "C" fn axi_pop_B(
     match w.resp() {
       Ok(()) => {}
       Err(BusError) => panic!(
-        "SIM ERROR: write bus error, cid={}, id={}",
-        channel_id,
-        w.id()
+        "SIM ERROR: write bus error, cid={cid}, id={id}, addr=0x{addr:08x}, width={width}",
+        cid = channel_id,
+        id = w.id(),
+        addr = w.addr(),
+        width = w.width(),
       ),
     }
     debug!(
@@ -244,13 +240,7 @@ struct RetAxiPopR {
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn axi_pop_R(
-  reset: u8,
-  channel_id: u64,
-  data_width: u64,
-
-  ret: *mut RetAxiPopR,
-) {
+unsafe extern "C" fn axi_pop_R(reset: u8, channel_id: u64, data_width: u64, ret: *mut RetAxiPopR) {
   let ret = unsafe { &mut *ret };
 
   ret.rvalid = 0;
@@ -270,7 +260,11 @@ unsafe extern "C" fn axi_pop_R(
           let (resp, last) = r.pop(rdata_buf);
           match resp {
             Ok(()) => {}
-            Err(BusError) => panic!("SIM ERROR: read bus error, cid={cid}, id={id}"),
+            Err(BusError) => panic!(
+              "SIM ERROR: read bus error, cid={cid}, id={id}, addr=0x{addr:08x}, width={width}",
+              addr = r.addr(),
+              width = r.width()
+            ),
           }
           debug!(
             "[{}] Read data: channel_id={} id={} content={:?}",
@@ -317,7 +311,6 @@ unsafe extern "C" fn t1_cosim_init(
 
   let dramsim3_cfg_str = dramsim3_cfg.get().to_str().unwrap();
   let dramsim3_path_str = dramsim3_path.get().to_str().unwrap();
-
 
   let temp_dramsim3_path: PathBuf;
   let run_path = if dramsim3_path_str.is_empty() {

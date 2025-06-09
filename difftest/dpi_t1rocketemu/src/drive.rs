@@ -170,6 +170,14 @@ impl IncompleteWrite {
   pub fn user(&self) -> u64 {
     self.user
   }
+
+  pub fn addr(&self) -> u64 {
+    self.addr
+  }
+
+  pub fn width(&self) -> usize {
+    self.width
+  }
 }
 
 /// An incomplete memory read
@@ -290,6 +298,14 @@ impl IncompleteRead {
 
   pub fn user(&self) -> u64 {
     self.user
+  }
+
+  pub fn addr(&self) -> u64 {
+    self.addr
+  }
+
+  pub fn width(&self) -> usize {
+    self.width
   }
 }
 
