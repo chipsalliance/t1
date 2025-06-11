@@ -101,7 +101,7 @@ install typst and pandoc in their system environment.
 To ensure consistency and readability across the project, please adhere
 to the following conventions when writing ASL code.
 
-**1. Use Explicit Type Declarations**
+**Use Explicit Type Declarations**
 
 Always provide a type annotation when declaring a variable with `let` or
 `var`. This practice improves code clarity and helps prevent
@@ -115,7 +115,7 @@ Avoid:
 
     let i = 0x1;
 
-**2. Avoid Deeply Nested Operations**
+**Avoid Deeply Nested Operations**
 
 Instead of nesting multiple function calls or operations in a single
 statement, use intermediate variables to store the results of each step.
@@ -129,6 +129,19 @@ Recommended:
 Avoid:
 
     let not_a : bits(32) = NOT(ZeroExtend(GPR[1]));
+
+**Declare architecture states with UPPERCASE**
+
+Architecture states reads like global variable in normal code, thus we
+prefer using UPPERCASE for the states variable name.
+
+Recommended:
+
+    var MPP : bits(2)
+
+Avoid:
+
+    var mpp : bits(2)
 
 ## Model design
 
@@ -196,21 +209,23 @@ in a full function signature and adds a call to it from a global
 dispatcher. Developer **should not** write the function signature
 yourself.
 
-**How It Works** The `codegen` CLI tool processes every `.asl` file
-within the `extensions/` directory and performs two main actions:
+**How It Works**
 
-**1. Generates an `Execute<InstructionName>` Function**: It creates a
+The `codegen` CLI tool processes every `.asl` file within the
+`extensions/` directory and performs two main actions:
+
+**1. Generates an `Execute_<INSTRUCTION_NAME>` Function**: It creates a
 unique function for each instruction. The name is derived from the
-filename (e.g., `vle64_v.asl` becomes `ExecuteVle64_v`), and your code
+filename (e.g., `vle64_v.asl` becomes `Execute_VLE64_V`), and your code
 snippet is inserted into its body. This function will always receive the
 32-bit instruction opcode as an argument:
 
-    func Execute<InstructionName>(instruction: bits(32))
+    func Execute_<INSTRUCTION_NAME>(instruction: bits(32))
 
 **2. Creates a Dispatch Case**: It adds a pattern match case to the
 global `Execute()` function. This dispatcher inspects the opcode of
 every incoming instruction and calls the corresponding
-`Execute<InstructionName>` function.
+`Execute_<INSTRUCTION_NAME>` function.
 
 **Key Responsibilities**
 
@@ -257,7 +272,7 @@ After running the `codegen` tool, the `addi.asl` snippet will be
 integrated into the model. The final generated code will look like this:
 
     // the code generated for addi
-    func ExecuteAddi(instruction : bits(32))
+    func Execute_ADDI(instruction : bits(32))
     begin
       // code from addi.asl will be inserted here
 
@@ -281,7 +296,7 @@ integrated into the model. The final generated code will look like this:
     begin
       case instruction of
         when 'xxxx xxxx xxxx xxxx x000 xxxx x010 0011' => // ADDI opcode
-          ExecuteAddi(instruction);
+          Execute_ADDI(instruction);
         // ...
         otherwise =>
           ThrowException(IllegalInstruction);
@@ -312,9 +327,9 @@ For example, the generated code will look similar to this:
     begin
       case csr_number of
         when '001_100_000_000' =>
-          return ReadMstatus();
+          return Read_MSTATUS();
         when '001_100_000_001' =>
-          return ReadMisa();
+          return Read_MISA();
         // ...
         otherwise =>
           ThrowException(ExceptionType);
@@ -325,9 +340,9 @@ For example, the generated code will look similar to this:
     begin
       case csr_number of
         when '001_100_000_000' =>
-          WriteMstatus(value);
+          Write_MSTATUS(value);
         when '001_100_000_001' =>
-          WriteMisa(value);
+          Write_MISA(value);
         otherwise =>
           ThrowException(ExceptionType);
     end
@@ -374,11 +389,11 @@ You only need to write the code that goes inside the function body. The
 tool generates the function signature around your code.
 
 **Read Handlers:** The tool generates a read function named
-`Read<CsrName>`. Your `.asl` file in the `csr/read/` directory must
+`Read_<CSR_NAME>`. Your `.asl` file in the `csr/read/` directory must
 contain the logic to return the CSR's value as `bits(xlen)` type.
 
 **Write Handlers:** The tool generates a write function named
-`Write<CsrName>`. Your `.asl` file in the `csr/write/` directory must
+`Write_<CSR_NAME>`. Your `.asl` file in the `csr/write/` directory must
 contain the logic to handle the write operation. The new value is passed
 in as the `value` argument with `XLEN` bits.
 
@@ -403,7 +418,7 @@ file structure should look like this:
 **2. Implement the Read Logic (`read/misa_301.asl`)**
 
 Add the CSR read logic to `csr/read/misa_301.asl`. This code snippet
-will become the body of the `ReadMisa()` function.
+will become the body of the `Read_MISA()` function.
 
     // This logic assumes only rv32i is supported. The I-bit is controlled
     // by the 'misa_i' register, and all other non-MXL bits are read-only-zero.
@@ -420,7 +435,7 @@ will become the body of the `ReadMisa()` function.
 **3. Implement the Write Logic (`write/misa_301.asl`)**
 
 Add the corresponding logic to `csr/write/misa_301.asl`. This becomes
-the body of the `WriteMisa(value: bits(32))` function.
+the body of the `Write_MISA(value: bits(32))` function.
 
     // The 'I' bit (bit 8) of MISA is the only writable bit in this example.
     misa_i = value[8];
@@ -431,7 +446,7 @@ the body of the `WriteMisa(value: bits(32))` function.
 After running `codegen` CLI, the tool will take your `.asl` snippets and
 produce the following complete, callable functions:
 
-    func ReadMisa() => bits(32)
+    func Read_MISA() => bits(32)
     begin
       // This logic assumes only rv32i is supported. The I-bit is controlled
       // by the 'misa_i' register, and all other non-MXL bits are read-only-zero.
@@ -446,7 +461,7 @@ produce the following complete, callable functions:
       return [mxl, ro_zero, misa_i, '000', NOT(misa_i), '000'];
     end
 
-    func WriteMisa(value : bits(32)) => boolean
+    func Write_MISA(value : bits(32)) => boolean
     begin
         // The 'I' bit (bit 8) of MISA is the only writable bit in this example.
         misa_i = value[8];
@@ -514,3 +529,98 @@ constraints are checked by ASLi when `--check-constraints` flag is
 provided.
 
 #### Control and Status Register (CSRs)
+
+This sections contains CSRs behavior in current model. If a CSR addres
+not contains in this section get read or write, the dispatcher will
+raise illegal instruction exception.
+
+##### Read only zeros CSRs
+
+Registers covered in this section are always read-only zero. Any write
+to these registers is a no-op and will not have any side effects. Also
+no architecture states will be allocated for these CSRs.
+
+-   `mvendorid`
+-   `marchid`
+-   `mimpid`
+-   `mhartid`
+-   `mconfigptr`
+
+##### Machine ISA (misa) Register
+
+Switching extension supports at runtime is not supported by this model.
+The `misa` register is implemented as a read-only CSR register. A read
+to `misa` register always return a static bit vector indicating current
+enabled extensions. Any writes to `misa` register will not change value
+or have any side effects.
+
+    // read to MISA
+    // This will always be a static value represent current hart supported ISA
+    let value : bits(32) = ReadCSR(csr_addr);
+    // This will do nothing
+    WriteCSR(csr_addr, 0x00000000);
+
+Since `misa` is a read-only value, no states will be allocated in
+current model.
+
+##### Machine status (mstatus) Register
+
+Current model focus on machine mode only, supervisor and user mode are
+not implemented. So for `mstatus` register, model only required
+following fields in `mstatus` register:
+
+-   `mie`: global interrupt-enable bit for machine mode
+-   `mpie`: the interrupt-enable bit active prior to the trap
+-   `mpp[1:0]`: previous privilege level
+
+The `mstatush` register is also not required if we only implement
+M-mode.
+
+The above bit fields will be declare as individual register in
+`states.asl` file.
+
+    var MSTATUS_MIE  : bit
+    var MSTATUS_MPIE : bit
+    var MSTATUS_MPP  : bits(2)
+
+An example read/write operation to `mstatus` register looks like
+following:
+
+    func Read_MSTATUS()
+    begin
+      return [Zeros(18), MSTATUS_MPP, '000', MSTATUS_MPIE, '000', MSTATUS_MIE, '000'];
+    end
+
+    func Write_MSTATUS(value : bits(32))
+    begin
+      MIE = value[3];
+      MPIE = value[7];
+      MPP = value[12..11];
+    end
+
+##### Machine Cause (mcause) Register
+
+The `mcause` register is store in two states: a `Interrupt` bit register
+and a 31 bits length exception code register:
+
+    var MCAUSE_INTERRUPT : bit
+    var MCAUSE_EXCEPTION_CODE : bits(31)
+
+A read to the `mcause` CSR register will have a concatenated 32-bit
+value from above register, with the interrupt bit at top, exception code
+value at bottom.
+
+    function Read_MCAUSE()
+    begin
+      return [MCAUSE_INTERRUPT, MCAUSE_EXCEPTION_CODE];
+    end
+
+A write to the `mcause` CSR register will only write to the
+`MCAUSE_EXCEPTION_CODE` register.
+
+    function Write_MCAUSE(value : bits(32))
+    begin
+      MCAUSE_EXCEPTION_CODE = value[31:0];
+    end
+
+##### Machine Interrupt (mip and mie) Registers
