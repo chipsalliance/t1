@@ -71,6 +71,47 @@ make doc-pdf
 - RISC-V ISA Specification: https://github.com/riscv/riscv-isa-manual/
 - ASL Prelude Reference: https://github.com/IntelLabs/asl-interpreter/blob/master/prelude.asl
 
+== Coding Convention
+
+To ensure consistency and readability across the project, please adhere to the
+following conventions when writing ASL code.
+
+*1. Use Explicit Type Declarations*
+
+Always provide a type annotation when declaring a variable with `let` or `var`.
+This practice improves code clarity and helps prevent type-related errors.
+
+Recommended:
+
+```asl
+let i : integer = 0x1;
+```
+
+Avoid:
+
+```asl
+let i = 0x1;
+```
+
+*2. Avoid Deeply Nested Operations*
+
+Instead of nesting multiple function calls or operations in a single statement,
+use intermediate variables to store the results of each step. This makes the
+logic easier to read, understand, and debug.
+
+Recommended:
+
+```asl
+let a_ext : bits(32) = ZeroExtend(GPR[1]);
+let not_a : bits(32) = NOT(a_ext);
+```
+
+Avoid:
+
+```asl
+let not_a : bits(32) = NOT(ZeroExtend(GPR[1]));
+```
+
 = Model design
 This model implements the RISC-V instruction set architecture based on the
 official `riscv-isa-manual` repository. Our implementation specifically adheres
