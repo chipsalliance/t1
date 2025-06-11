@@ -56,6 +56,14 @@ writing clear, precise specifications of Instruction Set Architectures
 execute ASL specifications either in an interpreter or by compiling via
 C code.</td>
 </tr>
+<tr class="odd">
+<td><strong>GPR</strong></td>
+<td>Short term for General Propose Register</td>
+</tr>
+<tr class="even">
+<td><strong>CSR</strong></td>
+<td>Short term for Control and Status Register</td>
+</tr>
 </tbody>
 </table>
 
@@ -86,6 +94,41 @@ install typst and pandoc in their system environment.
     <https://github.com/riscv/riscv-isa-manual/>
 -   ASL Prelude Reference:
     <https://github.com/IntelLabs/asl-interpreter/blob/master/prelude.asl>
+    (Can also be obtained by running command `asli --print_spec`)
+
+### Coding Convention
+
+To ensure consistency and readability across the project, please adhere
+to the following conventions when writing ASL code.
+
+**1. Use Explicit Type Declarations**
+
+Always provide a type annotation when declaring a variable with `let` or
+`var`. This practice improves code clarity and helps prevent
+type-related errors.
+
+Recommended:
+
+    let i : integer = 0x1;
+
+Avoid:
+
+    let i = 0x1;
+
+**2. Avoid Deeply Nested Operations**
+
+Instead of nesting multiple function calls or operations in a single
+statement, use intermediate variables to store the results of each step.
+This makes the logic easier to read, understand, and debug.
+
+Recommended:
+
+    let a_ext : bits(32) = ZeroExtend(GPR[1]);
+    let not_a : bits(32) = NOT(a_ext);
+
+Avoid:
+
+    let not_a : bits(32) = NOT(ZeroExtend(GPR[1]));
 
 ## Model design
 
@@ -156,11 +199,11 @@ yourself.
 **How It Works** The `codegen` CLI tool processes every `.asl` file
 within the `extensions/` directory and performs two main actions:
 
-**1. Generates an Execute Function**: It creates a unique function for
-each instruction. The name is derived from the filename (e.g.,
-`vle64_v.asl` becomes `ExecuteVle64_v`), and your code snippet is
-inserted into its body. This function will always receive the 32-bit
-instruction opcode as an argument:
+**1. Generates an `Execute<InstructionName>` Function**: It creates a
+unique function for each instruction. The name is derived from the
+filename (e.g., `vle64_v.asl` becomes `ExecuteVle64_v`), and your code
+snippet is inserted into its body. This function will always receive the
+32-bit instruction opcode as an argument:
 
     func Execute<InstructionName>(instruction: bits(32))
 
@@ -174,8 +217,8 @@ every incoming instruction and calls the corresponding
 -   **Implement Core Logic**: Your code must decode operands from the
     instruction argument, perform the operation, and write the results
     to the appropriate registers (GPRs, CSRs, etc.).
--   **Update the Program Counter (PC)**: The main Step() function of the
-    model does not automatically increment the PC. Your instruction
+-   **Update the Program Counter (PC)**: The main `Step()` function of
+    the model does not automatically increment the PC. Your instruction
     logic is responsible for updating the PC value after execution
     (e.g., `PC = PC + 4;`). Forgetting this step will cause the model to
     loop on the same instruction.
@@ -409,3 +452,65 @@ produce the following complete, callable functions:
         misa_i = value[8];
         return TRUE;
     end
+
+### Architecture States
+
+All architectural states for current ISA model, from general-purpose
+registers to Control and Status Registers, are defined in the
+`states.asl` file. To optimize the model, we only define the specific
+bits necessary for the supported ISA features.
+
+This section serves as a reference for all architectural states
+maintained by the model.
+
+#### General Propose Register (GPRs)
+
+This model supports the `I` extension, providing 32 general-purpose
+registers (`x0` through `x31`). Because the `x0` register is a special
+case (hardwired to zero), our implementation only declares a 31-element
+array to store the state for registers `x1` through `x31`.
+
+    // Internal General Propose Register
+    var __GPR : array[31] of bits(32)
+
+The `__GPR` variable is an internal architecture states. Access to the
+GPRs is managed by a global array-like variable `X`. This provide a
+clean interface using ASL's getter and setter keyword, allows developers
+to use standard array indexing (`X[i]`) while the underlying logic
+handles the special case of `x0`.
+
+    getter X[i : integer{0..31}] => bits(32)
+    begin
+      if i == 0 then
+        // Always return a 32-bit zero vector for X[0]
+        return Zeros(32);
+      else
+        // Adjust index to access the correct element for GPRs 1-31
+        return __GPR[i - 1];
+    end
+
+    setter X[i : integer{0..31}] = value : bit(32)
+    begin
+      // Only perform a write if the destination is not X[0]
+      if i > 0 then
+        __GPR[i - 1] = value;
+
+      // Writes to GPR[0] are silently discarded
+    end
+
+When `X[0]` is read, the getter intercepts the call and returns a 32-bit
+zero vector, without accessing the `__GPR` array. A write to `x0` is
+silently ignored by the setter logic, preserving its hardwired-zero
+behavior.
+
+When any other register (`X[1]`-`X[31]`) is accessed, the getter adjusts
+the index by `-1` and returns the corresponding value from the `__GPR`
+array. A write to any register from `x1` through `x31` updates its value
+in the `__GPR` array.
+
+All access to `X` has a integer constraint check declare by
+`integer{0..31}`, which allows only integer from 0 to 31. This
+constraints are checked by ASLi when `--check-constraints` flag is
+provided.
+
+#### Control and Status Register (CSRs)
