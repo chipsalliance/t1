@@ -2,23 +2,157 @@ package org.chipsalliance.t1.pokedex.codegen
 
 import mainargs._
 
-object Main {
-  @main
-  case class Params(
-    @arg(short = 'i', name = "model-dir", doc = "Path to Sail model implementation")
-    sailModelDir: os.Path,
-    @arg(short = 'o', name = "output-dir", doc = "Output directory path to generate sail sources")
-    outputDir:    os.Path,
-    @arg(short = 'r', name = "riscv-opcodes-path", doc = "Path to riscv-opcodes path")
-    riscvOpCodesPath: os.Path) {}
+case class CSR(csrname: String, csrnumber: String, csrindex: Int)
 
+case class CodeGeneratorParams(modelDir: os.Path, outputDir: os.Path)
+class CodeGenerator(params: CodeGeneratorParams) {
+  private lazy val outputDir = {
+    os.makeDir.all(params.outputDir)
+    params.outputDir
+  }
+
+  private val csr_op_path   = outputDir / "csr_op.asl"
+  private val user_csr_path = params.modelDir / "csr"
+  private val xlen          = 32
+
+  def intToBin(i: Int, length: Int) = {
+    val bin = i.toBinaryString
+    if (bin.length > length) {
+      throw new Exception(
+        s"input ${i} has bits length larger than the expected: ${bin.length} > ${length}"
+      )
+    }
+
+    if (bin.length == length) {
+      bin
+    } else {
+      "0".repeat(length - bin.length) + bin
+    }
+  }
+
+  def genCSRsOperation() = {
+    val csrDB = os
+      .walk(user_csr_path / "read")
+      .filter(_.ext == "asl")
+      .map(p =>
+        p.baseName match {
+          case s"${csrname}_${csrnumber}" => CSR(csrname, csrnumber ,Integer.parseInt(csrnumber, 16))
+        }
+      )
+
+    val csrRead = csrDB.map({ case CSR(csrname, csrnumber, _) =>
+      csrname -> os.read(user_csr_path / "read" / s"${csrname}_${csrnumber}.asl")
+    })
+
+    val csrWrite = csrDB.map({
+      case CSR(csrname, csrnumber, _) => {
+        val filename = user_csr_path / "write" / s"${csrname}_${csrnumber}.asl"
+        if (!os.exists(filename)) {
+          throw new Exception(s"${csrname} implemented read functions but no write function implemented")
+        }
+        csrname -> os.read(filename)
+      }
+    })
+
+    val csrReadDispatch = csrDB
+      .map({ case CSR(csrname, _, csrindex) =>
+        s"""|
+            |  when '${intToBin(csrindex, 12)}' =>
+            |    return Read_${csrname.toUpperCase}();
+            |""".stripMargin
+      })
+      .mkString("\n")
+
+    val csrReadHandlers = csrRead
+      .map({ case (csrname, body) =>
+        s"""|
+            |func Read_${csrname.toUpperCase}() => bits(${xlen})
+            |begin
+            |
+            |${body}
+            |
+            |end
+            |""".stripMargin
+      })
+      .mkString("\n")
+
+    val csrWriteDispatch = csrDB
+      .map({ case CSR(csrname, _, csrindex) =>
+        s"""|
+            |  when '${intToBin(csrindex, 12)}' =>
+            |    return Write_${csrname.toUpperCase}();
+            |""".stripMargin
+      })
+      .mkString("\n")
+
+    val csrWriteHandlers = csrWrite
+      .map({ case (csrname, body) =>
+        s"""|
+            |func Write_${csrname.toUpperCase}(value : bits(32))
+            |begin
+            |
+            |${body}
+            |
+            |end
+            |""".stripMargin
+      })
+      .mkString("\n")
+
+    os.write.over(
+      csr_op_path,
+      s"""|
+          |// CSR Dispatch
+          |func ReadCSR(csr : bits(12)) => bits(${xlen})
+          |begin
+          |  case csr of
+          |    ${csrReadDispatch}
+          |
+          |    otherwise =>
+          |      print("TODO")
+          |  end
+          |end
+          |
+          |func WriteCSR(csr : bits(12))
+          |begin
+          |  case csr of
+          |    ${csrWriteDispatch}
+          |
+          |    otherwise =>
+          |      print("TODO")
+          |  end
+          |end
+          |
+          |${csrReadHandlers}
+          |
+          |${csrWriteHandlers}
+          |""".stripMargin
+    )
+  }
+
+  def run() = {
+    genCSRsOperation()
+  }
+}
+
+object Main {
   implicit object PathRead extends TokensReader.Simple[os.Path] {
     def shortName               = "path"
     def read(strs: Seq[String]) = Right(os.Path(strs.head, os.pwd))
   }
 
+  @main
+  def run(
+    @arg(short = 'i', name = "input-model-dir", doc = "Path to ASL model implementation")
+    modelDir:  os.Path,
+    @arg(short = 'o', name = "output-dir", doc = "Output directory path to generate sources")
+    outputDir: os.Path
+  ) = {
+    val param     = CodeGeneratorParams(modelDir, outputDir);
+    val generator = new CodeGenerator(param);
+    generator.run()
+  }
+
   def main(args: Array[String]): Unit = {
-    val params = ParserForClass[Params].constructOrExit(args)
-    println("Hello World")
+    ParserForMethods(this).runOrExit(args)
   }
 }

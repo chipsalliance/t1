@@ -23,7 +23,6 @@ stdenv.mkDerivation rec {
       root = ./.;
       fileset = unions [
         ./build.mill
-        ./common.mill
         ./src
       ];
     };

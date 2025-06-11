@@ -14,31 +14,14 @@ object deps {
   val rvdecoderdb = ivy"me.jiuyang::rvdecoderdb-jvm:0.0.0+0-no-vcs-SNAPSHOT"
 }
 
-trait CodeGen extends common.CodeGenCliModule with ScalafmtModule {
+trait CodeGen extends ScalaModule with ScalafmtModule {
   def scalaVersion = T(deps.scala)
-
-  def riscvOpcodesPath = T.input {
-    val env_raw = T.env
-      .get("RISCV_OPCODES_PATH")
-      .map(raw => os.Path(raw, os.pwd))
-      .getOrElse(millSourcePath / "riscv-opcodes")
-    PathRef(env_raw)
-  }
-
-  def riscvCustomOpcodesPath = T.input {
-    val env_raw = T.env
-      .get("RISCV_CUSTOM_OPCODES_PATH")
-      .map(raw => os.Path(raw, os.pwd))
-      .getOrElse(millSourcePath / "custom-instruction")
-    PathRef(env_raw)
-  }
 }
 
 object `package` extends RootModule with CodeGen {
-  def rvdecoderdbIvy = deps.rvdecoderdb
-
   override def ivyDeps = T(
     super.ivyDeps() ++ Seq(
+      deps.rvdecoderdb,
       deps.oslib,
       deps.upickle,
       deps.mainargs
