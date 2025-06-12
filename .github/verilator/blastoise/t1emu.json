@@ -1,4 +1,4 @@
 {
-  "mlir.matmul": 85,
-  "intrinsic.conv2d_less_m2": 2825
+  "mlir.matmul": 34942,
+  "intrinsic.conv2d_less_m2": 2826
 }
