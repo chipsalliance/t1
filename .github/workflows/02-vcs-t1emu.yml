@@ -1,15 +1,13 @@
-name: T1Emu VCS Test
+name: "Check: Test Spike Emulator with VCS"
 on:
-  pull_request:
+  workflow_run:
+    workflows: ["Build Test Case"]
     types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-      - labeled
+      - completed
 env:
   USER: runner
   EMU_TOP: t1emu
+  HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
 
 # Cancel the current workflow when new commit pushed
 concurrency:
@@ -18,7 +16,7 @@ concurrency:
 
 jobs:
   gen-test-plan:
-    if: '! github.event.pull_request.draft'
+    if: "github.event.workflow_run.conclusion == 'success'"
     name: "Generate test plan"
     runs-on: [self-hosted, linux, nixos]
     outputs:
@@ -26,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - id: "get-all-configs"
         run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top ${{ env.EMU_TOP }})" > $GITHUB_OUTPUT
 
@@ -40,13 +38,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Build vcs emulator"
         run: |
           nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.vcs-emu' --impure --no-link
-      - name: "Build all testcases"
-        run: |
-          nix build ".#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.cases._all" --max-jobs auto --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"
@@ -62,7 +57,7 @@ jobs:
       # and causing the derivation build output cannot be cache correctly.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - id: gen-matrix
         name: "Generate test matrix"
         run: |
@@ -81,7 +76,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Run testcases"
         run: |
           nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --emuLib "vcs" --top ${{ env.EMU_TOP }}
@@ -101,7 +96,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.head_ref }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Print step summary"
         run: |
           nix run ".#ci-helper" -- postCI \

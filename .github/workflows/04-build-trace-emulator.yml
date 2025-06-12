@@ -1,14 +1,12 @@
-name: Compile Wave Trace
+name: "Build Trace Emulator for Cache"
 on:
-  pull_request:
+  workflow_run:
+    workflows: ["Build Test Case"]
     types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-      - labeled
+      - completed
 env:
   USER: runner
+  HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
 
 # Cancel the current workflow when new commit pushed
 concurrency:
@@ -25,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - id: "get-all-configs"
         run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top t1emu)" > $GITHUB_OUTPUT
 
@@ -39,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Build T1Emu vcs emulator"
         run: |
           nix build '.#t1.${{ matrix.config }}.t1emu.vcs-emu-trace' --impure --no-link --cores 64
@@ -58,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - id: "get-all-configs"
         run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top t1rocketemu)" > $GITHUB_OUTPUT
 
@@ -72,7 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Build T1RocketEmu vcs emulator"
         run: |
           nix build '.#t1.${{ matrix.config }}.t1rocketemu.vcs-emu-trace' --impure --no-link --cores 64
@@ -91,7 +89,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - id: "get-all-configs"
         run: echo "out=$(nix run .#ci-helper -- generateTestPlan --caseDir verilator --top t1emu)" > $GITHUB_OUTPUT
 
@@ -105,7 +103,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Build T1Emu verilator emulator"
         run: |
           nix build '.#t1.${{ matrix.config }}.t1emu.verilator-emu-trace' --impure --no-link --cores 64
@@ -124,7 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - id: "get-all-configs"
         run: echo "out=$(nix run .#ci-helper -- generateTestPlan --caseDir verilator --top t1rocketemu)" > $GITHUB_OUTPUT
 
@@ -138,7 +136,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Build T1RocketEmu verilator emulator"
         run: |
           nix build '.#t1.${{ matrix.config }}.t1rocketemu.verilator-emu-trace' --impure --no-link --cores 64
@@ -158,7 +156,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Build T1RocketEmu verilator emulator"
         run: |
           nix develop -c t1-helper run -c blastoise -e verilator-emu-trace -i t1rocketemu mlir.hello
