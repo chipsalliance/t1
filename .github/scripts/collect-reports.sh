@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 allTops=("t1emu" "t1rocketemu")
 for t in "${allTops[@]}"; do
   nix run ".#ci-helper" -- postCI \
