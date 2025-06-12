@@ -4,7 +4,11 @@ import mainargs._
 
 case class CSR(csrname: String, csrnumber: String, csrindex: Int)
 
-case class CodeGeneratorParams(modelDir: os.Path, outputDir: os.Path)
+case class CodeGeneratorParams(
+  modelDir:         os.Path,
+  outputDir:        os.Path,
+  riscvOpCodesSrc:  os.Path,
+  customOpCodesSrc: Option[os.Path])
 class CodeGenerator(params: CodeGeneratorParams) {
   private lazy val outputDir = {
     os.makeDir.all(params.outputDir)
@@ -12,6 +16,8 @@ class CodeGenerator(params: CodeGeneratorParams) {
   }
 
   private val csr_op_path   = outputDir / "csr_op.asl"
+  private val execute_path  = outputDir / "execute.asl"
+  private val arg_lut_path  = outputDir / "arg_lut.asl"
   private val user_csr_path = params.modelDir / "csr"
   private val xlen          = 32
 
@@ -36,7 +42,7 @@ class CodeGenerator(params: CodeGeneratorParams) {
       .filter(_.ext == "asl")
       .map(p =>
         p.baseName match {
-          case s"${csrname}_${csrnumber}" => CSR(csrname, csrnumber ,Integer.parseInt(csrnumber, 16))
+          case s"${csrname}_${csrnumber}" => CSR(csrname, csrnumber, Integer.parseInt(csrnumber, 16))
         }
       )
 
@@ -129,7 +135,26 @@ class CodeGenerator(params: CodeGeneratorParams) {
     )
   }
 
+  def genArgLuts() = {
+    val argLutDb = org.chipsalliance.rvdecoderdb.argLut(params.riscvOpCodesSrc, params.customOpCodesSrc)
+    if (argLutDb.isEmpty) {
+      throw new Exception("fail generating arg lut handler, please check the input opcodes path")
+    }
+
+    val argLutsCode = argLutDb.values.map { case org.chipsalliance.rvdecoderdb.Arg(name, hi, lo) =>
+      s"""|
+          |func GetArg_${name.toUpperCase}(instruction: bits(32)) => bits(${hi - lo + 1})
+          |begin
+          |  return instruction[${hi}..${lo}];
+          |end
+          |""".stripMargin
+    }.mkString("\n")
+
+    os.write.over(arg_lut_path, argLutsCode)
+  }
+
   def run() = {
+    genArgLuts()
     genCSRsOperation()
   }
 }
@@ -143,11 +168,21 @@ object Main {
   @main
   def run(
     @arg(short = 'i', name = "input-model-dir", doc = "Path to ASL model implementation")
-    modelDir:  os.Path,
+    modelDir:           os.Path,
     @arg(short = 'o', name = "output-dir", doc = "Output directory path to generate sources")
-    outputDir: os.Path
+    outputDir:          os.Path,
+    @arg(
+      short = 'd',
+      name = "riscv-opcodes-src-dir",
+      doc = "Path to the riscv-opcodes source"
+    ) riscvOpCodesSrc:  os.Path,
+    @arg(
+      short = 'c',
+      name = "custom-opcodes-src-dir",
+      doc = "Path to the custom opcodes source"
+    ) customOpCodesSrc: Option[os.Path]
   ) = {
-    val param     = CodeGeneratorParams(modelDir, outputDir);
+    val param     = CodeGeneratorParams(modelDir, outputDir, riscvOpCodesSrc, customOpCodesSrc);
     val generator = new CodeGenerator(param);
     generator.run()
   }

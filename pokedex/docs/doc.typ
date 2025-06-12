@@ -236,10 +236,11 @@ Inside `addi.asl`, write the code to perform the "add immediate" operation.
 *Note* there is no surrounding `func` block.
 
 ```asl
-// Decode operands from the instruction bits
-let imm : bits(11) = instruction[31:20];
-let rs1 : integer = UInt(instruction[19:15]);
-let rd  : integer = UInt(instruction[11:7]);
+// Decode operands from the instruction bits.
+// Read following arg luts sections for details about `GetArg_*` API.
+let imm : bits(11) = GetArg_ZIMM11(instruction);
+let rs1 : integer = UInt(GetArg_RS1(instruction));
+let rd  : integer = UInt(GetArg_RD(instruction));
 
 // Perform the action
 let rs1_val : bits(32) = GPR[rs1];
@@ -263,9 +264,9 @@ begin
   // code from addi.asl will be inserted here
 
   // Decode operands from the instruction bits
-  let imm : bits(11) = instruction[31:20];
-  let rs1 : integer = UInt(instruction[19:15]);
-  let rd  : integer = UInt(instruction[11:7]);
+  let imm : bits(11) = GetArg_ZIMM11(instruction);
+  let rs1 : integer = UInt(GetArg_RS1(instruction));
+  let rd  : integer = UInt(GetArg_RD(instruction));
 
   // Perform the action
   let rs1_val : bits(32) = GPR[rs1];
@@ -288,6 +289,33 @@ begin
       ThrowException(IllegalInstruction);
   end
 end
+```
+
+=== Arg Luts
+
+To reduce decoding bugs and simplify development, the codegen-cli tool
+automatically generates helper functions for extracting argument fields from an
+instruction's opcode.
+
+This process is driven by the `arg_luts.csv` file from the official
+`riscv-opcodes` repository, which contains a lookup table specifying the name
+and bit position for each instruction argument.
+
+The generated APIs follow a consistent naming and signature convention:
+
+- Naming: All functions start with a `GetArg_` prefix, followed by the field name
+  in uppercase (e.g., `GetArg_RD`, `GetArg_RS1`).
+- Signature: Each function accepts the 32-bit instruction as a `bits(32)`
+  parameter and returns a bit vector whose size is determined by the field's
+  definition in the lookup table.
+
+For example, instead of manually slicing the immediate field from an I-type
+instruction, a developer can use the generated `GetArg_ZIMM12` API. This
+function takes the 32-bits instruction and returns the corresponding 12-bit
+immediate value.
+
+```asl
+func GetArg_ZIMM12(instruction : bits(32) => bits(12);
 ```
 
 == CSR
