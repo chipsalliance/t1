@@ -1,15 +1,6 @@
-name: Trigger Physical Design Workflow
+name: Physical Design Workflow
 on:
-  workflow_run:
-    workflows: ["Single Check"]
-    types:
-      - completed
-  pull_request:
-    types:
-      - labeled
-      - unlabeled
-env:
-  USER: runner
+  workflow_call:
 
 # Cancel the current workflow when new commit pushed
 concurrency:

@@ -1,0 +1,128 @@
+# Single Check build compiler toolchains and elaborator at one machine,
+# then run a small MMIO check to install all the required package before
+# CI dispatch multiple tests to mutiple machines. Thus we can gain fetch
+# speed from local S3 cache.
+
+name: "Run Emulator"
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+
+# Cancel the current workflow when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-compiler-toolchains:
+    if: '! github.event.pull_request.draft'
+    name: "Build Compiler Toolchains"
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      # before test starting, make sure compiler toolchain is ready
+      - run: |
+          nix build '.#rv32-stdenv.cc' --no-link --print-build-logs
+          nix build '.#buddy-mlir' --no-link --print-build-logs
+
+  run-single-check:
+    name: "Run MMIO check"
+    needs: [build-compiler-toolchains]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    strategy:
+      fail-fast: false
+      matrix:
+        config: ["blastoise"]
+        # t1emu doesn't support MMIO right now
+        top: ["t1rocketemu"]
+        emu: ["vcs-emu", "verilator-emu"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build vcs emulator"
+        env:
+          T1_TOP: ${{ matrix.top }}
+          T1_CONFIG: ${{ matrix.config }}
+          T1_EMU: ${{ matrix.emu }}
+        run: ./tests/emurt/tests/validate.sh
+
+  run-rocket-vcs:
+    name: "Run Rocket Emulator with VCS"
+    needs: [run-single-check]
+    uses: ./.github/workflows/01-emulator-ci.yml
+    with:
+      backend: "vcs"
+      emulator: "vcs-emu-cover"
+      rtl_top: "t1rocketemu"
+      git_rev: ${{ github.event.pull_request.head.sha }}
+
+  run-spike-vcs:
+    name: "Run Spike Emulator with VCS"
+    needs: [run-single-check]
+    uses: ./.github/workflows/01-emulator-ci.yml
+    with:
+      backend: "vcs"
+      emulator: "vcs-emu-cover"
+      rtl_top: "t1emu"
+      git_rev: ${{ github.event.pull_request.head.sha }}
+
+  run-rocket-verilator:
+    name: "Run Rocket Emulator with Verilator"
+    needs: [run-single-check]
+    uses: ./.github/workflows/01-emulator-ci.yml
+    with:
+      backend: "verilator"
+      emulator: "verilator-emu"
+      rtl_top: "t1rocketemu"
+      git_rev: ${{ github.event.pull_request.head.sha }}
+
+  run-spike-verilator:
+    name: "Run Spike Emulator with Verilator"
+    needs: [run-single-check]
+    uses: ./.github/workflows/01-emulator-ci.yml
+    with:
+      backend: "verilator"
+      emulator: "verilator-emu"
+      rtl_top: "t1emu"
+      git_rev: ${{ github.event.pull_request.head.sha }}
+
+  report:
+    name: "Report CI result"
+    needs:
+      - "run-spike-vcs"
+      - "run-spike-verilator"
+      - "run-rocket-vcs"
+      - "run-rocket-verilator"
+    runs-on: [self-hosted, linux, nixos]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+      - name: "Print Rocket Emulator VCS step summary"
+        run: ./.github/scripts/collect-reports.sh
+      - name: "Commit cycle updates"
+        if: ${{github.event.pull_request.head.repo.full_name == github.repository}}
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          changed_cases=$(git diff --name-only '.github/**/*.json')
+
+          if [ -n "$changed_cases" ]; then
+            echo "changed cases: $changed_cases"
+            git add '.github/**/*.json'
+            git commit -m "[ci] update t1 test case cycle data"
+            git push origin ${{ github.head_ref }}
+          else
+            echo "No cycle change detect"
+          fi
