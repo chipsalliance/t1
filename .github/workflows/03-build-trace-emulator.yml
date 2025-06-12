@@ -1,7 +1,7 @@
 name: "Build Trace Emulator for Cache"
 on:
   workflow_run:
-    workflows: ["Build Test Case"]
+    workflows: ["Single Check"]
     types:
       - completed
 env:

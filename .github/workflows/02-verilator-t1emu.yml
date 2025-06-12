@@ -1,18 +1,13 @@
-name: "Check: Test Spike Emulator with VCS"
+name: "Check: Test Spike Emulator with Verilator"
 on:
   workflow_run:
-    workflows: ["Build Test Case"]
+    workflows: ["Single Check"]
     types:
       - completed
+
 env:
-  USER: runner
   EMU_TOP: t1emu
   HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-
-# Cancel the current workflow when new commit pushed
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
 
 jobs:
   gen-test-plan:
@@ -26,10 +21,10 @@ jobs:
         with:
           ref: ${{ env.HEAD_SHA }}
       - id: "get-all-configs"
-        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top ${{ env.EMU_TOP }})" > $GITHUB_OUTPUT
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --caseDir verilator --top ${{ env.EMU_TOP }})" > $GITHUB_OUTPUT
 
-  build-emulators:
-    name: "Build VCS Emulators"
+  build-verilator-emulators:
+    name: "Build Verilator Emulators"
     needs: [gen-test-plan]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
@@ -39,13 +34,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.HEAD_SHA }}
-      - name: "Build vcs emulator"
+      - name: "Build verilator emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.vcs-emu' --impure --no-link
+          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.verilator-emu' --impure -L --no-link --cores 64
+      - name: "Build Test Cases"
+        run: |
+          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.cases._all' --max-jobs auto --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"
-    needs: [build-emulators]
+    needs: [build-verilator-emulators]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     env:
       RUNNERS: 70
@@ -62,13 +60,13 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix run ".#ci-helper" -- generateCiMatrix --top ${{ env.EMU_TOP }} --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix run ".#ci-helper" -- generateCiMatrix --caseDir "verilator" --top ${{ env.EMU_TOP }} --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
-    name: "Run VCS (${{ matrix.id }})"
-    env:
-      GITHUB_JOB_NAME: "Run VCS (${{ matrix.id }})"
+    name: "Run testcases (${{matrix.id}})"
     needs: [gen-matrix]
+    env:
+      GITHUB_JOB_NAME: "Run testcases (${{matrix.id}})"
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
@@ -79,14 +77,13 @@ jobs:
           ref: ${{ env.HEAD_SHA }}
       - name: "Run testcases"
         run: |
-          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --emuLib "vcs" --top ${{ env.EMU_TOP }}
+          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --emuLib "verilator" --top ${{ env.EMU_TOP }}
 
   report:
-    name: "Report VCS CI result"
+    name: "Report CI result"
     # Don't run report when:
     #   - user cancel ( we don't need report at this case )
     #   - PR from outside repository ( we don't have permission to push commit into fork repository )
-    #   - this is a draft PR
     if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository && ! github.event.pull_request.draft }}
     needs: [run-testcases]
     runs-on: [self-hosted, linux, nixos]
@@ -100,24 +97,9 @@ jobs:
       - name: "Print step summary"
         run: |
           nix run ".#ci-helper" -- postCI \
-            --urg-report-file-path ./urg-report.md \
             --cycle-update-file-path ./cycle-update.md \
-            --emu-lib "vcs" \
+            --emu-lib "verilator" \
+            --case-dir "verilator" \
             --top ${{ env.EMU_TOP }}
-          cat ./urg-report.md >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY
-      - name: "Commit cycle updates"
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          changed_cases=$(git diff --name-only '.github/designs/**/*.json')
-
-          if [ -n "$changed_cases" ]; then
-            echo "changed cases: $changed_cases"
-            git add '.github/designs/**/*.json'
-            git commit -m "[ci] update t1 test case cycle data"
-            git push origin ${{ github.head_ref }}
-          else
-            echo "No cycle change detect"
-          fi

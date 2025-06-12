@@ -1,11 +1,11 @@
 name: Trigger Physical Design Workflow
 on:
+  workflow_run:
+    workflows: ["Single Check"]
+    types:
+      - completed
   pull_request:
     types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
       - labeled
       - unlabeled
 env:
