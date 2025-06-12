@@ -331,6 +331,7 @@ begin
       Write_MISA(value);
     otherwise =>
       ThrowException(ExceptionType);
+  end
 end
 ```
 
