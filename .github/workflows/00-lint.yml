@@ -1,4 +1,4 @@
-name: Code format check
+name: "Prepare: checking code format"
 on:
   pull_request:
     types:

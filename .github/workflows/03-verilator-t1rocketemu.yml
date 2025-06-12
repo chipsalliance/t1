@@ -1,19 +1,17 @@
-name: Verilator Test (t1rocketemu w/ rocket)
+name: "Check: Test Rocket Emulator with Verilator"
 on:
-  pull_request:
+  workflow_run:
+    workflows: ["Build Test Case"]
     types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-      - labeled
+      - completed
 
 env:
   EMU_TOP: t1rocketemu
+  HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
 
 jobs:
   gen-test-plan:
-    if: '! github.event.pull_request.draft'
+    if: "github.event.workflow_run.conclusion == 'success'"
     name: "Generate test plan"
     runs-on: [self-hosted, linux, nixos]
     outputs:
@@ -21,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - id: "get-all-configs"
         run: echo "out=$(nix run .#ci-helper -- generateTestPlan --caseDir verilator --top ${{ env.EMU_TOP }})" > $GITHUB_OUTPUT
 
@@ -35,14 +33,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Build verilator emulator"
         run: |
           nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.verilator-emu' --impure -L --no-link --cores 64
-      - name: "Build all testcases"
-        run: |
-          # Build testcases with vlen 1024 and vlen 4096
-          nix build ".#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.cases._all" --impure --max-jobs auto -L --no-link --cores 64
 
   # In the future, we may choose Verdi for trace, and left verilator trace only for performance evaluation
   build-verilator-trace-emulators:
@@ -55,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Build verilator emulator with trace"
         run: nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.verilator-emu-trace' --impure -L --no-link --cores 64
 
@@ -73,7 +67,7 @@ jobs:
       # and causing the derivation build output cannot be cache correctly.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - id: gen-matrix
         name: "Generate test matrix"
         run: |
@@ -92,7 +86,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Run testcases"
         run: |
           nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --emuLib "verilator" --top ${{ env.EMU_TOP }}
@@ -111,7 +105,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.head_ref }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Print step summary"
         run: |
           nix run ".#ci-helper" -- postCI \

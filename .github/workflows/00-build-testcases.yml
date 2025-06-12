@@ -1,0 +1,76 @@
+name: "Build Test Case"
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+env:
+  USER: runner
+
+# Cancel the current workflow when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gen-test-plan:
+    if: '! github.event.pull_request.draft'
+    name: "Generate test plan"
+    runs-on: [self-hosted, linux, nixos]
+    outputs:
+      t1emu: ${{ steps.get-t1emu-configs.outputs.out }}
+      t1rocketemu: ${{ steps.get-t1rocketemu-configs.outputs.out }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - id: "get-t1emu-configs"
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top t1emu)" > $GITHUB_OUTPUT
+      - id: "get-t1rocketemu-configs"
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top t1rocketemu)" > $GITHUB_OUTPUT
+
+  build-compiler-toolchains:
+    if: '! github.event.pull_request.draft'
+    name: "Build Compiler Toolchains"
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      # before test starting, make sure compiler toolchain is ready
+      - run: |
+          nix build '.#rv32-stdenv.cc' --no-link --print-build-logs
+          nix build '.#buddy-mlir' --no-link --print-build-logs
+
+  build-t1emu-testcases:
+    name: "Build Test Cases for Spike Emulator"
+    needs: [gen-test-plan, build-compiler-toolchains]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-test-plan.outputs.t1emu) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build all testcases"
+        run: |
+          nix build ".#t1.${{ matrix.config }}.t1emu.cases._all" --max-jobs auto --no-link --cores 64
+
+  build-t1rocketemu-testcases:
+    name: "Build Test Cases for Rocket Emulator"
+    needs: [gen-test-plan, build-compiler-toolchains]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-test-plan.outputs.t1rocketemu) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Build all testcases"
+        run: |
+          nix build ".#t1.${{ matrix.config }}.t1rocketemu.cases._all" --max-jobs auto --no-link --cores 64

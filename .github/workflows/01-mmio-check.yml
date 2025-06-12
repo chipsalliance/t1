@@ -1,14 +1,12 @@
-name: T1 MMIO Check
+name: "Check: T1 MMIO Check"
 on:
-  pull_request:
+  workflow_run:
+    workflows: ["Build Test Case"]
     types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-      - labeled
+      - completed
 env:
   USER: runner
+  HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
 
 # Cancel the current workflow when new commit pushed
 concurrency:
@@ -16,9 +14,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-emulators:
-    if: '! github.event.pull_request.draft'
-    name: "Build Emulators"
+  run-mmio-check:
+    if: "github.event.workflow_run.conclusion == 'success'"
+    name: "Run MMIO check"
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
       fail-fast: false
@@ -30,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.HEAD_SHA }}
       - name: "Build vcs emulator"
         run: |
           set -o pipefail
