@@ -1,12 +1,17 @@
-name: "Check: T1 MMIO Check"
+# Single Check build compiler toolchains and elaborator at one machine,
+# then run a small MMIO check to install all the required package before
+# CI dispatch multiple tests to mutiple machines. Thus we can gain fetch
+# speed from local S3 cache.
+
+name: "Single Check"
 on:
-  workflow_run:
-    workflows: ["Build Test Case"]
+  pull_request:
     types:
-      - completed
-env:
-  USER: runner
-  HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
 
 # Cancel the current workflow when new commit pushed
 concurrency:
@@ -14,9 +19,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-mmio-check:
-    if: "github.event.workflow_run.conclusion == 'success'"
+  build-compiler-toolchains:
+    if: '! github.event.pull_request.draft'
+    name: "Build Compiler Toolchains"
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      # before test starting, make sure compiler toolchain is ready
+      - run: |
+          nix build '.#rv32-stdenv.cc' --no-link --print-build-logs
+          nix build '.#buddy-mlir' --no-link --print-build-logs
+
+  run-single-check:
     name: "Run MMIO check"
+    needs: [build-compiler-toolchains]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
       fail-fast: false
@@ -28,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.HEAD_SHA }}
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: "Build vcs emulator"
         run: |
           set -o pipefail

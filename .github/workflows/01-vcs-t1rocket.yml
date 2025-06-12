@@ -1,13 +1,18 @@
-name: "Check: Test Rocket Emulator with Verilator"
+name: "Check: Test Rocket Emulator with VCS"
 on:
   workflow_run:
-    workflows: ["Build Test Case"]
+    workflows: ["Single Check"]
     types:
       - completed
-
 env:
+  USER: runner
   EMU_TOP: t1rocketemu
   HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+
+# Cancel the current workflow when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   gen-test-plan:
@@ -21,10 +26,10 @@ jobs:
         with:
           ref: ${{ env.HEAD_SHA }}
       - id: "get-all-configs"
-        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --caseDir verilator --top ${{ env.EMU_TOP }})" > $GITHUB_OUTPUT
+        run: echo "out=$(nix run .#ci-helper -- generateTestPlan --top ${{ env.EMU_TOP }})" > $GITHUB_OUTPUT
 
-  build-verilator-emulators:
-    name: "Build Verilator Emulators"
+  build-emulators:
+    name: "Build T1Rocket VCS Emulators"
     needs: [gen-test-plan]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     strategy:
@@ -34,28 +39,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.HEAD_SHA }}
-      - name: "Build verilator emulator"
+      - name: "Build vcs emulator"
         run: |
-          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.verilator-emu' --impure -L --no-link --cores 64
-
-  # In the future, we may choose Verdi for trace, and left verilator trace only for performance evaluation
-  build-verilator-trace-emulators:
-    name: "Build verilator trace emulators"
-    needs: [gen-test-plan]
-    runs-on: [self-hosted, linux, nixos, BIGRAM]
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.gen-test-plan.outputs.testplan) }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.HEAD_SHA }}
-      - name: "Build verilator emulator with trace"
-        run: nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.verilator-emu-trace' --impure -L --no-link --cores 64
+          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.vcs-emu-cover' --impure --no-link
+      - name: "Build Test Cases"
+        run: |
+          nix build '.#t1.${{ matrix.config }}.${{ env.EMU_TOP }}.cases._all' --max-jobs auto --no-link --cores 64
 
   gen-matrix:
     name: "Prepare for running testcases"
-    needs: [build-verilator-emulators]
+    needs: [build-emulators]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     env:
       RUNNERS: 70
@@ -72,13 +65,14 @@ jobs:
         name: "Generate test matrix"
         run: |
           echo -n matrix= >> "$GITHUB_OUTPUT"
-          nix run ".#ci-helper" -- generateCiMatrix --caseDir "verilator" --top ${{ env.EMU_TOP }} --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+          nix run ".#ci-helper" -- generateCiMatrix --top ${{ env.EMU_TOP }} --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
 
   run-testcases:
-    name: "Run testcases (${{matrix.id}})"
-    needs: [gen-matrix]
+    name: "Run T1Rocket VCS (${{ matrix.id }})"
+    # This env is here to help script to find current job URL
     env:
-      GITHUB_JOB_NAME: "Run testcases (${{matrix.id}})"
+      GITHUB_JOB_NAME: "Run T1Rocket VCS (${{ matrix.id }})"
+    needs: [gen-matrix]
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
@@ -89,13 +83,14 @@ jobs:
           ref: ${{ env.HEAD_SHA }}
       - name: "Run testcases"
         run: |
-          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --emuLib "verilator" --top ${{ env.EMU_TOP }}
+          nix run ".#ci-helper" -- runTests --jobs "${{ matrix.jobs }}" --emuLib "vcs" --top ${{ env.EMU_TOP }}
 
   report:
-    name: "Report CI result"
+    name: "Report T1Rocket VCS CI result"
     # Don't run report when:
     #   - user cancel ( we don't need report at this case )
     #   - PR from outside repository ( we don't have permission to push commit into fork repository )
+    #   - this is a draft pr
     if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository && ! github.event.pull_request.draft }}
     needs: [run-testcases]
     runs-on: [self-hosted, linux, nixos]
@@ -109,9 +104,24 @@ jobs:
       - name: "Print step summary"
         run: |
           nix run ".#ci-helper" -- postCI \
+            --urg-report-file-path ./urg-report.md \
             --cycle-update-file-path ./cycle-update.md \
-            --emu-lib "verilator" \
-            --case-dir "verilator" \
+            --emu-lib "vcs" \
             --top ${{ env.EMU_TOP }}
+          cat ./urg-report.md >> $GITHUB_STEP_SUMMARY
           echo >> $GITHUB_STEP_SUMMARY
           cat ./cycle-update.md >> $GITHUB_STEP_SUMMARY
+      - name: "Commit cycle updates"
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          changed_cases=$(git diff --name-only '.github/designs/**/*.json')
+
+          if [ -n "$changed_cases" ]; then
+            echo "changed cases: $changed_cases"
+            git add '.github/designs/**/*.json'
+            git commit -m "[ci] update t1 test case cycle data"
+            git push origin ${{ github.head_ref }}
+          else
+            echo "No cycle change detect"
+          fi
