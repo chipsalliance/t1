@@ -51,15 +51,15 @@
   };
   rvdecoderdb = {
     pname = "rvdecoderdb";
-    version = "22bd421d3817828a9ed2d45e61a039c9e4ccbfd2";
+    version = "3112aa80f8dcb81da1eb79d2f9f4c22a36dd56c9";
     src = fetchFromGitHub {
       owner = "sequencer";
       repo = "rvdecoderdb";
-      rev = "22bd421d3817828a9ed2d45e61a039c9e4ccbfd2";
+      rev = "3112aa80f8dcb81da1eb79d2f9f4c22a36dd56c9";
       fetchSubmodules = false;
-      sha256 = "sha256-q0y9ugElJU+W3dubJ7ITo7/Q2bKz6Mz6cGKIQX9OBA8=";
+      sha256 = "sha256-LptI3e8+AjinWH6N9odNykbke2RKGyGqL31bKVJNlrI=";
     };
-    date = "2025-05-14";
+    date = "2025-06-13";
   };
   zaozi = {
     pname = "zaozi";

@@ -14,7 +14,7 @@ src.branch = "master"
 fetch.github = "chipsalliance/chisel-interface"
 
 [rvdecoderdb]
-src.git = "https://github.com/sequencer/rvdecoderdb"
+src.git = "https://github.com/chipsalliance/rvdecoderdb"
 src.branch = "master"
 fetch.github = "sequencer/rvdecoderdb"
 
