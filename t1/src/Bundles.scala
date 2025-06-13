@@ -268,10 +268,8 @@ class CSRInterface(vlWidth: Int) extends Bundle {
 
 // @todo change this name:(
 class RingPort[T <: Data](gen: T) extends Bundle {
-  val enq:        DecoupledIO[T] = Flipped(Decoupled(gen))
-  val enqRelease: Bool           = Output(Bool())
-  val deq:        DecoupledIO[T] = Decoupled(gen)
-  val deqRelease: Bool           = Input(Bool())
+  val enq: DecoupledIO[T] = Flipped(Decoupled(gen))
+  val deq: DecoupledIO[T] = Decoupled(gen)
 }
 
 /** [[T1]] -> [[Lane]], ack of [[LaneResponse]] */
@@ -793,14 +791,14 @@ class LastReportBundle(chaining1HBits: Int) extends Bundle {
   val last: UInt = UInt(chaining1HBits.W)
 }
 
-class ReadBusData(datapathWidth: Int, idWidth: Int) extends Bundle {
+class ReadBusData(datapathWidth: Int, portIndex: Int = 0) extends Bundle {
 
   /** data field of the bus. */
   val data: UInt = UInt(datapathWidth.W)
-  val sink: UInt = UInt(idWidth.W)
 }
 
-class WriteBusData(datapathWidth: Int, instructionIndexBits: Int, groupNumberBits: Int, idWidth: Int) extends Bundle {
+class WriteBusData(datapathWidth: Int, instructionIndexBits: Int, groupNumberBits: Int, portIndex: Int = 0)
+    extends Bundle {
 
   /** data field of the bus. */
   val data: UInt = UInt(datapathWidth.W)
@@ -813,8 +811,6 @@ class WriteBusData(datapathWidth: Int, instructionIndexBits: Int, groupNumberBit
 
   /** define the order of the data to dequeue from ring. */
   val counter: UInt = UInt(groupNumberBits.W)
-
-  val sink: UInt = UInt(idWidth.W)
 }
 
 class MaskRequest(maskGroupSizeBits: Int) extends Bundle {
@@ -871,16 +867,15 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   val maskRequestAck: DecoupledIO[MaskRequestAck] = Decoupled(new MaskRequestAck(parameter.maskGroupWidth))
 
   // opcode 3
-  // todo: Multiple copies?
-  val readBusEnq: DecoupledIO[ReadBusData] = Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth))
+  val readBusEnq0: DecoupledIO[ReadBusData] = Decoupled(new ReadBusData(parameter.datapathWidth, 0))
 
   // opcode 4
-  val writeBusEnq: DecoupledIO[WriteBusData] = Decoupled(
+  val writeBusEnq0: DecoupledIO[WriteBusData] = Decoupled(
     new WriteBusData(
       parameter.datapathWidth,
       parameter.instructionIndexBits,
       parameter.groupNumberBits,
-      parameter.idWidth
+      0
     )
   )
 
@@ -896,9 +891,23 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
       parameter.datapathWidth
     )
   )
+  val writeFromMask:   Bool                         = Output(Bool())
 
   // opcode 7
   val maskUnitReport: DecoupledIO[LastReportBundle] = Decoupled(new LastReportBundle(parameter.chaining1HBits))
+
+  // opcode 8
+  val readBusEnq1: DecoupledIO[ReadBusData] = Decoupled(new ReadBusData(parameter.datapathWidth, 1))
+
+  // opcode 9
+  val writeBusEnq1: DecoupledIO[WriteBusData] = Decoupled(
+    new WriteBusData(
+      parameter.datapathWidth,
+      parameter.instructionIndexBits,
+      parameter.groupNumberBits,
+      1
+    )
+  )
 
   // lane output => interface input
   // opcode 0
@@ -908,9 +917,7 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   val readVrfAck: DecoupledIO[UInt] = Flipped(Decoupled(UInt(parameter.datapathWidth.W)))
 
   // opcode 2
-  val readBusDeq: DecoupledIO[ReadBusData] = Flipped(
-    Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth))
-  )
+  val readBusDeq0: DecoupledIO[ReadBusData] = Flipped(Decoupled(new ReadBusData(parameter.datapathWidth, 0)))
 
   // opcode 3
   val maskUnitRequest: DecoupledIO[MaskUnitExeReq] = Flipped(
@@ -920,13 +927,13 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   )
 
   // opcode 4
-  val writeBusDeq: DecoupledIO[WriteBusData] = Flipped(
+  val writeBusDeq0: DecoupledIO[WriteBusData] = Flipped(
     Decoupled(
       new WriteBusData(
         parameter.datapathWidth,
         parameter.instructionIndexBits,
         parameter.groupNumberBits,
-        parameter.idWidth
+        0
       )
     )
   )
@@ -942,16 +949,35 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   // opcode 7
   val maskWriteRelease: DecoupledIO[EmptyBundle] = Flipped(Decoupled(new EmptyBundle()))
 
-  val inputVirtualChannelVec:  Vec[DecoupledIO[LaneVirtualChannel]] = Vec(
-    8,
+  // opcode 8
+  val readBusDeq1: DecoupledIO[ReadBusData] = Flipped(Decoupled(new ReadBusData(parameter.datapathWidth, 1)))
+
+  // opcode 9
+  val writeBusDeq1: DecoupledIO[WriteBusData] = Flipped(
+    Decoupled(
+      new WriteBusData(
+        parameter.datapathWidth,
+        parameter.instructionIndexBits,
+        parameter.groupNumberBits,
+        1
+      )
+    )
+  )
+
+  // opcode 10
+  val lsuWriteAck: DecoupledIO[UInt] = Flipped(Decoupled(UInt(parameter.instructionIndexBits.W)))
+
+  val inputVirtualChannelVec: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(
+    10,
     Flipped(
       Decoupled(
         new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
       )
     )
   )
+
   val outputVirtualChannelVec: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(
-    8,
+    11,
     Decoupled(
       new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
     )

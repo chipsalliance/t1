@@ -56,8 +56,6 @@ class CrossReadUnit(parameter: LaneParameter) extends Module {
   readBusRequest.zipWithIndex.foreach { case (port, index) =>
     port.valid     := stageValid && !sendState(index)
     port.bits.data := sendDataVec(index)
-    // todo: add sink
-    port.bits.sink := 0.U
     when(port.fire) { sendState(index) := true.B }
   }
 

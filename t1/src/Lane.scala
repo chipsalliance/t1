@@ -348,13 +348,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   @public
   val laneProbe = IO(Output(Probe(new LaneProbe(parameter), layers.Verification)))
 
-  // todo: handle
-  readBusPort.foreach { rp =>
-    rp.enq.ready := true.B
-  }
-  writeBusPort.foreach { rp =>
-    rp.enq.ready := true.B
-  }
   // TODO: remove
   dontTouch(writeBusPort)
   val csrInterface: CSRInterface = laneRequest.bits.csrInterface
@@ -766,39 +759,18 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       val tokenSize = parameter.crossLaneVRFWriteEscapeQueueSize
       readBusPort.zipWithIndex.foreach { case (readPort, portIndex) =>
         // tx
-        val tokenReg = RegInit(0.U(log2Ceil(tokenSize + 1).W))
-        val tokenReady: Bool = tokenReg =/= tokenSize.U
-        stage1.readBusRequest.get(portIndex).ready := tokenReady
-        readPort.deq.valid                         := stage1.readBusRequest.get(portIndex).valid && tokenReady
-        readPort.deq.bits                          := stage1.readBusRequest.get(portIndex).bits
-        val tokenUpdate = Mux(readPort.deq.valid, 1.U, -1.S(tokenReg.getWidth.W).asUInt)
-        when(readPort.deq.valid ^ readPort.deqRelease) {
-          tokenReg := tokenReg + tokenUpdate
-        }
+        readPort.deq <> stage1.readBusRequest.get(portIndex)
         // rx
         // rx queue
-        val queue       = Queue.io(chiselTypeOf(readPort.deq.bits), tokenSize, pipe = true)
-        queue.enq.valid     := readPort.enq.valid
-        queue.enq.bits      := readPort.enq.bits
-        readPort.enqRelease := queue.deq.fire
-        AssertProperty(BoolSequence(queue.enq.ready || !readPort.enq.valid))
+        val queue = Queue.io(chiselTypeOf(readPort.deq.bits), tokenSize, pipe = true)
+        queue.enq <> readPort.enq
         // dequeue to cross read unit
         stage1.readBusDequeue.get(portIndex) <> queue.deq
       }
 
       // cross write
       writeBusPort.zipWithIndex.foreach { case (writePort, portIndex) =>
-        val tokenReg = RegInit(0.U(log2Ceil(tokenSize + 1).W))
-        val tokenReady: Bool = tokenReg =/= tokenSize.U
-        writePort.deq.valid                        := stage3.crossWritePort.get(portIndex).valid && tokenReady
-        writePort.deq.bits                         := stage3.crossWritePort.get(portIndex).bits
-        stage3.crossWritePort.get(portIndex).ready := tokenReady
-
-        // update token
-        val tokenUpdate = Mux(writePort.deq.valid, 1.U, -1.S(tokenReg.getWidth.W).asUInt)
-        when(writePort.deq.valid ^ writePort.deqRelease) {
-          tokenReg := tokenReg + tokenUpdate
-        }
+        writePort.deq <> stage3.crossWritePort.get(portIndex)
       }
     }
 
@@ -903,8 +875,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     queue.enq.bits.last             := DontCare
     queue.enq.bits.instructionIndex := port.enq.bits.instructionIndex
     queue.enq.bits.mask             := FillInterleaved(2, port.enq.bits.mask)
-    assert(queue.enq.ready || !port.enq.valid)
-    port.enqRelease                 := queue.deq.fire
+    port.enq.ready                  := queue.enq.ready
   }
 
   val vfus: Seq[Instance[VFUModule]] = instantiateVFU(parameter.vfuInstantiateParameter)(
@@ -1250,7 +1221,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     rpt.bits  := allVrfWriteAfterCheck(parameter.chainingSize + 1 + rptIndex).instructionIndex
   }
   // todo: add mask unit write token
-  tokenManager.responseReport.valid         := maskUnitRequest.valid
+  tokenManager.responseReport.valid         := maskUnitRequest.fire
   tokenManager.responseReport.bits          := maskUnitRequest.bits.index
   // todo: delete feedback token
   tokenManager.responseFeedbackReport.valid := vrfWriteChannel.fire && writeFromMask
@@ -1320,7 +1291,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     probeWire.laneRequestStall    := laneRequest.valid && !laneRequest.ready
     probeWire.lastSlotOccupied    := slotOccupied.last
     probeWire.instructionFinished := instructionFinished
-    probeWire.instructionValid    := instructionValid
+    probeWire.instructionValid    := vrf.instructionValid
     probeWire.crossWriteProbe.zip(writeBusPort).foreach { case (pb, port) =>
       pb.valid          := port.deq.valid
       pb.bits.writeTag  := port.deq.bits.instructionIndex

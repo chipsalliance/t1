@@ -18,6 +18,7 @@ import org.chipsalliance.t1.rtl.{
   indexToOH,
   instIndexL,
   instIndexLE,
+  maskAnd,
   ohCheck,
   LSUWriteCheck,
   VRFReadPipe,
@@ -229,6 +230,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   @public
   val vrfSlotRelease: UInt = IO(Output(UInt(parameter.chaining1HBits.W)))
+
+  @public
+  val instructionValid: UInt = IO(Output(UInt(parameter.chaining1HBits.W)))
 
   @public
   val dataInLane: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
@@ -618,8 +622,16 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       }
   }
   writeReadyForLsu := !hazardVec.map(_.map(_._1).reduce(_ || _)).reduce(_ || _)
-  vrfReadyToStore := !hazardVec.map(_.map(_._2).reduce(_ || _)).reduce(_ || _)
-  vrfSlotRelease  := recordRelease.reduce(_ | _)
+  vrfReadyToStore  := !hazardVec.map(_.map(_._2).reduce(_ || _)).reduce(_ || _)
+  vrfSlotRelease   := recordRelease.reduce(_ | _)
+  instructionValid := chainingRecord
+    .map(r =>
+      maskAnd(
+        r.valid,
+        indexToOH(r.bits.instIndex, parameter.chainingSize)
+      ).asUInt
+    )
+    .reduce(_ | _)
 
   writeCheck.zip(writeAllow).foreach { case (check, allow) =>
     allow := chainingRecordCopy

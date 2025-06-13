@@ -140,12 +140,15 @@ class LaneInterface(val parameter: LaneIFParameter)
   val physicalChannelFromLane: Seq[DecoupledIO[Data]] = Seq(
     io.maskRequest,
     io.readVrfAck,
-    io.readBusDeq,
+    io.readBusDeq0,
     io.maskUnitRequest,
-    io.writeBusDeq,
+    io.writeBusDeq0,
     io.v0Update,
     io.laneResponse,
-    io.maskWriteRelease
+    io.maskWriteRelease,
+    io.readBusDeq1,
+    io.writeBusDeq1,
+    io.lsuWriteAck
   )
 
   // lane             [0, laneNumber - 1]
@@ -154,23 +157,28 @@ class LaneInterface(val parameter: LaneIFParameter)
   val sinkIDVec = Seq(
     (parameter.laneNumber + 1).U,
     readVrfSourceQueue.deq.bits,
-    io.readBusDeq.bits.sink,
+    0.U,
     Mux(io.maskUnitRequest.bits.maskRequestToLSU, parameter.laneNumber.U, (parameter.laneNumber + 1).U),
-    io.writeBusDeq.bits.sink,
+    0.U,
     (parameter.laneNumber + 1).U,
     (parameter.laneNumber + 1).U,
-    (parameter.laneNumber + 1).U
+    (parameter.laneNumber + 1).U,
+    0.U,
+    0.U,
+    parameter.laneNumber.U
   )
 
   val physicalChannelToLane: Seq[DecoupledIO[Data]] = Seq(
     io.laneRequest,
     io.vrfReadRequest,
     io.maskRequestAck,
-    io.readBusEnq,
-    io.writeBusEnq,
+    io.readBusEnq0,
+    io.writeBusEnq0,
     io.lsuReport,
     io.vrfWriteRequest,
-    io.maskUnitReport
+    io.maskUnitReport,
+    io.readBusEnq1,
+    io.writeBusEnq1
   )
 
   physicalChannelFromLane.zipWithIndex.foreach { case (req, index) =>
@@ -193,4 +201,5 @@ class LaneInterface(val parameter: LaneIFParameter)
 //      assert(io.inputVirtualChannelVec(index).bits.opcode === index.U)
 //    }
   }
+  io.writeFromMask := io.inputVirtualChannelVec(6).bits.sourceID === (parameter.laneNumber + 1).U
 }

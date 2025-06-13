@@ -173,11 +173,13 @@ class LSUInterfaceIO(parameter: LSUIFParameter) extends Bundle {
   val v0Update: Vec[DecoupledIO[V0Update]] =
     Vec(parameter.laneNumber, Decoupled(new V0Update(parameter.datapathWidth, parameter.vrfOffsetBits)))
 
+  // opcode 10
+  val lsuWriteAck: Vec[DecoupledIO[UInt]] = Vec(parameter.laneNumber, Decoupled(UInt(parameter.instructionIndexBits.W)))
   // virtual channel: lane <-> if
 
   // lane -> if
   val inputVirtualChannelVec: Vec[Vec[DecoupledIO[LaneVirtualChannel]]] = Vec(
-    3,
+    4,
     Vec(
       parameter.laneNumber,
       Flipped(Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)))
@@ -215,11 +217,27 @@ class LSUInterface(val parameter: LSUIFParameter)
   protected def implicitClock = io.clock
   protected def implicitReset = io.reset
 
+  val dataInShifterVec: Seq[UInt] = io.vrfWriteRequest.zip(io.lsuWriteAck).zipWithIndex.map { case ((req, ack), i) =>
+    val queueCount: Seq[UInt] = Seq.tabulate(parameter.chaining1HBits) { _ =>
+      RegInit(0.U(2.W))
+    }
+    val enqOH:      UInt      = indexToOH(req.bits.instructionIndex, parameter.chainingSize)
+    val queueEnq:   UInt      = Mux(req.fire, enqOH, 0.U)
+
+    val queueDeq = Mux(ack.fire, indexToOH(ack.bits, parameter.chainingSize), 0.U)
+    queueCount.zipWithIndex.foreach { case (count, index) =>
+      val counterUpdate: UInt = Mux(queueEnq(index), 1.U, -1.S(2.W).asUInt)
+      when(queueEnq(index) ^ queueDeq(index)) {
+        count := count + counterUpdate
+      }
+    }
+    VecInit(queueCount.map(_ =/= 0.U)).asUInt
+  }
   // lsu <-> lane
   val physicalChannelFromLSU = Seq(io.vrfReadRequest, io.vrfWriteRequest)
   // Process opcode5 separately
-  val opcodeFromLSU          = Seq(1, 6)
-  val vcIndex                = Seq(0, 2)
+  val opcodeFromLSU = Seq(1, 6)
+  val vcIndex       = Seq(0, 2)
 
   physicalChannelFromLSU.zipWithIndex.foreach { case (pcVec, index) =>
     val outputVCVec: Vec[DecoupledIO[LaneVirtualChannel]] = io.outputVirtualChannelVec(vcIndex(index))
@@ -239,8 +257,8 @@ class LSUInterface(val parameter: LSUIFParameter)
 
   val physicalChannelToLSU: Seq[
     Vec[_ >: DecoupledIO[UInt] with DecoupledIO[MaskUnitExeReq] with DecoupledIO[V0Update] <: DecoupledIO[Data]]
-  ] = Seq(io.readVrfAck, io.maskUnitRequest, io.v0Update)
-  val opcodeToLSU: Seq[Int] = Seq(1, 3, 5)
+  ] = Seq(io.readVrfAck, io.maskUnitRequest, io.v0Update, io.lsuWriteAck)
+  val opcodeToLSU: Seq[Int] = Seq(1, 3, 5, 10)
   physicalChannelToLSU.zipWithIndex.foreach { case (pcVec, index) =>
     val inputVCVec: Vec[DecoupledIO[LaneVirtualChannel]] = io.inputVirtualChannelVec(index)
     val opcode:     Int                                  = opcodeToLSU(index)
@@ -292,10 +310,11 @@ class LSUInterface(val parameter: LSUIFParameter)
     val instWaitForReport = RegInit(0.U(parameter.chaining1HBits.W))
     val lsuReport         = io.lsuReport
     val reportToLane      = Wire(UInt(parameter.chaining1HBits.W))
+    val inShifter         = dataInShifterVec(index)
     when(lsuReport.orR || reportToLane.orR) {
       instWaitForReport := (instWaitForReport | lsuReport) & (~reportToLane).asUInt
     }
-    reportToLane := instWaitForReport & (~inQ).asUInt
+    reportToLane := instWaitForReport & (~(inQ | inShifter)).asUInt
     vc.valid         := reportToLane.orR
     vc.bits.data     := reportToLane
     vc.bits.opcode   := 5.U

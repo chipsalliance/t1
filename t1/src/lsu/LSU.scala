@@ -210,7 +210,9 @@ class LSU(param: LSUParameter) extends Module {
 
   /** offset of indexed load/store instructions. */
   @public
-  val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.laneNumber, Flipped(Valid(UInt(param.datapathWidth.W)))))
+  val offsetReadResult: Vec[DecoupledIO[UInt]] = IO(
+    Vec(param.laneNumber, Flipped(Decoupled(UInt(param.datapathWidth.W))))
+  )
 
   /** which instruction is requesting the offset. TODO: merge to [[offsetReadResult]]
     */
@@ -612,7 +614,7 @@ class LSU(param: LSUParameter) extends Module {
   simpleAccessPorts.w.bits.last := true.B
   simpleDataQueue.deq.ready     := simpleAccessPorts.w.ready
 
-  otherUnit.offsetReadResult := offsetReadResult
+  otherUnit.offsetReadResult <> offsetReadResult
 
   // gather last signal from all MSHR to notify LSU
   lastReport                 :=

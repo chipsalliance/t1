@@ -564,8 +564,18 @@ class T1(val parameter: T1Parameter)
   val opcodeVCLaneToTop: Seq[Int] = Seq(0, 1, 3, 5, 6, 7)
   // lsu -> lane
   val VCLaneToLSU       = lsuIF.io.inputVirtualChannelVec
-  val opcodeVCLaneToLSU = Seq(1, 3, 5)
+  val opcodeVCLaneToLSU = Seq(1, 3, 5, 10)
   val broadcastVec      = Seq(5)
+  VCLaneToLSU.zipWithIndex.foreach { case (vc, index) =>
+    val opcode   = opcodeVCLaneToLSU(index)
+    val sourceVC = laneIFVec.map(_.io.outputVirtualChannelVec(opcode))
+    if (opcodeVCLaneToTop.contains(opcode)) {}
+    else {
+      sourceVC.zip(vc).foreach { case (le, te) =>
+        connectNode(le, te)(2)
+      }
+    }
+  }
   VCLaneToTop.zipWithIndex.foreach { case (vc, index) =>
     val opcode   = opcodeVCLaneToTop(index)
     val sourceVC = laneIFVec.map(_.io.outputVirtualChannelVec(opcode))
@@ -599,21 +609,27 @@ class T1(val parameter: T1Parameter)
   connectNode(lsuIF.io.topOutputVC.head, sequencerIF.io.topInputVC.head)(2)
 
   // lane <-> lane
-  val deqOpVec = Seq(2, 4)
-  val enqOpVec = Seq(3, 4)
-  deqOpVec.zipWithIndex.foreach { case (deqOp, opIndex) =>
-    laneIFVec.zipWithIndex.foreach { case (sourceIF, _) =>
-      val source   = sourceIF.io.outputVirtualChannelVec(deqOp)
-      val readyVec = laneIFVec.zipWithIndex.map { case (sinkIF, sinkIndex) =>
-        val sourceCopy = Wire(chiselTypeOf(source))
-        val hitSink    = source.bits.sinkID === sinkIndex.U
-        val sink       = sinkIF.io.inputVirtualChannelVec(enqOpVec(opIndex))
-        sourceCopy.valid := source.valid && hitSink
-        sourceCopy.bits  := source.bits
-        connectNode(sourceCopy, sink)(2)
-        hitSink && sourceCopy.ready
-      }
-      source.ready := VecInit(readyVec).asUInt.orR
+  // read
+  val readEnqVec  = Seq(3, 8)
+  val readDeqVec  = Seq(2, 8)
+  val writeEnqVec = Seq(4, 9)
+  val writeDeqVec = Seq(4, 9)
+  laneIFVec.zipWithIndex.foreach { case (sinkIF, index) =>
+    readEnqVec.zipWithIndex.foreach { case (_, portIndex) =>
+      val readSourceIndex = (2 * index + portIndex) % parameter.laneNumber
+      val readSourcePort  = (2 * index + portIndex) / parameter.laneNumber
+
+      // read
+      connectNode(
+        laneIFVec(readSourceIndex).io.outputVirtualChannelVec(readDeqVec(readSourcePort)),
+        sinkIF.io.inputVirtualChannelVec(readEnqVec(portIndex))
+      )(2)
+
+      // write
+      connectNode(
+        laneIFVec(index).io.outputVirtualChannelVec(writeDeqVec(portIndex)),
+        laneIFVec(readSourceIndex).io.inputVirtualChannelVec(writeEnqVec(readSourcePort))
+      )(2)
     }
   }
 
@@ -669,7 +685,7 @@ class T1(val parameter: T1Parameter)
   val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
   val maskUnitInstruction: Bool = (decodeResult(Decoder.slid) || decodeResult(Decoder.mv))
-  val skipLastFromLane:    Bool = isStoreType || maskUnitInstruction || readOnlyInstruction || isZvma
+  val skipLastFromLane:    Bool = maskUnitInstruction || readOnlyInstruction || isZvma
   val instructionValid:    Bool = requestReg.bits.issue.vl > requestReg.bits.issue.vstart
 
   // TODO: these should be decoding results
@@ -970,13 +986,19 @@ class T1(val parameter: T1Parameter)
 
     laneIF.io.maskRequestAck.ready := true.B
     lane.maskInput                 := laneIF.io.maskRequestAck.bits.data
-    lane.readBusPort.foreach { rp =>
-      rp.enq <> laneIF.io.readBusEnq
-      laneIF.io.readBusDeq <> rp.deq
+
+    val laneIFReadEnqPort = Seq(laneIF.io.readBusEnq0, laneIF.io.readBusEnq1)
+    val laneIFReadDeqPort = Seq(laneIF.io.readBusDeq0, laneIF.io.readBusDeq1)
+    lane.readBusPort.zipWithIndex.foreach { case (rp, index) =>
+      rp.enq <> laneIFReadEnqPort(index)
+      laneIFReadDeqPort(index) <> rp.deq
     }
-    lane.writeBusPort.foreach { rp =>
-      rp.enq <> laneIF.io.writeBusEnq
-      laneIF.io.writeBusDeq <> rp.deq
+
+    val laneIFWriteEnqPort = Seq(laneIF.io.writeBusEnq0, laneIF.io.writeBusEnq1)
+    val laneIFWriteDeqPort = Seq(laneIF.io.writeBusDeq0, laneIF.io.writeBusDeq1)
+    lane.writeBusPort.zipWithIndex.foreach { case (rp, index) =>
+      rp.enq <> laneIFWriteEnqPort(index)
+      laneIFWriteDeqPort(index) <> rp.deq
     }
 
     laneIF.io.lsuReport.ready      := true.B
@@ -990,7 +1012,7 @@ class T1(val parameter: T1Parameter)
       .asTypeOf(laneIF.io.vrfWriteRequest.bits)
     laneIF.io.vrfWriteRequest.ready := lane.vrfWriteChannel.ready
     // todo
-    lane.writeFromMask              := DontCare
+    lane.writeFromMask              := laneIF.io.writeFromMask
 
     // todo: add valid in lane
     laneIF.io.maskRequest.valid              := true.B
@@ -1017,6 +1039,8 @@ class T1(val parameter: T1Parameter)
     laneIF.io.laneResponse.bits.writeQueueValid     := lane.writeQueueValid
 
     laneIF.io.maskWriteRelease.valid := lane.vrfWriteChannel.fire && lane.writeFromMask
+    laneIF.io.lsuWriteAck.valid      := lane.vrfWriteChannel.fire && !lane.writeFromMask
+    laneIF.io.lsuWriteAck.bits       := lane.vrfWriteChannel.bits.instructionIndex
 
     val instructionFinishedPipe =
       maskAnd(laneResponseVec(index).valid, laneResponseVec(index).bits.instructionFinished).asUInt
@@ -1074,13 +1098,14 @@ class T1(val parameter: T1Parameter)
     sink.valid                 := source.valid
     sink.bits                  := source.bits.source2
     lsu.offsetReadIndex(index) := source.bits.index
-    source.ready               := true.B
+    source.ready               := sink.ready
   }
   lsu.v0UpdateVec.zip(lsuIF.io.v0Update).foreach { case (sink, source) =>
     sink.valid   := source.valid
     sink.bits    := source.bits
     source.ready := true.B
   }
+  lsuIF.io.lsuWriteAck.foreach(a => a.ready := true.B)
 
   // todo: merge into request
   lsu.zvmaInterface.foreach { i =>
@@ -1091,11 +1116,7 @@ class T1(val parameter: T1Parameter)
   lsu.writeReadyForLsu := DontCare
   lsu.vrfReadyToStore  := DontCare
   lsu.writeRelease.foreach(_ := true.B)
-  laneVec.foreach { lane =>
-    lane.loadDataInLSUWriteQueue := false.B
-    lane.readBusPort.foreach(rp => rp.deqRelease := true.B)
-    lane.writeBusPort.foreach(rp => rp.deqRelease := true.B)
-  }
+  laneVec.foreach { lane => lane.loadDataInLSUWriteQueue := false.B }
 
   // connect mask unit
   maskUnit.io.instReq.valid                 := requestRegDequeue.fire && requestReg.bits.decodeResult(Decoder.maskUnit)
