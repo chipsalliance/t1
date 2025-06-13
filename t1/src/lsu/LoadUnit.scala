@@ -14,11 +14,11 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 
   /** TileLink Port which will be route to the [[LSU.tlPort]]. */
   @public
-  val memRequest:       DecoupledIO[MemRequest]    = IO(Decoupled(new MemRequest(param)))
+  val memRequest:  DecoupledIO[MemRequest]    = IO(Decoupled(new MemRequest(param)))
   @public
-  val memResponse:      DecoupledIO[MemDataBundle] = IO(Flipped(Decoupled(new MemDataBundle(param))))
+  val memResponse: DecoupledIO[MemDataBundle] = IO(Flipped(Decoupled(new MemDataBundle(param))))
   @public
-  val status:           LSUBaseStatus              = IO(Output(new LSUBaseStatus(param.instructionIndexBits)))
+  val status:      LSUBaseStatus              = IO(Output(new LSUBaseStatus(param.instructionIndexBits)))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]]. see [[LSU.vrfWritePort]]
     */

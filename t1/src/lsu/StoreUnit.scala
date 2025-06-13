@@ -41,7 +41,7 @@ class StoreUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   /** hard wire form Top. see [[LSU.vrfReadResults]]
     */
   @public
-  val vrfReadResults:  Vec[ValidIO[UInt]] = IO(Input(Vec(param.laneNumber, Valid(UInt(param.datapathWidth.W)))))
+  val vrfReadResults: Vec[ValidIO[UInt]] = IO(Input(Vec(param.laneNumber, Valid(UInt(param.datapathWidth.W)))))
   @public
   val storeResponse = IO(Input(Bool()))
 

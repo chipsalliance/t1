@@ -42,8 +42,13 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
   val clock:             Clock                             = Input(Clock())
   val reset:             Reset                             = Input(Reset())
   val instReq:           ValidIO[MaskUnitInstReq]          = Flipped(Valid(new MaskUnitInstReq(parameter)))
-  val exeReq:            Vec[DecoupledIO[MaskUnitExeReq]] = Flipped(
-    Vec(parameter.laneNumber, Decoupled(new MaskUnitExeReq(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)))
+  val exeReq:            Vec[DecoupledIO[MaskUnitExeReq]]  = Flipped(
+    Vec(
+      parameter.laneNumber,
+      Decoupled(
+        new MaskUnitExeReq(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)
+      )
+    )
   )
   val exeResp:           Vec[DecoupledIO[VRFWriteRequest]] = Vec(
     parameter.laneNumber,
@@ -130,7 +135,7 @@ class MaskUnit(val parameter: T1Parameter)
   val gatherRead        = io.gatherRead
 
   // todo: handle
-  io.tokenIO.foreach {tk =>
+  io.tokenIO.foreach { tk =>
     tk.maskRequestRelease := true.B
   }
   // todo: param
@@ -452,7 +457,18 @@ class MaskUnit(val parameter: T1Parameter)
   }
 
   val exeReqReg:           Seq[ValidIO[MaskUnitExeReq]] = Seq.tabulate(parameter.laneNumber) { _ =>
-    RegInit(0.U.asTypeOf(Valid(new MaskUnitExeReq(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable))))
+    RegInit(
+      0.U.asTypeOf(
+        Valid(
+          new MaskUnitExeReq(
+            parameter.eLen,
+            parameter.datapathWidth,
+            parameter.instructionIndexBits,
+            parameter.fpuEnable
+          )
+        )
+      )
+    )
   }
   val requestCounter:      UInt                         = RegInit(0.U(parameter.laneParam.groupNumberBits.W))
   val executeGroupCounter: UInt                         = Wire(UInt(parameter.laneParam.groupNumberBits.W))

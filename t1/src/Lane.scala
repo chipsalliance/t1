@@ -234,32 +234,51 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     * Bus width. find a real world case for using `narrow` and `widen` aggressively.
     */
   @public
-  val readBusPort: Vec[RingPort[ReadBusData]] = IO(Vec(2, new RingPort(new ReadBusData(parameter.datapathWidth, parameter.idWidth))))
+  val readBusPort: Vec[RingPort[ReadBusData]] = IO(
+    Vec(2, new RingPort(new ReadBusData(parameter.datapathWidth, parameter.idWidth)))
+  )
 
   /** VRF Write Interface. only used for `narrow` an `widen` TODO: benchmark the usecase for tuning the Ring Bus width.
     * find a real world case for using `narrow` and `widen` aggressively.
     */
   @public
-  val writeBusPort: Vec[RingPort[WriteBusData]] = IO(Vec(2, new RingPort(new WriteBusData(
-    parameter.datapathWidth,
-    parameter.instructionIndexBits,
-    parameter.groupNumberBits,
-    parameter.idWidth
-  ))))
+  val writeBusPort: Vec[RingPort[WriteBusData]] = IO(
+    Vec(
+      2,
+      new RingPort(
+        new WriteBusData(
+          parameter.datapathWidth,
+          parameter.instructionIndexBits,
+          parameter.groupNumberBits,
+          parameter.idWidth
+        )
+      )
+    )
+  )
 
   /** request from [[T1.decode]] to [[Lane]]. */
   @public
-  val laneRequest: DecoupledIO[LaneRequest] = IO(Flipped(Decoupled(new LaneRequest(
-    parameter.instructionIndexBits,
-    parameter.decoderParam,
-    parameter.datapathWidth,
-    parameter.vlMaxBits,
-    parameter.laneNumber,
-    parameter.dataPathByteWidth
-  ))))
+  val laneRequest: DecoupledIO[LaneRequest] = IO(
+    Flipped(
+      Decoupled(
+        new LaneRequest(
+          parameter.instructionIndexBits,
+          parameter.decoderParam,
+          parameter.datapathWidth,
+          parameter.vlMaxBits,
+          parameter.laneNumber,
+          parameter.dataPathByteWidth
+        )
+      )
+    )
+  )
 
   @public
-  val maskUnitRequest: DecoupledIO[MaskUnitExeReq] = IO(Decoupled(new MaskUnitExeReq(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)))
+  val maskUnitRequest: DecoupledIO[MaskUnitExeReq] = IO(
+    Decoupled(
+      new MaskUnitExeReq(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)
+    )
+  )
 
   /** for LSU and V accessing lane, this is not a part of ring, but a direct connection. */
   @public
@@ -330,10 +349,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val laneProbe = IO(Output(Probe(new LaneProbe(parameter), layers.Verification)))
 
   // todo: handle
-  readBusPort.foreach {rp =>
+  readBusPort.foreach { rp =>
     rp.enq.ready := true.B
   }
-  writeBusPort.foreach {rp =>
+  writeBusPort.foreach { rp =>
     rp.enq.ready := true.B
   }
   // TODO: remove
