@@ -56,7 +56,7 @@ jobs:
         run: ./tests/emurt/tests/validate.sh
 
   run-rocket-vcs:
-    name: "Run Rocket Emulator with VCS"
+    name: "Rocket VCS"
     needs: [run-single-check]
     uses: ./.github/workflows/01-emulator-ci.yml
     with:
@@ -66,7 +66,7 @@ jobs:
       git_rev: ${{ github.event.pull_request.head.sha }}
 
   run-spike-vcs:
-    name: "Run Spike Emulator with VCS"
+    name: "Spike VCS"
     needs: [run-single-check]
     uses: ./.github/workflows/01-emulator-ci.yml
     with:
@@ -76,8 +76,8 @@ jobs:
       git_rev: ${{ github.event.pull_request.head.sha }}
 
   run-rocket-verilator:
-    name: "Run Rocket Emulator with Verilator"
-    needs: [run-single-check]
+    name: "Rocket Verilator"
+    needs: [run-rocket-vcs]
     uses: ./.github/workflows/01-emulator-ci.yml
     with:
       backend: "verilator"
@@ -86,8 +86,8 @@ jobs:
       git_rev: ${{ github.event.pull_request.head.sha }}
 
   run-spike-verilator:
-    name: "Run Spike Emulator with Verilator"
-    needs: [run-single-check]
+    name: "Spike Verilator"
+    needs: [run-spike-vcs]
     uses: ./.github/workflows/01-emulator-ci.yml
     with:
       backend: "verilator"
@@ -98,9 +98,7 @@ jobs:
   report:
     name: "Report CI result"
     needs:
-      - "run-spike-vcs"
       - "run-spike-verilator"
-      - "run-rocket-vcs"
       - "run-rocket-verilator"
     runs-on: [self-hosted, linux, nixos]
     permissions:
@@ -130,7 +128,5 @@ jobs:
 
   pd:
     name: "Run Physical Design Workflow"
-    # pd workflow always run, but we need it to run as final check
-    if: always()
     needs: ["report"]
     uses: ./.github/workflows/02-pd.yml
