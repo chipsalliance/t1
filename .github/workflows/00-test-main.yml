@@ -12,6 +12,7 @@ on:
       - reopened
       - ready_for_review
       - labeled
+      - unlabeled
 
 # Cancel the current workflow when new commit pushed
 concurrency:
@@ -126,3 +127,10 @@ jobs:
           else
             echo "No cycle change detect"
           fi
+
+  pd:
+    name: "Run Physical Design Workflow"
+    # pd workflow always run, but we need it to run as final check
+    if: always()
+    needs: ["report"]
+    uses: ./.github/workflows/02-pd.yml
