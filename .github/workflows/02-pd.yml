@@ -2,11 +2,6 @@ name: Physical Design Workflow
 on:
   workflow_call:
 
-# Cancel the current workflow when new commit pushed
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
   generate-test-plan:
     name: "Generate CI target for RTL elaborate"
