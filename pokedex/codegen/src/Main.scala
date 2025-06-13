@@ -15,11 +15,13 @@ class CodeGenerator(params: CodeGeneratorParams) {
     params.outputDir
   }
 
-  private val csr_op_path   = outputDir / "csr_op.asl"
-  private val execute_path  = outputDir / "execute.asl"
-  private val arg_lut_path  = outputDir / "arg_lut.asl"
-  private val user_csr_path = params.modelDir / "csr"
-  private val xlen          = 32
+  private val csr_op_path    = outputDir / "csr_op.asl"
+  private val execute_path   = outputDir / "execute.asl"
+  private val arg_lut_path   = outputDir / "arg_lut.asl"
+  private val user_inst_path = params.modelDir / "extensions"
+  private val user_csr_path  = params.modelDir / "csr"
+  private val xlen           = 32
+  private val supportedISA   = Set("rv_i")
 
   def intToBin(i: Int, length: Int) = {
     val bin = i.toBinaryString
@@ -153,7 +155,64 @@ class CodeGenerator(params: CodeGeneratorParams) {
     os.write.over(arg_lut_path, argLutsCode)
   }
 
+  def genExecute() = {
+    val allInstructions = org.chipsalliance.rvdecoderdb
+      .instructions(params.riscvOpCodesSrc, params.customOpCodesSrc)
+      .filter(inst => supportedISA.contains(inst.instructionSets.head.name))
+      .filter(_.pseudoFrom.isEmpty)
+
+    val executeCode = allInstructions
+      .map(inst => {
+        val functionName = inst.name.replace(".", "_")
+        val fnBodyPath   = user_inst_path / inst.instructionSets.head.name / s"${functionName}.asl"
+        if (!os.exists(fnBodyPath)) {
+          throw new Exception(s"instruction ${inst.name} not found at ${fnBodyPath}")
+        }
+        val functionBody = os.read(fnBodyPath)
+
+        s"""|func Execute_${functionName.toUpperCase}(instruction : bits(32))
+            |begin
+            |    ${functionBody}
+            |end
+            |""".stripMargin
+      })
+      .mkString("\n")
+
+    val matchArms    = allInstructions
+      .map(inst => {
+        val bitpat       = inst.encoding.toBitMask("x")
+        val functionName = inst.name.replace(".", "_").toUpperCase
+        s"""|    when '${bitpat}' =>
+            |        Execute_${functionName}(instruction);
+            |""".stripMargin
+      })
+      .mkString("\n")
+    val dispatchCode = s"""|func Execute(instruction : bits(32))
+                           |begin
+                           |    case instrution of
+                           |${matchArms}
+                           |    otherwise =>
+                           |        print("TODO: throw illegal instruction")
+                           |    end
+                           |end
+                           |""".stripMargin
+
+    os.write.over(execute_path, executeCode + dispatchCode)
+
+    val requiredInst = allInstructions.map(_.name.replace(".", "_")).toSet
+    os.walk(user_inst_path)
+      .filter(_.ext == "asl")
+      .foreach(p => {
+        val codeFile        = p.segments.toSeq.reverse.head
+        val instructionName = codeFile.stripSuffix(".asl")
+        if (!requiredInst.contains(instructionName)) {
+          println(s"found not required file ${p}")
+        }
+      })
+  }
+
   def run() = {
+    genExecute()
     genArgLuts()
     genCSRsOperation()
   }
