@@ -14,13 +14,11 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 
   /** TileLink Port which will be route to the [[LSU.tlPort]]. */
   @public
-  val memRequest:       DecoupledIO[MemRequest]    = IO(Decoupled(new MemRequest(param)))
+  val memRequest:  DecoupledIO[MemRequest]    = IO(Decoupled(new MemRequest(param)))
   @public
-  val memResponse:      DecoupledIO[MemDataBundle] = IO(Flipped(Decoupled(new MemDataBundle(param))))
+  val memResponse: DecoupledIO[MemDataBundle] = IO(Flipped(Decoupled(new MemDataBundle(param))))
   @public
-  val status:           LSUBaseStatus              = IO(Output(new LSUBaseStatus(param.instructionIndexBits)))
-  @public
-  val writeReadyForLsu: Bool                       = IO(Input(Bool()))
+  val status:      LSUBaseStatus              = IO(Output(new LSUBaseStatus(param.instructionIndexBits)))
 
   /** write channel to [[V]], which will redirect it to [[Lane.vrf]]. see [[LSU.vrfWritePort]]
     */
@@ -49,8 +47,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
 
   val requestAddress = ((lsuRequestReg.rs1Data >> param.cacheLineBits).asUInt + cacheLineIndex) ##
     0.U(param.cacheLineBits.W)
-  val writeReadyReg: Bool =
-    RegEnable(writeReadyForLsu && !lsuRequest.valid, false.B, lsuRequest.valid || writeReadyForLsu)
+  val writeReadyForLsu: Bool = true.B
 
   memRequest.bits.src     := cacheLineIndex
   memRequest.bits.address := requestAddress
@@ -184,7 +181,7 @@ class LoadUnit(param: MSHRParam) extends StrideBase(param) with LSUPublic {
   // 往vrf写数据
   Seq.tabulate(param.laneNumber) { laneIndex =>
     val writePort: DecoupledIO[VRFWriteRequest] = vrfWritePort(laneIndex)
-    writePort.valid                 := accessState(laneIndex) && writeReadyReg
+    writePort.valid                 := accessState(laneIndex)
     writePort.bits.mask             := cutUInt(maskForGroup, param.datapathWidth / 8)(laneIndex)
     writePort.bits.data             := cutUInt(Mux1H(UIntToOH(accessPtr), accessData), param.datapathWidth)(laneIndex)
     writePort.bits.offset           := dataGroup

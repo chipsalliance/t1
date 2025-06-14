@@ -20,13 +20,14 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     IO(Decoupled(new LaneStage3Enqueue(parameter, true)))
 
   @public
-  val maskReq: ValidIO[MaskUnitExeReq] = IO(Valid(new MaskUnitExeReq(parameter)))
+  val maskReq: DecoupledIO[MaskUnitExeReq] = IO(
+    Decoupled(
+      new MaskUnitExeReq(parameter.eLen, parameter.datapathWidth, parameter.instructionIndexBits, parameter.fpuEnable)
+    )
+  )
 
   @public
   val maskRequestToLSU: Bool = IO(Output(Bool()))
-
-  @public
-  val tokenIO: LaneTokenBundle = IO(new LaneTokenBundle)
 
   // todo: sSendResponse -> sendResponse
   val enqIsMaskRequest: Bool = !enqueue.bits.sSendResponse
@@ -35,29 +36,26 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val enqFFoIndex:      Bool = enqueue.bits.decodeResult(Decoder.ffo) &&
     enqueue.bits.decodeResult(Decoder.targetRd)
 
-  val maskRequestAllow: Bool =
-    pipeToken(parameter.maskRequestQueueSize)(maskReq.valid, tokenIO.maskRequestRelease)
   // todo: connect mask request & response
-  maskReq.valid        := enqIsMaskRequest && enqueue.valid && maskRequestAllow
+  maskReq.valid        := enqIsMaskRequest && enqueue.valid
   maskReq.bits.source1 := enqueue.bits.pipeData
   val ffoIndexDataExtend: UInt = VecInit(cutUIntBySize(enqueue.bits.ffoIndex, parameter.laneScale).map { d =>
     changeUIntSize(d, parameter.eLen)
   }).asUInt
-  maskReq.bits.source2 := Mux(
+  maskReq.bits.source2          := Mux(
     enqFFoIndex,
     ffoIndexDataExtend,
     enqueue.bits.data
   )
-  maskReq.bits.index   := enqueue.bits.instructionIndex
-  maskReq.bits.ffo     := enqueue.bits.ffoSuccess
+  maskReq.bits.index            := enqueue.bits.instructionIndex
+  maskReq.bits.ffo              := enqueue.bits.ffoSuccess
+  maskReq.bits.maskRequestToLSU := enqueue.bits.loadStore
 
   maskReq.bits.fpReduceValid.zip(enqueue.bits.fpReduceValid).foreach { case (sink, source) => sink := source }
 
   maskRequestToLSU := enqueue.bits.loadStore
 
-  val maskRequestEnqReady: Bool = !enqIsMaskRequest || maskRequestAllow
-
   dequeue.valid := enqueue.valid && enqSendToDeq
   dequeue.bits  := enqueue.bits
-  enqueue.ready := Mux(enqSendToDeq, dequeue.ready, maskRequestEnqReady)
+  enqueue.ready := Mux(enqSendToDeq, dequeue.ready, maskReq.ready)
 }
