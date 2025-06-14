@@ -8,13 +8,13 @@
 }:
 let
   stdenv = llvmPackages.stdenv;
-  version = "3.4.0rc20250414";
-  iree-llvm-version = "2f41fa387d6734c637d02cbcf985c7b312b1e23b";
+  version = "3.5.0rc20250604";
+  iree-llvm-version = "e97509940c745786c7dc792bdbf540b42f6aca37";
   iree-llvm-src = fetchFromGitHub {
     owner = "iree-org";
     repo = "llvm-project";
     rev = iree-llvm-version;
-    hash = "sha256-3bo63+JuLNf+MFyG7Yrw9OZJEo4t4D+IrW2OsgG93s4=";
+    hash = "sha256-cwk8bJfYCCXbjLK88GAArxktLW5UAsJJlqngs+cmuHM=";
   };
   iree-cpuinfo-version = "3c8b1533ac03dd6531ab6e7b9245d488f13a82a5";
   iree-cpuinfo-src = fetchFromGitHub {
@@ -37,12 +37,12 @@ let
     rev = iree-flatcc-version;
     hash = "sha256-umZ9TvNYDZtF/mNwQUGuhAGve0kPw7uXkaaQX0EzkBY=";
   };
-  iree-torch-mlir-version = "11d085345e93b50ce7fd290f504045870e53f405";
+  iree-torch-mlir-version = "05a9860adb5ba33cc625a0c00b9a150d2a1fe5cb";
   iree-torch-mlir-src = fetchFromGitHub {
     owner = "iree-org";
     repo = "torch-mlir";
     rev = iree-torch-mlir-version;
-    hash = "sha256-bq+qIuMo6gA6O5CFTtXXHWEMGP4/S6WkcmrgYCkyxeU=";
+    hash = "sha256-8ykjACTaLp3q5i4669tD4+dj0ngVifbxt9LpXvKaHzM=";
   };
 in
 stdenv.mkDerivation {
@@ -53,7 +53,7 @@ stdenv.mkDerivation {
     owner = "iree-org";
     repo = "iree";
     tag = "iree-${version}";
-    hash = "sha256-HPtJ+qHecdaP814AdSNKvrsEVJv6tezd9WtGO19seFY=";
+    hash = "sha256-Lq7jPJ+ZAiatdLoXYsnRB43kAsHSqXlAZk/GoHdZGY4=";
   };
 
   postUnpack = ''
