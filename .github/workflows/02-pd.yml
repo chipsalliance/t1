@@ -1,20 +1,6 @@
-name: Trigger Physical Design Workflow
+name: Physical Design Workflow
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-      - labeled
-      - unlabeled
-env:
-  USER: runner
-
-# Cancel the current workflow when new commit pushed
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  workflow_call:
 
 jobs:
   generate-test-plan:

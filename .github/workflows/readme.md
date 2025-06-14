@@ -1,22 +1,21 @@
-Current test flow
------------------
+## Workflows Explanation
 
-```mermaid
-stateDiagram-v2
-    state "GitHub CI Action" as github_ci
-    state generateTestPlan {
-        state "read .github/designs/**/*.json" as read_config
-        state "parse config info" as parse_config
-        read_config --> parse_config
-    }
-    parse_config --> github_ci
-    state "Build emulator before test" as prebuild_emulator
-    github_ci --> prebuild_emulator
-    state "Generate test matrix" as generate_matrix
-    prebuild_emulator --> generate_matrix
-    generate_matrix --> github_ci
-    state "Dispatch tests to machine" as run_test
-    github_ci --> run_test
-    state "Collect results" as report
-    run_test --> report
-```
+When each PR opened, `00-lint` and `00-test-main` workflows will be triggered.
+
+- `00-lint`: run format check
+- `00-test-main`: batch run test cases for designs specified in
+`.github/designs` and `.github/verilator`.
+
+`01-emulator-ci` workflow is a reusable workflow file that will specify the
+test cases run logic, and will be called by `00-test-main` workflow.
+
+`02-pd` workflow is a reusable workflow that will be called by `00-test-main`
+workflow and execute RTL check and send a physical design check to our backend server.
+
+## Naming Convention
+
+For workflows that needs to be run each time developers open a PR,
+prefix the workflow file with number starting from 0.
+
+For workflows that will be manually run, prefix the workflow file with
+`99`.

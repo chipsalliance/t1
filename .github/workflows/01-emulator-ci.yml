@@ -1,0 +1,109 @@
+name: "Check"
+on:
+  workflow_call:
+    inputs:
+      backend:
+        description: "Backend for emulator, available: vcs, verilator"
+        required: true
+        type: string
+      emulator:
+        description: "Nix name for emulator, for example: vcs-emu-cover"
+        required: true
+        type: string
+      rtl_top:
+        description: "Top name for the T1 RTL, for example, t1emu, t1rocketemu"
+        required: true
+        type: string
+      git_rev:
+        description: "SHA-1 string for current HEAD"
+        required: true
+        type: string
+
+env:
+  HEAD_SHA: ${{ inputs.git_rev }}
+
+jobs:
+  gen-test-plan:
+    name: "Generate test plan"
+    runs-on: [self-hosted, linux, nixos]
+    outputs:
+      testplan: ${{ steps.get-all-configs.outputs.out }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_SHA }}
+      - id: "get-all-configs"
+        run: |
+          caseDir=""
+          if [[ "${{ inputs.backend }}" == "verilator" ]]; then
+            caseDir="verilator"
+          elif [[ "${{ inputs.backend }}" == "vcs" ]]; then
+            caseDir="designs"
+          fi
+          echo "out=$(nix run .#ci-helper -- generateTestPlan --caseDir "$caseDir" --top ${{ inputs.rtl_top }})" > $GITHUB_OUTPUT
+
+  build-emulators:
+    name: "Build ${{ matrix.config }} ${{ inputs.rtl_top }} ${{ inputs.emulator }}"
+    needs: [gen-test-plan]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-test-plan.outputs.testplan) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_SHA }}
+      - name: "Build emulator"
+        run: |
+          nix build '.#t1.${{ matrix.config }}.${{ inputs.rtl_top }}.${{ inputs.emulator }}' --impure --no-link
+      - name: "Build Test Cases"
+        run: |
+          nix build '.#t1.${{ matrix.config }}.${{ inputs.rtl_top }}.cases._all' --max-jobs auto --no-link --cores 64
+
+  gen-matrix:
+    name: "Prepare for running testcases"
+    needs: [build-emulators]
+    runs-on: [self-hosted, linux, nixos, BIGRAM]
+    env:
+      RUNNERS: 70
+    outputs:
+      ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
+    steps:
+      # actions/checkout will use the "event" commit to checkout repository,
+      # which will lead to an unexpected issue that the "event" commit doesn't belongs to the repository,
+      # and causing the derivation build output cannot be cache correctly.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_SHA }}
+      - id: gen-matrix
+        name: "Generate test matrix"
+        run: |
+          caseDir=""
+          if [[ "${{ inputs.backend }}" == "verilator" ]]; then
+            caseDir="verilator"
+          elif [[ "${{ inputs.backend }}" == "vcs" ]]; then
+            caseDir="designs"
+          fi
+
+          echo -n matrix= >> "$GITHUB_OUTPUT"
+          nix run ".#ci-helper" -- generateCiMatrix \
+            --caseDir "$caseDir" \
+            --top '${{ inputs.rtl_top }}' --runnersAmount "$RUNNERS" >> "$GITHUB_OUTPUT"
+
+  run-testcases:
+    name: "Run ${{ inputs.rtl_top }} ${{ inputs.emulator }} (${{ matrix.id }})"
+    # This env is here to help script to find current job URL
+    env:
+      GITHUB_JOB_NAME: "Run ${{ inputs.rtl_top }} ${{ inputs.emulator }} (${{ matrix.id }})"
+    needs: [gen-matrix]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.gen-matrix.outputs.ci-tests) }}
+    runs-on: [self-hosted, linux, nixos]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_SHA }}
+      - name: "Run testcases"
+        run: |
+          nix run ".#ci-helper" -- runTests --jobs '${{ matrix.jobs }}' --emuLib '${{ inputs.backend }}' --top '${{ inputs.rtl_top }}'

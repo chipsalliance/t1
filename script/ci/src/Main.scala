@@ -270,7 +270,7 @@ object Main:
       "## Cycle Update\n"
     )
 
-    if urgReportFilePath.nonEmpty then os.write(os.Path(urgReportFilePath.get, os.pwd), "# Coverage report\n")
+    if urgReportFilePath.nonEmpty then os.write.over(os.Path(urgReportFilePath.get, os.pwd), "# Coverage report\n")
 
     os.walk(os.pwd / ".github" / caseDir)
       .filter(_.last == s"${top}.json")
