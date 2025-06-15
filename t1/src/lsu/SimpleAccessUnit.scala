@@ -162,7 +162,9 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
 
   /** offset of indexed load/store instructions. */
   @public
-  val offsetReadResult: Vec[ValidIO[UInt]] = IO(Vec(param.laneNumber, Flipped(Valid(UInt(param.datapathWidth.W)))))
+  val offsetReadResult: Vec[DecoupledIO[UInt]] = IO(
+    Vec(param.laneNumber, Flipped(Decoupled(UInt(param.datapathWidth.W))))
+  )
 
   /** mask from [[V]] see [[LSU.maskInput]]
     */
@@ -217,9 +219,10 @@ class SimpleAccessUnit(param: MSHRParam) extends Module with LSUPublic {
       deqLock := queue.deq.fire
     }
     offsetRelease(index) := queue.deq.fire
-    queue.enq.valid      := req.valid
+    queue.enq.valid      := req.valid && !stateIdle
     queue.enq.bits       := req.bits
     queue.deq.ready      := !deqLock || stateIdle
+    req.ready            := queue.enq.ready && !stateIdle
     queue
   }
 

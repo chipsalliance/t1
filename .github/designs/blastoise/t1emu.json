@@ -1,13 +1,13 @@
 {
-  "pytorch.demo": 85,
-  "pytorch.matmul": 15589,
-  "mlir.rvv_vp_intrinsic_add": 505,
-  "mlir.rvv_vp_intrinsic_add_scalable": 828,
-  "mlir.hello": 146,
-  "mlir.stripmining": 14492,
-  "asm.mmm": 50719,
-  "asm.smoke": 8153,
-  "intrinsic.conv2d_less_m2": 2825,
-  "intrinsic.linear_normalization": 3415,
-  "intrinsic.softmax": 7014
+  "pytorch.demo": 87,
+  "pytorch.matmul": 15466,
+  "mlir.rvv_vp_intrinsic_add": 501,
+  "mlir.rvv_vp_intrinsic_add_scalable": 823,
+  "mlir.hello": 147,
+  "mlir.stripmining": 14495,
+  "asm.mmm": 50723,
+  "asm.smoke": 8105,
+  "intrinsic.conv2d_less_m2": 2869,
+  "intrinsic.linear_normalization": 3418,
+  "intrinsic.softmax": 7021
 }
