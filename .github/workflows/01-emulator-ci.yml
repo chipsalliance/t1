@@ -65,7 +65,7 @@ jobs:
     needs: [build-emulators]
     runs-on: [self-hosted, linux, nixos, BIGRAM]
     env:
-      RUNNERS: 70
+      RUNNERS: 255
     outputs:
       ci-tests: ${{ steps.gen-matrix.outputs.matrix }}
     steps:
