@@ -26,7 +26,7 @@ case class ZVMAParameter(
   // The minimum execution unit is a 2 * 2 square matrix
   // todo: param from config
   val aluRowSize = matrixAluRowSize
-  val aluColSize = matrixAluRowSize
+  val aluColSize = matrixAluColSize
 
   val dataIndexBit: Int = log2Ceil(vlen * 8 / dlen + 1)
 
