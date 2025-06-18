@@ -6,7 +6,7 @@
   "mlir.hello": 147,
   "mlir.stripmining": 14495,
   "asm.mmm": 50723,
-  "asm.smoke": 8105,
+  "asm.smoke": 8586,
   "intrinsic.conv2d_less_m2": 2869,
   "intrinsic.linear_normalization": 3418,
   "intrinsic.softmax": 7021
