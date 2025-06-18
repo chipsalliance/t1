@@ -1,6 +1,6 @@
 {
-  "mlir.matmul": 55613,
-  "intrinsic.conv2d_less_m2": 2894,
+  "mlir.matmul": 58321,
+  "intrinsic.conv2d_less_m2": 3021,
   "emurt-test.simple": 23056,
-  "disp.simple": 434192
+  "disp.simple": 495543
 }
