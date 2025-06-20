@@ -15,5 +15,5 @@ lib.makeScope newScope (scope: {
 
   simulator = scope.callPackage ./simulator/package.nix { };
 
-  test-elf = scope.callPackage ./tests/package.nix { };
+  tests = scope.callPackage ./tests { };
 })
