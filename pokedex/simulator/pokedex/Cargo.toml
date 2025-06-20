@@ -1,0 +1,16 @@
+[package]
+name = "pokedex"
+edition.workspace = true
+version.workspace = true
+
+[build-dependencies]
+bindgen = "0.71.0"
+
+[dependencies]
+xmas-elf = "0.9.1"
+num = "0.4.3"
+tracing = { workspace = true }
+thiserror = { workspace = true }
+hex = { workspace = true }
+clap = { workspace = true }
+tracing-subscriber = { workspace = true }
