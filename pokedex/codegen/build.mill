@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2022 Jiuyang Liu <liu@jiuyang.me>
+package build
+
+import mill._
+import mill.scalalib._, publish._
+import mill.scalalib.scalafmt._
+
+object deps {
+  val scala       = "3.6.2"
+  val oslib       = ivy"com.lihaoyi::os-lib:0.9.1"
+  val upickle     = ivy"com.lihaoyi::upickle:3.3.1"
+  val mainargs    = ivy"com.lihaoyi::mainargs:0.5.0"
+  val rvdecoderdb = ivy"me.jiuyang::rvdecoderdb:0.0.0+0-no-vcs-SNAPSHOT"
+}
+
+trait CodeGen extends ScalaModule with ScalafmtModule {
+  def scalaVersion  = T(deps.scala)
+  def scalacOptions = Seq("-new-syntax", "-deprecation")
+}
+
+object `package` extends RootModule with CodeGen {
+  override def ivyDeps = T(
+    super.ivyDeps() ++ Seq(
+      deps.rvdecoderdb,
+      deps.oslib,
+      deps.upickle,
+      deps.mainargs
+    )
+  )
+}
