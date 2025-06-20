@@ -1,0 +1,24 @@
+{
+  "imports": [
+    "FFI_instruction_fetch",
+    "FFI_emulator_do_fence",
+    "FFI_read_physical_memory_8bits",
+    "FFI_read_physical_memory_16bits",
+    "FFI_read_physical_memory_32bits",
+    "FFI_write_physical_memory_8bits",
+    "FFI_write_physical_memory_16bits",
+    "FFI_write_physical_memory_32bits",
+    "FFI_write_GPR_hook",
+    "FFI_ecall",
+    "FFI_ebreak",
+    "FFI_print_bits_hex",
+    "FFI_print_str"
+  ],
+
+  "exports": ["ASL_Step", "ASL_Reset"],
+
+  "split_state": {
+    "global_state": [],
+    "threadlocal_state": []
+  }
+}

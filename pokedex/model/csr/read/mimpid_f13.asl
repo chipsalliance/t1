@@ -1,0 +1,1 @@
+return Zeros(32);
