@@ -186,6 +186,35 @@ lib.makeScope newScope (scope: {
     };
   };
 
+  ivy-rvdecoderdb3 = publishMillJar rec {
+    name = "rvdecoderdb-3-snapshot";
+    src = submodules.zaozi.src;
+
+    publishTargets = [
+      "rvdecoderdb"
+    ];
+
+    lockFile = ../locks/rvdecoderdb-3-lock.nix;
+
+    nativeBuildInputs = [
+      # rvdecoderdb requires git to generate version
+      git
+    ];
+
+    passthru.bump = writeShellApplication {
+      name = "bump-rvdecoderdb-3-mill-lock";
+      runtimeInputs = [
+        mill
+        mill-ivy-fetcher
+      ];
+      text = ''
+        mif run \
+          --targets 'rvdecoderdb' \
+          -p "${src}" -o ./dependencies/locks/rvdecoderdb-3-lock.nix "$@"
+      '';
+    };
+  };
+
   ivy-hardfloat = publishMillJar rec {
     name = "hardfloat-snapshot";
     src = ../berkeley-hardfloat;
