@@ -130,6 +130,16 @@ in
     installPath = "https/repo1.maven.org/maven2/com/lihaoyi/fansi_3/0.5.0";
   };
 
+  "com.lihaoyi_fastparse_3-3.1.1" = fetchMaven {
+    name = "com.lihaoyi_fastparse_3-3.1.1";
+    urls = [
+      "https://repo1.maven.org/maven2/com/lihaoyi/fastparse_3/3.1.1/fastparse_3-3.1.1.jar"
+      "https://repo1.maven.org/maven2/com/lihaoyi/fastparse_3/3.1.1/fastparse_3-3.1.1.pom"
+    ];
+    hash = "sha256-iz6Wj92asaujz93RjmBAaKHHV64HS26cduPsQzaD6wM=";
+    installPath = "https/repo1.maven.org/maven2/com/lihaoyi/fastparse_3/3.1.1";
+  };
+
   "com.lihaoyi_geny_2.13-1.1.1" = fetchMaven {
     name = "com.lihaoyi_geny_2.13-1.1.1";
     urls = [
@@ -1749,4 +1759,4 @@ in
   };
 
 }
-# Project Source Hash:sha256-/9BnoXFrHRCySz2FOprQGvcwSUWF+4rhFdInRk7PnvY=
+# Project Source Hash:sha256-rrpcbaaYneMq80bosAflJbVsfTXaFCwnnCrP1HLcODI=
