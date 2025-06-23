@@ -1,9 +1,10 @@
 use std::io::Read;
-use std::sync::Mutex;
+use std::marker::PhantomData;
+use std::sync::atomic::{AtomicU32, Ordering};
 use thiserror::Error;
-use tracing::{event, Level};
+use tracing::{Level, event};
 use xmas_elf::program::{ProgramHeader, Type};
-use xmas_elf::{header, ElfFile};
+use xmas_elf::{ElfFile, header};
 
 #[derive(Error, Debug, Clone)]
 pub enum SimulationException {
@@ -15,44 +16,25 @@ pub enum SimulationException {
     Exited,
 }
 
-pub struct SimulatorParams {
-    memory_size: usize,
-    max_same_instruction: u8,
-    elf_path: std::path::PathBuf,
+pub struct SimulatorParams<'a> {
+    pub memory_size: usize,
+    pub max_same_instruction: u8,
+    pub elf_path: &'a std::path::Path,
 }
 
-impl SimulatorParams {
-    pub fn to_sim_handle(
-        memory_size: usize,
-        max_same_instruction: u8,
-        elf_path: impl AsRef<std::path::Path>,
-    ) -> &'static SimulatorHandler<Simulator> {
-        Self {
-            memory_size,
-            max_same_instruction,
-            elf_path: elf_path.as_ref().into(),
-        }
-        .into()
+impl<'a> SimulatorParams<'a> {
+    pub fn build(self) -> Simulator {
+        let mut sim = Simulator::new(self.memory_size, self.max_same_instruction);
+
+        let entry = sim.load_elf(self.elf_path);
+        sim.reset_vector(entry);
+
+        sim
     }
 }
 
-impl From<SimulatorParams> for &SimulatorHandler<Simulator> {
-    fn from(params: SimulatorParams) -> Self {
-        let mut sim = Simulator::new(params.memory_size, params.max_same_instruction);
-
-        let entry = sim.load_elf(params.elf_path);
-
-        unsafe {
-            sim.reset_vector(entry);
-        }
-
-        SIM_HANDLE.init(|| sim);
-
-        &SIM_HANDLE
-    }
-}
-
-pub struct Simulator {
+// simulator states not in ASL side
+pub(crate) struct SimulatorState {
     memory: Vec<u8>,
     pc: u32,
     statistic: Statistic,
@@ -63,9 +45,18 @@ pub struct Simulator {
     max_same_instruction: u8,
 }
 
+pub struct Simulator {
+    // represent states in ASL side
+    handle: SimulatorHandle,
+
+    // represent states not in ASL side
+    state: SimulatorState,
+}
+
 impl Simulator {
     fn new(memory_size: usize, max_same_instruction: u8) -> Self {
-        Self {
+        let handle = SimulatorHandle::new();
+        let state = SimulatorState {
             memory: vec![0u8; memory_size],
             pc: 0x1000,
             statistic: Statistic::new(),
@@ -73,35 +64,34 @@ impl Simulator {
             last_instruction: 0,
             last_instruction_met_count: 0,
             max_same_instruction,
-        }
+        };
+
+        Simulator { handle, state }
     }
 
-    // We can't use step here cuz the Simulator is always used in a Mutex lock, multiple simulator
-    // call at the same time will lead to dead lock.
-    pub fn check_step(&mut self) -> Result<(), SimulationException> {
-        if let Some(exception) = &self.exception {
-            return Err(exception.clone());
-        }
-
-        self.statistic.instruction_count += 1;
-        self.statistic.step_count += 1;
-        self.pc = crate::ffi::get_pc();
-
-        Ok(())
-    }
-
-    pub unsafe fn reset_vector(&mut self, addr: u32) {
-        unsafe { crate::ffi::reset_states() };
-        unsafe { crate::ffi::reset_vector(addr) };
-        self.pc = addr;
+    pub fn reset_vector(&mut self, addr: u32) {
+        self.handle.reset_states();
+        self.handle.reset_vector(addr);
+        self.state.pc = addr;
 
         event!(Level::DEBUG, "reset vector addr to {:#010x}", addr);
         event!(Level::TRACE, event_type = "reset_vector", new_addr = addr,);
     }
 
-    /// `step` drive the ASL model to fetch and execute instruction once.
-    pub unsafe fn step() {
-        unsafe { crate::ffi::step() };
+    /// `step` drive the ASL model to fetch and execute instruction once,
+    /// then do book-keeping operations.
+    pub fn step(&mut self) -> Result<(), SimulationException> {
+        self.handle.step(&mut self.state);
+
+        if let Some(exception) = &self.state.exception {
+            return Err(exception.clone());
+        }
+
+        self.state.statistic.instruction_count += 1;
+        self.state.statistic.step_count += 1;
+        self.state.pc = self.handle.get_pc();
+
+        Ok(())
     }
 
     pub fn load_elf<P: AsRef<std::path::Path>>(&mut self, fname: P) -> u32 {
@@ -129,7 +119,7 @@ impl Simulator {
 
                     let slice = &buffer[offset..offset + size];
 
-                    let dst: &mut _ = &mut self.memory[addr..addr + size];
+                    let dst: &mut _ = &mut self.state.memory[addr..addr + size];
                     dst.copy_from_slice(slice);
                 }
             }
@@ -142,6 +132,13 @@ impl Simulator {
             .unwrap_or_else(|_| panic!("return ELF address should be in u32 range"))
     }
 
+    pub fn take_statistic(&mut self) -> Statistic {
+        std::mem::take(&mut self.state.statistic)
+    }
+}
+
+// callback for ASL generated code
+impl SimulatorState {
     pub(crate) fn inst_fetch(&mut self, pc: u32) -> u32 {
         let inst: u32 = u32::from_le_bytes(self.phy_readmem(pc)).into();
         self.statistic.fetch_count += 1;
@@ -297,61 +294,42 @@ impl Statistic {
     }
 }
 
-pub struct SimulatorHandler<T> {
-    simulator: Mutex<Option<T>>,
+// SimulatorHandle is a proxy object for ASL generated code.
+// It is a ZST, since all states live in ASL side as global variables.
+//
+// At most one SimulatorHandle could exist at one time,
+// protected by [`SIMULATOR_MUTEX`]`. No worry for data race.
+pub struct SimulatorHandle {
+    // prevent Send/Sync auto implementation.
+    phantom: PhantomData<*mut ()>,
 }
 
-impl<T> SimulatorHandler<T> {
-    pub const fn new() -> Self {
+// TODO: make sure ASL generated code never uses threadlocal
+// impl Send for SimulatorHandle {}
+
+// TODO: check all method taking &Self does not introduce data race.
+// impl Sync for SimulatorHandle {}
+
+// We never blockingly wait, thus no need to use a real mutex.
+// 0: unlocked, 1: locked.
+static SIMULATOR_MUTEX: AtomicU32 = AtomicU32::new(0);
+
+impl SimulatorHandle {
+    pub fn new() -> Self {
+        // try lock the mutex, panic when failing
+        if SIMULATOR_MUTEX.swap(1, Ordering::AcqRel) != 0 {
+            panic!("Simulator is built twice")
+        }
+
         Self {
-            simulator: Mutex::new(None),
+            phantom: PhantomData,
         }
-    }
-
-    #[track_caller]
-    pub fn init(&self, init_fn: impl FnOnce() -> T) {
-        let mut sim = self
-            .simulator
-            .lock()
-            .expect("fail fetch lock when initializing the global simulator");
-        if sim.is_some() {
-            panic!("simulator initialized twice!");
-        }
-        *sim = Some(init_fn());
-    }
-
-    #[track_caller]
-    pub fn with<R>(&self, f: impl FnOnce(&mut T) -> R) -> R {
-        let mut sim = self
-            .simulator
-            .lock()
-            .expect("fail fetch lock when referencing global simulator");
-        let sim = sim.as_mut().expect("simulator is not initialized");
-        f(sim)
-    }
-
-    #[track_caller]
-    pub fn with_optional<R>(&self, f: impl FnOnce(Option<&mut T>) -> R) -> R {
-        match self.simulator.lock() {
-            Ok(mut sim) => f(sim.as_mut()),
-
-            // treat poisoned mutex as non-initialized
-            Err(_) => f(None),
-        }
-    }
-
-    #[track_caller]
-    pub fn dispose(&self) {
-        let mut core = self
-            .simulator
-            .lock()
-            .expect("fail fetch lock when disposing");
-        if core.is_none() {
-            panic!("simulator is not initialized");
-        }
-        *core = None;
     }
 }
 
-// For each function in [`Simulator`], we must declare a C function as external function
-pub static SIM_HANDLE: SimulatorHandler<Simulator> = SimulatorHandler::new();
+impl Drop for SimulatorHandle {
+    fn drop(&mut self) {
+        // unlock the mutex
+        SIMULATOR_MUTEX.store(0, Ordering::Release);
+    }
+}
