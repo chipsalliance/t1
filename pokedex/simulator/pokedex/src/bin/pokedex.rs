@@ -1,9 +1,9 @@
 use clap::Parser;
-use pokedex::{SimulationException, Simulator, SimulatorParams};
-use std::fmt::Display;
+use pokedex::{SimulationException, SimulatorParams};
 use std::str::FromStr;
-use tracing::{event, Level};
-use tracing_subscriber::{layer::Filter, prelude::*, EnvFilter};
+use std::{fmt::Display, path::Path};
+use tracing::{Level, event};
+use tracing_subscriber::{EnvFilter, layer::Filter, prelude::*};
 
 const VERBOSITY_WRITE_TRACE: u8 = 2;
 
@@ -85,7 +85,7 @@ impl FromStr for MemorySize {
                     return Err(format!(
                         "fail decoding hex {} to usize: only support 32-bit or 64-bit memory size",
                         s
-                    ))
+                    ));
                 }
             };
             Ok(MemorySize(final_mem_size))
@@ -150,18 +150,15 @@ fn main() {
 
     setup_logging(&args);
 
-    let sim_handle = SimulatorParams::to_sim_handle(
-        args.memory_size.to_usize(),
-        args.max_same_instruction,
-        args.elf_path,
-    );
+    let mut sim_handle = SimulatorParams {
+        memory_size: args.memory_size.to_usize(),
+        max_same_instruction: args.max_same_instruction,
+        elf_path: Path::new(&args.elf_path),
+    }
+    .build();
 
     loop {
-        unsafe {
-            Simulator::step();
-        }
-
-        let step_result = sim_handle.with(|sim| sim.check_step());
+        let step_result = sim_handle.step();
 
         if let Err(exception) = step_result {
             match exception {
@@ -176,10 +173,8 @@ fn main() {
         }
     }
 
-    sim_handle.with(|sim| {
-        let stat = sim.take_statistic();
-        event!(Level::INFO, ?stat)
-    });
+    let stat = sim_handle.take_statistic();
+    event!(Level::INFO, ?stat);
 
     if args.verbose > VERBOSITY_WRITE_TRACE {
         event!(Level::INFO, "trace log store in {}", args.output_log_path);
