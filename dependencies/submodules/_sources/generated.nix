@@ -63,14 +63,14 @@
   };
   zaozi = {
     pname = "zaozi";
-    version = "66ca436ea6a77bca4bc6bc474d27686028ff6776";
+    version = "66fdee824835c363ec9cb10ff85f5b9880db3434";
     src = fetchFromGitHub {
       owner = "sequencer";
       repo = "zaozi";
-      rev = "66ca436ea6a77bca4bc6bc474d27686028ff6776";
+      rev = "66fdee824835c363ec9cb10ff85f5b9880db3434";
       fetchSubmodules = false;
-      sha256 = "sha256-rrpcbaaYneMq80bosAflJbVsfTXaFCwnnCrP1HLcODI=";
+      sha256 = "sha256-/Lxb/O+mNHg7X3l5W6TKyc767PMbmrr3vyt4M9wl6Fo=";
     };
-    date = "2025-06-23";
+    date = "2025-06-24";
   };
 }
