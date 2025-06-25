@@ -10,6 +10,7 @@ JINJA_FLAGS := --strict
 ASLI := asli
 ASL2C := asl2c
 PREFIX := $(BUILD_DIR)/$(PROJECT_NAME)
+ALSREF := aslref
 
 # RISCV Opcodes
 _RISCV_OPCODES_SRC = ${RISCV_OPCODES_SRC}
@@ -106,6 +107,13 @@ $(BUILD_DIR)/2-cgen/makefile: $(STAGE_1) aslbuild/libpokedex.makefile $(HANDWRIT
 
 .PHONY: asl2c
 asl2c: $(BUILD_DIR)/2-cgen/makefile
+
+# --------
+# Stage 3: lint ASL files(failed due to Intel/ARM mismatches.)
+# --------
+.PHONY: lint
+lint: $(BUILD_DIR)/0-aslgen/$(FINISH_MARKER)
+    $(ALSREF) --allow-no-end-semicolon $(wildcard $(BUILD_DIR)/0-aslgen/*.asl)
 
 # -----
 # Chore

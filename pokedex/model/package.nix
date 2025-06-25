@@ -8,6 +8,7 @@
   python3,
   ninja,
   minijinja,
+  aslref,
 }:
 let
   softfloat-riscv = stdenv.mkDerivation {
@@ -47,6 +48,7 @@ stdenv.mkDerivation {
     python3
     ninja
     minijinja
+    aslref
   ];
 
   env = {
