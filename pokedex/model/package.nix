@@ -4,6 +4,7 @@
   codegen-cli,
   riscv-opcodes-src,
   asl-interpreter,
+  aslref,
 }:
 stdenv.mkDerivation {
   name = "pokedex-simlib";
@@ -12,6 +13,7 @@ stdenv.mkDerivation {
   nativeBuildInputs = [
     codegen-cli
     asl-interpreter
+    aslref
   ];
 
   env = {
