@@ -8,6 +8,7 @@ MODEL_DIR := .
 CODEGEN_CLI := codegen
 ASLI := asli
 ASL2C := asl2c
+ALSREF := aslref
 PREFIX := $(BUILD_DIR)/simlib
 
 PRJ_SRCS := project.json asl2c.prj $(wildcard $(MODEL_DIR)/*.asl)
@@ -80,6 +81,12 @@ $(BUILD_DIR)/2-cgen/makefile: $(BUILD_DIR)/1-project/$(FINISH_MARKER) $(MODEL_DI
 .PHONY: asl2c
 asl2c: $(BUILD_DIR)/2-cgen/makefile
 
+# --------
+# Stage 3: lint ASL files(failed due to Intel/ARM mismatches.)
+# --------
+.PHONY: lint
+lint: $(BUILD_DIR)/0-aslgen/$(FINISH_MARKER)
+    $(ALSREF) --allow-no-end-semicolon $(wildcard $(BUILD_DIR)/0-aslgen/*.asl)
 
 # -----
 # Chore

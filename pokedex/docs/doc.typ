@@ -75,6 +75,12 @@ the Pokedex project. It provides the necessary information for a developer to:
     specifications either in an interpreter or by compiling via C code.
   ],
 
+  [*aslref*],
+  [
+    ASLRef is the official asl reference parser built by ARM for herdtools7, we
+    use it for ASL linting.
+  ],
+
   [*GPR*], [Short term for General Propose Register],
   [*CSR*], [Short term for Control and Status Register],
 )
