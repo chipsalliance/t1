@@ -162,6 +162,7 @@ rec {
   t1 = final.callPackage ./t1 { };
 
   asl-interpreter = final.callPackage ./pkgs/asl-interpreter.nix { };
+  aslref = final.callPackage ./pkgs/aslref.nix { };
 
   pokedex = final.callPackage ../pokedex {
     riscv-opcodes-src = t1.submodules.sources.riscv-opcodes.src;

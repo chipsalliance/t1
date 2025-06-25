@@ -7,6 +7,7 @@
   python3,
   ninja,
   minijinja,
+  aslref,
 }:
 stdenv.mkDerivation {
   name = "pokedex-model";
@@ -18,6 +19,7 @@ stdenv.mkDerivation {
     python3
     ninja
     minijinja
+    aslref
   ];
 
   env = {
