@@ -1,6 +1,6 @@
-let rs1 : integer{0..31} = UInt(GetArg_RS1(instruction));
-let rs2 : integer{0..31} = UInt(GetArg_RS2(instruction));
-let rd  : integer{0..31} = UInt(GetArg_RD(instruction));
+let rs1 : integer{0..31} = UInt(GetRS1(instruction));
+let rs2 : integer{0..31} = UInt(GetRS2(instruction));
+let rd  : integer{0..31} = UInt(GetRD(instruction));
 let src1 : integer = SInt(X[rs1]);
 let src2 : integer = SInt(X[rs2]);
 
@@ -11,3 +11,5 @@ else
 end
 
 PC = PC + 4;
+
+return Retired();

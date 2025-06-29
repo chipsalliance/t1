@@ -1,1 +1,1 @@
-FFI_ebreak();
+return Exception(CAUSE_BREAKPOINT, Zeros(32));

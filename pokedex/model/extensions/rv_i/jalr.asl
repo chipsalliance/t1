@@ -1,11 +1,20 @@
-let rd_idx : integer{0..31} = UInt(GetArg_RD(instruction));
+let rd : integer{0..31} = UInt(GetRD(instruction));
 let next_pc : bits(32) = PC + 4;
 
-let imm12 : bits(12) = GetArg_IMM12(instruction);
-let imm_value : bits(32) = SignExtend(imm12, 32);
-let rs1_idx : integer{0..31} = UInt(GetArg_RS1(instruction));
-PC = imm_value + X[rs1_idx];
-PC[0] = '0';
+let imm : bits(12) = GetIMM(instruction);
+let offset : bits(32) = SignExtend(imm, 32);
 
-X[rd_idx] = next_pc;
+let rs1 : integer{0..31} = UInt(GetRS1(instruction));
+
+var target : bits(32) = offset + X[rs1];
+target[0] = '0';
+if target[1] != '0' then
+  return Exception(CAUSE_MISALIGNED_FETCH, target);
+end
+
+PC = target;
+
+X[rd] = next_pc;
 // TODO: return address stack handle
+
+return Retired();
