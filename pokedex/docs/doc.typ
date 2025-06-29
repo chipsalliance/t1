@@ -77,6 +77,21 @@ the Pokedex project. It provides the necessary information for a developer to:
 
   [*GPR*], [Short term for General Propose Register],
   [*CSR*], [Short term for Control and Status Register],
+  [*exception*],
+  [
+    When this term using in describing model, it refer to an unusual condition
+    occurring at run time associated with an instruction in current hart
+  ],
+  [*interrupt*],
+  [
+    When this term using in describing model, it refer to an external asynchronous
+    event that may cause a hart to experience an unexpected transfer of control.
+  ],
+  [*trap*],
+  [
+    When this term using in describing model, it refer to the transfer of control,
+    which cause by exception or interrupt.
+  ],
 )
 
 == How to build this document
@@ -205,6 +220,21 @@ begin
   let shiftAmount : integer = UInt(X[rs1]);
   let ShiftAmount : integer = UInt(X[rs1]);
   let SHIFT_AMOUNT : integer = UInt(X[rs1]);
+end
+```
+
+*Use double underscore to indicate private value*
+
+Function, value binding that should only be used in current file should be prefixed
+with double underscore.
+
+Recommended:
+
+```asl
+val __MyPrivateValue : bits(32);
+
+func __HandleMyPrivateValue()
+begin
 end
 ```
 
@@ -561,6 +591,29 @@ begin
 end
 ```
 
+== Exception
+
+Reading resources: unprivilege spec Ch1.6
+
+Exception is handled separately in each instruction.
+There are CSRs as global variables available to signal a trap should be handled.
+Details of these variables can be found at chapter
+#link(<architecture-states-csr>, "Architecture States - CSRs") .
+
+We will use the `causes.csv` file defined in riscv-opcodes repository to do
+codegen for generate a list of cause number and name binding.
+The `causes` definition in `riscv-opcodes` repository is a "number, description" mapping.
+For each cause defined, developers will have following constants available:
+
+```scala
+val suffix = description.replace(" ", "_").toUpperCase
+s"let CAUSE_${suffix} : integer = ${number};"
+```
+
+Besides ordinary CSR registers, we also maintain an extra bit to indicate
+the model that there is an exception needs to be handle. Details can be view
+in Chapter Architecture States.
+
 = Architecture States
 
 All architectural states for current ISA model, from general-purpose registers
@@ -622,7 +675,7 @@ All access to `X` has a integer constraint check declare by `integer{0..31}`,
 which allows only integer from 0 to 31. This constraints are checked by ASLi when
 `--check-constraints` flag is provided.
 
-== Control and Status Register (CSRs)
+== Control and Status Register (CSRs) <architecture-states-csr>
 
 This sections contains CSRs behavior in current model.
 If a CSR address not contains in this section get read or write,
@@ -649,12 +702,26 @@ extensions. Any writes to `misa` register will not change value or have any
 side effects.
 
 ```asl
-// read to MISA
-// This will always be a static value represent current hart supported ISA
-let value : bits(32) = ReadCSR(csr_addr);
-// This will do nothing
-WriteCSR(csr_addr, 0x00000000);
+let misa : bits(32) = [
+  // MXLEN 32
+  '01',
+  Zeros(4),
+  // Z-N
+  Zeros(13),
+  // M
+  '1',
+  // LJKI
+  '0001',
+  // HGFE
+  '0010',
+  // DCBA
+  '0101'
+];
+
+return misa;
 ```
+
+Our implementation will now return support for `rv32imafc`, 'x' is not enabled for now.
 
 Since `misa` is a read-only value, no states will be allocated in current model.
 
@@ -687,9 +754,9 @@ end
 
 func Write_MSTATUS(value : bits(32))
 begin
-  MIE = value[3];
-  MPIE = value[7];
-  MPP = value[12..11];
+  MSTATUS_MIE = value[3];
+  MSTATUS_MPIE = value[7];
+  MSTATUS_MPP = value[12:11];
 end
 ```
 
@@ -725,6 +792,44 @@ end
 ```
 
 === Machine Interrupt (mip and mie) Registers
+
+=== Machine Trap Vector (mtvec) Register
+
+Register `mtvec` holds address to the trap handler.
+It is implemented with two states:
+
+- `MTVEC_MODE`: two bits size bit vector holds the least significant two bits `MTVEC[1:0]`;
+- `MTVEC_BASE`: 28 bits size bit vector holds the base address;
+
+In current implementation, `MTVEC_MODE` only store bits represent 0 or 1. For a
+write with `value[1:0]` larger or equals to 2, the previous `mtvec` mode value
+will be preserved.
+
+```asl
+var mode : bits(2);
+case value[1:0] of
+  when '00' => mode = '00';
+  when '01' => mode = '01';
+  otherwise => mode = MTVEC_MODE;
+end
+
+MTVEC_MODE = mode;
+```
+
+In current implementation, we always use round down strategy to align the base address.
+And since the last two bits of base address is zero, the `MTVEC_BASE` variable only
+stores 28 bits, and will be concatenated with two zero bits when read.
+
+```asl
+// value[3:2] is trimmed
+MTVEC_BASE = value[31:4];
+```
+
+A read to `mtvec` is simply concatenate all the bits:
+
+```asl
+return [MTVEC_BASE, '00', MTVEC_MODE];
+```
 
 = Rust Simulator
 
