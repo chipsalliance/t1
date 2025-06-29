@@ -18,7 +18,7 @@ let
     ];
     pokedex_args = [
       "--memory-size"
-      "0xa0000000"
+      "0xc0000000"
       "--max-same-instruction"
       "20"
     ];
