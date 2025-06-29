@@ -9,7 +9,7 @@ impl SimulatorHandle {
     /// user knows the side effect of this function.
     pub(crate) fn reset_vector(&mut self, entry: u32) {
         unsafe {
-            model::PC = entry;
+            model::__PC = entry;
         }
     }
 
@@ -23,7 +23,7 @@ impl SimulatorHandle {
 
     /// `get_pc` is the current value of ASL model internal `PC` register.
     pub(crate) fn get_pc(&self) -> u32 {
-        unsafe { model::PC }
+        unsafe { model::__PC }
     }
 
     fn with_setup_callback<F: FnOnce()>(&mut self, state: &mut SimulatorState, f: F) {
@@ -39,45 +39,86 @@ impl SimulatorHandle {
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn FFI_instruction_fetch_0(pc: u32) -> u32 {
+unsafe extern "C" fn FFI_instruction_fetch_0(pc: u32) -> model::FFI_ReadResult_N_32 {
     let state = unsafe { get_state() };
-    state.inst_fetch(pc)
+
+    if let Some(insn) = state.inst_fetch(pc) {
+        model::FFI_ReadResult_N_32 {
+            success: true,
+            data: insn,
+        }
+    } else {
+        model::FFI_ReadResult_N_32 {
+            success: false,
+            data: 0,
+        }
+    }
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn FFI_read_physical_memory_8bits_0(address: u32) -> u8 {
+unsafe extern "C" fn FFI_read_physical_memory_8bits_0(address: u32) -> model::FFI_ReadResult_N_8 {
     let state = unsafe { get_state() };
-    u8::from_le_bytes(state.phy_readmem(address))
+    if let Some(mem) = state.phy_readmem(address) {
+        model::FFI_ReadResult_N_8 {
+            success: true,
+            data: u8::from_le_bytes(mem),
+        }
+    } else {
+        model::FFI_ReadResult_N_8 {
+            success: false,
+            data: 0,
+        }
+    }
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn FFI_read_physical_memory_16bits_0(address: u32) -> u16 {
+unsafe extern "C" fn FFI_read_physical_memory_16bits_0(address: u32) -> model::FFI_ReadResult_N_16 {
     let state = unsafe { get_state() };
-    u16::from_le_bytes(state.phy_readmem(address))
+    if let Some(mem) = state.phy_readmem(address) {
+        model::FFI_ReadResult_N_16 {
+            success: true,
+            data: u16::from_le_bytes(mem),
+        }
+    } else {
+        model::FFI_ReadResult_N_16 {
+            success: false,
+            data: 0,
+        }
+    }
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn FFI_read_physical_memory_32bits_0(address: u32) -> u32 {
+unsafe extern "C" fn FFI_read_physical_memory_32bits_0(address: u32) -> model::FFI_ReadResult_N_32 {
     let state = unsafe { get_state() };
-    u32::from_le_bytes(state.phy_readmem(address))
+    if let Some(mem) = state.phy_readmem(address) {
+        model::FFI_ReadResult_N_32 {
+            success: true,
+            data: u32::from_le_bytes(mem),
+        }
+    } else {
+        model::FFI_ReadResult_N_32 {
+            success: false,
+            data: 0,
+        }
+    }
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn FFI_write_physical_memory_8bits_0(address: u32, data: u8) {
+unsafe extern "C" fn FFI_write_physical_memory_8bits_0(address: u32, data: u8) -> bool {
     let state = unsafe { get_state() };
-    state.phy_write_mem(address, data);
+    state.phy_write_mem(address, data)
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn FFI_write_physical_memory_16bits_0(address: u32, data: u16) {
+unsafe extern "C" fn FFI_write_physical_memory_16bits_0(address: u32, data: u16) -> bool {
     let state = unsafe { get_state() };
-    state.phy_write_mem(address, data);
+    state.phy_write_mem(address, data)
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn FFI_write_physical_memory_32bits_0(address: u32, data: u32) {
+unsafe extern "C" fn FFI_write_physical_memory_32bits_0(address: u32, data: u32) -> bool {
     let state = unsafe { get_state() };
-    state.phy_write_mem(address, data);
+    state.phy_write_mem(address, data)
 }
 
 #[unsafe(no_mangle)]
@@ -116,6 +157,16 @@ unsafe extern "C" fn FFI_ebreak_0() {
 unsafe extern "C" fn FFI_ecall_0() {
     let state = unsafe { get_state() };
     state.handle_ecall();
+}
+
+#[unsafe(no_mangle)]
+unsafe extern "C" fn FFI_machine_external_interrupt_pending_0() -> u32 {
+    return 0;
+}
+
+#[unsafe(no_mangle)]
+unsafe extern "C" fn FFI_machine_time_interrupt_pending_0() -> u32 {
+    return 0;
 }
 
 static mut CALLBACK_STATE: *mut SimulatorState = std::ptr::null_mut();
