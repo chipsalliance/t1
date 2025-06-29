@@ -8,3 +8,5 @@ if rd != 0 then
 end
 
 PC = PC + 4;
+
+return Retired();

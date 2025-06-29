@@ -9,7 +9,14 @@ let rs2_idx : integer{0..31} = UInt(GetArg_RS2(instruction));
 let rs2_val : integer = UInt(X[rs2_idx]);
 
 if rs1_val >= rs2_val then
-  PC = PC + bimm;
+  let target : bits(32) = PC + bimm;
+  if target[1:0] != '00' then
+    return Exception(CAUSE_MISALIGNED_FETCH, target);
+  end
+
+  PC = target;
 else
   PC = PC + 4;
 end
+
+return Retired();

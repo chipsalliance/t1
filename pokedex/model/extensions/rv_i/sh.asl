@@ -8,6 +8,11 @@ let addr  : bits(32) = rs1 + SignExtend(imm12, 32);
 let rs2_idx : integer{0..31}  = UInt(GetArg_RS2(instruction));
 let rs2_val : bits(32) = X[rs2_idx];
 
-FFI_write_physical_memory_16bits(addr, rs2_val[15:0]);
+let result : Result = WriteMemory(addr, rs2_val[15:0]);
+if !result.is_ok then
+  return result;
+end
 
 PC = PC + 4;
+
+return Retired();

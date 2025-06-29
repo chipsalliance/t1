@@ -12,3 +12,5 @@ else
 end
 
 PC = PC + 4;
+
+return Retired();

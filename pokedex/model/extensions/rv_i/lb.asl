@@ -7,6 +7,13 @@ let rs1     : bits(32) = X[rs1_idx];
 
 let addr   : bits(32) = rs1 + offset;
 // Load 1 byte memory
-let value  : bits(32) = SignExtend(FFI_read_physical_memory_8bits(addr), 32);
+let (data, result) = ReadMemory(addr, 8);
+if !result.is_ok then
+  return result;
+end
+
+let value  : bits(32) = SignExtend(data, 32);
 X[rd_idx] = value;
 PC = PC + 4;
+
+return Retired();
