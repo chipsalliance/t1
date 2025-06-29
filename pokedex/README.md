@@ -33,6 +33,8 @@
 <span style="display: inline-block;">`misa`</span>
 <span style="display: inline-block;"></span> ⁠1
 
+2.5.Exception <span style="display: inline-block;"></span> ⁠1
+
 3.Architecture States <span style="display: inline-block;"></span> ⁠1
 
 3.1.General Propose Register (GPRs)
@@ -188,6 +190,23 @@ C code.</td>
 <tr class="even">
 <td><strong>CSR</strong></td>
 <td>Short term for Control and Status Register</td>
+</tr>
+<tr class="odd">
+<td><strong>exception</strong></td>
+<td>When this term using in describing model, it refer to an unusual
+condition occurring at run time associated with an instruction in
+current hart</td>
+</tr>
+<tr class="even">
+<td><strong>interrupt</strong></td>
+<td>When this term using in describing model, it refer to an external
+asynchronous event that may cause a hart to experience an unexpected
+transfer of control.</td>
+</tr>
+<tr class="odd">
+<td><strong>trap</strong></td>
+<td>When this term using in describing model, it refer to the transfer
+of control, which cause by exception or interrupt.</td>
 </tr>
 </tbody>
 </table>
@@ -733,6 +752,18 @@ the following complete, callable functions:
         return TRUE;
     end
 
+### 2.5. Exception
+
+Reading resources: unprivilege spec Ch1.6
+
+Exception is handled separately in each instruction. There are CSRs as
+global variables available to signal a trap should be handled. Details
+of these variables can be found at chapter Architecture States - CSRs .
+
+We will use the <span style="display: inline-block;">`causes.csv`</span>
+file defined in riscv-opcodes repository to do codegen for ID and cause
+mapping.
+
 ## 3. Architecture States
 
 All architectural states for current ISA model, from general-purpose
@@ -838,11 +869,27 @@ return a static bit vector indicating current enabled extensions. Any
 writes to <span style="display: inline-block;">`misa`</span> register
 will not change value or have any side effects.
 
-    // read to MISA
-    // This will always be a static value represent current hart supported ISA
-    let value : bits(32) = ReadCSR(csr_addr);
-    // This will do nothing
-    WriteCSR(csr_addr, 0x00000000);
+    let misa : bits(32) = [
+      // MXLEN 32
+      '01',
+      Zeros(4),
+      // Z-N
+      Zeros(13),
+      // M
+      '1',
+      // LJKI
+      '0001',
+      // HGFE
+      '0010',
+      // DCBA
+      '0101'
+    ];
+
+    return misa;
+
+Our implementation will now return support for
+<span style="display: inline-block;">`rv32imafc`</span>, 'x' is not
+enabled for now.
 
 Since <span style="display: inline-block;">`misa`</span> is a read-only
 value, no states will be allocated in current model.
