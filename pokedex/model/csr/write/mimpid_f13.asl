@@ -1,1 +1,1 @@
-// write to mimpid is an nop
+return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));

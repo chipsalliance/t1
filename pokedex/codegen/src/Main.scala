@@ -7,8 +7,8 @@ case class CSR(csrname: String, csrnumber: String, csrindex: Int)
 case class CodeGeneratorParams(
   modelDir:         os.Path,
   outputDir:        os.Path,
-  riscvOpCodesSrc:  os.Path,
-  customOpCodesSrc: Option[os.Path])
+  riscvOpcodesSrc:  os.Path,
+  customOpcodesSrc: Option[os.Path])
 class CodeGenerator(params: CodeGeneratorParams):
   private lazy val outputDir =
     os.makeDir.all(params.outputDir)
@@ -17,6 +17,7 @@ class CodeGenerator(params: CodeGeneratorParams):
   private val csr_op_path               = outputDir / "csr_op.asl"
   private val execute_path              = outputDir / "execute.asl"
   private val arg_lut_path              = outputDir / "arg_lut.asl"
+  private val causes_path               = outputDir / "causes.asl"
   private val user_inst_path            = params.modelDir / "extensions"
   private val user_csr_path             = params.modelDir / "csr"
   private lazy val enabledExtensionSets = os
@@ -26,11 +27,11 @@ class CodeGenerator(params: CodeGeneratorParams):
     .map(_.baseName)
 
   private lazy val rvdecoderdb = org.chipsalliance.rvdecoderdb
-    .instructions(params.riscvOpCodesSrc, params.customOpCodesSrc)
+    .instructions(params.riscvOpcodesSrc, params.customOpcodesSrc)
 
   private lazy val argLutDb =
     val db = org.chipsalliance.rvdecoderdb
-      .argLut(params.riscvOpCodesSrc, params.customOpCodesSrc)
+      .argLut(params.riscvOpcodesSrc, params.customOpcodesSrc)
     if db.isEmpty then
       throw new Exception(
         "fail generating arg lut handler, please check the input opcodes path"
@@ -72,6 +73,7 @@ class CodeGenerator(params: CodeGeneratorParams):
         p.baseName match {
           case s"${csrname}_${csrnumber}" =>
             CSR(csrname, csrnumber, Integer.parseInt(csrnumber, 16))
+          case value                      => throw new Exception(s"malformed csr file: ${p}, expected 'csrname_csrnumber.asl'")
         }
       )
 
@@ -97,7 +99,8 @@ class CodeGenerator(params: CodeGeneratorParams):
       .map({ case CSR(csrname, _, csrindex) =>
         s"""|
             |  when '${intToBin(csrindex, 12)}' =>
-            |    return Read_${csrname.toUpperCase}();
+            |    let value : bits(${xlen}) = Read_${csrname.toUpperCase}();
+            |    return OK(value);
             |""".stripMargin
       })
       .mkString("\n")
@@ -127,7 +130,7 @@ class CodeGenerator(params: CodeGeneratorParams):
     val csrWriteHandlers = csrWrite
       .map({ case (csrname, body) =>
         s"""|
-            |func Write_${csrname.toUpperCase}(value : bits(32))
+            |func Write_${csrname.toUpperCase}(value : bits(32)) => Result
             |begin
             |
             |${body}
@@ -141,24 +144,25 @@ class CodeGenerator(params: CodeGeneratorParams):
       csr_op_path,
       s"""|
           |// CSR Dispatch
-          |func ReadCSR(csr : bits(12)) => bits(${xlen})
+          |func ReadCSR(csr : bits(12)) => Result
           |begin
           |  case csr of
           |    ${csrReadDispatch}
           |
           |    otherwise =>
-          |      FFI_print_str("error: read of unknown CSR");
+          |      return Exception(CAUSE_ILLEGAL_INSTRUCTION, ZeroExtend(csr, 32));
           |  end
           |end
           |
-          |func WriteCSR(csr : bits(12), value : bits(32))
+          |func WriteCSR(csr : bits(12), value : bits(32)) => Result
           |begin
           |  case csr of
           |    ${csrWriteDispatch}
           |
           |    otherwise =>
-          |      FFI_print_str("error: write of unknown CSR");
+          |      return Exception(CAUSE_ILLEGAL_INSTRUCTION, ZeroExtend(csr, 32));
           |  end
+          |  return Retired();
           |end
           |
           |${csrReadHandlers}
@@ -166,19 +170,6 @@ class CodeGenerator(params: CodeGeneratorParams):
           |${csrWriteHandlers}
           |""".stripMargin
     )
-
-  def genArgLuts() =
-    val argLutsCode = argLutDb.values.map { case org.chipsalliance.rvdecoderdb.Arg(name, hi, lo) =>
-      s"""|
-          |func GetArg_${name.toUpperCase}(instruction: bits(32)) => bits(${hi - lo + 1})
-          |begin
-          |  return instruction[${hi}:${lo}];
-          |end
-          |""".stripMargin
-    }
-      .mkString("\n")
-
-    os.write.over(arg_lut_path, argLutsCode)
 
   def genExecute() =
     // rv32_i has special pseudo form and contains duplicate instructions that needs to be manually handled
@@ -211,7 +202,7 @@ class CodeGenerator(params: CodeGeneratorParams):
 
         val functionBody = os.read(fnBodyPath)
 
-        s"""|func Execute_${functionName.toUpperCase}(instruction : bits(32))
+        s"""|func Execute_${functionName.toUpperCase}(instruction : bits(32)) => Result
             |begin
             |
             |${functionBody}
@@ -226,16 +217,17 @@ class CodeGenerator(params: CodeGeneratorParams):
         val bitpat       = inst.encoding.toCustomBitPat("x")
         val functionName = inst.name.replace(".", "_").toUpperCase
         s"""|    when '${bitpat}' =>
-            |        Execute_${functionName}(instruction);
+            |        return Execute_${functionName}(instruction);
             |""".stripMargin
       })
       .mkString("\n")
-    val dispatchCode = s"""|func Execute(instruction : bits(32))
+    val dispatchCode = s"""|func DecodeAndExecute(instruction : bits(32)) => Result
                            |begin
                            |    case instruction of
                            |${matchArms}
                            |    otherwise =>
-                           |        FFI_print_str("TODO: throw illegal instruction");
+                           |        // todo: check we should use instruction as tval or not
+                           |        return Exception(CAUSE_ILLEGAL_INSTRUCTION, instruction);
                            |    end
                            |end
                            |""".stripMargin
@@ -252,10 +244,22 @@ class CodeGenerator(params: CodeGeneratorParams):
 
       })
 
+  def genCauses() =
+    val causesDecls = org.chipsalliance.rvdecoderdb
+      .causes(params.riscvOpcodesSrc)
+      .toSeq
+      .sortBy((_, number) => number)
+      .map { case (name, number) =>
+        val varname = name.replace(" ", "_").toUpperCase
+        s"let CAUSE_${varname} : integer = ${number};"
+      }
+      .mkString("\n")
+    os.write.over(causes_path, causesDecls)
+
   def run() =
     genExecute()
-    genArgLuts()
     genCSRsOperation()
+    genCauses()
 
 object Main:
   implicit object PathRead extends TokensReader.Simple[os.Path]:
@@ -280,18 +284,18 @@ object Main:
       short = 'd',
       name = "riscv-opcodes-src-dir",
       doc = "Path to the riscv-opcodes source"
-    ) riscvOpCodesSrc:  os.Path,
+    ) riscvOpcodesSrc:  os.Path,
     @arg(
       short = 'c',
       name = "custom-opcodes-src-dir",
       doc = "Path to the custom opcodes source"
-    ) customOpCodesSrc: Option[os.Path]
+    ) customOpcodesSrc: Option[os.Path]
   ) =
     val param     = CodeGeneratorParams(
       modelDir,
       outputDir,
-      riscvOpCodesSrc,
-      customOpCodesSrc
+      riscvOpcodesSrc,
+      customOpcodesSrc
     );
     val generator = new CodeGenerator(param);
     generator.run()
