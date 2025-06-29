@@ -5,3 +5,5 @@ let rd : integer{0..31} = UInt(GetArg_RD(instruction));
 X[rd] = ShiftLeft(X[rs1], shift_amount);
 
 PC = PC + 4;
+
+return Retired();

@@ -4,3 +4,5 @@ let rd  : integer{0..31} = UInt(GetArg_RD(instruction));
 
 X[rd] = X[rs1] OR imm;
 PC = PC + 4;
+
+return Retired();

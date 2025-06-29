@@ -10,7 +10,7 @@ ASLI := asli
 ASL2C := asl2c
 PREFIX := $(BUILD_DIR)/simlib
 
-PRJ_SRCS := project.json asl2c.prj $(wildcard $(MODEL_DIR)/*.asl)
+PRJ_SRCS := project.json asl2c.prj $(wildcard $(MODEL_DIR)/handwritten/*.asl)
 
 # RISCV Opcodes
 _RISCV_OPCODES_SRC = ${RISCV_OPCODES_SRC}
@@ -73,7 +73,7 @@ $(BUILD_DIR)/2-cgen/makefile: $(BUILD_DIR)/1-project/$(FINISH_MARKER) $(MODEL_DI
 		--check-exception-markers \
 		--check-call-markers \
 		--check-constraints \
-		--no-runtime-checks \
+		--runtime-checks \
 		$(wildcard $(<D)/*.asl)
 	cp -T $(MODEL_DIR)/libpokedex.makefile $(@D)/makefile
 

@@ -8,3 +8,5 @@ let shift_amount : integer = UInt(rs2_val[4:0]);
 X[rd] = ShiftRightLogical(X[rs1], shift_amount);
 
 PC = PC + 4;
+
+return Retired();

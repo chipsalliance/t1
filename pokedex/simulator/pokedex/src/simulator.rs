@@ -2,9 +2,9 @@ use std::io::Read;
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicU32, Ordering};
 use thiserror::Error;
-use tracing::{Level, event};
+use tracing::{event, Level};
 use xmas_elf::program::{ProgramHeader, Type};
-use xmas_elf::{ElfFile, header};
+use xmas_elf::{header, ElfFile};
 
 #[derive(Error, Debug, Clone)]
 pub enum SimulationException {
@@ -139,8 +139,8 @@ impl Simulator {
 
 // callback for ASL generated code
 impl SimulatorState {
-    pub(crate) fn inst_fetch(&mut self, pc: u32) -> u32 {
-        let inst: u32 = u32::from_le_bytes(self.phy_readmem(pc)).into();
+    pub(crate) fn inst_fetch(&mut self, pc: u32) -> Option<u32> {
+        let inst: u32 = u32::from_le_bytes(self.phy_readmem(pc)?).into();
         self.statistic.fetch_count += 1;
 
         if inst == self.last_instruction {
@@ -155,11 +155,6 @@ impl SimulatorState {
 
         self.last_instruction = inst;
 
-        // TODO: instruction valid should be determine at ASL model side.
-        if inst == 0 {
-            panic!("[simulator] instruction fetch fail with zero data")
-        }
-
         event!(
             Level::TRACE,
             event_type = "instruction_fetch",
@@ -167,22 +162,29 @@ impl SimulatorState {
             encoding = format!("{:#010x}", inst)
         );
 
-        inst
+        Some(inst)
     }
 
     /// [`phy_readmem`] is `N` length u8 array starting from `address`.
     ///
     /// [`phy_readmem`] will panic in following circumstance:
-    ///   * if the u64 `address` fail convert into usize;
-    ///   * if `address` larger than memory length (OOM);
-    ///   * if `address` plus `N` offset larger than memory length (OOM);
-    pub(crate) fn phy_readmem<const N: usize>(&self, address: u32) -> [u8; N] {
+    ///   * if the u32 `address` fail convert into usize;
+    pub(crate) fn phy_readmem<const N: usize>(&self, address: u32) -> Option<[u8; N]> {
+        assert!(N != 0 && N % 2 == 0);
+
         let idx: usize = address.try_into().unwrap_or_else(|_| {
             panic!(
                 "phy_readmem: internal error occur: fail to convert address {} to usize type",
                 address
             )
         });
+
+        let last_idx = self.memory.len() - 1;
+        // N is not possible to be zero, so idx cannot be last index
+        if idx >= last_idx && idx + N > last_idx {
+            return None;
+        }
+
         let mut data = [0u8; N];
         data.copy_from_slice(&self.memory[idx..idx + N]);
 
@@ -198,7 +200,7 @@ impl SimulatorState {
             address
         );
 
-        data
+        Some(data)
     }
 
     pub(crate) fn fence_i(&self) -> () {
@@ -211,7 +213,7 @@ impl SimulatorState {
     /// This function will panic in following circumstance:
     ///   * fail converting u64 `address` to usize
     ///   * index overflow
-    pub(crate) fn phy_write_mem<T, const N: usize>(&mut self, address: u32, value: T) -> ()
+    pub(crate) fn phy_write_mem<T, const N: usize>(&mut self, address: u32, value: T) -> bool
     where
         T: num::ToPrimitive
             + num::traits::ToBytes<Bytes = [u8; N]>
@@ -219,6 +221,8 @@ impl SimulatorState {
             + Eq
             + std::fmt::LowerHex,
     {
+        assert!(N != 0 && N % 2 == 0);
+
         let hex_value = format!("{:#x}", value);
         event!(
             Level::TRACE,
@@ -227,7 +231,7 @@ impl SimulatorState {
             bytes = N,
             address = address,
             data = hex_value,
-            "write {N} bytes data {hex_value} from physical memory address: {:#x}",
+            "write {N} bytes data {hex_value} to physical memory address: {:#x}",
             address
         );
 
@@ -237,14 +241,24 @@ impl SimulatorState {
         if address == EXIT_ADDR {
             event!(Level::DEBUG, "exit address got written, exit simulator");
             self.exception = Some(SimulationException::Exited);
-            return;
+            return true;
         }
 
+        let mem_last = self.memory.len() - 1;
+
         let idx: usize = address.try_into().unwrap();
+
+        if idx >= mem_last || idx + N > mem_last {
+            return false;
+        }
+
+        // data bit width has trait constraint, so we are free to not check it
         let data = value.to_le_bytes();
         for i in 0..N {
             self.memory[idx + i] = data[i];
         }
+
+        return true;
     }
 
     pub fn take_statistic(&mut self) -> Statistic {
@@ -278,6 +292,10 @@ impl SimulatorState {
 
     pub(crate) fn handle_ecall(&self) {
         event!(Level::DEBUG, "TODO: model met ecall")
+    }
+
+    pub(crate) fn write_pending_interrupt(&self) -> u32 {
+        return 0;
     }
 }
 

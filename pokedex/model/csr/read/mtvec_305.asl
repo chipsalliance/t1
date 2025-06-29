@@ -1,0 +1,1 @@
+return [MTVEC_BASE, MTVEC_MODE_BITS];
