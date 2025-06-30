@@ -526,10 +526,10 @@ class T1(val parameter: T1Parameter)
 
   // top -> lane
   val VCTopToLane = sequencerIF.io.outputVirtualChannelVec
-  val opcodeVCTopToLane: Seq[Int] = Seq(0, 1, 2, 6, 7)
+  val opcodeVCTopToLane: Seq[Int] = Seq(0, 1, 2, 4, 5)
   // lsu -> lane
   val VCLSUToLane       = lsuIF.io.outputVirtualChannelVec
-  val opcodeVCLSUToLane = Seq(1, 5, 6)
+  val opcodeVCLSUToLane = Seq(1, 3, 4)
   // connect function
   VCTopToLane.zipWithIndex.foreach { case (vc, index) =>
     val opcode = opcodeVCTopToLane(index)
@@ -561,11 +561,11 @@ class T1(val parameter: T1Parameter)
 
   // lane -> top
   val VCLaneToTop = sequencerIF.io.inputVirtualChannelVec
-  val opcodeVCLaneToTop: Seq[Int] = Seq(0, 1, 3, 5, 6, 7)
+  val opcodeVCLaneToTop: Seq[Int] = Seq(0, 1, 2, 3, 4, 5)
   // lsu -> lane
   val VCLaneToLSU       = lsuIF.io.inputVirtualChannelVec
-  val opcodeVCLaneToLSU = Seq(1, 3, 5, 10)
-  val broadcastVec      = Seq(5)
+  val opcodeVCLaneToLSU = Seq(1, 2, 3, 6)
+  val broadcastVec      = Seq(3)
   VCLaneToLSU.zipWithIndex.foreach { case (vc, index) =>
     val opcode   = opcodeVCLaneToLSU(index)
     val sourceVC = laneIFVec.map(_.io.outputVirtualChannelVec(opcode))
@@ -609,26 +609,34 @@ class T1(val parameter: T1Parameter)
   connectNode(lsuIF.io.topOutputVC.head, sequencerIF.io.topInputVC.head)(2)
 
   // lane <-> lane
-  // read
-  val readEnqVec  = Seq(3, 8)
-  val readDeqVec  = Seq(2, 8)
-  val writeEnqVec = Seq(4, 9)
-  val writeDeqVec = Seq(4, 9)
-  laneIFVec.zipWithIndex.foreach { case (sinkIF, index) =>
-    readEnqVec.zipWithIndex.foreach { case (_, portIndex) =>
+  Seq.tabulate(parameter.laneNumber) { index =>
+    Seq.tabulate(2) { portIndex =>
       val readSourceIndex = (2 * index + portIndex) % parameter.laneNumber
       val readSourcePort  = (2 * index + portIndex) / parameter.laneNumber
 
       // read
       connectNode(
-        laneIFVec(readSourceIndex).io.outputVirtualChannelVec(readDeqVec(readSourcePort)),
-        sinkIF.io.inputVirtualChannelVec(readEnqVec(portIndex))
+        laneIFVec(readSourceIndex).io.readOutputVCVec(readSourcePort),
+        laneIFVec(index).io.readInputVCVec(portIndex)
       )(2)
 
       // write
       connectNode(
-        laneIFVec(index).io.outputVirtualChannelVec(writeDeqVec(portIndex)),
-        laneIFVec(readSourceIndex).io.inputVirtualChannelVec(writeEnqVec(readSourcePort))
+        laneIFVec(index).io.writeOutputVCVec2(portIndex),
+        laneIFVec(readSourceIndex).io.writeInputVCVec2(readSourcePort)
+      )(2)
+    }
+  }
+
+  Seq.tabulate(parameter.laneNumber) { index =>
+    Seq.tabulate(4) { portIndex =>
+      val readSourceIndex = (4 * index + portIndex) % parameter.laneNumber
+      val readSourcePort  = (4 * index + portIndex) / parameter.laneNumber
+
+      // write
+      connectNode(
+        laneIFVec(index).io.writeOutputVCVec4(portIndex),
+        laneIFVec(readSourceIndex).io.writeInputVCVec4(readSourcePort)
       )(2)
     }
   }
@@ -731,9 +739,7 @@ class T1(val parameter: T1Parameter)
     *   - unordered instruction(slide)
     *   - vd is v0
     */
-  val specialInstruction: Bool      = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
-  val dataInWritePipeVec: Vec[UInt] = Wire(Vec(parameter.laneNumber, UInt(parameter.chaining1HBits.W)))
-  val dataInWritePipe:    UInt      = dataInWritePipeVec.reduce(_ | _)
+  val specialInstruction: Bool = decodeResult(Decoder.special) || requestReg.bits.vdIsV0
 
   // todo: instructionRAWReady -> v0 write token
   val allSlotFree:   Bool = Wire(Bool())
@@ -771,7 +777,6 @@ class T1(val parameter: T1Parameter)
     val lsuFinished: Bool = ohCheck(lsuLastPipe, control.record.instructionIndex, parameter.chainingSize)
     val vxsatUpdate = ohCheck(vxsatReport, control.record.instructionIndex, parameter.chainingSize)
 
-    val dataInWritePipeCheck = ohCheck(dataInWritePipe, control.record.instructionIndex, parameter.chainingSize)
     // instruction is allocated to this slot.
     when(instructionToSlotOH(index)) {
       // instruction metadata
@@ -783,8 +788,10 @@ class T1(val parameter: T1Parameter)
       control.state.idle              := false.B
       control.state.wLast             := false.B
       control.state.sCommit           := false.B
-      control.state.wVRFWrite         := !requestReg.bits.decodeResult(Decoder.maskUnit)
       control.state.wMaskUnitLast     := !requestReg.bits.decodeResult(Decoder.maskUnit)
+      control.state.sSlotRelease      := !(requestReg.bits.decodeResult(Decoder.gather) && requestReg.bits.decodeResult(
+        Decoder.vtype
+      ))
       control.vxsat                   := false.B
       // two different initial states for endTag:
       // for load/store instruction, use the last bit to indicate whether it is the last instruction
@@ -800,15 +807,11 @@ class T1(val parameter: T1Parameter)
           control.state.wLast := true.B
         }
 
-        when(control.state.wLast && control.state.wMaskUnitLast && !dataInWritePipeCheck) {
-          control.state.wVRFWrite := true.B
-        }
-
         when(responseCounter === control.record.instructionIndex && retire) {
           control.state.sCommit := true.B
         }
 
-        when(control.state.sCommit && control.state.wVRFWrite && control.state.wMaskUnitLast) {
+        when(control.state.sCommit && control.state.wMaskUnitLast) {
           control.state.idle := true.B
         }
 
@@ -905,7 +908,8 @@ class T1(val parameter: T1Parameter)
     )
 
   // data eew for extend type
-  val extendDataEEW: Bool = (T1Issue.vsew(requestReg.bits.issue) - decodeResult(Decoder.topUop)(2, 1))(0)
+  val extendDataEEW: Bool =
+    (T1Issue.vsew(requestReg.bits.issue) - (1.U << decodeResult(Decoder.maskPipeUop)(0)).asUInt)(0)
   val gather16:      Bool = decodeResult(Decoder.gather16)
   val vSewSelect:    UInt = Mux(
     isLoadStoreType,
@@ -987,18 +991,19 @@ class T1(val parameter: T1Parameter)
     laneIF.io.maskRequestAck.ready := true.B
     lane.maskInput                 := laneIF.io.maskRequestAck.bits.data
 
-    val laneIFReadEnqPort = Seq(laneIF.io.readBusEnq0, laneIF.io.readBusEnq1)
-    val laneIFReadDeqPort = Seq(laneIF.io.readBusDeq0, laneIF.io.readBusDeq1)
     lane.readBusPort.zipWithIndex.foreach { case (rp, index) =>
-      rp.enq <> laneIFReadEnqPort(index)
-      laneIFReadDeqPort(index) <> rp.deq
+      rp.enq <> laneIF.io.readBusEnqVec(index)
+      laneIF.io.readBusDeqVec(index) <> rp.deq
     }
 
-    val laneIFWriteEnqPort = Seq(laneIF.io.writeBusEnq0, laneIF.io.writeBusEnq1)
-    val laneIFWriteDeqPort = Seq(laneIF.io.writeBusDeq0, laneIF.io.writeBusDeq1)
-    lane.writeBusPort.zipWithIndex.foreach { case (rp, index) =>
-      rp.enq <> laneIFWriteEnqPort(index)
-      laneIFWriteDeqPort(index) <> rp.deq
+    lane.writeBusPort2.zipWithIndex.foreach { case (rp, index) =>
+      rp.enq <> laneIF.io.writeBusEnqVec2(index)
+      laneIF.io.writeBusDeqVec2(index) <> rp.deq
+    }
+
+    lane.writeBusPort4.zipWithIndex.foreach { case (rp, index) =>
+      rp.enq <> laneIF.io.writeBusEnqVec4(index)
+      laneIF.io.writeBusDeqVec4(index) <> rp.deq
     }
 
     laneIF.io.lsuReport.ready      := true.B
@@ -1036,7 +1041,6 @@ class T1(val parameter: T1Parameter)
     laneIF.io.laneResponse.valid                    := true.B
     laneIF.io.laneResponse.bits.vxsatReport         := lane.vxsatReport
     laneIF.io.laneResponse.bits.instructionFinished := lane.instructionFinished
-    laneIF.io.laneResponse.bits.writeQueueValid     := lane.writeQueueValid
 
     laneIF.io.maskWriteRelease.valid := lane.vrfWriteChannel.fire && lane.writeFromMask
     laneIF.io.lsuWriteAck.valid      := lane.vrfWriteChannel.fire && !lane.writeFromMask
@@ -1054,7 +1058,6 @@ class T1(val parameter: T1Parameter)
   }
 
   omInstance.lanesIn := Property(laneVec.map(_.om.asAnyClassType))
-  dataInWritePipeVec := VecInit(laneVec.map(_.writeQueueValid))
 
   val issueToLSU: Bool = Option
     .when(parameter.useXsfmm)(isLoadStoreType || requestReg.bits.decodeResult(Decoder.zvma))
@@ -1193,7 +1196,7 @@ class T1(val parameter: T1Parameter)
       // lane|lsu finish
       inst.state.wLast &&
       // mask unit write finish
-      inst.state.wVRFWrite &&
+      inst.state.sSlotRelease &&
       // Ensure that only one cycle is committed
       !inst.state.sCommit &&
       // Ensuring commit order

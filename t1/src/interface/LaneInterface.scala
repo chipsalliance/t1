@@ -140,14 +140,10 @@ class LaneInterface(val parameter: LaneIFParameter)
   val physicalChannelFromLane: Seq[DecoupledIO[Data]] = Seq(
     io.maskRequest,
     io.readVrfAck,
-    io.readBusDeq0,
     io.maskUnitRequest,
-    io.writeBusDeq0,
     io.v0Update,
     io.laneResponse,
     io.maskWriteRelease,
-    io.readBusDeq1,
-    io.writeBusDeq1,
     io.lsuWriteAck
   )
 
@@ -157,14 +153,10 @@ class LaneInterface(val parameter: LaneIFParameter)
   val sinkIDVec = Seq(
     (parameter.laneNumber + 1).U,
     readVrfSourceQueue.deq.bits,
-    0.U,
     Mux(io.maskUnitRequest.bits.maskRequestToLSU, parameter.laneNumber.U, (parameter.laneNumber + 1).U),
-    0.U,
     (parameter.laneNumber + 1).U,
     (parameter.laneNumber + 1).U,
     (parameter.laneNumber + 1).U,
-    0.U,
-    0.U,
     parameter.laneNumber.U
   )
 
@@ -172,13 +164,9 @@ class LaneInterface(val parameter: LaneIFParameter)
     io.laneRequest,
     io.vrfReadRequest,
     io.maskRequestAck,
-    io.readBusEnq0,
-    io.writeBusEnq0,
     io.lsuReport,
     io.vrfWriteRequest,
-    io.maskUnitReport,
-    io.readBusEnq1,
-    io.writeBusEnq1
+    io.maskUnitReport
   )
 
   physicalChannelFromLane.zipWithIndex.foreach { case (req, index) =>
@@ -201,5 +189,62 @@ class LaneInterface(val parameter: LaneIFParameter)
 //      assert(io.inputVirtualChannelVec(index).bits.opcode === index.U)
 //    }
   }
-  io.writeFromMask := io.inputVirtualChannelVec(6).bits.sourceID === (parameter.laneNumber + 1).U
+  io.writeFromMask := io.inputVirtualChannelVec(4).bits.sourceID === (parameter.laneNumber + 1).U
+
+  // connect cross read
+  io.readBusDeqVec.zipWithIndex.foreach { case (req, index) =>
+    val outVC = io.readOutputVCVec(index)
+    outVC.valid         := req.valid
+    req.ready           := outVC.ready
+    outVC.bits.data     := req.bits.asUInt
+    require(req.bits.getWidth <= parameter.dataWidth, "channel width error.")
+    outVC.bits.opcode   := index.U
+    outVC.bits.sourceID := io.laneIndex
+    outVC.bits.sinkID   := 0.U
+    outVC.bits.last     := true.B
+  }
+  io.readBusEnqVec.zipWithIndex.foreach { case (req, index) =>
+    val inputVC = io.readInputVCVec(index)
+    req.valid     := inputVC.valid
+    inputVC.ready := req.ready
+    req.bits      := inputVC.bits.data(req.bits.getWidth - 1, 0).asTypeOf(req.bits)
+  }
+
+  // connect cross write 2
+  io.writeBusDeqVec2.zipWithIndex.foreach { case (req, index) =>
+    val outVC = io.writeOutputVCVec2(index)
+    outVC.valid         := req.valid
+    req.ready           := outVC.ready
+    outVC.bits.data     := req.bits.asUInt
+    require(req.bits.getWidth <= parameter.dataWidth, "channel width error.")
+    outVC.bits.opcode   := index.U
+    outVC.bits.sourceID := io.laneIndex
+    outVC.bits.sinkID   := 0.U
+    outVC.bits.last     := true.B
+  }
+  io.writeBusEnqVec2.zipWithIndex.foreach { case (req, index) =>
+    val inputVC = io.writeInputVCVec2(index)
+    req.valid     := inputVC.valid
+    inputVC.ready := req.ready
+    req.bits      := inputVC.bits.data(req.bits.getWidth - 1, 0).asTypeOf(req.bits)
+  }
+
+  // connect cross write 4
+  io.writeBusDeqVec4.zipWithIndex.foreach { case (req, index) =>
+    val outVC = io.writeOutputVCVec4(index)
+    outVC.valid         := req.valid
+    req.ready           := outVC.ready
+    outVC.bits.data     := req.bits.asUInt
+    require(req.bits.getWidth <= parameter.dataWidth, "channel width error.")
+    outVC.bits.opcode   := index.U
+    outVC.bits.sourceID := io.laneIndex
+    outVC.bits.sinkID   := 0.U
+    outVC.bits.last     := true.B
+  }
+  io.writeBusEnqVec4.zipWithIndex.foreach { case (req, index) =>
+    val inputVC = io.writeInputVCVec4(index)
+    req.valid     := inputVC.valid
+    inputVC.ready := req.ready
+    req.bits      := inputVC.bits.data(req.bits.getWidth - 1, 0).asTypeOf(req.bits)
+  }
 }

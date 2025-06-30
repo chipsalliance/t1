@@ -43,6 +43,7 @@ class LaneStage2Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
   val loadStore:        Bool         = Bool()
   val vd:               UInt         = UInt(5.W)
+  val vSew1H:           UInt         = UInt(3.W)
 }
 
 // s2 执行
@@ -101,6 +102,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
   executionQueue.enq.bits.instructionIndex := enqueue.bits.instructionIndex
   executionQueue.enq.bits.loadStore        := enqueue.bits.loadStore
   executionQueue.enq.bits.vd               := enqueue.bits.vd
+  executionQueue.enq.bits.vSew1H           := enqueue.bits.vSew1H
   executionQueue.enq.valid                 := enqueue.valid
   enqueue.ready                            := executionQueue.enq.ready
   dequeue.valid                            := executionQueue.deq.valid
@@ -113,6 +115,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
   dequeue.bits.instructionIndex := executionQueue.deq.bits.instructionIndex
   dequeue.bits.loadStore        := executionQueue.deq.bits.loadStore
   dequeue.bits.vd               := executionQueue.deq.bits.vd
+  dequeue.bits.vSew1H           := executionQueue.deq.bits.vSew1H
   dequeue.bits.sSendResponse.foreach(_ := executionQueue.deq.bits.sSendResponse.get)
   stageValid                    := executionQueue.deq.valid
 }
