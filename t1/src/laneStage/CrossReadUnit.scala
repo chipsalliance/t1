@@ -30,12 +30,12 @@ class CrossReadUnit(parameter: LaneParameter) extends Module {
 
   @public
   val readBusDequeue: Vec[DecoupledIO[ReadBusData]] = IO(
-    Vec(2, Flipped(Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth))))
+    Vec(2, Flipped(Decoupled(new ReadBusData(parameter.datapathWidth))))
   )
 
   @public
   val readBusRequest: Vec[DecoupledIO[ReadBusData]] =
-    IO(Vec(2, Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth))))
+    IO(Vec(2, Decoupled(new ReadBusData(parameter.datapathWidth))))
 
   @public
   val crossReadDequeue:   DecoupledIO[UInt] = IO(Decoupled(UInt((parameter.datapathWidth * 2).W)))
