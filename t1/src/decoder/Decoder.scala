@@ -390,6 +390,18 @@ object Decoder {
     }
   }
 
+  object maskPipeType extends BoolField {
+    override def getTriState(pattern: T1DecodePattern): TriState = pattern.isMaskPip.value
+  }
+
+  object maskPipeUop extends T1TopUopField {
+    override def genTable(pattern: T1DecodePattern): BitPat = pattern.maskPipeUop.value match {
+      case _: MaskUop0.type => BitPat("b0000")
+      case _: MaskUop1.type => BitPat("b0001")
+      case _ => BitPat.dontCare(chiselType.getWidth)
+    }
+  }
+
   def allFields(param: DecoderParam):        Seq[T1DecodeFiled[_ >: Bool <: UInt]] = Seq(
     logic,
     adder,
@@ -398,6 +410,7 @@ object Decoder {
     divider,
     multiCycle,
     other,
+    maskPipeType,
     unsigned0,
     unsigned1,
     itype,
@@ -438,6 +451,7 @@ object Decoder {
     ffo,      // todo: add mask select -> top uop
     popCount, // top uop add, red, uop popCount
     topUop,
+    maskPipeUop,
     specialSlot
   ) ++ {
     if (param.fpuEnable)
