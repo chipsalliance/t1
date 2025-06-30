@@ -16,21 +16,17 @@ object isMaskunit {
     }.get
 
   def y(t1DecodePattern: T1DecodePattern): Boolean = {
-    val allMatched = Seq(
-      "vcompress.vm",
-      "vcpop.m",
-      "vfirst.m",
+    val mvType          = Seq(
       "vfmv.f.s",
       "vfmv.s.f",
-      "vfredmax.vs",
-      "vfredmin.vs",
-      "vfredosum.vs",
-      "vfredusum.vs",
-      "vfslide1down.vf",
-      "vfslide1up.vf",
-      "vfwredosum.vs",
-      "vfwredusum.vs",
-      "viota.m",
+      "vmv.s.x",
+      "vmv.x.s"
+    )
+    val compress        = Seq(
+      "vcompress.vm",
+      "viota.m"
+    )
+    val maskDestination = Seq(
       "vmadc.vi",
       "vmadc.vim",
       "vmadc.vv",
@@ -73,34 +69,12 @@ object isMaskunit {
       "vmsne.vi",
       "vmsne.vv",
       "vmsne.vx",
-      "vmsof.m",
-      "vmv.s.x",
-      "vmv.x.s",
-      "vredand.vs",
-      "vredmax.vs",
-      "vredmaxu.vs",
-      "vredmin.vs",
-      "vredminu.vs",
-      "vredor.vs",
-      "vredsum.vs",
-      "vredxor.vs",
-      "vrgather.vv",
-      "vrgatherei16.vv",
-      "vsext.vf2",
-      "vsext.vf4",
-      "vsext.vf8",
-      "vslide1down.vx",
-      "vslide1up.vx",
-      "vslidedown.vi",
-      "vslidedown.vx",
-      "vslideup.vi",
-      "vslideup.vx",
-      "vwredsum.vs",
-      "vwredsumu.vs",
-      "vzext.vf2",
-      "vzext.vf4",
-      "vzext.vf8"
+      "vmsof.m"
     )
+    val popCount        = Seq(
+      "vcpop.m"
+    )
+    val allMatched      = mvType ++ compress ++ maskDestination ++ popCount
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {
