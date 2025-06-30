@@ -53,37 +53,7 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   @public
   val stageValid: Bool = IO(Output(Bool()))
 
-  @public
-  val crossWritePort: Option[Vec[DecoupledIO[WriteBusData]]] =
-    Option.when(isLastSlot)(
-      IO(
-        Vec(
-          2,
-          Decoupled(
-            new WriteBusData(
-              parameter.datapathWidth,
-              parameter.instructionIndexBits,
-              parameter.groupNumberBits,
-              parameter.idWidth
-            )
-          )
-        )
-      )
-    )
-
   val stageValidReg: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
-
-  /** schedule cross lane write LSB */
-  val sCrossWriteLSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
-
-  /** schedule cross lane write MSB */
-  val sCrossWriteMSB: Option[Bool] = Option.when(isLastSlot)(RegInit(true.B))
-
-  // update register
-  when(enqueue.fire) {
-    pipeEnqueue.foreach(_ := enqueue.bits)
-    (sCrossWriteLSB ++ sCrossWriteMSB).foreach(_ := !enqueue.bits.decodeResult(Decoder.crossWrite))
-  }
 
   // Used to cut off back pressure forward
   val vrfWriteQueue: QueueIO[VRFWriteRequest] = Queue.io(vrfWriteBundle, 4)
@@ -98,19 +68,6 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
 
     /** Write queue ready or not need to write. */
     val vrfWriteReady: Bool = vrfWriteQueue.enq.ready || pipeEnqueue.get.decodeResult(Decoder.sWrite)
-
-    // VRF cross write
-    val sendState = (sCrossWriteLSB ++ sCrossWriteMSB).toSeq
-    crossWritePort.get.zipWithIndex.foreach { case (port, index) =>
-      port.valid                 := stageValidReg.get && !sendState(index)
-      port.bits.mask             := cutUIntBySize(pipeEnqueue.get.mask, 2)(index)
-      port.bits.data             := pipeEnqueue.get.crossWriteData(index)
-      port.bits.counter          := pipeEnqueue.get.groupCounter
-      port.bits.instructionIndex := pipeEnqueue.get.instructionIndex
-      when(port.fire) {
-        sendState(index) := true.B
-      }
-    }
 
     val dataSelect: Option[UInt] = Option.when(isLastSlot) {
       Mux(
@@ -135,12 +92,8 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
     vrfWriteQueue.enq.bits.instructionIndex := pipeEnqueue.get.instructionIndex
     vrfWriteQueue.enq.bits.mask             := pipeEnqueue.get.mask
 
-    // Handshake
-    /** Cross-lane writing is over */
-    val CrossLaneWriteOver: Bool = (sCrossWriteLSB ++ sCrossWriteMSB).reduce(_ && _)
-
-    enqueue.ready := !stageValidReg.get || (CrossLaneWriteOver && vrfWriteReady)
-    val dequeueFire = stageValidReg.get && CrossLaneWriteOver && vrfWriteReady
+    enqueue.ready := !stageValidReg.get || vrfWriteReady
+    val dequeueFire = stageValidReg.get && vrfWriteReady
     stageValidReg.foreach { data =>
       when(dequeueFire ^ enqueue.fire) {
         data := enqueue.fire
