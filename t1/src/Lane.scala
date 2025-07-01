@@ -99,6 +99,7 @@ case class LaneParameter(
   chainingSize:                     Int,
   crossLaneVRFWriteEscapeQueueSize: Int,
   fpuEnable:                        Boolean,
+  zvkEnable:                        Boolean,
   portFactor:                       Int,
   maskRequestLatency:               Int,
   vrfRamType:                       RamType,
@@ -150,7 +151,7 @@ case class LaneParameter(
     *
     * for each number in table below, it represent a [[datapathWidth]]
     * {{{
-    *         lane0 | lane1 | ...                                   | lane8
+    *         lane0 | lane1 | ...                                   | lane7
     * offset0    0  |    1  |    2  |    3  |    4  |    5  |    6  |    7
     * offset1    8  |    9  |   10  |   11  |   12  |   13  |   14  |   15
     * offset2   16  |   17  |   18  |   19  |   20  |   21  |   22  |   23
@@ -200,7 +201,7 @@ case class LaneParameter(
   val idWidth: Int = log2Ceil(laneNumber + lsuSize + 1 + 1)
 
   /** Parameter for [[VRF]] */
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor, vrfRamType)
+  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor, zvkEnable, vrfRamType)
 }
 
 /** Instantiate [[Lane]] from [[T1]],

@@ -186,6 +186,22 @@ object isVtype {
       "vrol.vv",
       "vror.vv",
       "vwsll.vv"
+      // rv_zvkg
+      "vghsh.vv",
+      "vgmul.vv",
+      // rv_zvkned
+      "vaesdf.vv",
+      "vaesdm.vv",
+      "vaesef.vv",
+      "vaesem.vv",
+      // rv_zvknha
+      "vsha2ms.vv",
+      "vsha2ch.vv",
+      "vsha2cl.vv",
+      // rv_zvksed
+      "vsm4r.vv",
+      // rv_zvksh
+      "vsm3me.vv"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }

@@ -179,6 +179,14 @@ case class T1Parameter(
           case "rv_v"                                                   => true
           case s"rv_xsfmm${tew}t" if Seq(16, 32, 64, 128).contains(tew) => useXsfmm
           case "rv_zvbb"                                                => if (zvbbEnable) true else false
+          // Zvk
+          case "rv_zvkg"                                                => if (zvkEnable) true else false
+          // case "rv_zvkn"                                                => if (zvkEnable) true else false // TODO: no implementations for SEW=64
+          case "rv_zvkned"                                              => if (zvkEnable) true else false
+          case "rv_zvknha"                                              => if (zvkEnable) true else false
+          // case "rv_zvknhb"                                              => if (zvkEnable) true else false // TODO: no implementations for SEW=64
+          case "rv_zvksed"                                              => if (zvkEnable) true else false
+          case "rv_zvksh"                                               => if (zvkEnable) true else false
           case _                                                        => false
         }
       }
@@ -191,7 +199,7 @@ case class T1Parameter(
 
   require(
     extensions.forall(
-      (Seq("zve32x", "zve32f", "zvbb") ++
+      (Seq("zve32x", "zve32f", "zvbb", "zvk") ++
         Seq(128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536).map(vlen => s"zvl${vlen}b") ++
         Seq(16, 32, 64, 128).map(tew => s"rv_xsfmm${tew}t")).contains
     ),
@@ -215,6 +223,9 @@ case class T1Parameter(
 
   /** support of zvbb */
   lazy val zvbbEnable: Boolean = extensions.contains("zvbb")
+
+  /** support of zvk */
+  lazy val zvkEnable: Boolean = extensions.contains("zvk")
 
   /** datapath width of each lane should be aligned to xLen T1 only support 32 for now.
     */
@@ -306,7 +317,7 @@ case class T1Parameter(
     0
   }
 
-  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, useXsfmm, allInstructions)
+  val decoderParam: DecoderParam = DecoderParam(fpuEnable, zvbbEnable, zvkEnable, useXsfmm, allInstructions)
 
   val chaining1HBits: Int = 2 << log2Ceil(chainingSize)
 
@@ -387,7 +398,7 @@ case class T1Parameter(
       } else { 0 }
     )
   )
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
+  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, zvkEnable, vrfRamType)
   def laneIFParam = LaneIFParameter(vLen, eLen, datapathWidth, laneNumber, chainingSize, fpuEnable, decoderParam)
   def seqIFParam  = SequencerIFParameter(vLen, eLen, datapathWidth, laneNumber, chainingSize, fpuEnable, decoderParam)
   def lsuIFParam  = LSUIFParameter(vLen, eLen, datapathWidth, laneNumber, chainingSize, fpuEnable, decoderParam)
