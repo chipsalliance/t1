@@ -49,6 +49,7 @@
             inherit system;
             overlays = [
               mill-ivy-fetcher.overlays.default
+              mill-ivy-fetcher.overlays.mill-versions
               # Follow CIRCT from sequencer/zaozi overlay
               circt-follow.overlays.default
               overlay
