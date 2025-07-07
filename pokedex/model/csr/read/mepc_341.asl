@@ -1,1 +1,1 @@
-return MEPC;
+return OK(MEPC);

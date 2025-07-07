@@ -1,6 +1,6 @@
-docs/rendered.pdf: doc.typ
+docs/doc.pdf: docs/doc.typ
 	@mkdir -p docs
-	@typst compile doc.typ $@
+	typst compile $< $@
 
 README.md: docs/doc.typ
 	@typst compile --features html -f html $< readme.html
@@ -12,4 +12,4 @@ doc: README.md
 	@git add docs/doc.typ $<
 
 .PHONY: doc-pdf
-doc-pdf: docs/rendered.pdf
+doc-pdf: docs/doc.pdf

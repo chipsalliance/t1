@@ -1,4 +1,4 @@
-return [
+return OK([
   MCAUSE_IS_INTERRUPT_BIT,
   MCAUSE_XCPT_CODE
-];
+]);

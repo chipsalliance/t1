@@ -1,1 +1,1 @@
-return MTVAL;
+return OK(MTVAL);
