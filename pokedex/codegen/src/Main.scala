@@ -99,8 +99,7 @@ class CodeGenerator(params: CodeGeneratorParams):
       .map({ case CSR(csrname, _, csrindex) =>
         s"""|
             |  when '${intToBin(csrindex, 12)}' =>
-            |    let value : bits(${xlen}) = Read_${csrname.toUpperCase}();
-            |    return OK(value);
+            |    return Read_${csrname.toUpperCase}();
             |""".stripMargin
       })
       .mkString("\n")
@@ -108,7 +107,7 @@ class CodeGenerator(params: CodeGeneratorParams):
     val csrReadHandlers = csrRead
       .map({ case (csrname, body) =>
         s"""|
-            |func Read_${csrname.toUpperCase}() => bits(${xlen})
+            |func Read_${csrname.toUpperCase}() => Result
             |begin
             |
             |${body}

@@ -19,4 +19,4 @@ let misa : bits(32) = [
   MISA_EXTS
 ];
 
-return misa;
+return OK(misa);

@@ -1,1 +1,1 @@
-return Zeros(32);
+return OK(Zeros(32));
