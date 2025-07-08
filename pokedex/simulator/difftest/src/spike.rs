@@ -100,9 +100,22 @@ impl SpikeLog {
 /// Describe all load store behavior occurs at Spike side
 #[derive(Debug, PartialEq)]
 pub enum LoadStoreType {
-    Register { index: u8, value: u64 },
-    MemoryRead { address: u64 },
-    MemoryWrite { address: u64, value: u64 },
+    Register {
+        index: u8,
+        value: u64,
+    },
+    CSR {
+        index: u32,
+        name: String,
+        value: u32,
+    },
+    MemoryRead {
+        address: u64,
+    },
+    MemoryWrite {
+        address: u64,
+        value: u64,
+    },
 }
 
 impl Display for LoadStoreType {
@@ -115,6 +128,9 @@ impl Display for LoadStoreType {
                 write!(f, "write memory {address:#010x} with {value:#010x}")
             }
             Self::MemoryRead { address } => write!(f, "read memory {address:#010x}"),
+            Self::CSR { index, name, value } => {
+                write!(f, "write CSR {index:#010x}({name}) with {value}")
+            }
         }
     }
 }
@@ -232,6 +248,7 @@ enum ParseCursor<'a> {
     Insn,
     RegParseBegin,
     RegParseName(&'a str),
+    CsrParseName(&'a str),
     MemParseBegin,
     MemParseRead(u64),
     Error(String),
@@ -373,16 +390,17 @@ impl SpikeLogSyntax {
                         // spike handle memory in undocumented way and we don't need to compare memory
                         // behavior to spike, so trim memory here
                         ParseCursor::RegParseBegin if elem != "mem" && !elem.starts_with("0x") => {
-                            const VALID: [char; 4] = ['x', 'f', 'v', 'c'];
-                            // TODO: handle CSR
-                            if VALID.contains(&elem.chars().next().unwrap()) {
-                                ctx.cursor = ParseCursor::RegParseName(elem);
-                            } else {
-                                ctx.cursor = to_error(
-                                    "register name",
-                                    elem,
-                                    "register name not prefixed with 'x', 'f', 'v' or 'c'",
-                                );
+                            let prefix = elem.chars().next().unwrap();
+                            match prefix {
+                                'x' => ctx.cursor = ParseCursor::RegParseName(elem),
+                                'c' => ctx.cursor = ParseCursor::CsrParseName(elem),
+                                _ => {
+                                    ctx.cursor = to_error(
+                                        "register name",
+                                        elem,
+                                        "register name not prefixed with 'x', 'f', 'v' or 'c'",
+                                    )
+                                }
                             }
 
                             ctx
@@ -477,6 +495,33 @@ impl SpikeLogSyntax {
                                 .push(LoadStoreType::MemoryRead { address });
                             ctx
                         }
+                        ParseCursor::CsrParseName(csr) => {
+                            ctx.cursor = ParseCursor::RegParseBegin;
+                            // parse c%d_%s (c773_mtvec)
+                            let pairs: Vec<&str> = csr[1..].split("_").collect();
+                            let Ok(index): Result<u32, _> = pairs[0].parse() else {
+                                ctx.cursor = to_error(
+                                    "csr number",
+                                    pairs[0],
+                                    "csr number is not valid digit",
+                                );
+                                return ctx;
+                            };
+                            let name = pairs[1].to_string();
+
+                            let Ok(value): Result<u32, _> =
+                                u32::from_str_radix(elem.trim_start_matches("0x"), 16)
+                            else {
+                                ctx.cursor =
+                                    to_error("csr value", elem, "csr value is not valid digit");
+                                return ctx;
+                            };
+                            ctx.state
+                                .commits
+                                .push(LoadStoreType::CSR { index, name, value });
+
+                            ctx
+                        }
                         // passthrough error
                         _ => ctx,
                     }
@@ -497,6 +542,17 @@ fn test_parsing_spike_log_ast() {
     assert!(!ast.is_empty());
 
     let expect = SpikeLog(vec![
+        SpikeLogSyntax {
+            core: 0,
+            privilege: 3,
+            pc: 0x800000ac,
+            instruction: 0x30529073,
+            commits: LoadStoreCommits(vec![LoadStoreType::CSR {
+                index: 0x305,
+                name: "mtvec".to_string(),
+                value: 0x8000000c,
+            }]),
+        },
         SpikeLogSyntax {
             core: 0,
             privilege: 3,
