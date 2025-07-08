@@ -6,7 +6,13 @@ do_tohost:
     sw      a0,%lo(tohost)(a5)
     ret
 
+trap_handler:
+    li a0, 1
+    call do_tohost
+    ebreak
+
 _start:
+    csrr a0, mhartid
     li x1, 0
     li x2, 0
     li x3, 0
@@ -40,6 +46,9 @@ _start:
     li x31, 0
 
     la sp, __stacktop
+
+    la t0, trap_handler
+    csrw mtvec, t0
 
     // no ra to save
     call test
