@@ -641,6 +641,25 @@ class T1(val parameter: T1Parameter)
     }
   }
 
+  val freeArbiterVec: Seq[Arbiter[LaneVirtualChannel]] = Seq.tabulate(parameter.laneNumber) { sinkIndex =>
+    val freeArbiter =
+      Module(new Arbiter(chiselTypeOf(laneIFVec(sinkIndex).io.freeCrossOutputVC.bits), parameter.laneNumber))
+    laneIFVec(sinkIndex).io.freeCrossInputVC <> freeArbiter.io.out
+    freeArbiter
+  }
+  // free cross data
+  Seq.tabulate(parameter.laneNumber) { sourceIndex =>
+    val sourceVC: DecoupledIO[LaneVirtualChannel] = laneIFVec(sourceIndex).io.freeCrossOutputVC
+    val readyVec = Seq.tabulate(parameter.laneNumber) { sinkIndex =>
+      val sourceToThisSink = WireDefault(sourceVC)
+      sourceToThisSink.valid := sourceVC.valid && sourceVC.bits.sinkID === sinkIndex.U
+      val sinkNode: DecoupledIO[LaneVirtualChannel] = connectNode(sourceToThisSink)(2)
+      freeArbiterVec(sinkIndex).io.in(sourceIndex) <> sinkNode
+      sourceToThisSink.fire
+    }
+    sourceVC.ready := VecInit(readyVec).asUInt.orR
+  }
+
   /** maintain a [[DecoupleIO]] for [[requestReg]]. */
   val requestRegDequeue = Wire(Decoupled(new T1Issue(parameter.xLen, parameter.vLen)))
   // latch instruction, csr, decode result and instruction index to requestReg.
@@ -1045,6 +1064,9 @@ class T1(val parameter: T1Parameter)
     laneIF.io.maskWriteRelease.valid := lane.vrfWriteChannel.fire && lane.writeFromMask
     laneIF.io.lsuWriteAck.valid      := lane.vrfWriteChannel.fire && !lane.writeFromMask
     laneIF.io.lsuWriteAck.bits       := lane.vrfWriteChannel.bits.instructionIndex
+
+    lane.freeCrossDataEnq <> laneIF.io.freeCrossDataEnq
+    laneIF.io.freeCrossDataDeq <> lane.freeCrossDataDeq
 
     val instructionFinishedPipe =
       maskAnd(laneResponseVec(index).valid, laneResponseVec(index).bits.instructionFinished).asUInt

@@ -357,6 +357,34 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val vrfReadyToStore:  Bool = IO(Output(Bool()))
 
   @public
+  val freeCrossDataDeq: DecoupledIO[FreeWriteBusData] =
+    IO(
+      Decoupled(
+        new FreeWriteBusData(
+          parameter.datapathWidth,
+          parameter.instructionIndexBits,
+          parameter.groupNumberBits,
+          parameter.laneNumberBits
+        )
+      )
+    )
+
+  @public
+  val freeCrossDataEnq: DecoupledIO[FreeWriteBusData] =
+    IO(
+      Flipped(
+        Decoupled(
+          new FreeWriteBusData(
+            parameter.datapathWidth,
+            parameter.instructionIndexBits,
+            parameter.groupNumberBits,
+            parameter.laneNumberBits
+          )
+        )
+      )
+    )
+
+  @public
   val laneProbe = IO(Output(Probe(new LaneProbe(parameter), layers.Verification)))
 
   // TODO: remove
@@ -653,7 +681,13 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val stage3EnqWire:   DecoupledIO[LaneStage3Enqueue]     = Wire(Decoupled(new LaneStage3Enqueue(parameter, isLastSlot)))
     val stage3EnqSelect: DecoupledIO[LaneStage3Enqueue]     = maskStage.map { mask =>
       mask.enqueue <> stage3EnqWire
-      mask.pipeForMask.sew1H := stage2.dequeue.bits.vSew1H
+      mask.pipeForMask.sew1H         := stage2.dequeue.bits.vSew1H
+      mask.pipeForMask.readFromScala := stage2.dequeue.bits.readFromScalar.get
+      mask.pipeForMask.source1       := executionUnit.dequeue.bits.source1.get
+      mask.pipeForMask.source2       := executionUnit.dequeue.bits.source2.get
+      mask.pipeForMask.vl            := executionUnit.dequeue.bits.vl.get
+      mask.pipeForMask.vlmul         := executionUnit.dequeue.bits.vlmul.get
+      mask.laneIndex                 := laneIndex
       maskUnitRequest <> mask.maskReq
       maskUnitRequest.bits.maskRequestToLSU <> mask.maskRequestToLSU
       mask.dequeue
@@ -775,6 +809,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         writePort.deq <> maskStage.get.crossWritePort4Deq(portIndex)
         maskStage.get.crossWritePort4Enq(portIndex) <> writePort.enq
       }
+      freeCrossDataDeq <> maskStage.get.freeCrossDataDeq
+      maskStage.get.freeCrossDataEnq <> freeCrossDataEnq
     }
 
     stage2.enqueue.valid        := stage1.dequeue.valid && executionUnit.enqueue.ready

@@ -48,12 +48,8 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   @public
   val vrfWriteRequest: DecoupledIO[VRFWriteRequest]   = IO(Decoupled(vrfWriteBundle))
 
-  val pipeEnqueue: Option[LaneStage3Enqueue] = Option.when(isLastSlot)(RegInit(0.U.asTypeOf(enqueue.bits)))
-
   @public
   val stageValid: Bool = IO(Output(Bool()))
-
-  val stageValidReg: Option[Bool] = Option.when(isLastSlot)(RegInit(false.B))
 
   // Used to cut off back pressure forward
   val vrfWriteQueue: QueueIO[VRFWriteRequest] = Queue.io(vrfWriteBundle, 4)
@@ -67,39 +63,33 @@ class LaneStage3(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   if (isLastSlot) {
 
     /** Write queue ready or not need to write. */
-    val vrfWriteReady: Bool = vrfWriteQueue.enq.ready || pipeEnqueue.get.decodeResult(Decoder.sWrite)
+    val vrfWriteReady: Bool = vrfWriteQueue.enq.ready || enqueue.bits.decodeResult(Decoder.sWrite)
 
     val dataSelect: Option[UInt] = Option.when(isLastSlot) {
       Mux(
-        pipeEnqueue.get.decodeResult(Decoder.nr) || pipeEnqueue.get.ffoByOtherLanes,
-        pipeEnqueue.get.pipeData,
-        pipeEnqueue.get.data
+        enqueue.bits.decodeResult(Decoder.nr) || enqueue.bits.ffoByOtherLanes,
+        enqueue.bits.pipeData,
+        enqueue.bits.data
       )
     }
 
     // enqueue write for last slot
-    vrfWriteQueue.enq.valid := stageValidReg.get && !pipeEnqueue.get.decodeResult(Decoder.sWrite)
+    vrfWriteQueue.enq.valid := enqueue.valid && !enqueue.bits.decodeResult(Decoder.sWrite)
 
     // UInt(5.W) + UInt(3.W), use `+` here
-    vrfWriteQueue.enq.bits.vd := pipeEnqueue.get.vd + pipeEnqueue.get.groupCounter(
+    vrfWriteQueue.enq.bits.vd := enqueue.bits.vd + enqueue.bits.groupCounter(
       parameter.groupNumberBits - 1,
       parameter.vrfOffsetBits
     )
 
-    vrfWriteQueue.enq.bits.offset           := pipeEnqueue.get.groupCounter
+    vrfWriteQueue.enq.bits.offset           := enqueue.bits.groupCounter
     vrfWriteQueue.enq.bits.data             := dataSelect.get
     vrfWriteQueue.enq.bits.last             := DontCare
-    vrfWriteQueue.enq.bits.instructionIndex := pipeEnqueue.get.instructionIndex
-    vrfWriteQueue.enq.bits.mask             := pipeEnqueue.get.mask
+    vrfWriteQueue.enq.bits.instructionIndex := enqueue.bits.instructionIndex
+    vrfWriteQueue.enq.bits.mask             := enqueue.bits.mask
 
-    enqueue.ready := !stageValidReg.get || vrfWriteReady
-    val dequeueFire = stageValidReg.get && vrfWriteReady
-    stageValidReg.foreach { data =>
-      when(dequeueFire ^ enqueue.fire) {
-        data := enqueue.fire
-      }
-    }
-    stageValid := stageValidReg.get || vrfWriteQueue.deq.valid
+    enqueue.ready := vrfWriteReady
+    stageValid    := vrfWriteQueue.deq.valid
   } else {
     // Normal will be one level less
     vrfWriteQueue.enq.valid := enqueue.valid
