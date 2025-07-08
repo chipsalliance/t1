@@ -102,7 +102,7 @@ impl SpikeLog {
 pub enum LoadStoreType {
     Register {
         index: u8,
-        value: u64,
+        value: u32,
     },
     CSR {
         index: u32,
@@ -110,11 +110,11 @@ pub enum LoadStoreType {
         value: u32,
     },
     MemoryRead {
-        address: u64,
+        address: u32,
     },
     MemoryWrite {
-        address: u64,
-        value: u64,
+        address: u32,
+        value: u32,
     },
 }
 
@@ -143,9 +143,23 @@ impl LoadStoreType {
         }
     }
 
-    pub fn get_register(&self) -> Option<(u8, u64)> {
+    pub fn get_register(&self) -> Option<(u8, u32)> {
         match self {
             Self::Register { index, value } => Some((*index, *value)),
+            _ => None,
+        }
+    }
+
+    pub fn is_csr_commit(&self) -> bool {
+        match self {
+            Self::CSR { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn get_csr(&self) -> Option<(u32, String, u32)> {
+        match self {
+            Self::CSR { index, name, value } => Some((*index, name.to_string(), *value)),
             _ => None,
         }
     }
@@ -157,7 +171,7 @@ impl LoadStoreType {
         }
     }
 
-    pub fn get_mem_write(&self) -> Option<(u64, u64)> {
+    pub fn get_mem_write(&self) -> Option<(u32, u32)> {
         match self {
             Self::MemoryWrite { address, value } => Some((*address, *value)),
             _ => None,
@@ -169,7 +183,7 @@ impl LoadStoreType {
 pub struct LoadStoreCommits(Vec<LoadStoreType>);
 
 impl LoadStoreCommits {
-    pub fn get_mem_write(&self) -> Option<(u64, u64)> {
+    pub fn get_mem_write(&self) -> Option<(u32, u32)> {
         self.0.iter().find_map(|commit| commit.get_mem_write())
     }
 
@@ -198,7 +212,7 @@ impl DerefMut for LoadStoreCommits {
 pub struct SpikeLogSyntax {
     pub core: u8,
     pub privilege: u8,
-    pub pc: u64,
+    pub pc: u32,
     pub instruction: u32,
     pub commits: LoadStoreCommits,
 }
@@ -229,10 +243,17 @@ impl Display for SpikeLogSyntax {
 }
 
 impl SpikeLogSyntax {
-    pub fn get_register_type_commits(&self) -> Vec<&LoadStoreType> {
+    pub fn get_register_write_commits(&self) -> Vec<&LoadStoreType> {
         self.commits
             .iter()
             .filter(|event| event.is_register_write_commit())
+            .collect()
+    }
+
+    pub fn get_csr_write_commits(&self) -> Vec<&LoadStoreType> {
+        self.commits
+            .iter()
+            .filter(|event| event.is_csr_commit())
             .collect()
     }
 
@@ -250,7 +271,7 @@ enum ParseCursor<'a> {
     RegParseName(&'a str),
     CsrParseName(&'a str),
     MemParseBegin,
-    MemParseRead(u64),
+    MemParseRead(u32),
     Error(String),
 }
 
@@ -342,14 +363,14 @@ impl SpikeLogSyntax {
                                 return ctx;
                             };
 
-                            match u64::from_str_radix(elem.trim_start_matches("0x"), 16) {
+                            match u32::from_str_radix(elem.trim_start_matches("0x"), 16) {
                                 Ok(pc) => {
                                     ctx.state.pc = pc;
                                     ctx.cursor = ParseCursor::Insn;
                                     ctx
                                 }
                                 Err(err) => {
-                                    ctx.cursor = to_error("u64 value pc", elem, err);
+                                    ctx.cursor = to_error("u32 value pc", elem, err);
                                     ctx
                                 }
                             }
@@ -428,7 +449,7 @@ impl SpikeLogSyntax {
                                 return ctx;
                             };
 
-                            match u64::from_str_radix(elem.trim_start_matches("0x"), 16) {
+                            match u32::from_str_radix(elem.trim_start_matches("0x"), 16) {
                                 Ok(reg_val) => {
                                     ctx.cursor = ParseCursor::RegParseBegin;
                                     ctx.state.commits.push(LoadStoreType::Register {
@@ -439,7 +460,7 @@ impl SpikeLogSyntax {
                                 }
                                 Err(err) => {
                                     ctx.cursor =
-                                        to_error("u64 value register_value", elem, err.to_string());
+                                        to_error("u32 value register_value", elem, err.to_string());
                                     ctx
                                 }
                             }
@@ -454,7 +475,7 @@ impl SpikeLogSyntax {
                                 return ctx;
                             };
 
-                            match u64::from_str_radix(elem.trim_start_matches("0x"), 16) {
+                            match u32::from_str_radix(elem.trim_start_matches("0x"), 16) {
                                 Ok(address) => {
                                     ctx.cursor = ParseCursor::MemParseRead(address);
                                     let is_line_end = index == total_segments - 1;
@@ -466,13 +487,13 @@ impl SpikeLogSyntax {
                                     ctx
                                 }
                                 Err(err) => {
-                                    ctx.cursor = to_error("u64 memory address", elem, err);
+                                    ctx.cursor = to_error("u32 memory address", elem, err);
                                     ctx
                                 }
                             }
                         }
                         ParseCursor::MemParseRead(address) if elem.starts_with("0x") => {
-                            match u64::from_str_radix(elem.trim_start_matches("0x"), 16) {
+                            match u32::from_str_radix(elem.trim_start_matches("0x"), 16) {
                                 Ok(write_val) => {
                                     ctx.cursor = ParseCursor::RegParseBegin;
                                     ctx.state.commits.push(LoadStoreType::MemoryWrite {
@@ -483,7 +504,7 @@ impl SpikeLogSyntax {
                                 }
                                 Err(err) => {
                                     ctx.cursor =
-                                        to_error("u64 memory write value", elem, err.to_string());
+                                        to_error("u32 memory write value", elem, err.to_string());
                                     ctx
                                 }
                             }

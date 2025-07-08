@@ -270,10 +270,22 @@ impl SimulatorState {
     pub(crate) fn write_register(&self, reg_idx: u8, value: u32) {
         event!(
             Level::TRACE,
-            event_type = "arch_state",
-            action = "register_update",
+            event_type = "register",
+            action = "write",
             pc = self.pc,
             reg_idx = reg_idx,
+            data = value,
+        );
+    }
+
+    pub(crate) fn write_csr(&self, idx: u32, name: &str, value: u32) {
+        event!(
+            Level::TRACE,
+            event_type = "csr",
+            action = "write",
+            pc = self.pc,
+            csr_idx = idx,
+            csr_name = name,
             data = value,
         );
     }

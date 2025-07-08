@@ -200,7 +200,6 @@ dependencies = [
  "elf",
  "hex",
  "png",
- "spike_rs",
  "svdpi",
  "tempfile",
  "tracing",

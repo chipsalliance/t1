@@ -134,6 +134,18 @@ unsafe extern "C" fn FFI_write_GPR_hook_0(reg_idx: u8, data: u32) {
 }
 
 #[unsafe(no_mangle)]
+unsafe extern "C" fn FFI_write_CSR_hook_0(idx: i128, name: *const c_char, data: u32) {
+    let state = unsafe { get_state() };
+    let cstr = unsafe { CStr::from_ptr(name) };
+    let name_str = String::from_utf8_lossy(cstr.to_bytes());
+    let idx: u32 = idx
+        .try_into()
+        .expect("csr id too large to be convert into u32 string");
+
+    state.write_csr(idx, &name_str, data);
+}
+
+#[unsafe(no_mangle)]
 unsafe extern "C" fn FFI_print_str_0(s: *const c_char) {
     let state = unsafe { get_state() };
     let cstr = unsafe { CStr::from_ptr(s) };
