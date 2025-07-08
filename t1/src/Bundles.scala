@@ -513,6 +513,9 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
   val loadStore:        Bool         = Bool()
   val vd:               UInt         = UInt(5.W)
   val vSew1H:           UInt         = UInt(3.W)
+
+  // pipe for mask pipe
+  val readFromScalar: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
 }
 
 // Record of temporary execution units
@@ -839,6 +842,21 @@ class LaneVirtualChannel(dataWidth: Int, opcodeWidth: Int, idWidth: Int) extends
   val last: Bool = Bool()
 }
 
+class FreeWriteBusData(datapathWidth: Int, instructionIndexBits: Int, groupNumberBits: Int, laneNumberBits: Int)
+    extends Bundle {
+
+  /** data field of the bus. */
+  val data: UInt = UInt(datapathWidth.W)
+
+  /** used for instruction with mask. */
+  val mask: UInt = UInt((datapathWidth / 2 / 8).W)
+
+  /** define the order of the data to dequeue from ring. */
+  val counter: UInt = UInt(groupNumberBits.W)
+
+  val sink: UInt = UInt(laneNumberBits.W)
+}
+
 class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   val clock: Clock = Input(Clock())
   val reset: Reset = Input(Reset())
@@ -1030,6 +1048,39 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
     Decoupled(
       new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
     )
+  )
+
+  // Data channel for free exchange of data
+  val freeCrossDataDeq: DecoupledIO[FreeWriteBusData] =
+    Flipped(
+      Decoupled(
+        new FreeWriteBusData(
+          parameter.datapathWidth,
+          parameter.instructionIndexBits,
+          parameter.groupNumberBits,
+          parameter.laneNumberBits
+        )
+      )
+    )
+
+  val freeCrossDataEnq: DecoupledIO[FreeWriteBusData] =
+    Decoupled(
+      new FreeWriteBusData(
+        parameter.datapathWidth,
+        parameter.instructionIndexBits,
+        parameter.groupNumberBits,
+        parameter.laneNumberBits
+      )
+    )
+
+  val freeCrossInputVC: DecoupledIO[LaneVirtualChannel] = Flipped(
+    Decoupled(
+      new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
+    )
+  )
+
+  val freeCrossOutputVC: DecoupledIO[LaneVirtualChannel] = Decoupled(
+    new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
   )
 }
 

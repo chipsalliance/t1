@@ -60,7 +60,19 @@ object isMaskPipeType {
       "vwsll.vx",
       "vwsll.vi"
     )
-    val allMatched   = isExtend ++ isCrossWrite
+
+    val isSlide = Seq(
+      "vfslide1down.vf",
+      "vfslide1up.vf",
+      "vslide1down.vx",
+      "vslide1up.vx",
+      "vslidedown.vi",
+      "vslidedown.vx",
+      "vslideup.vi",
+      "vslideup.vx"
+    )
+
+    val allMatched = isExtend ++ isCrossWrite ++ isSlide
 
     allMatched.contains(t1DecodePattern.instruction.name)
   }
