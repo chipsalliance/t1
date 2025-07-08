@@ -46,6 +46,12 @@ pub fn run_process(
     Ok(pokedex_log)
 }
 
+// helper struct for easier deserialize
+#[derive(Debug, Deserialize)]
+struct PokedexLogLine {
+    pub fields: PokedexEvent,
+}
+
 fn get_pokedex_events(raw: impl AsRef<[u8]>) -> PokedexLog {
     let log_raw = String::from_utf8_lossy(raw.as_ref());
     let mut events = Vec::new();
@@ -59,11 +65,6 @@ fn get_pokedex_events(raw: impl AsRef<[u8]>) -> PokedexLog {
     events
 }
 
-#[derive(Debug, Deserialize)]
-pub struct PokedexLogLine {
-    pub fields: PokedexEvent,
-}
-
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(tag = "event_type")]
@@ -74,23 +75,31 @@ pub enum PokedexEvent {
         bytes: u8,
         address: u64,
     },
-    #[serde(rename = "arch_state")]
-    ArchState {
+    #[serde(rename = "csr")]
+    CSR {
         action: String,
-        pc: u64,
+        pc: u32,
+        csr_idx: u32,
+        csr_name: String,
+        data: u32,
+    },
+    #[serde(rename = "register")]
+    Register {
+        action: String,
+        pc: u32,
         reg_idx: u8,
-        data: u64,
+        data: u32,
     },
     #[serde(rename = "instruction_fetch")]
     InstructionFetch { data: u32 },
     #[serde(rename = "reset_vector")]
-    ResetVector { new_addr: u64 },
+    ResetVector { new_addr: u32 },
 }
 
 impl Display for PokedexEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ArchState {
+            Self::Register {
                 action,
                 pc,
                 reg_idx,
@@ -105,9 +114,17 @@ impl Display for PokedexEvent {
 }
 
 impl PokedexEvent {
-    pub fn get_reset_vector(&self) -> Option<u64> {
+    pub fn get_reset_vector(&self) -> Option<u32> {
         match self {
             Self::ResetVector { new_addr } => Some(*new_addr),
+            _ => None,
+        }
+    }
+
+    pub fn get_pc(&self) -> Option<u32> {
+        match self {
+            Self::CSR { pc, .. } => Some(pc.clone()),
+            Self::Register { pc, .. } => Some(pc.clone()),
             _ => None,
         }
     }

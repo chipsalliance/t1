@@ -18,19 +18,19 @@ struct EndPattern {
     action: String,
     // Hex string with "0x" prefix indicate the memory address a EndPattern should
     // capture
-    #[serde(deserialize_with = "hex_to_u64")]
-    memory_address: u64,
+    #[serde(deserialize_with = "hex_to_u32")]
+    memory_address: u32,
     // Hex string with "0x" prefix indicate the data value should be capture on the given memory address
-    #[serde(deserialize_with = "hex_to_u64")]
-    data: u64,
+    #[serde(deserialize_with = "hex_to_u32")]
+    data: u32,
 }
 
-fn hex_to_u64<'de, D>(de: D) -> Result<u64, D::Error>
+fn hex_to_u32<'de, D>(de: D) -> Result<u32, D::Error>
 where
     D: Deserializer<'de>,
 {
     let val: &str = Deserialize::deserialize(de)?;
-    u64::from_str_radix(val.trim_start_matches("0x"), 16)
+    u32::from_str_radix(val.trim_start_matches("0x"), 16)
         .map_err(|err| serde::de::Error::custom(format!("cannot convert hex value to u64: {err}")))
 }
 
@@ -167,47 +167,48 @@ fn diff(spike_log: &SpikeLog, pokedex_log: &PokedexLog, end_pattern: &EndPattern
         let search_result = pokedex_log[pokedex_log_cursor..]
             .iter()
             .enumerate()
-            .find_map(|(i, event)| match event {
-                PokedexEvent::ArchState { pc, .. } => {
-                    if *pc == spike_event.pc {
-                        pokedex_log_cursor = i;
-                        Some(event)
-                    } else {
-                        None
-                    }
+            .find_map(|(i, event)| {
+                let Some(pc) = event.get_pc() else {
+                    return None;
+                };
+
+                if pc == spike_event.pc {
+                    pokedex_log_cursor = i;
+                    Some(event)
+                } else {
+                    None
                 }
-                _ => None,
             });
 
-        if search_result.is_none() {
+        let Some(search_result) = search_result else {
+            // Event at Spike side doesn't found at Pokedex side
             return DiffMeta::failed(indoc::formatdoc! {"
                 At PC={:#010x} spike have following commit events that are not occur at simulator side:
 
                 {spike_event}
                 ", spike_event.pc
             });
-        }
-
-        let search_result = search_result.unwrap();
-        let PokedexEvent::ArchState {
-            reg_idx, data, pc, ..
-        } = search_result
-        else {
-            unreachable!("internal error: we already filter emulator event type at above")
         };
 
-        let match_event = spike_event
-            .get_register_type_commits()
-            .into_iter()
-            .find(|event| {
-                let (idx, value) = event.get_register().unwrap();
-                idx == *reg_idx && value == *data
-            });
+        // we must ensure we have already handle diff test for event at this PC
+        let mut is_retired = false;
 
-        if match_event.is_none() {
-            return DiffMeta::failed(indoc::formatdoc! {"
+        if let PokedexEvent::Register {
+            reg_idx, data, pc, ..
+        } = search_result
+        {
+            let match_event = spike_event
+                .get_register_write_commits()
+                .into_iter()
+                .find(|event| {
+                    let (idx, value) = event.get_register().unwrap();
+                    idx == *reg_idx && value == *data
+                });
+
+            if match_event.is_none() {
+                return DiffMeta::failed(indoc::formatdoc! {"
                 At PC={pc:#010x} simulator write {data:#010x} to register x{reg_idx},
-                but this action was not found at spike side.
+                but this action is mismatch at spike side.
 
                 ------------
                 |Event Dump|
@@ -219,6 +220,56 @@ fn diff(spike_log: &SpikeLog, pokedex_log: &PokedexLog, end_pattern: &EndPattern
                 But have spike:
                 {spike_event}
             "});
+            }
+
+            is_retired = true;
+        };
+
+        if let PokedexEvent::CSR {
+            action,
+            pc,
+            csr_idx,
+            csr_name,
+            data,
+        } = search_result
+        {
+            let match_event = spike_event
+                .get_csr_write_commits()
+                .into_iter()
+                .find(|event| {
+                    let (index, _, value) = event.get_csr().unwrap();
+                    index == *csr_idx && value == *data
+                });
+
+            if match_event.is_none() {
+                return DiffMeta::failed(indoc::formatdoc! {"
+                At PC={pc:#010x} simulator {action} {data:#010x} to CSR {csr_name},
+                but this action is mismatch at spike side.
+
+                ------------
+                |Event Dump|
+                ------------
+
+                We get simulator:
+                {search_result}
+
+                But have spike:
+                {spike_event}
+            "});
+            }
+
+            is_retired = true;
+        }
+
+        if !is_retired {
+            let msg = indoc::formatdoc! {"
+              An internal error occur: event found at Pokedex and Spike side,
+              but no differtial test was proceed.
+              Spike: {spike_event}
+              Pokedex: {search_result}
+            "};
+
+            panic!("{}", msg);
         }
     }
 

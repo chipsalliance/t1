@@ -84,14 +84,14 @@ class CodeGenerator(params: CodeGeneratorParams):
     })
 
     val csrWrite = csrDB.map({
-      case CSR(csrname, csrnumber, _) => {
+      case CSR(csrname, csrnumber, csrindex) => {
         val filename = user_csr_path / "write" / s"${csrname}_${csrnumber}.asl"
         if !os.exists(filename) then
           throw new Exception(
             s"${csrname} implemented read functions but no write function implemented"
           )
 
-        csrname -> os.read(filename)
+        csrname -> (csrindex, os.read(filename))
       }
     })
 
@@ -127,10 +127,11 @@ class CodeGenerator(params: CodeGeneratorParams):
       .mkString("\n")
 
     val csrWriteHandlers = csrWrite
-      .map({ case (csrname, body) =>
+      .map({ case (csrname, (csrindex, body)) =>
         s"""|
             |func Write_${csrname.toUpperCase}(value : bits(32)) => Result
             |begin
+            |FFI_write_CSR_hook(${csrindex}, "${csrname}", value);
             |
             |${body}
             |
@@ -161,7 +162,6 @@ class CodeGenerator(params: CodeGeneratorParams):
           |    otherwise =>
           |      return Exception(CAUSE_ILLEGAL_INSTRUCTION, ZeroExtend(csr, 32));
           |  end
-          |  return Retired();
           |end
           |
           |${csrReadHandlers}
