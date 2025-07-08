@@ -8,16 +8,21 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 trait MaskPipeUop extends Uop
 object MaskUop0   extends MaskPipeUop
 object MaskUop1   extends MaskPipeUop
-object MaskUop2   extends MaskPipeUop
-object MaskUop3   extends MaskPipeUop
 object MaskUop4   extends MaskPipeUop
 object MaskUop5   extends MaskPipeUop
-
+object MaskUop6   extends MaskPipeUop
+object MaskUop7   extends MaskPipeUop
+// 0000 x => extend x?4:2                 [0,1]
+// 001 xy => slide  x?up:down   y?s:1     [4,7]
 object MaskPipeOpcode {
   def apply(t1DecodePattern: T1DecodePattern): MaskPipeOpcode = {
     Seq(
       t0 _ -> MaskUop0,
-      t1 _ -> MaskUop1
+      t1 _ -> MaskUop1,
+      t4 _ -> MaskUop4,
+      t5 _ -> MaskUop5,
+      t6 _ -> MaskUop6,
+      t7 _ -> MaskUop7
     ).collectFirst {
       case (fn, tpe) if fn(t1DecodePattern) => MaskPipeOpcode(tpe)
     }.getOrElse(MaskPipeOpcode(MaskUop0))
@@ -70,6 +75,35 @@ object MaskPipeOpcode {
     val allMatched: Seq[String] = Seq(
       "vsext.vf4",
       "vzext.vf4"
+    )
+    allMatched.contains(t1DecodePattern.instruction.name)
+  }
+
+  def t4(t1DecodePattern: T1DecodePattern): Boolean = {
+    val allMatched: Seq[String] = Seq(
+      "vfslide1down.vf",
+      "vslide1down.vx"
+    )
+    allMatched.contains(t1DecodePattern.instruction.name)
+  }
+  def t5(t1DecodePattern: T1DecodePattern): Boolean = {
+    val allMatched: Seq[String] = Seq(
+      "vslidedown.vi",
+      "vslidedown.vx"
+    )
+    allMatched.contains(t1DecodePattern.instruction.name)
+  }
+  def t6(t1DecodePattern: T1DecodePattern): Boolean = {
+    val allMatched: Seq[String] = Seq(
+      "vfslide1up.vf",
+      "vslide1up.vx"
+    )
+    allMatched.contains(t1DecodePattern.instruction.name)
+  }
+  def t7(t1DecodePattern: T1DecodePattern): Boolean = {
+    val allMatched: Seq[String] = Seq(
+      "vslideup.vi",
+      "vslideup.vx"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }

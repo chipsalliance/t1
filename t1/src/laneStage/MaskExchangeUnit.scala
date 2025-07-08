@@ -12,7 +12,12 @@ import org.chipsalliance.t1.rtl._
 import org.chipsalliance.t1.rtl.decoder.Decoder
 
 class PipeForMaskUnit(parameter: LaneParameter) extends Bundle {
-  val sew1H: UInt = UInt(3.W)
+  val sew1H:         UInt = UInt(3.W)
+  val source1:       UInt = UInt(parameter.datapathWidth.W)
+  val source2:       UInt = UInt(parameter.datapathWidth.W)
+  val readFromScala: UInt = UInt(parameter.datapathWidth.W)
+  val vl:            UInt = UInt(parameter.vlMaxBits.W)
+  val vlmul:         UInt = UInt(3.W)
 }
 
 class MaskExchangeRelease extends Bundle {
@@ -28,6 +33,18 @@ class CrossWritePipe(parameter: LaneParameter) extends Bundle {
   val data:         UInt = UInt(parameter.datapathWidth.W)
   val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
   val mask:         UInt = UInt((parameter.datapathWidth / 8).W)
+}
+
+class SlideRequest0(parameter: LaneParameter) extends Bundle {
+  val address: UInt = UInt(parameter.eLen.W)
+  val data:    UInt = UInt(parameter.eLen.W)
+}
+
+class SlideRequest1(parameter: LaneParameter) extends Bundle {
+  val sink:         UInt = UInt(parameter.laneNumberBits.W)
+  val data:         UInt = UInt(parameter.eLen.W)
+  val mask:         UInt = UInt((parameter.eLen / 8).W)
+  val groupCounter: UInt = UInt(parameter.groupNumberBits.W)
 }
 
 @instantiable
@@ -118,7 +135,38 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     )
 
   @public
+  val freeCrossDataDeq: DecoupledIO[FreeWriteBusData] =
+    IO(
+      Decoupled(
+        new FreeWriteBusData(
+          parameter.datapathWidth,
+          parameter.instructionIndexBits,
+          parameter.groupNumberBits,
+          parameter.laneNumberBits
+        )
+      )
+    )
+
+  @public
+  val freeCrossDataEnq: DecoupledIO[FreeWriteBusData] =
+    IO(
+      Flipped(
+        Decoupled(
+          new FreeWriteBusData(
+            parameter.datapathWidth,
+            parameter.instructionIndexBits,
+            parameter.groupNumberBits,
+            parameter.laneNumberBits
+          )
+        )
+      )
+    )
+
+  @public
   val maskPipeRelease: MaskExchangeRelease = IO(Output(new MaskExchangeRelease))
+
+  @public
+  val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
 
   // todo: sSendResponse -> sendResponse
   val enqIsMaskRequest: Bool = !enqueue.bits.sSendResponse
@@ -162,7 +210,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val crossWriteState: UInt = RegInit(15.U(4.W))
 
   // todo: other type
-  val maskPipeDeqReady:   Bool              = crossWriteState.andR
+  val maskPipeDeqReady:   Bool              = Wire(Bool())
   val maskPipeEnqReq:     LaneStage3Enqueue = maskReqQueue.deq.bits.req
   val maskPipeReqReg:     LaneStage3Enqueue = RegInit(0.U.asTypeOf(maskPipeEnqReq))
   val maskPipeMessageReg: PipeForMaskUnit   = RegInit(0.U.asTypeOf(new PipeForMaskUnit(parameter)))
@@ -173,13 +221,22 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val crossWriteFire4: Vec[Bool] = Wire(Vec(4, Bool()))
   val crossWriteDeqFire = crossWriteFire4.asUInt | crossWriteFire2.asUInt
 
+  val maskPipeEnqIsExtend: Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b0000?")
+  val maskPipeEnqIsSlid:   Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b001??")
+
+  val maskPipeDeqFire = maskPipeValid && maskPipeDeqReady
+  val maskPipeEnqFire = maskReqQueue.deq.fire
+  when(maskPipeDeqFire ^ maskPipeEnqFire) {
+    maskPipeValid := maskPipeEnqFire
+  }
+
   maskReqQueue.deq.ready := !maskPipeValid || maskPipeDeqReady
   val opcode1H: UInt = UIntToOH(maskPipeReqReg.decodeResult(Decoder.maskPipeUop))
   // update register
-  when(maskReqQueue.deq.fire) {
+  when(maskPipeEnqFire) {
     maskPipeReqReg     := maskPipeEnqReq
     maskPipeMessageReg := maskReqQueue.deq.bits.maskPipe
-    when(maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b0000?")) {
+    when(maskPipeEnqIsExtend) {
       crossWriteState := Mux(maskPipeEnqReq.decodeResult(Decoder.maskPipeUop)(0), 0.U, 12.U)
     }
     when(maskPipeEnqReq.instructionIndex =/= maskPipeReqReg.instructionIndex) {
@@ -237,7 +294,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
 
   /** queue for cross lane writing. TODO: benchmark the size of the queue
     */
-  val crossLaneWriteQueue: Seq[QueueIO[CrossWritePipe]] = Seq.tabulate(4)(i =>
+  val crossLaneWriteQueue: Seq[QueueIO[CrossWritePipe]] = Seq.tabulate(5)(i =>
     Queue.io(
       new CrossWritePipe(parameter),
       parameter.crossLaneVRFWriteEscapeQueueSize,
@@ -294,8 +351,16 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     queue.deq.valid && groupMatch
   }
 
+  crossLaneWriteQueue.last.enq.valid             := freeCrossDataEnq.valid
+  crossLaneWriteQueue.last.enq.bits.data         := freeCrossDataEnq.bits.data
+  crossLaneWriteQueue.last.enq.bits.groupCounter := freeCrossDataEnq.bits.counter
+  crossLaneWriteQueue.last.enq.bits.mask         := freeCrossDataEnq.bits.mask
+  freeCrossDataEnq.ready                         := crossLaneWriteQueue.last.enq.ready
+  crossLaneWriteQueue.last.deq.ready             := crossWriteDeqRequest.ready
+
   crossWriteDeqRequest.valid := VecInit(queueDeqValid).asUInt
-  val deqRequestSelect: CrossWritePipe = Mux1H(queueDeqValid, crossLaneWriteQueue.map(_.deq.bits))
+  val deqRequestSelect: CrossWritePipe =
+    Mux1H(queueDeqValid :+ crossLaneWriteQueue.last.deq.valid, crossLaneWriteQueue.map(_.deq.bits))
   crossWriteDeqRequest.bits                  := DontCare
   crossWriteDeqRequest.bits.data             := deqRequestSelect.data
   crossWriteDeqRequest.bits.mask             := deqRequestSelect.mask
@@ -310,4 +375,194 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   dequeue.bits               := Mux(crossWriteDeqRequest.valid, crossWriteDeqRequest.bits, enqueue.bits)
   enqueue.ready              := Mux(enqSendToDeq, dequeue.ready && !crossWriteDeqRequest.valid, maskReq.ready) || enqSendMaskPipe
   crossWriteDeqRequest.ready := dequeue.ready
+
+  // for other
+  val executeSize:    Int  = parameter.datapathWidth / 8
+  val executeSizeBit: Int  = log2Ceil(executeSize)
+  val executeIndex:   UInt = RegInit(0.U(executeSizeBit.W))
+
+  val slideValid: Bool = RegInit(false.B)
+  // update execute index
+  val firstIndex: UInt = OHToUInt(ffo(maskPipeEnqReq.mask))
+
+  // current one hot depends on execute index
+  val currentOHForExecuteGroup: UInt = UIntToOH(executeIndex)
+  // Remaining to be requested
+  val remainder:                UInt = maskPipeReqReg.mask & (~scanRightOr(currentOHForExecuteGroup)).asUInt
+  // Finds the first unfiltered execution.
+  val nextIndex:                UInt = OHToUInt(ffo(remainder))
+
+  val slideRequest0:    DecoupledIO[SlideRequest0] = Wire(Decoupled(new SlideRequest0(parameter)))
+  val slideRequestReg0: ValidIO[SlideRequest0]     = RegInit(0.U.asTypeOf(Valid(new SlideRequest0(parameter))))
+  val slideRequestDeqReady0 = Wire(Bool())
+  slideRequest0.valid := remainder.orR && slideValid
+  slideRequest0.ready := !slideRequestReg0.valid || slideRequestDeqReady0
+  when(slideRequest0.fire) {
+    slideRequestReg0.bits := slideRequest0.bits
+  }
+  when(slideRequest0.fire ^ (slideRequestDeqReady0 && slideRequestReg0.valid)) {
+    slideRequestReg0.valid := slideRequest0.fire
+  }
+  when(maskPipeEnqFire || slideRequest0.fire) {
+    executeIndex := Mux(maskPipeEnqFire, firstIndex, nextIndex)
+  }
+  when(maskPipeEnqFire && maskPipeEnqIsSlid || !remainder.orR) {
+    slideValid := maskPipeEnqFire && maskPipeEnqIsSlid
+  }
+
+  val byteMaskForExecution: UInt = Mux1H(
+    maskPipeMessageReg.sew1H,
+    Seq(
+      currentOHForExecuteGroup,
+      FillInterleaved(2, cutUIntBySize(currentOHForExecuteGroup, 2).head),
+      FillInterleaved(4, cutUIntBySize(currentOHForExecuteGroup, 4).head)
+    )
+  )
+
+  val bitMaskForExecution:                               UInt = FillInterleaved(8, byteMaskForExecution)
+  def CollapseOperand(data: UInt, sign: Bool = false.B): UInt = {
+    val dataMasked: UInt = data & bitMaskForExecution
+    val dw        = data.getWidth - (data.getWidth % 32)
+    // when sew = 0
+    val collapse0 = Seq.tabulate(dw / 8)(i => dataMasked(8 * i + 7, 8 * i)).reduce(_ | _)
+    // when sew = 1
+    val collapse1 = Seq.tabulate(dw / 16)(i => dataMasked(16 * i + 15, 16 * i)).reduce(_ | _)
+    val collapse2 = Seq.tabulate(dw / 32)(i => dataMasked(32 * i + 31, 32 * i)).reduce(_ | _)
+    Mux1H(
+      maskPipeMessageReg.sew1H,
+      Seq(
+        Fill(25, sign && collapse0(7)) ## collapse0,
+        Fill(17, sign && collapse1(15)) ## collapse1,
+        (sign && collapse2(31)) ## collapse2
+      )
+    )
+  }
+
+  val elementIndex: UInt = Mux1H(
+    maskPipeMessageReg.sew1H(2, 0),
+    Seq(
+      maskPipeReqReg.groupCounter ## laneIndex ## executeIndex,
+      maskPipeReqReg.groupCounter ## laneIndex ## executeIndex(log2Ceil(parameter.dataPathByteWidth) - 2, 0),
+      if (log2Ceil(parameter.dataPathByteWidth) > 2)
+        maskPipeReqReg.groupCounter ## laneIndex ## executeIndex(log2Ceil(parameter.dataPathByteWidth) - 3, 0)
+      else
+        maskPipeReqReg.groupCounter ## laneIndex
+    )
+  )
+  val source2:      UInt = CollapseOperand(maskPipeMessageReg.source2)
+  val source1:      UInt = CollapseOperand(maskPipeMessageReg.source1)
+
+  val sub:              Bool = !maskPipeReqReg.decodeResult(Decoder.maskPipeUop)(1)
+  val source1IsScala:   Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop)(0)
+  val source1Select:    UInt = Mux(source1IsScala, maskPipeMessageReg.readFromScala, 1.U)
+  // todo: gather use source2
+  val baseSelect:       UInt = elementIndex
+  val source1Direction: UInt = Mux(sub, (~source1Select).asUInt, source1Select)
+
+  val slideUp: Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b0011?")
+  val slide1:  Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b001?0")
+
+  slideRequest0.bits.address := baseSelect + source1Direction + sub
+  slideRequest0.bits.data    := source2
+
+  val lagerThanVL: Bool = (source1Select >> parameter.vlMaxBits).asUInt.orR
+
+  def indexAnalysis(sewInt: Int)(elementIndex: UInt, vlmul: UInt): Seq[UInt] = {
+    val intLMULInput: UInt = (1.U << vlmul(1, 0)).asUInt
+    val positionSize    = parameter.vlMaxBits - 1
+    val allDataPosition = (elementIndex << sewInt).asUInt
+    val dataPosition    = changeUIntSize(allDataPosition, positionSize)
+
+    val dataPathBaseBits = log2Ceil(parameter.datapathWidth / 8)
+    val dataOffset: UInt = dataPosition(dataPathBaseBits - 1, 0)
+    val accessLane =
+      if (parameter.laneNumber > 1)
+        dataPosition(log2Ceil(parameter.laneNumber) + dataPathBaseBits - 1, dataPathBaseBits)
+      else 0.U(1.W)
+    // 32 bit / group
+    val dataGroup  = (dataPosition >> (log2Ceil(parameter.laneNumber) + dataPathBaseBits)).asUInt
+    val offsetWidth: Int = parameter.vrfParam.vrfOffsetBits
+    val offset            = dataGroup(offsetWidth - 1, 0)
+    val accessRegGrowth   = (dataGroup >> offsetWidth).asUInt
+    val decimalProportion = offset ## accessLane
+    // 1/8 register
+    val decimal           = decimalProportion(decimalProportion.getWidth - 1, 0.max(decimalProportion.getWidth - 3))
+
+    /** elementIndex needs to be compared with vlMax(vLen * lmul /sew) This calculation is too complicated We can change
+      * the angle. Calculate the increment of the read register and compare it with lmul to know whether the index
+      * exceeds vlMax. vlmul needs to distinguish between integers and floating points
+      */
+    val overlap  =
+      (vlmul(2) && decimal >= intLMULInput(3, 1)) ||
+        (!vlmul(2) && accessRegGrowth >= intLMULInput) ||
+        (allDataPosition >> log2Ceil(parameter.vLen)).asUInt.orR
+    val unChange = slideUp && (elementIndex.asBools.last || lagerThanVL)
+    val elementValid: Bool = !unChange
+    val notNeedRead:  Bool = overlap || !elementValid || lagerThanVL || unChange
+    val reallyGrowth: UInt = changeUIntSize(accessRegGrowth, 3)
+    Seq(dataOffset, accessLane, offset, reallyGrowth, notNeedRead, elementValid)
+  }
+
+  val checkResult: Seq[Seq[UInt]] = Seq(0, 1, 2).map { sewInt =>
+    indexAnalysis(sewInt)(slideRequest0.bits.address, maskPipeMessageReg.vlmul)
+  }
+
+  val dataOffset   = Mux1H(maskPipeMessageReg.sew1H, checkResult.map(_.head))
+  val accessLane   = Mux1H(maskPipeMessageReg.sew1H, checkResult.map(_(1)))
+  val offset       = Mux1H(maskPipeMessageReg.sew1H, checkResult.map(_(2)))
+  val reallyGrowth = Mux1H(maskPipeMessageReg.sew1H, checkResult.map(_(3)))
+  val notNeedRead  = Mux1H(maskPipeMessageReg.sew1H, checkResult.map(_(4)))
+  val elementValid = Mux1H(maskPipeMessageReg.sew1H, checkResult.map(_(5)))(0)
+
+  val mask = Mux1H(maskPipeMessageReg.sew1H, Seq(1.U, 3.U, 15.U))
+
+  val slideRequest1:    SlideRequest1          = Wire(new SlideRequest1(parameter))
+  val slideRequestReg1: ValidIO[SlideRequest1] = RegInit(0.U.asTypeOf(Valid(new SlideRequest1(parameter))))
+  slideRequestDeqReady0 := !slideRequestReg1.valid || freeCrossDataDeq.ready || !elementValid
+
+  val slideRequest1EnqValid = slideRequestReg0.valid && elementValid
+  val slideRequest1EnqFire: Bool = slideRequest1EnqValid && slideRequestDeqReady0
+  when(slideRequest1EnqFire) {
+    slideRequestReg1.bits := slideRequest1
+  }
+  when(slideRequest1EnqFire ^ freeCrossDataDeq.fire) {
+    slideRequestReg1.valid := slideRequest1EnqFire
+  }
+
+  val replaceWithVs1: Bool = slide1 && Mux(
+    maskPipeEnqReq.decodeResult(Decoder.maskPipeUop)(1),
+    slideRequest0.bits.address === 0.U,
+    slideRequest0.bits.address === (maskPipeMessageReg.vl - 1.U)
+  )
+
+  val dataSelect: UInt = Mux(
+    replaceWithVs1,
+    maskPipeMessageReg.readFromScala,
+    Mux(
+      notNeedRead.asBool,
+      0.U,
+      slideRequest0.bits.data
+    )
+  )
+
+  slideRequest1.data         := dataSelect << (dataOffset ## 0.U(3.W))
+  slideRequest1.mask         := mask << dataOffset
+  slideRequest1.sink         := accessLane
+  slideRequest1.groupCounter := reallyGrowth ## offset
+
+  freeCrossDataDeq.valid        := slideRequestReg1.valid
+  freeCrossDataDeq.bits.data    := slideRequestReg1.bits.data
+  freeCrossDataDeq.bits.mask    := slideRequestReg1.bits.mask
+  freeCrossDataDeq.bits.counter := slideRequestReg1.bits.groupCounter
+  freeCrossDataDeq.bits.sink    := slideRequestReg1.bits.sink
+
+  // enq ready
+  val extendType: Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b0000?")
+  val slideType:  Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b001??")
+  maskPipeDeqReady := Mux1H(
+    Seq(
+      extendType -> crossWriteState.andR,
+      slideType  -> !remainder.orR
+    )
+  )
 }

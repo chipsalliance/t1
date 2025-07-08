@@ -51,6 +51,12 @@ class LaneExecuteResponse(parameter: LaneParameter, isLastSlot: Boolean) extends
   val ffoSuccess:     Option[UInt]      = Option.when(isLastSlot)(UInt((parameter.datapathWidth / parameter.eLen).W))
   val fpReduceValid:  Option[UInt]      =
     Option.when(parameter.fpuEnable && isLastSlot)(UInt((parameter.datapathWidth / parameter.eLen).W))
+
+  // pipe for mask pipe
+  val source1: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+  val source2: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+  val vl:      Option[UInt] = Option.when(isLastSlot)(UInt(parameter.vlMaxBits.W))
+  val vlmul:   Option[UInt] = Option.when(isLastSlot)(UInt(3.W))
 }
 
 class ExecutionBridgeRecordQueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -60,10 +66,16 @@ class ExecutionBridgeRecordQueue(parameter: LaneParameter, isLastSlot: Boolean) 
   val sSendResponse:       Option[Bool] = Option.when(isLastSlot)(Bool())
   val executeIndex:        Bool         = Bool()
   val source2:             UInt         = UInt(parameter.datapathWidth.W)
+
+  // pipe for mask pipe
+  val source1: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+  val vl:      Option[UInt] = Option.when(isLastSlot)(UInt(parameter.vlMaxBits.W))
+  val vlmul:   Option[UInt] = Option.when(isLastSlot)(UInt(3.W))
+
   // pipe state
-  val decodeResult:        DecodeBundle = Decoder.bundle(parameter.decoderParam)
-  val vSew1H:              UInt         = UInt(3.W)
-  val instructionIndex:    UInt         = UInt(parameter.instructionIndexBits.W)
+  val decodeResult:     DecodeBundle = Decoder.bundle(parameter.decoderParam)
+  val vSew1H:           UInt         = UInt(3.W)
+  val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
 }
 
 @instantiable
@@ -369,6 +381,9 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   recordQueue.enq.bits.decodeResult        := executionRecord.decodeResult
   recordQueue.enq.bits.vSew1H              := executionRecord.vSew1H
   recordQueue.enq.bits.instructionIndex    := executionRecord.instructionIndex
+  recordQueue.enq.bits.source1.foreach(_ := executionRecord.source.head)
+  recordQueue.enq.bits.vl.foreach(_ := executionRecord.csr.vl)
+  recordQueue.enq.bits.vlmul.foreach(_ := executionRecord.csr.vlmul)
   // --- vfu <-> write queue start ---
 
   /** same as [[doubleExecutionInRecord]] data request in [[recordQueue.deq]] need double execution
@@ -543,7 +558,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   val queue: QueueIO[LaneExecuteResponse] =
     Queue.io(new LaneExecuteResponse(parameter, isLastSlot), 4)
   if (isLastSlot) {
-    queue.enq.bits.data := Mux(
+    queue.enq.bits.data        := Mux(
       recordQueue.deq.bits.decodeResult(Decoder.maskDestination),
       maskFormatResultUpdate.get,
       Mux(
@@ -552,6 +567,10 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
         lastSlotDataUpdate
       )
     )
+    queue.enq.bits.source2.get := recordQueue.deq.bits.source2
+    queue.enq.bits.source1.get := recordQueue.deq.bits.source1.get
+    queue.enq.bits.vl.get      := recordQueue.deq.bits.vl.get
+    queue.enq.bits.vlmul.get   := recordQueue.deq.bits.vlmul.get
   } else {
     queue.enq.bits.data := dataDequeue
   }
