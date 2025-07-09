@@ -6,7 +6,7 @@ let src1 : integer = UInt(X[rs1]);
 let imm_ext : integer = UInt(SignExtend(imm, 32));
 if rs1 < imm_ext then
   // convert integer 1 to 32-bits bit vector
-  X[rd] = asl_cvt_int_bits(1, 32);
+  X[rd] = 1[31:0];
 else
   X[rd] = Zeros(32);
 end
