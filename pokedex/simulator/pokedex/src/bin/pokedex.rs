@@ -2,8 +2,8 @@ use clap::Parser;
 use pokedex::{SimulationException, SimulatorParams};
 use std::str::FromStr;
 use std::{fmt::Display, path::Path};
-use tracing::{Level, event};
-use tracing_subscriber::{EnvFilter, layer::Filter, prelude::*};
+use tracing::{event, Level};
+use tracing_subscriber::{layer::Filter, prelude::*, EnvFilter};
 
 const VERBOSITY_WRITE_TRACE: u8 = 2;
 
@@ -134,6 +134,10 @@ fn setup_logging(args: &Args) {
 
         let file_log_layer = tracing_subscriber::fmt::layer()
             .json()
+            .flatten_event(true)
+            .without_time()
+            .with_target(false)
+            .with_level(false)
             .with_writer(log_file)
             .with_filter(OnlyTrace);
 

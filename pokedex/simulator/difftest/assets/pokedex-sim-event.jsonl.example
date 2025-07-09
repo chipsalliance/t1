@@ -1,217 +1,217 @@
-{"timestamp":"2025-07-08T09:42:53.681425Z","level":"TRACE","fields":{"event_type":"reset_vector","new_addr":2147483676},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681434Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x8000001c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483676,"data":"[115, 37, 64, 241]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681439Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4047512947,"encoding":"0xf1402573"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681441Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483676,"reg_idx":10,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681443Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000020","event_type":"physical_memory","action":"read","bytes":4,"address":2147483680,"data":"[147, 0, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681446Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":147,"encoding":"0x00000093"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681448Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483680,"reg_idx":1,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681449Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000024","event_type":"physical_memory","action":"read","bytes":4,"address":2147483684,"data":"[19, 1, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681451Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":275,"encoding":"0x00000113"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681453Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483684,"reg_idx":2,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681454Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000028","event_type":"physical_memory","action":"read","bytes":4,"address":2147483688,"data":"[147, 1, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681456Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":403,"encoding":"0x00000193"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681457Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483688,"reg_idx":3,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681459Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x8000002c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483692,"data":"[19, 2, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681461Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":531,"encoding":"0x00000213"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681462Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483692,"reg_idx":4,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681464Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000030","event_type":"physical_memory","action":"read","bytes":4,"address":2147483696,"data":"[147, 2, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681466Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":659,"encoding":"0x00000293"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681467Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483696,"reg_idx":5,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681469Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000034","event_type":"physical_memory","action":"read","bytes":4,"address":2147483700,"data":"[19, 3, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681472Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":787,"encoding":"0x00000313"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681473Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483700,"reg_idx":6,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681475Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000038","event_type":"physical_memory","action":"read","bytes":4,"address":2147483704,"data":"[147, 3, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681477Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":915,"encoding":"0x00000393"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681478Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483704,"reg_idx":7,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681480Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x8000003c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483708,"data":"[19, 4, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681482Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1043,"encoding":"0x00000413"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681483Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483708,"reg_idx":8,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681484Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000040","event_type":"physical_memory","action":"read","bytes":4,"address":2147483712,"data":"[147, 4, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681486Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1171,"encoding":"0x00000493"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681488Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483712,"reg_idx":9,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681489Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000044","event_type":"physical_memory","action":"read","bytes":4,"address":2147483716,"data":"[19, 5, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681491Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1299,"encoding":"0x00000513"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681492Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483716,"reg_idx":10,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681494Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000048","event_type":"physical_memory","action":"read","bytes":4,"address":2147483720,"data":"[147, 5, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681496Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1427,"encoding":"0x00000593"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681498Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483720,"reg_idx":11,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681499Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x8000004c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483724,"data":"[19, 6, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681501Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1555,"encoding":"0x00000613"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681502Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483724,"reg_idx":12,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681504Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000050","event_type":"physical_memory","action":"read","bytes":4,"address":2147483728,"data":"[147, 6, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681507Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1683,"encoding":"0x00000693"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681508Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483728,"reg_idx":13,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681509Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000054","event_type":"physical_memory","action":"read","bytes":4,"address":2147483732,"data":"[19, 7, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681511Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1811,"encoding":"0x00000713"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681513Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483732,"reg_idx":14,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681514Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000058","event_type":"physical_memory","action":"read","bytes":4,"address":2147483736,"data":"[147, 7, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681516Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1939,"encoding":"0x00000793"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681517Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483736,"reg_idx":15,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681519Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x8000005c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483740,"data":"[19, 8, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681521Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":2067,"encoding":"0x00000813"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681522Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483740,"reg_idx":16,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681524Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000060","event_type":"physical_memory","action":"read","bytes":4,"address":2147483744,"data":"[147, 8, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681526Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":2195,"encoding":"0x00000893"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681527Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483744,"reg_idx":17,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681528Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000064","event_type":"physical_memory","action":"read","bytes":4,"address":2147483748,"data":"[19, 9, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681530Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":2323,"encoding":"0x00000913"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681532Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483748,"reg_idx":18,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681533Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000068","event_type":"physical_memory","action":"read","bytes":4,"address":2147483752,"data":"[147, 9, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681535Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":2451,"encoding":"0x00000993"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681537Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483752,"reg_idx":19,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681539Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x8000006c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483756,"data":"[19, 10, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681541Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":2579,"encoding":"0x00000a13"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681542Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483756,"reg_idx":20,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681544Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000070","event_type":"physical_memory","action":"read","bytes":4,"address":2147483760,"data":"[147, 10, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681546Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":2707,"encoding":"0x00000a93"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681547Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483760,"reg_idx":21,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681549Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000074","event_type":"physical_memory","action":"read","bytes":4,"address":2147483764,"data":"[19, 11, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681551Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":2835,"encoding":"0x00000b13"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681552Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483764,"reg_idx":22,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681553Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000078","event_type":"physical_memory","action":"read","bytes":4,"address":2147483768,"data":"[147, 11, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681555Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":2963,"encoding":"0x00000b93"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681557Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483768,"reg_idx":23,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681558Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x8000007c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483772,"data":"[19, 12, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681560Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":3091,"encoding":"0x00000c13"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681561Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483772,"reg_idx":24,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681563Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000080","event_type":"physical_memory","action":"read","bytes":4,"address":2147483776,"data":"[147, 12, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681565Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":3219,"encoding":"0x00000c93"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681566Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483776,"reg_idx":25,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681568Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000084","event_type":"physical_memory","action":"read","bytes":4,"address":2147483780,"data":"[19, 13, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681570Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":3347,"encoding":"0x00000d13"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681572Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483780,"reg_idx":26,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681573Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000088","event_type":"physical_memory","action":"read","bytes":4,"address":2147483784,"data":"[147, 13, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681575Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":3475,"encoding":"0x00000d93"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681577Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483784,"reg_idx":27,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681578Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x8000008c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483788,"data":"[19, 14, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681580Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":3603,"encoding":"0x00000e13"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681581Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483788,"reg_idx":28,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681583Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000090","event_type":"physical_memory","action":"read","bytes":4,"address":2147483792,"data":"[147, 14, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681585Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":3731,"encoding":"0x00000e93"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681586Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483792,"reg_idx":29,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681588Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000094","event_type":"physical_memory","action":"read","bytes":4,"address":2147483796,"data":"[19, 15, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681590Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":3859,"encoding":"0x00000f13"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681591Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483796,"reg_idx":30,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681592Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000098","event_type":"physical_memory","action":"read","bytes":4,"address":2147483800,"data":"[147, 15, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681594Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":3987,"encoding":"0x00000f93"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681596Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483800,"reg_idx":31,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681597Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x8000009c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483804,"data":"[23, 1, 0, 32]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681599Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":536871191,"encoding":"0x20000117"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681601Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483804,"reg_idx":2,"data":2684354716},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681603Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000a0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483808,"data":"[19, 1, 65, 246]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681605Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4131455251,"encoding":"0xf6410113"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681606Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483808,"reg_idx":2,"data":2684354560},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681608Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000a4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483812,"data":"[151, 2, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681610Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":663,"encoding":"0x00000297"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681611Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483812,"reg_idx":5,"data":2147483812},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681613Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000a8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483816,"data":"[147, 130, 130, 246]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681615Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4135748243,"encoding":"0xf6828293"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681616Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483816,"reg_idx":5,"data":2147483660},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681618Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000ac","event_type":"physical_memory","action":"read","bytes":4,"address":2147483820,"data":"[115, 144, 82, 48]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681620Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":810717299,"encoding":"0x30529073"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681622Z","level":"TRACE","fields":{"event_type":"csr","action":"write","pc":2147483820,"csr_idx":773,"csr_name":"mtvec","data":2147483660},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681624Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000b0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483824,"data":"[151, 0, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681626Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":151,"encoding":"0x00000097"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681627Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483824,"reg_idx":1,"data":2147483824},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681629Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000b4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483828,"data":"[231, 128, 128, 1]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681631Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":25198823,"encoding":"0x018080e7"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681632Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483828,"reg_idx":1,"data":2147483832},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681634Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000c8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483848,"data":"[19, 1, 1, 254]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681637Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4261478675,"encoding":"0xfe010113"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681638Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483848,"reg_idx":2,"data":2684354528},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681639Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000cc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483852,"data":"[35, 46, 17, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681642Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1125923,"encoding":"0x00112e23"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681644Z","level":"TRACE","fields":{"message":"write 4 bytes data 0x800000b8 to physical memory address: 0x9ffffffc","event_type":"physical_memory","action":"write","bytes":4,"address":2684354556,"data":"0x800000b8"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681649Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000d0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483856,"data":"[35, 44, 129, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681651Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":8465443,"encoding":"0x00812c23"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681653Z","level":"TRACE","fields":{"message":"write 4 bytes data 0x0 to physical memory address: 0x9ffffff8","event_type":"physical_memory","action":"write","bytes":4,"address":2684354552,"data":"0x0"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681655Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000d4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483860,"data":"[19, 4, 1, 2]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681657Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":33621011,"encoding":"0x02010413"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681658Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483860,"reg_idx":8,"data":2684354560},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681659Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000d8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483864,"data":"[19, 5, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681662Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1299,"encoding":"0x00000513"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681663Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483864,"reg_idx":10,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681669Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000dc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483868,"data":"[35, 42, 164, 254]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681671Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4272171555,"encoding":"0xfea42a23"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681672Z","level":"TRACE","fields":{"message":"write 4 bytes data 0x0 to physical memory address: 0x9ffffff4","event_type":"physical_memory","action":"write","bytes":4,"address":2684354548,"data":"0x0"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681674Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000e0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483872,"data":"[19, 5, 16, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681677Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1049875,"encoding":"0x00100513"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681678Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483872,"reg_idx":10,"data":1},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681680Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000e4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483876,"data":"[35, 40, 164, 254]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681682Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4272171043,"encoding":"0xfea42823"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681683Z","level":"TRACE","fields":{"message":"write 4 bytes data 0x1 to physical memory address: 0x9ffffff0","event_type":"physical_memory","action":"write","bytes":4,"address":2684354544,"data":"0x1"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681685Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000e8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483880,"data":"[19, 5, 32, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681687Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":2098451,"encoding":"0x00200513"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681688Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483880,"reg_idx":10,"data":2},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681690Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000ec","event_type":"physical_memory","action":"read","bytes":4,"address":2147483884,"data":"[35, 38, 164, 254]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681692Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4272170531,"encoding":"0xfea42623"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681693Z","level":"TRACE","fields":{"message":"write 4 bytes data 0x2 to physical memory address: 0x9fffffec","event_type":"physical_memory","action":"write","bytes":4,"address":2684354540,"data":"0x2"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681696Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000f0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483888,"data":"[19, 5, 48, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681698Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":3147027,"encoding":"0x00300513"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681699Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483888,"reg_idx":10,"data":3},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681701Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000f4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483892,"data":"[35, 36, 164, 254]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681703Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4272170019,"encoding":"0xfea42423"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681704Z","level":"TRACE","fields":{"message":"write 4 bytes data 0x3 to physical memory address: 0x9fffffe8","event_type":"physical_memory","action":"write","bytes":4,"address":2684354536,"data":"0x3"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681706Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000f8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483896,"data":"[3, 37, 4, 255]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681708Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4278461699,"encoding":"0xff042503"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681710Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x9ffffff0","event_type":"physical_memory","action":"read","bytes":4,"address":2684354544,"data":"[1, 0, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681712Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483896,"reg_idx":10,"data":1},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681714Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000fc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483900,"data":"[131, 37, 196, 254]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681716Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4274267523,"encoding":"0xfec42583"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681717Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x9fffffec","event_type":"physical_memory","action":"read","bytes":4,"address":2684354540,"data":"[2, 0, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681719Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483900,"reg_idx":11,"data":2},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681721Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000100","event_type":"physical_memory","action":"read","bytes":4,"address":2147483904,"data":"[51, 5, 181, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681723Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":11863347,"encoding":"0x00b50533"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681724Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483904,"reg_idx":10,"data":3},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681726Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000104","event_type":"physical_memory","action":"read","bytes":4,"address":2147483908,"data":"[131, 37, 132, 254]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681727Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4270073219,"encoding":"0xfe842583"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681729Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x9fffffe8","event_type":"physical_memory","action":"read","bytes":4,"address":2684354536,"data":"[3, 0, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681731Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483908,"reg_idx":11,"data":3},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681732Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000108","event_type":"physical_memory","action":"read","bytes":4,"address":2147483912,"data":"[99, 94, 181, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681734Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":11886179,"encoding":"0x00b55e63"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681736Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000124","event_type":"physical_memory","action":"read","bytes":4,"address":2147483940,"data":"[3, 37, 196, 254]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681738Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4274267395,"encoding":"0xfec42503"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681739Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x9fffffec","event_type":"physical_memory","action":"read","bytes":4,"address":2684354540,"data":"[2, 0, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681742Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483940,"reg_idx":10,"data":2},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681743Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000128","event_type":"physical_memory","action":"read","bytes":4,"address":2147483944,"data":"[131, 37, 4, 255]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681745Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4278461827,"encoding":"0xff042583"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681746Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x9ffffff0","event_type":"physical_memory","action":"read","bytes":4,"address":2684354544,"data":"[1, 0, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681748Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483944,"reg_idx":11,"data":1},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681750Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x8000012c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483948,"data":"[51, 5, 181, 64]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681752Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1085605171,"encoding":"0x40b50533"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681753Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483948,"reg_idx":10,"data":1},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681755Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000130","event_type":"physical_memory","action":"read","bytes":4,"address":2147483952,"data":"[35, 42, 164, 254]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681757Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4272171555,"encoding":"0xfea42a23"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681758Z","level":"TRACE","fields":{"message":"write 4 bytes data 0x1 to physical memory address: 0x9ffffff4","event_type":"physical_memory","action":"write","bytes":4,"address":2684354548,"data":"0x1"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681760Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000134","event_type":"physical_memory","action":"read","bytes":4,"address":2147483956,"data":"[111, 0, 64, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681762Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4194415,"encoding":"0x0040006f"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681763Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483956,"reg_idx":0,"data":2147483960},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681765Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000138","event_type":"physical_memory","action":"read","bytes":4,"address":2147483960,"data":"[131, 32, 193, 1]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681767Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":29433987,"encoding":"0x01c12083"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681768Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x9ffffffc","event_type":"physical_memory","action":"read","bytes":4,"address":2684354556,"data":"[184, 0, 0, 128]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681770Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483960,"reg_idx":1,"data":2147483832},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681771Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x8000013c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483964,"data":"[3, 36, 129, 1]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681774Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":25240579,"encoding":"0x01812403"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681775Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x9ffffff8","event_type":"physical_memory","action":"read","bytes":4,"address":2684354552,"data":"[0, 0, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681777Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483964,"reg_idx":8,"data":0},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681779Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000140","event_type":"physical_memory","action":"read","bytes":4,"address":2147483968,"data":"[19, 1, 1, 2]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681781Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":33620243,"encoding":"0x02010113"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681782Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483968,"reg_idx":2,"data":2684354560},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681784Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000144","event_type":"physical_memory","action":"read","bytes":4,"address":2147483972,"data":"[103, 128, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681786Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":32871,"encoding":"0x00008067"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681787Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483972,"reg_idx":0,"data":2147483976},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681789Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000b8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483832,"data":"[19, 5, 16, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681791Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1049875,"encoding":"0x00100513"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681792Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483832,"reg_idx":10,"data":1},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681793Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000bc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483836,"data":"[151, 0, 0, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681795Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":151,"encoding":"0x00000097"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681797Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483836,"reg_idx":1,"data":2147483836},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681798Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x800000c0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483840,"data":"[231, 128, 64, 244]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681800Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":4097868007,"encoding":"0xf44080e7"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681801Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483840,"reg_idx":1,"data":2147483844},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681803Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000000","event_type":"physical_memory","action":"read","bytes":4,"address":2147483648,"data":"[183, 7, 0, 64]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681806Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":1073743799,"encoding":"0x400007b7"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681807Z","level":"TRACE","fields":{"event_type":"register","action":"write","pc":2147483648,"reg_idx":15,"data":1073741824},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681809Z","level":"TRACE","fields":{"message":"read 4 bytes from physical memory address: 0x80000004","event_type":"physical_memory","action":"read","bytes":4,"address":2147483652,"data":"[35, 160, 167, 0]"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681811Z","level":"TRACE","fields":{"event_type":"instruction_fetch","data":10985507,"encoding":"0x00a7a023"},"target":"pokedex::simulator"}
-{"timestamp":"2025-07-08T09:42:53.681812Z","level":"TRACE","fields":{"message":"write 4 bytes data 0x1 to physical memory address: 0x40000000","event_type":"physical_memory","action":"write","bytes":4,"address":1073741824,"data":"0x1"},"target":"pokedex::simulator"}
+{"event_type":"reset_vector","new_addr":2147483676}
+{"message":"read 4 bytes from physical memory address: 0x8000001c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483676,"data":"[115, 37, 64, 241]"}
+{"event_type":"instruction_fetch","data":4047512947,"encoding":"0xf1402573"}
+{"event_type":"register","action":"write","pc":2147483676,"reg_idx":10,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000020","event_type":"physical_memory","action":"read","bytes":4,"address":2147483680,"data":"[147, 0, 0, 0]"}
+{"event_type":"instruction_fetch","data":147,"encoding":"0x00000093"}
+{"event_type":"register","action":"write","pc":2147483680,"reg_idx":1,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000024","event_type":"physical_memory","action":"read","bytes":4,"address":2147483684,"data":"[19, 1, 0, 0]"}
+{"event_type":"instruction_fetch","data":275,"encoding":"0x00000113"}
+{"event_type":"register","action":"write","pc":2147483684,"reg_idx":2,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000028","event_type":"physical_memory","action":"read","bytes":4,"address":2147483688,"data":"[147, 1, 0, 0]"}
+{"event_type":"instruction_fetch","data":403,"encoding":"0x00000193"}
+{"event_type":"register","action":"write","pc":2147483688,"reg_idx":3,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x8000002c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483692,"data":"[19, 2, 0, 0]"}
+{"event_type":"instruction_fetch","data":531,"encoding":"0x00000213"}
+{"event_type":"register","action":"write","pc":2147483692,"reg_idx":4,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000030","event_type":"physical_memory","action":"read","bytes":4,"address":2147483696,"data":"[147, 2, 0, 0]"}
+{"event_type":"instruction_fetch","data":659,"encoding":"0x00000293"}
+{"event_type":"register","action":"write","pc":2147483696,"reg_idx":5,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000034","event_type":"physical_memory","action":"read","bytes":4,"address":2147483700,"data":"[19, 3, 0, 0]"}
+{"event_type":"instruction_fetch","data":787,"encoding":"0x00000313"}
+{"event_type":"register","action":"write","pc":2147483700,"reg_idx":6,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000038","event_type":"physical_memory","action":"read","bytes":4,"address":2147483704,"data":"[147, 3, 0, 0]"}
+{"event_type":"instruction_fetch","data":915,"encoding":"0x00000393"}
+{"event_type":"register","action":"write","pc":2147483704,"reg_idx":7,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x8000003c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483708,"data":"[19, 4, 0, 0]"}
+{"event_type":"instruction_fetch","data":1043,"encoding":"0x00000413"}
+{"event_type":"register","action":"write","pc":2147483708,"reg_idx":8,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000040","event_type":"physical_memory","action":"read","bytes":4,"address":2147483712,"data":"[147, 4, 0, 0]"}
+{"event_type":"instruction_fetch","data":1171,"encoding":"0x00000493"}
+{"event_type":"register","action":"write","pc":2147483712,"reg_idx":9,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000044","event_type":"physical_memory","action":"read","bytes":4,"address":2147483716,"data":"[19, 5, 0, 0]"}
+{"event_type":"instruction_fetch","data":1299,"encoding":"0x00000513"}
+{"event_type":"register","action":"write","pc":2147483716,"reg_idx":10,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000048","event_type":"physical_memory","action":"read","bytes":4,"address":2147483720,"data":"[147, 5, 0, 0]"}
+{"event_type":"instruction_fetch","data":1427,"encoding":"0x00000593"}
+{"event_type":"register","action":"write","pc":2147483720,"reg_idx":11,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x8000004c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483724,"data":"[19, 6, 0, 0]"}
+{"event_type":"instruction_fetch","data":1555,"encoding":"0x00000613"}
+{"event_type":"register","action":"write","pc":2147483724,"reg_idx":12,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000050","event_type":"physical_memory","action":"read","bytes":4,"address":2147483728,"data":"[147, 6, 0, 0]"}
+{"event_type":"instruction_fetch","data":1683,"encoding":"0x00000693"}
+{"event_type":"register","action":"write","pc":2147483728,"reg_idx":13,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000054","event_type":"physical_memory","action":"read","bytes":4,"address":2147483732,"data":"[19, 7, 0, 0]"}
+{"event_type":"instruction_fetch","data":1811,"encoding":"0x00000713"}
+{"event_type":"register","action":"write","pc":2147483732,"reg_idx":14,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000058","event_type":"physical_memory","action":"read","bytes":4,"address":2147483736,"data":"[147, 7, 0, 0]"}
+{"event_type":"instruction_fetch","data":1939,"encoding":"0x00000793"}
+{"event_type":"register","action":"write","pc":2147483736,"reg_idx":15,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x8000005c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483740,"data":"[19, 8, 0, 0]"}
+{"event_type":"instruction_fetch","data":2067,"encoding":"0x00000813"}
+{"event_type":"register","action":"write","pc":2147483740,"reg_idx":16,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000060","event_type":"physical_memory","action":"read","bytes":4,"address":2147483744,"data":"[147, 8, 0, 0]"}
+{"event_type":"instruction_fetch","data":2195,"encoding":"0x00000893"}
+{"event_type":"register","action":"write","pc":2147483744,"reg_idx":17,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000064","event_type":"physical_memory","action":"read","bytes":4,"address":2147483748,"data":"[19, 9, 0, 0]"}
+{"event_type":"instruction_fetch","data":2323,"encoding":"0x00000913"}
+{"event_type":"register","action":"write","pc":2147483748,"reg_idx":18,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000068","event_type":"physical_memory","action":"read","bytes":4,"address":2147483752,"data":"[147, 9, 0, 0]"}
+{"event_type":"instruction_fetch","data":2451,"encoding":"0x00000993"}
+{"event_type":"register","action":"write","pc":2147483752,"reg_idx":19,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x8000006c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483756,"data":"[19, 10, 0, 0]"}
+{"event_type":"instruction_fetch","data":2579,"encoding":"0x00000a13"}
+{"event_type":"register","action":"write","pc":2147483756,"reg_idx":20,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000070","event_type":"physical_memory","action":"read","bytes":4,"address":2147483760,"data":"[147, 10, 0, 0]"}
+{"event_type":"instruction_fetch","data":2707,"encoding":"0x00000a93"}
+{"event_type":"register","action":"write","pc":2147483760,"reg_idx":21,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000074","event_type":"physical_memory","action":"read","bytes":4,"address":2147483764,"data":"[19, 11, 0, 0]"}
+{"event_type":"instruction_fetch","data":2835,"encoding":"0x00000b13"}
+{"event_type":"register","action":"write","pc":2147483764,"reg_idx":22,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000078","event_type":"physical_memory","action":"read","bytes":4,"address":2147483768,"data":"[147, 11, 0, 0]"}
+{"event_type":"instruction_fetch","data":2963,"encoding":"0x00000b93"}
+{"event_type":"register","action":"write","pc":2147483768,"reg_idx":23,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x8000007c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483772,"data":"[19, 12, 0, 0]"}
+{"event_type":"instruction_fetch","data":3091,"encoding":"0x00000c13"}
+{"event_type":"register","action":"write","pc":2147483772,"reg_idx":24,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000080","event_type":"physical_memory","action":"read","bytes":4,"address":2147483776,"data":"[147, 12, 0, 0]"}
+{"event_type":"instruction_fetch","data":3219,"encoding":"0x00000c93"}
+{"event_type":"register","action":"write","pc":2147483776,"reg_idx":25,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000084","event_type":"physical_memory","action":"read","bytes":4,"address":2147483780,"data":"[19, 13, 0, 0]"}
+{"event_type":"instruction_fetch","data":3347,"encoding":"0x00000d13"}
+{"event_type":"register","action":"write","pc":2147483780,"reg_idx":26,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000088","event_type":"physical_memory","action":"read","bytes":4,"address":2147483784,"data":"[147, 13, 0, 0]"}
+{"event_type":"instruction_fetch","data":3475,"encoding":"0x00000d93"}
+{"event_type":"register","action":"write","pc":2147483784,"reg_idx":27,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x8000008c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483788,"data":"[19, 14, 0, 0]"}
+{"event_type":"instruction_fetch","data":3603,"encoding":"0x00000e13"}
+{"event_type":"register","action":"write","pc":2147483788,"reg_idx":28,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000090","event_type":"physical_memory","action":"read","bytes":4,"address":2147483792,"data":"[147, 14, 0, 0]"}
+{"event_type":"instruction_fetch","data":3731,"encoding":"0x00000e93"}
+{"event_type":"register","action":"write","pc":2147483792,"reg_idx":29,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000094","event_type":"physical_memory","action":"read","bytes":4,"address":2147483796,"data":"[19, 15, 0, 0]"}
+{"event_type":"instruction_fetch","data":3859,"encoding":"0x00000f13"}
+{"event_type":"register","action":"write","pc":2147483796,"reg_idx":30,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000098","event_type":"physical_memory","action":"read","bytes":4,"address":2147483800,"data":"[147, 15, 0, 0]"}
+{"event_type":"instruction_fetch","data":3987,"encoding":"0x00000f93"}
+{"event_type":"register","action":"write","pc":2147483800,"reg_idx":31,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x8000009c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483804,"data":"[23, 1, 0, 32]"}
+{"event_type":"instruction_fetch","data":536871191,"encoding":"0x20000117"}
+{"event_type":"register","action":"write","pc":2147483804,"reg_idx":2,"data":2684354716}
+{"message":"read 4 bytes from physical memory address: 0x800000a0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483808,"data":"[19, 1, 65, 246]"}
+{"event_type":"instruction_fetch","data":4131455251,"encoding":"0xf6410113"}
+{"event_type":"register","action":"write","pc":2147483808,"reg_idx":2,"data":2684354560}
+{"message":"read 4 bytes from physical memory address: 0x800000a4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483812,"data":"[151, 2, 0, 0]"}
+{"event_type":"instruction_fetch","data":663,"encoding":"0x00000297"}
+{"event_type":"register","action":"write","pc":2147483812,"reg_idx":5,"data":2147483812}
+{"message":"read 4 bytes from physical memory address: 0x800000a8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483816,"data":"[147, 130, 130, 246]"}
+{"event_type":"instruction_fetch","data":4135748243,"encoding":"0xf6828293"}
+{"event_type":"register","action":"write","pc":2147483816,"reg_idx":5,"data":2147483660}
+{"message":"read 4 bytes from physical memory address: 0x800000ac","event_type":"physical_memory","action":"read","bytes":4,"address":2147483820,"data":"[115, 144, 82, 48]"}
+{"event_type":"instruction_fetch","data":810717299,"encoding":"0x30529073"}
+{"event_type":"csr","action":"write","pc":2147483820,"csr_idx":773,"csr_name":"mtvec","data":2147483660}
+{"message":"read 4 bytes from physical memory address: 0x800000b0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483824,"data":"[151, 0, 0, 0]"}
+{"event_type":"instruction_fetch","data":151,"encoding":"0x00000097"}
+{"event_type":"register","action":"write","pc":2147483824,"reg_idx":1,"data":2147483824}
+{"message":"read 4 bytes from physical memory address: 0x800000b4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483828,"data":"[231, 128, 128, 1]"}
+{"event_type":"instruction_fetch","data":25198823,"encoding":"0x018080e7"}
+{"event_type":"register","action":"write","pc":2147483828,"reg_idx":1,"data":2147483832}
+{"message":"read 4 bytes from physical memory address: 0x800000c8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483848,"data":"[19, 1, 1, 254]"}
+{"event_type":"instruction_fetch","data":4261478675,"encoding":"0xfe010113"}
+{"event_type":"register","action":"write","pc":2147483848,"reg_idx":2,"data":2684354528}
+{"message":"read 4 bytes from physical memory address: 0x800000cc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483852,"data":"[35, 46, 17, 0]"}
+{"event_type":"instruction_fetch","data":1125923,"encoding":"0x00112e23"}
+{"message":"write 4 bytes data 0x800000b8 to physical memory address: 0x9ffffffc","event_type":"physical_memory","action":"write","bytes":4,"address":2684354556,"data":"0x800000b8"}
+{"message":"read 4 bytes from physical memory address: 0x800000d0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483856,"data":"[35, 44, 129, 0]"}
+{"event_type":"instruction_fetch","data":8465443,"encoding":"0x00812c23"}
+{"message":"write 4 bytes data 0x0 to physical memory address: 0x9ffffff8","event_type":"physical_memory","action":"write","bytes":4,"address":2684354552,"data":"0x0"}
+{"message":"read 4 bytes from physical memory address: 0x800000d4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483860,"data":"[19, 4, 1, 2]"}
+{"event_type":"instruction_fetch","data":33621011,"encoding":"0x02010413"}
+{"event_type":"register","action":"write","pc":2147483860,"reg_idx":8,"data":2684354560}
+{"message":"read 4 bytes from physical memory address: 0x800000d8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483864,"data":"[19, 5, 0, 0]"}
+{"event_type":"instruction_fetch","data":1299,"encoding":"0x00000513"}
+{"event_type":"register","action":"write","pc":2147483864,"reg_idx":10,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x800000dc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483868,"data":"[35, 42, 164, 254]"}
+{"event_type":"instruction_fetch","data":4272171555,"encoding":"0xfea42a23"}
+{"message":"write 4 bytes data 0x0 to physical memory address: 0x9ffffff4","event_type":"physical_memory","action":"write","bytes":4,"address":2684354548,"data":"0x0"}
+{"message":"read 4 bytes from physical memory address: 0x800000e0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483872,"data":"[19, 5, 16, 0]"}
+{"event_type":"instruction_fetch","data":1049875,"encoding":"0x00100513"}
+{"event_type":"register","action":"write","pc":2147483872,"reg_idx":10,"data":1}
+{"message":"read 4 bytes from physical memory address: 0x800000e4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483876,"data":"[35, 40, 164, 254]"}
+{"event_type":"instruction_fetch","data":4272171043,"encoding":"0xfea42823"}
+{"message":"write 4 bytes data 0x1 to physical memory address: 0x9ffffff0","event_type":"physical_memory","action":"write","bytes":4,"address":2684354544,"data":"0x1"}
+{"message":"read 4 bytes from physical memory address: 0x800000e8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483880,"data":"[19, 5, 32, 0]"}
+{"event_type":"instruction_fetch","data":2098451,"encoding":"0x00200513"}
+{"event_type":"register","action":"write","pc":2147483880,"reg_idx":10,"data":2}
+{"message":"read 4 bytes from physical memory address: 0x800000ec","event_type":"physical_memory","action":"read","bytes":4,"address":2147483884,"data":"[35, 38, 164, 254]"}
+{"event_type":"instruction_fetch","data":4272170531,"encoding":"0xfea42623"}
+{"message":"write 4 bytes data 0x2 to physical memory address: 0x9fffffec","event_type":"physical_memory","action":"write","bytes":4,"address":2684354540,"data":"0x2"}
+{"message":"read 4 bytes from physical memory address: 0x800000f0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483888,"data":"[19, 5, 48, 0]"}
+{"event_type":"instruction_fetch","data":3147027,"encoding":"0x00300513"}
+{"event_type":"register","action":"write","pc":2147483888,"reg_idx":10,"data":3}
+{"message":"read 4 bytes from physical memory address: 0x800000f4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483892,"data":"[35, 36, 164, 254]"}
+{"event_type":"instruction_fetch","data":4272170019,"encoding":"0xfea42423"}
+{"message":"write 4 bytes data 0x3 to physical memory address: 0x9fffffe8","event_type":"physical_memory","action":"write","bytes":4,"address":2684354536,"data":"0x3"}
+{"message":"read 4 bytes from physical memory address: 0x800000f8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483896,"data":"[3, 37, 4, 255]"}
+{"event_type":"instruction_fetch","data":4278461699,"encoding":"0xff042503"}
+{"message":"read 4 bytes from physical memory address: 0x9ffffff0","event_type":"physical_memory","action":"read","bytes":4,"address":2684354544,"data":"[1, 0, 0, 0]"}
+{"event_type":"register","action":"write","pc":2147483896,"reg_idx":10,"data":1}
+{"message":"read 4 bytes from physical memory address: 0x800000fc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483900,"data":"[131, 37, 196, 254]"}
+{"event_type":"instruction_fetch","data":4274267523,"encoding":"0xfec42583"}
+{"message":"read 4 bytes from physical memory address: 0x9fffffec","event_type":"physical_memory","action":"read","bytes":4,"address":2684354540,"data":"[2, 0, 0, 0]"}
+{"event_type":"register","action":"write","pc":2147483900,"reg_idx":11,"data":2}
+{"message":"read 4 bytes from physical memory address: 0x80000100","event_type":"physical_memory","action":"read","bytes":4,"address":2147483904,"data":"[51, 5, 181, 0]"}
+{"event_type":"instruction_fetch","data":11863347,"encoding":"0x00b50533"}
+{"event_type":"register","action":"write","pc":2147483904,"reg_idx":10,"data":3}
+{"message":"read 4 bytes from physical memory address: 0x80000104","event_type":"physical_memory","action":"read","bytes":4,"address":2147483908,"data":"[131, 37, 132, 254]"}
+{"event_type":"instruction_fetch","data":4270073219,"encoding":"0xfe842583"}
+{"message":"read 4 bytes from physical memory address: 0x9fffffe8","event_type":"physical_memory","action":"read","bytes":4,"address":2684354536,"data":"[3, 0, 0, 0]"}
+{"event_type":"register","action":"write","pc":2147483908,"reg_idx":11,"data":3}
+{"message":"read 4 bytes from physical memory address: 0x80000108","event_type":"physical_memory","action":"read","bytes":4,"address":2147483912,"data":"[99, 94, 181, 0]"}
+{"event_type":"instruction_fetch","data":11886179,"encoding":"0x00b55e63"}
+{"message":"read 4 bytes from physical memory address: 0x80000124","event_type":"physical_memory","action":"read","bytes":4,"address":2147483940,"data":"[3, 37, 196, 254]"}
+{"event_type":"instruction_fetch","data":4274267395,"encoding":"0xfec42503"}
+{"message":"read 4 bytes from physical memory address: 0x9fffffec","event_type":"physical_memory","action":"read","bytes":4,"address":2684354540,"data":"[2, 0, 0, 0]"}
+{"event_type":"register","action":"write","pc":2147483940,"reg_idx":10,"data":2}
+{"message":"read 4 bytes from physical memory address: 0x80000128","event_type":"physical_memory","action":"read","bytes":4,"address":2147483944,"data":"[131, 37, 4, 255]"}
+{"event_type":"instruction_fetch","data":4278461827,"encoding":"0xff042583"}
+{"message":"read 4 bytes from physical memory address: 0x9ffffff0","event_type":"physical_memory","action":"read","bytes":4,"address":2684354544,"data":"[1, 0, 0, 0]"}
+{"event_type":"register","action":"write","pc":2147483944,"reg_idx":11,"data":1}
+{"message":"read 4 bytes from physical memory address: 0x8000012c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483948,"data":"[51, 5, 181, 64]"}
+{"event_type":"instruction_fetch","data":1085605171,"encoding":"0x40b50533"}
+{"event_type":"register","action":"write","pc":2147483948,"reg_idx":10,"data":1}
+{"message":"read 4 bytes from physical memory address: 0x80000130","event_type":"physical_memory","action":"read","bytes":4,"address":2147483952,"data":"[35, 42, 164, 254]"}
+{"event_type":"instruction_fetch","data":4272171555,"encoding":"0xfea42a23"}
+{"message":"write 4 bytes data 0x1 to physical memory address: 0x9ffffff4","event_type":"physical_memory","action":"write","bytes":4,"address":2684354548,"data":"0x1"}
+{"message":"read 4 bytes from physical memory address: 0x80000134","event_type":"physical_memory","action":"read","bytes":4,"address":2147483956,"data":"[111, 0, 64, 0]"}
+{"event_type":"instruction_fetch","data":4194415,"encoding":"0x0040006f"}
+{"event_type":"register","action":"write","pc":2147483956,"reg_idx":0,"data":2147483960}
+{"message":"read 4 bytes from physical memory address: 0x80000138","event_type":"physical_memory","action":"read","bytes":4,"address":2147483960,"data":"[131, 32, 193, 1]"}
+{"event_type":"instruction_fetch","data":29433987,"encoding":"0x01c12083"}
+{"message":"read 4 bytes from physical memory address: 0x9ffffffc","event_type":"physical_memory","action":"read","bytes":4,"address":2684354556,"data":"[184, 0, 0, 128]"}
+{"event_type":"register","action":"write","pc":2147483960,"reg_idx":1,"data":2147483832}
+{"message":"read 4 bytes from physical memory address: 0x8000013c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483964,"data":"[3, 36, 129, 1]"}
+{"event_type":"instruction_fetch","data":25240579,"encoding":"0x01812403"}
+{"message":"read 4 bytes from physical memory address: 0x9ffffff8","event_type":"physical_memory","action":"read","bytes":4,"address":2684354552,"data":"[0, 0, 0, 0]"}
+{"event_type":"register","action":"write","pc":2147483964,"reg_idx":8,"data":0}
+{"message":"read 4 bytes from physical memory address: 0x80000140","event_type":"physical_memory","action":"read","bytes":4,"address":2147483968,"data":"[19, 1, 1, 2]"}
+{"event_type":"instruction_fetch","data":33620243,"encoding":"0x02010113"}
+{"event_type":"register","action":"write","pc":2147483968,"reg_idx":2,"data":2684354560}
+{"message":"read 4 bytes from physical memory address: 0x80000144","event_type":"physical_memory","action":"read","bytes":4,"address":2147483972,"data":"[103, 128, 0, 0]"}
+{"event_type":"instruction_fetch","data":32871,"encoding":"0x00008067"}
+{"event_type":"register","action":"write","pc":2147483972,"reg_idx":0,"data":2147483976}
+{"message":"read 4 bytes from physical memory address: 0x800000b8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483832,"data":"[19, 5, 16, 0]"}
+{"event_type":"instruction_fetch","data":1049875,"encoding":"0x00100513"}
+{"event_type":"register","action":"write","pc":2147483832,"reg_idx":10,"data":1}
+{"message":"read 4 bytes from physical memory address: 0x800000bc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483836,"data":"[151, 0, 0, 0]"}
+{"event_type":"instruction_fetch","data":151,"encoding":"0x00000097"}
+{"event_type":"register","action":"write","pc":2147483836,"reg_idx":1,"data":2147483836}
+{"message":"read 4 bytes from physical memory address: 0x800000c0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483840,"data":"[231, 128, 64, 244]"}
+{"event_type":"instruction_fetch","data":4097868007,"encoding":"0xf44080e7"}
+{"event_type":"register","action":"write","pc":2147483840,"reg_idx":1,"data":2147483844}
+{"message":"read 4 bytes from physical memory address: 0x80000000","event_type":"physical_memory","action":"read","bytes":4,"address":2147483648,"data":"[183, 7, 0, 64]"}
+{"event_type":"instruction_fetch","data":1073743799,"encoding":"0x400007b7"}
+{"event_type":"register","action":"write","pc":2147483648,"reg_idx":15,"data":1073741824}
+{"message":"read 4 bytes from physical memory address: 0x80000004","event_type":"physical_memory","action":"read","bytes":4,"address":2147483652,"data":"[35, 160, 167, 0]"}
+{"event_type":"instruction_fetch","data":10985507,"encoding":"0x00a7a023"}
+{"message":"write 4 bytes data 0x1 to physical memory address: 0x40000000","event_type":"physical_memory","action":"write","bytes":4,"address":1073741824,"data":"0x1"}
