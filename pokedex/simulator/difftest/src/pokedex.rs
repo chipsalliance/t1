@@ -46,23 +46,16 @@ pub fn run_process(
     Ok(pokedex_log)
 }
 
-// helper struct for easier deserialize
-#[derive(Debug, Deserialize)]
-struct PokedexLogLine {
-    pub fields: PokedexEvent,
-}
-
 fn get_pokedex_events(raw: impl AsRef<[u8]>) -> PokedexLog {
-    let log_raw = String::from_utf8_lossy(raw.as_ref());
-    let mut events = Vec::new();
-
-    for (line_number, line) in log_raw.lines().enumerate() {
-        let log_line: PokedexLogLine = serde_json::from_str(line)
-            .unwrap_or_else(|err| panic!("fail parsing pokedex log at line {line_number}: {err}"));
-        events.push(log_line.fields)
-    }
-
-    events
+    String::from_utf8_lossy(raw.as_ref())
+        .lines()
+        .enumerate()
+        .map(|(line_number, line_str)| {
+            serde_json::from_str::<PokedexEvent>(line_str).unwrap_or_else(|err| {
+                panic!("fail parsing pokedex log at line {line_number}: {err}")
+            })
+        })
+        .collect()
 }
 
 #[allow(dead_code)]
