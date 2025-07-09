@@ -6,7 +6,7 @@ begin
   // mcause
   MCAUSE_IS_INTERRUPT = FALSE;
   // convert integer to 31bits length bit vector
-  MCAUSE_XCPT_CODE = asl_cvt_int_bits(cause, 31);
+  MCAUSE_XCPT_CODE = cause[30:0];
 
   // mstatus
   MSTATUS_MPIE = MSTATUS_MIE;
@@ -32,7 +32,7 @@ begin
   CURRENT_PRIVILEGE = PRIV_MACHINE_MODE;
 
   MCAUSE_IS_INTERRUPT = TRUE;
-  MCAUSE_XCPT_CODE = asl_cvt_int_bits(interrupt_code, 31);
+  MCAUSE_XCPT_CODE = interrupt_code[30:0];
 
   if MTVEC_MODE == MTVEC_DIRECT_MODE then
     PC = [ MTVEC_BASE, '00' ];
