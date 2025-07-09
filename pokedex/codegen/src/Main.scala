@@ -190,29 +190,28 @@ class CodeGenerator(params: CodeGeneratorParams):
     val requiredInstructions = rv32Instructions ++ allInstructions
 
     val executeCode = requiredInstructions
-      .map(inst => {
+      .flatMap(inst => {
         val functionName = inst.name.replace(".", "_")
         val fnBodyPath   =
           user_inst_path / inst.instructionSets.head.name / s"${functionName}.asl"
         if !os.exists(fnBodyPath) then
-          throw new Exception(
-            s"instruction ${inst.name} not found at ${fnBodyPath}"
-          )
-
-        val functionBody = os.read(fnBodyPath)
-
-        s"""|func Execute_${functionName.toUpperCase}(instruction : bits(32)) => Result
-            |begin
-            |
-            |${functionBody}
-            |
-            |end
-            |""".stripMargin
+          println(s"WARNING: instruction ${inst.name} not found at ${fnBodyPath}")
+          None
+        else
+          val functionBody = os.read(fnBodyPath)
+          val fullFunc     = s"""func Execute_${functionName.toUpperCase}(instruction : bits(32)) => Result
+                            |begin
+                            |
+                            |${functionBody}
+                            |
+                            |end
+                            |""".stripMargin
+          Some(inst -> fullFunc)
       })
-      .mkString("\n")
+      .toMap
 
-    val matchArms    = requiredInstructions
-      .map(inst => {
+    val matchArms    = executeCode
+      .map((inst, _) => {
         val bitpat       = inst.encoding.toCustomBitPat("x")
         val functionName = inst.name.replace(".", "_").toUpperCase
         s"""|    when '${bitpat}' =>
@@ -225,13 +224,12 @@ class CodeGenerator(params: CodeGeneratorParams):
                            |    case instruction of
                            |${matchArms}
                            |    otherwise =>
-                           |        // todo: check we should use instruction as tval or not
                            |        return Exception(CAUSE_ILLEGAL_INSTRUCTION, instruction);
                            |    end
                            |end
                            |""".stripMargin
 
-    os.write.over(execute_path, executeCode + dispatchCode)
+    os.write.over(execute_path, executeCode.values.mkString("\n") + dispatchCode)
 
     val requiredInst = requiredInstructions.map(_.name.replace(".", "_")).toSet
     os.walk(user_inst_path)
