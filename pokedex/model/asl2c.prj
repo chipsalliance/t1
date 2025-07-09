@@ -35,8 +35,8 @@
 
 // Perform constant propagation without unrolling loops
 // This helps identify potential targets for the monomorphization pass.
-// :show --format=raw --output @CGEN_OUTPUT@/dumps/log.06.xform_constprop.asl
-// :xform_constprop --nounroll
+:show --format=raw --output @CGEN_OUTPUT@/dumps/log.06.xform_constprop.asl
+:xform_constprop --nounroll
 
 // Create specialized versions of every bitwidth-polymorphic function
 // and change all function calls to use the appropriate specialized
@@ -106,8 +106,8 @@
 
 // A final pass of constant propagation simplifies any constant expressions
 // introduced by previous transforms
-// :show --format=raw --output @CGEN_OUTPUT@/dumps/log.16.xform_constprop.asl
-// :xform_constprop --nounroll
+:show --format=raw --output @CGEN_OUTPUT@/dumps/log.16.xform_constprop.asl
+:xform_constprop --nounroll
 
 // Optimization: optionally use :xform_bounded to represent any
 // constrained integers by an integer that is exactly the right size

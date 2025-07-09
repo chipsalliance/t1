@@ -1423,9 +1423,6 @@ lowering script and `project.json` configuration.
 File `asl2c.prj` contains a list of optimization and lowering pass ASLi needs to run.
 Lowering pass used in `asl2c.prj` is documented at chapter #link(<appendix-a>, "Appendix A").
 
-#notes[Note that the default optimization `:xform_constprop` is not enabled, details at
-  #link("https://github.com/IntelLabs/asl-interpreter/issues/105", [`IntelLab/asl-interpreter issue#105`])]
-
 File `project.json` record all the functions used for FFI.
 The `imports` field records unimplemented function that needs to be linked from other sources.
 The `exports` field records all the functions that is required by outside library.
