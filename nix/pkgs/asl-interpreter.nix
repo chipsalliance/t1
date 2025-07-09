@@ -10,8 +10,8 @@ ocamlPackages.buildDunePackage {
   src = fetchFromGitHub {
     owner = "IntelLabs";
     repo = "asl-interpreter";
-    rev = "64cb3f927a9e7e1abc11bef0664167bffc501ae0";
-    hash = "sha256-rGLPTR6mbezfSOV0XbJe8ZEzCh4lkiV6pHG1X8sj1m4=";
+    rev = "d07075891e6b458f0a7ccf20dc83c2f148627db6";
+    hash = "sha256-oiThDEyRUFd1/yGgsYh9lZCo8gvqb9zO0iZ4LgWX96k=";
   };
 
   minimalOCamlVersion = "4.14.2";
