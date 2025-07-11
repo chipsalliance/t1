@@ -55,10 +55,27 @@ begin
   return inst[31:20];
 end
 
-func GetCI_IMM(inst : bits(16)) => bits(6)
+func GetCLWSP_IMM(inst : bits(16)) => bits(6)
 begin
-  let hi : bit = inst[12];
-  let lo : bits(5) = inst[6:2];
+  return [inst[3:2], inst[12], inst[6:4]];
+end
 
-  return [hi, lo];
+func GetNZIMM(inst : bits(16)) => bits(6)
+begin
+  return [inst[12], inst[6:2]];
+end
+
+func GetCADDI16SP_IMM(inst : bits(16)) => bits(6)
+begin
+  return [inst[12], inst[4:3], inst[5], inst[2], inst[6]];
+end
+
+func GetCSWSP_IMM(inst : bits(16)) => bits(6)
+begin
+  return [inst[8:7], inst[12:9]];
+end
+
+func GetCSS_RS2(inst : bits(16)) => bits(5)
+begin
+  return inst[6:2];
 end
