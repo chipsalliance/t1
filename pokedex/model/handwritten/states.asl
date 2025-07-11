@@ -231,6 +231,8 @@ begin
 
   __ResetGPR();
 
+  __ResetVectorState();
+
   __ResetMTVEC();
   __ResetMTVAL();
   __ResetMSTATUS();
