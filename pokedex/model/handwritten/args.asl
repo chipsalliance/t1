@@ -8,7 +8,7 @@ begin
   return inst[24:20];
 end
 
-func GetRD(inst : bits(32)) => bits(5)
+func GetRD{N : integer{16, 32}}(inst : bits(N)) => bits(5)
 begin
   return inst[11:7];
 end
