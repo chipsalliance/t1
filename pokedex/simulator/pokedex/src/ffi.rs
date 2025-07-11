@@ -39,16 +39,16 @@ impl SimulatorHandle {
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn FFI_instruction_fetch_0(pc: u32) -> model::FFI_ReadResult_N_32 {
+unsafe extern "C" fn FFI_instruction_fetch_half_0(pc: u32) -> model::FFI_ReadResult_N_16 {
     let state = unsafe { get_state() };
 
     if let Some(insn) = state.inst_fetch(pc) {
-        model::FFI_ReadResult_N_32 {
+        model::FFI_ReadResult_N_16 {
             success: true,
             data: insn,
         }
     } else {
-        model::FFI_ReadResult_N_32 {
+        model::FFI_ReadResult_N_16 {
             success: false,
             data: 0,
         }

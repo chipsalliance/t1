@@ -1,6 +1,8 @@
 package org.chipsalliance.t1.pokedex.codegen
 
 import mainargs._
+import scala.io.AnsiColor._
+import org.chipsalliance.rvdecoderdb.Instruction
 
 case class CSR(csrname: String, csrnumber: String, csrindex: Int)
 
@@ -180,44 +182,54 @@ class CodeGenerator(params: CodeGeneratorParams):
           .filter(inst => !inst.name.endsWith("_rv32"))
       )
 
+    val excluded = Seq("rv32_i", "rv_c")
+
     val allInstructions = rvdecoderdb
       .filter(inst =>
-        if inst.instructionSets.head.name == "rv32_i" then false
-        else enabledExtensionSets.contains(inst.instructionSets.head.name)
+        (!excluded.contains(inst.instructionSets.head.name))
+          && enabledExtensionSets.contains(inst.instructionSets.head.name)
       )
       .filter(_.pseudoFrom.isEmpty)
 
     val requiredInstructions = rv32Instructions ++ allInstructions
 
+    val generateExecuteCode: Int => Instruction => Option[(Instruction, String)] =
+      width =>
+        inst => {
+          val functionName = inst.name.replace(".", "_")
+          val fnBodyPath   =
+            user_inst_path / inst.instructionSets.head.name / s"${functionName}.asl"
+          if !os.exists(fnBodyPath) then
+            println(s"${BOLD}${YELLOW}[WARNING]${RESET} instruction ${inst.name} not found at ${fnBodyPath}")
+            None
+          else
+            val functionBody = os.read(fnBodyPath)
+            val fullFunc     = s"""func Execute_${functionName.toUpperCase}(instruction : bits(${width})) => Result
+                              |begin
+                              |
+                              |${functionBody}
+                              |
+                              |end
+                              |""".stripMargin
+            Some(inst -> fullFunc)
+        }
+
     val executeCode = requiredInstructions
-      .flatMap(inst => {
-        val functionName = inst.name.replace(".", "_")
-        val fnBodyPath   =
-          user_inst_path / inst.instructionSets.head.name / s"${functionName}.asl"
-        if !os.exists(fnBodyPath) then
-          println(s"WARNING: instruction ${inst.name} not found at ${fnBodyPath}")
-          None
-        else
-          val functionBody = os.read(fnBodyPath)
-          val fullFunc     = s"""func Execute_${functionName.toUpperCase}(instruction : bits(32)) => Result
-                            |begin
-                            |
-                            |${functionBody}
-                            |
-                            |end
-                            |""".stripMargin
-          Some(inst -> fullFunc)
-      })
+      .flatMap(generateExecuteCode(32))
       .toMap
 
+    val generateDispatchArm: Int => ((Instruction, String)) => String =
+      width =>
+        (inst, _) => {
+          val bitpat       = inst.encoding.toCustomBitPat("x", width)
+          val functionName = inst.name.replace(".", "_").toUpperCase
+          s"""|    when '${bitpat}' =>
+              |        return Execute_${functionName}(instruction);
+              |""".stripMargin
+        }
+
     val matchArms    = executeCode
-      .map((inst, _) => {
-        val bitpat       = inst.encoding.toCustomBitPat("x")
-        val functionName = inst.name.replace(".", "_").toUpperCase
-        s"""|    when '${bitpat}' =>
-            |        return Execute_${functionName}(instruction);
-            |""".stripMargin
-      })
+      .map(generateDispatchArm(32))
       .mkString("\n")
     val dispatchCode = s"""|func DecodeAndExecute(instruction : bits(32)) => Result
                            |begin
@@ -231,14 +243,40 @@ class CodeGenerator(params: CodeGeneratorParams):
 
     os.write.over(execute_path, executeCode.values.mkString("\n") + dispatchCode)
 
-    val requiredInst = requiredInstructions.map(_.name.replace(".", "_")).toSet
+    val rvcInstruction = enabledExtensionSets
+      .filter(_ == "rv_c")
+      .flatMap(_ =>
+        rvdecoderdb
+          .filter(inst => inst.instructionSets.head.name == "rv_c")
+      )
+
+    val rvcExecCode = rvcInstruction
+      .flatMap(generateExecuteCode(16))
+      .toMap
+
+    val rvcMatchArm = rvcExecCode.map(generateDispatchArm(16)).mkString("\n")
+
+    val rvcCode = s"""func DecodeAndExecute_CEXT(instruction : bits(16)) => Result
+                     |begin
+                     |    case instruction of
+                     |${rvcMatchArm}
+                     |    otherwise =>
+                     |        return Exception(CAUSE_ILLEGAL_INSTRUCTION, instruction);
+                     |    end
+                     |end
+                     |""".stripMargin
+    os.write.append(execute_path, rvcExecCode.values.mkString("\n") + rvcCode)
+
+    val requiredInst = (requiredInstructions ++ rvcInstruction)
+      .map(_.name.replace(".", "_"))
+      .toSet
     os.walk(user_inst_path)
       .filter(_.ext == "asl")
       .foreach(p => {
         val codeFile        = p.segments.toSeq.reverse.head
         val instructionName = codeFile.stripSuffix(".asl")
-        if !requiredInst.contains(instructionName) then println(s"found not required file ${p}")
-
+        if !requiredInst.contains(instructionName) then
+          println(s"${BOLD}${YELLOW}[WARNING]${RESET} found not required file ${p}")
       })
 
   def genCauses() =
