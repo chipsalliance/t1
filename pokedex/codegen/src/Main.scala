@@ -182,7 +182,7 @@ class CodeGenerator(params: CodeGeneratorParams):
           .filter(inst => !inst.name.endsWith("_rv32"))
       )
 
-    val excluded = Seq("rv32_i", "rv_c")
+    val excluded = Seq("rv32_i", "rv32_c", "rv_c")
 
     val allInstructions = rvdecoderdb
       .filter(inst =>
@@ -249,7 +249,8 @@ class CodeGenerator(params: CodeGeneratorParams):
     os.write.over(execute_path, executeCode.map((_, fn) => fn).mkString("\n") + dispatchCode)
 
     val rvcInstruction = rvdecoderdb
-      .filter(inst => inst.instructionSets.head.name == "rv_c")
+      .filter(inst => Seq("rv_c", "rv32_c").contains(inst.instructionSets.head.name))
+      .filter(inst => !inst.name.endsWith("_rv32"))
       .toSeq
 
     val rvcExecCode = rvcInstruction
