@@ -72,7 +72,12 @@ object isMaskPipeType {
       "vslideup.vx"
     )
 
-    val allMatched = isExtend ++ isCrossWrite ++ isSlide
+    val isGather = Seq(
+      "vrgather.vv",
+      "vrgatherei16.vv"
+    )
+
+    val allMatched = isExtend ++ isCrossWrite ++ isSlide ++ isGather
 
     allMatched.contains(t1DecodePattern.instruction.name)
   }

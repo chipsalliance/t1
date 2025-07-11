@@ -262,4 +262,18 @@ class LaneInterface(val parameter: LaneIFParameter)
   io.freeCrossDataEnq.bits  := io.freeCrossInputVC.bits
     .data(io.freeCrossDataEnq.bits.getWidth - 1, 0)
     .asTypeOf(io.freeCrossDataEnq.bits)
+
+  io.freeCrossRequestOutputVC.valid         := io.freeCrossReqDeq.valid
+  io.freeCrossReqDeq.ready                  := io.freeCrossRequestOutputVC.ready
+  io.freeCrossRequestOutputVC.bits.data     := io.freeCrossReqDeq.bits.asUInt
+  io.freeCrossRequestOutputVC.bits.opcode   := 0.U
+  io.freeCrossRequestOutputVC.bits.sourceID := io.laneIndex
+  io.freeCrossRequestOutputVC.bits.sinkID   := io.freeCrossReqDeq.bits.readSink
+  io.freeCrossRequestOutputVC.bits.last     := true.B
+
+  io.freeCrossReqEnq.valid         := io.freeCrossRequestInputVC.valid
+  io.freeCrossRequestInputVC.ready := io.freeCrossReqEnq.ready
+  io.freeCrossReqEnq.bits          := io.freeCrossRequestInputVC.bits
+    .data(io.freeCrossReqEnq.bits.getWidth - 1, 0)
+    .asTypeOf(io.freeCrossReqEnq.bits)
 }

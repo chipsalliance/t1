@@ -842,8 +842,7 @@ class LaneVirtualChannel(dataWidth: Int, opcodeWidth: Int, idWidth: Int) extends
   val last: Bool = Bool()
 }
 
-class FreeWriteBusData(datapathWidth: Int, instructionIndexBits: Int, groupNumberBits: Int, laneNumberBits: Int)
-    extends Bundle {
+class FreeWriteBusData(datapathWidth: Int, groupNumberBits: Int, laneNumberBits: Int) extends Bundle {
 
   /** data field of the bus. */
   val data: UInt = UInt(datapathWidth.W)
@@ -855,6 +854,16 @@ class FreeWriteBusData(datapathWidth: Int, instructionIndexBits: Int, groupNumbe
   val counter: UInt = UInt(groupNumberBits.W)
 
   val sink: UInt = UInt(laneNumberBits.W)
+}
+
+class FreeWriteBusRequest(datapathWidth: Int, groupNumberBits: Int, laneNumberBits: Int) extends Bundle {
+  val readSink:    UInt = UInt(laneNumberBits.W)
+  val readCounter: UInt = UInt(groupNumberBits.W)
+  val readOffset:  UInt = UInt(log2Ceil(datapathWidth / 8).W)
+
+  val writeSink:    UInt = UInt(laneNumberBits.W)
+  val writeCounter: UInt = UInt(groupNumberBits.W)
+  val writeOffset:  UInt = UInt(log2Ceil(datapathWidth / 8).W)
 }
 
 class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
@@ -1056,7 +1065,6 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
       Decoupled(
         new FreeWriteBusData(
           parameter.datapathWidth,
-          parameter.instructionIndexBits,
           parameter.groupNumberBits,
           parameter.laneNumberBits
         )
@@ -1067,7 +1075,6 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
     Decoupled(
       new FreeWriteBusData(
         parameter.datapathWidth,
-        parameter.instructionIndexBits,
         parameter.groupNumberBits,
         parameter.laneNumberBits
       )
@@ -1080,6 +1087,37 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   )
 
   val freeCrossOutputVC: DecoupledIO[LaneVirtualChannel] = Decoupled(
+    new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
+  )
+
+  // Request channel for free exchange of data
+  val freeCrossReqDeq: DecoupledIO[FreeWriteBusRequest] =
+    Flipped(
+      Decoupled(
+        new FreeWriteBusRequest(
+          parameter.datapathWidth,
+          parameter.groupNumberBits,
+          parameter.laneNumberBits
+        )
+      )
+    )
+
+  val freeCrossReqEnq: DecoupledIO[FreeWriteBusRequest] =
+    Decoupled(
+      new FreeWriteBusRequest(
+        parameter.datapathWidth,
+        parameter.groupNumberBits,
+        parameter.laneNumberBits
+      )
+    )
+
+  val freeCrossRequestInputVC: DecoupledIO[LaneVirtualChannel] = Flipped(
+    Decoupled(
+      new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
+    )
+  )
+
+  val freeCrossRequestOutputVC: DecoupledIO[LaneVirtualChannel] = Decoupled(
     new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
   )
 }

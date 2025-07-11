@@ -8,17 +8,22 @@ import org.chipsalliance.t1.rtl.decoder.T1DecodePattern
 trait MaskPipeUop extends Uop
 object MaskUop0   extends MaskPipeUop
 object MaskUop1   extends MaskPipeUop
+object MaskUop2   extends MaskPipeUop
+object MaskUop3   extends MaskPipeUop
 object MaskUop4   extends MaskPipeUop
 object MaskUop5   extends MaskPipeUop
 object MaskUop6   extends MaskPipeUop
 object MaskUop7   extends MaskPipeUop
 // 0000 x => extend x?4:2                 [0,1]
+// 0001 x => gather x?16:sew              [2,3]
 // 001 xy => slide  x?up:down   y?s:1     [4,7]
 object MaskPipeOpcode {
   def apply(t1DecodePattern: T1DecodePattern): MaskPipeOpcode = {
     Seq(
       t0 _ -> MaskUop0,
       t1 _ -> MaskUop1,
+      t2 _ -> MaskUop2,
+      t3 _ -> MaskUop3,
       t4 _ -> MaskUop4,
       t5 _ -> MaskUop5,
       t6 _ -> MaskUop6,
@@ -75,6 +80,20 @@ object MaskPipeOpcode {
     val allMatched: Seq[String] = Seq(
       "vsext.vf4",
       "vzext.vf4"
+    )
+    allMatched.contains(t1DecodePattern.instruction.name)
+  }
+
+  def t2(t1DecodePattern: T1DecodePattern): Boolean = {
+    val allMatched: Seq[String] = Seq(
+      "vrgather.vv"
+    )
+    allMatched.contains(t1DecodePattern.instruction.name)
+  }
+
+  def t3(t1DecodePattern: T1DecodePattern): Boolean = {
+    val allMatched: Seq[String] = Seq(
+      "vrgatherei16.vv"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }
