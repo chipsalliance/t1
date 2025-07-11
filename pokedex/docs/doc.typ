@@ -670,18 +670,18 @@ The `mtvec` CSR is composed of two architectural states:
 
 The key distinction lies in how writes are handled:
 
-1.  *CSR Write Handler (Permissive):* As a WARL register, any 32-bit value can
-    be written to the `mtvec` CSR. The CSR's write logic is responsible for
-    sanitizing this input. For example, the `MODE` field only supports values
-    `0b00` and `0b01`. If a write contains `0b10` or `0b11` in the mode bits, the
-    handler correctly ignores the update for that field, treating it as a no-op.
+1. *CSR Write Handler (Permissive):* As a WARL register, any 32-bit value can
+  be written to the `mtvec` CSR. The CSR's write logic is responsible for
+  sanitizing this input. For example, the `MODE` field only supports values
+  `0b00` and `0b01`. If a write contains `0b10` or `0b11` in the mode bits, the
+  handler correctly ignores the update for that field, treating it as a no-op.
 
-2.  *Architectural State (Strict):* The internal `MODE` state itself should
-    *never* contain an illegal value like `0b10` or `0b11`. The sanitization
-    logic in the CSR handler guarantees this. Therefore, our model's internal logic
-    will use an *assertion* to validate the `MODE` state. If this assertion ever
-    fails, it signals a critical bug in the CSR's write-handling or some explicit
-    write logic that must be fixed.
+2. *Architectural State (Strict):* The internal `MODE` state itself should
+  *never* contain an illegal value like `0b10` or `0b11`. The sanitization
+  logic in the CSR handler guarantees this. Therefore, our model's internal logic
+  will use an *assertion* to validate the `MODE` state. If this assertion ever
+  fails, it signals a critical bug in the CSR's write-handling or some explicit
+  write logic that must be fixed.
 
 == General Propose Register (GPRs)
 
@@ -1185,6 +1185,21 @@ begin
     PC = [ MTVEC_BASE, '00' ] + (4 * interrupt_code);
   end
 end
+```
+
+= Codegen CLI
+
+== Update Codegen CLI Scala Dependency
+
+```bash
+$ cd pokedex/codegen
+$ nix run ".#pokedex.codegen-cli.bump"
+```
+
+== Setup Development Environment
+
+```bash
+$ nix develop '.#pokedex.codegen-cli'
 ```
 
 = Rust Simulator <rust-simulator>

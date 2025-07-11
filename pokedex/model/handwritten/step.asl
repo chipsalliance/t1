@@ -5,14 +5,28 @@ begin
     return;
   end
 
-  let fetch_result : FFI_ReadResult(32) = FFI_instruction_fetch(PC);
-  if !fetch_result.success then
-    FFI_print_str("instruction fetch fail");
+  let least_significant_half : FFI_ReadResult(16) = FFI_instruction_fetch_half(PC);
+  if !least_significant_half.success then
+    FFI_print_str("instruction fetch LSH fail");
     TrapException(CAUSE_FETCH_ACCESS, PC);
     return;
   end
 
-  let exec_result : Result = DecodeAndExecute(fetch_result.data);
+  var exec_result : Result;
+  if least_significant_half.data[1:0] == '11' then
+    let most_significant_half : FFI_ReadResult(16) = FFI_instruction_fetch_half(PC + 2);
+    if !most_significant_half.success then
+      FFI_print_str("instruction fetch MSH fail");
+      TrapException(CAUSE_FETCH_ACCESS, PC);
+      return;
+    end
+
+    let instruction : bits(32) = [most_significant_half.data, least_significant_half.data];
+    exec_result = DecodeAndExecute(instruction);
+  else
+    exec_result = DecodeAndExecute_CEXT(least_significant_half.data);
+  end
+
   if !exec_result.is_ok then
     TrapException(exec_result.cause, exec_result.value);
 

@@ -22,7 +22,7 @@ rustPlatform.buildRustPackage (finalAttr: {
     POKEDEX_INC_DIR = "${sim-lib}/include";
   };
 
-  passthru.dev = finalAttr.overrideAttrs (old: {
+  passthru.shell = finalAttr.overrideAttrs (old: {
     nativeBuildInputs = old.nativeBuildInputs ++ [
       rust-analyzer
     ];

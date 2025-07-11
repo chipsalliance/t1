@@ -40,7 +40,6 @@ pub(crate) struct SimulatorState {
     statistic: Statistic,
     exception: Option<SimulationException>,
 
-    last_instruction: u32,
     last_instruction_met_count: u8,
     max_same_instruction: u8,
 }
@@ -61,7 +60,6 @@ impl Simulator {
             pc: 0x1000,
             statistic: Statistic::new(),
             exception: None,
-            last_instruction: 0,
             last_instruction_met_count: 0,
             max_same_instruction,
         };
@@ -139,11 +137,11 @@ impl Simulator {
 
 // callback for ASL generated code
 impl SimulatorState {
-    pub(crate) fn inst_fetch(&mut self, pc: u32) -> Option<u32> {
-        let inst: u32 = u32::from_le_bytes(self.phy_readmem(pc)?).into();
+    pub(crate) fn inst_fetch(&mut self, pc: u32) -> Option<u16> {
+        let inst: u16 = u16::from_le_bytes(self.phy_readmem(pc)?).into();
         self.statistic.fetch_count += 1;
 
-        if inst == self.last_instruction {
+        if pc == self.pc {
             self.last_instruction_met_count += 1;
         } else {
             self.last_instruction_met_count = 0;
@@ -152,8 +150,6 @@ impl SimulatorState {
         if self.last_instruction_met_count > self.max_same_instruction {
             self.exception = Some(SimulationException::InfiniteInstruction);
         }
-
-        self.last_instruction = inst;
 
         event!(
             Level::TRACE,

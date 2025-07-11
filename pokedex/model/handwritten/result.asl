@@ -23,13 +23,24 @@ end
 
 /// Exception return a Result with provided `cause` and `trap_value`.
 /// The returned result has `is_ok` set to false.
-func Exception(cause : integer, trap_value : bits(32)) => Result
+/// The returned Result is always of 32 bits length. A trap_value longer
+/// then 32 bits will only be kept with least significant 32 bits. A
+/// trap_value smaller than 32-bits will be zero extended to 32 bits.
+func Exception(cause : integer, trap_value : bits(N)) => Result
 begin
-  return Result {
-    cause = cause,
-    value = trap_value,
-    is_ok = FALSE
-  };
+  if N >= 32 then
+    return Result {
+      cause = cause,
+      value = trap_value[31:0],
+      is_ok = FALSE
+    };
+  else
+    return Result {
+      cause = cause,
+      value = ZeroExtend(trap_value, 32),
+      is_ok = FALSE
+    };
+  end
 end
 
 /// Retired a Result with `cause` set to -1, `value` set to zeros, and
