@@ -67,6 +67,9 @@ class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   /** vd or rd */
   val vd:                  UInt = UInt(5.W)
   val bordersForMaskLogic: Bool = Bool()
+
+  // pipe for mask pipe
+  val readFromScalar: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
 }
 
 /** 这一个stage 分两级流水, 分别是 读vrf 等vrf结果
@@ -99,13 +102,13 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   @public
   val readBusDequeue: Option[Vec[DecoupledIO[ReadBusData]]] = Option.when(isLastSlot)(
     IO(
-      Vec(2, Flipped(Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth))))
+      Vec(2, Flipped(Decoupled(new ReadBusData(parameter.datapathWidth))))
     )
   )
 
   @public
   val readBusRequest: Option[Vec[DecoupledIO[ReadBusData]]] =
-    Option.when(isLastSlot)(IO(Vec(2, Decoupled(new ReadBusData(parameter.datapathWidth, parameter.idWidth)))))
+    Option.when(isLastSlot)(IO(Vec(2, Decoupled(new ReadBusData(parameter.datapathWidth)))))
 
   val groupCounter: UInt = enqueue.bits.groupCounter
 
@@ -385,6 +388,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   dequeue.bits.loadStore           := pipeQueue.deq.bits.loadStore
   dequeue.bits.vd                  := pipeQueue.deq.bits.vd
   dequeue.bits.bordersForMaskLogic := pipeQueue.deq.bits.bordersForMaskLogic
+  dequeue.bits.readFromScalar.foreach(_ := pipeQueue.deq.bits.readFromScalar)
 
   dequeue.bits.maskForFilter :=
     (FillInterleaved(

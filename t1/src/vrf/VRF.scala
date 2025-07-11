@@ -203,7 +203,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   @public
   val writeCheck: Vec[LSUWriteCheck] = IO(
     Vec(
-      parameter.chainingSize + 3,
+      parameter.chainingSize + 1,
       Input(
         new LSUWriteCheck(
           parameter.regNumBits,
@@ -215,7 +215,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   )
 
   @public
-  val writeAllow: Vec[Bool] = IO(Vec(parameter.chainingSize + 3, Output(Bool())))
+  val writeAllow: Vec[Bool] = IO(Vec(parameter.chainingSize + 1, Output(Bool())))
 
   /** when instruction is fired, record it in the VRF for chaining. */
   @public
