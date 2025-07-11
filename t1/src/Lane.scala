@@ -362,7 +362,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       Decoupled(
         new FreeWriteBusData(
           parameter.datapathWidth,
-          parameter.instructionIndexBits,
           parameter.groupNumberBits,
           parameter.laneNumberBits
         )
@@ -376,7 +375,32 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         Decoupled(
           new FreeWriteBusData(
             parameter.datapathWidth,
-            parameter.instructionIndexBits,
+            parameter.groupNumberBits,
+            parameter.laneNumberBits
+          )
+        )
+      )
+    )
+
+  @public
+  val freeCrossReqDeq: DecoupledIO[FreeWriteBusRequest] =
+    IO(
+      Decoupled(
+        new FreeWriteBusRequest(
+          parameter.datapathWidth,
+          parameter.groupNumberBits,
+          parameter.laneNumberBits
+        )
+      )
+    )
+
+  @public
+  val freeCrossReqEnq: DecoupledIO[FreeWriteBusRequest] =
+    IO(
+      Flipped(
+        Decoupled(
+          new FreeWriteBusRequest(
+            parameter.datapathWidth,
             parameter.groupNumberBits,
             parameter.laneNumberBits
           )
@@ -811,6 +835,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       }
       freeCrossDataDeq <> maskStage.get.freeCrossDataDeq
       maskStage.get.freeCrossDataEnq <> freeCrossDataEnq
+      freeCrossReqDeq <> maskStage.get.freeCrossReqDeq
+      maskStage.get.freeCrossReqEnq <> freeCrossReqEnq
     }
 
     stage2.enqueue.valid        := stage1.dequeue.valid && executionUnit.enqueue.ready
