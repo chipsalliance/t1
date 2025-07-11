@@ -12,6 +12,7 @@
   runCommand,
   writeShellApplication,
   mill,
+  mill_0_12_14,
   mill-ivy-fetcher,
 }:
 
@@ -21,34 +22,38 @@ in
 lib.makeScope newScope (scope: {
   sources = submodules;
 
-  ivy-chisel = publishMillJar {
-    name = "chisel-snapshot";
-    src = submodules.chisel.src;
+  ivy-chisel =
+    (publishMillJar.override {
+      mill = mill_0_12_14;
+    })
+      {
+        name = "chisel-snapshot";
+        src = submodules.chisel.src;
 
-    lockFile = ../locks/chisel-lock.nix;
+        lockFile = ../locks/chisel-lock.nix;
 
-    publishTargets = [
-      "unipublish"
-    ];
+        publishTargets = [
+          "unipublish"
+        ];
 
-    nativeBuildInputs = [
-      # chisel requires git to generate version
-      git
-    ];
+        nativeBuildInputs = [
+          # chisel requires git to generate version
+          git
+        ];
 
-    passthru.bump = writeShellApplication {
-      name = "bump-chisel-mill-lock";
+        passthru.bump = writeShellApplication {
+          name = "bump-chisel-mill-lock";
 
-      runtimeInputs = [
-        mill
-        mill-ivy-fetcher
-      ];
+          runtimeInputs = [
+            mill_0_12_14
+            mill-ivy-fetcher
+          ];
 
-      text = ''
-        mif run -p "${submodules.chisel.src}" -o ./dependencies/locks/chisel-lock.nix "$@"
-      '';
-    };
-  };
+          text = ''
+            mif run -p "${submodules.chisel.src}" -o ./dependencies/locks/chisel-lock.nix "$@"
+          '';
+        };
+      };
 
   ivy-omlib = publishMillJar {
     name = "omlib-snapshot";
@@ -100,7 +105,7 @@ lib.makeScope newScope (scope: {
     lockFile = ../locks/arithmetic-mill-lock.nix;
 
     passthru.bump = writeShellApplication {
-      name = "bump-zaozi-mill-lock";
+      name = "bump-arithmetic-mill-lock";
 
       runtimeInputs = [
         mill
@@ -137,7 +142,7 @@ lib.makeScope newScope (scope: {
     ];
 
     passthru.bump = writeShellApplication {
-      name = "bump-zaozi-mill-lock";
+      name = "bump-chisel-interface-mill-lock";
 
       runtimeInputs = [
         mill
