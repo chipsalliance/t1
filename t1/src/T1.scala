@@ -660,6 +660,25 @@ class T1(val parameter: T1Parameter)
     sourceVC.ready := VecInit(readyVec).asUInt.orR
   }
 
+  val freeRequestArbiterVec: Seq[Arbiter[LaneVirtualChannel]] = Seq.tabulate(parameter.laneNumber) { sinkIndex =>
+    val freeArbiter =
+      Module(new Arbiter(chiselTypeOf(laneIFVec(sinkIndex).io.freeCrossRequestOutputVC.bits), parameter.laneNumber))
+    laneIFVec(sinkIndex).io.freeCrossRequestInputVC <> freeArbiter.io.out
+    freeArbiter
+  }
+  // free cross request
+  Seq.tabulate(parameter.laneNumber) { sourceIndex =>
+    val sourceVC: DecoupledIO[LaneVirtualChannel] = laneIFVec(sourceIndex).io.freeCrossRequestOutputVC
+    val readyVec = Seq.tabulate(parameter.laneNumber) { sinkIndex =>
+      val sourceToThisSink = WireDefault(sourceVC)
+      sourceToThisSink.valid := sourceVC.valid && sourceVC.bits.sinkID === sinkIndex.U
+      val sinkNode: DecoupledIO[LaneVirtualChannel] = connectNode(sourceToThisSink)(2)
+      freeRequestArbiterVec(sinkIndex).io.in(sourceIndex) <> sinkNode
+      sourceToThisSink.fire
+    }
+    sourceVC.ready := VecInit(readyVec).asUInt.orR
+  }
+
   /** maintain a [[DecoupleIO]] for [[requestReg]]. */
   val requestRegDequeue = Wire(Decoupled(new T1Issue(parameter.xLen, parameter.vLen)))
   // latch instruction, csr, decode result and instruction index to requestReg.
@@ -989,6 +1008,7 @@ class T1(val parameter: T1Parameter)
     request.bits.csrInterface.vSew := vSewSelect
     request.bits.csrInterface.vl   := evlForLane
 
+    // todo: move to lane
     // 2 + 3 = 5
     val rowWith:      Int  = log2Ceil(parameter.datapathWidth / 8) + log2Ceil(parameter.laneNumber)
     val writeCounter: UInt = (requestReg.bits.writeByte >> rowWith).asUInt +
@@ -1067,6 +1087,9 @@ class T1(val parameter: T1Parameter)
 
     lane.freeCrossDataEnq <> laneIF.io.freeCrossDataEnq
     laneIF.io.freeCrossDataDeq <> lane.freeCrossDataDeq
+
+    lane.freeCrossReqEnq <> laneIF.io.freeCrossReqEnq
+    laneIF.io.freeCrossReqDeq <> lane.freeCrossReqDeq
 
     val instructionFinishedPipe =
       maskAnd(laneResponseVec(index).valid, laneResponseVec(index).bits.instructionFinished).asUInt
