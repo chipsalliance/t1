@@ -54,3 +54,11 @@ func GetCSR(inst : bits(32)) => bits(12)
 begin
   return inst[31:20];
 end
+
+func GetCI_IMM(inst : bits(16)) => bits(6)
+begin
+  let hi : bit = inst[12];
+  let lo : bits(5) = inst[6:2];
+
+  return [hi, lo];
+end
