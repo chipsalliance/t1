@@ -8,14 +8,14 @@ BUILD := build
 
 PREFIX := install
 
-SMOKE_CASES := addi.elf
+SMOKE_CASES := $(wildcard ./smoke/*.c)
 UTILS := utils/main.S utils/script.ld
 
 .PHONY: all
 all: install
 
 .PHONY: smoke
-smoke: $(addprefix $(BUILD)/smoke/, $(SMOKE_CASES))
+smoke: $(SMOKE_CASES:./smoke/%.c=$(BUILD)/smoke/%.elf)
 
 .PHONY: build
 build: smoke
