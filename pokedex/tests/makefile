@@ -6,20 +6,31 @@ CFLAGS := -O0 -march=rv32i -nostdlib -fno-PIC -mno-relax -static
 
 BUILD := build
 
-PREFIX := $(BUILD)/install
+PREFIX := install
+
+SMOKE_CASES := addi.elf
+UTILS := utils/main.S utils/script.ld
 
 .PHONY: all
-all: prepare build
+all: install
 
-.PHONY: prepare
-prepare:
-	mkdir $(BUILD)
+.PHONY: smoke
+smoke: $(addprefix $(BUILD)/smoke/, $(SMOKE_CASES))
+
+.PHONY: build
+build: smoke
+
+.PHONY: clean
+clean:
+	rm -rf $(BUILD)
+	rm -rf $(PREFIX)
 
 .PHONY: install
-install: $(BUILD)/test.elf
-	install -d $(PREFIX)/bin $(PREFIX)/src
-	install $< $(PREFIX)/bin/test.elf
-	$(OBJDUMP) -d $< > $(PREFIX)/src/test.elf.objdump
+install: build
+	install -d $(PREFIX)
+	cp -r $(BUILD)/* $(PREFIX)/
 
-$(BUILD)/test.elf: main.S test.c script.ld
-	$(CC) $(CFLAGS) -T script.ld main.S test.c -o $@
+$(BUILD)/smoke/%.elf: smoke/%.c $(UTILS)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -T utils/script.ld utils/main.S $< -o $@
+	$(OBJDUMP) -d $@ > $@.objdump

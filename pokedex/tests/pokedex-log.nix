@@ -1,9 +1,9 @@
 {
   runCommand,
   simulator,
-  test-elf,
+  all-tests,
 }:
-runCommand "run-pokedex-for-${test-elf.name}"
+runCommand "run-pokedex-for-all-tests"
   {
     nativeBuildInputs = [
       simulator
@@ -12,9 +12,13 @@ runCommand "run-pokedex-for-${test-elf.name}"
   ''
     mkdir -p "$out"
 
-    pokedex \
-      --elf-path "${test-elf}/bin/test.elf" \
-      --memory-size 0xc0000000 \
-      -vvv \
-      -o "$out/pokedex.log.jsonl"
+    elfs=$(find '${all-tests}' -type f -name '*.elf')
+
+    for f in "''${elfs[@]}"; do
+      pokedex \
+        --elf-path "$f" \
+        --memory-size 0xc0000000 \
+        -vvv \
+        -o "$out/$(basename "$f").pokedex-log.jsonl"
+    done
   ''
