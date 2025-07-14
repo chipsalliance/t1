@@ -5,11 +5,11 @@
   jq,
   spike,
   dtc,
-  test-elf,
+  all-tests,
 }:
 let
   configuration = {
-    elf_path_glob = "${test-elf}/bin/*";
+    elf_path_glob = "${all-tests}/**/*.elf";
     spike_args = [
       "--isa=rv32i"
       "--priv=m"
@@ -30,7 +30,7 @@ let
   };
   configFile = writeText "difftest.json" (builtins.toJSON configuration);
 in
-runCommand "run-difftest-for-${test-elf.name}"
+runCommand "run-difftest-for-all-cases"
   {
     nativeBuildInputs = [
       simulator
@@ -46,8 +46,8 @@ runCommand "run-difftest-for-${test-elf.name}"
       jq -n '.success = true' > "$out/meta.json"
     else
       jq -n '.success = false' > "$out/meta.json"
-      ${if test-elf ? dbgSrc then "cp -r '${test-elf}/${test-elf.dbgSrc}' $out/" else ""}
 
+      find '${all-tests}' -name '*.objdump' -type f -exec cp '{}' "$out/" ';'
       find . -name '*-pokedex-sim-event.jsonl' -type f -exec cp '{}' "$out/" ';'
       find . -name '*-spike-commits.log' -type f -exec cp '{}' "$out/" ';'
     fi
