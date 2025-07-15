@@ -12,7 +12,7 @@ runCommand "run-pokedex-for-all-tests"
   ''
     mkdir -p "$out"
 
-    elfs=$(find '${all-tests}' -type f -name '*.elf')
+    elfs=( $(find '${all-tests}' -type f -name '*.elf') )
 
     for f in "''${elfs[@]}"; do
       pokedex \
