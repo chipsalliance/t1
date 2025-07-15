@@ -42,13 +42,20 @@ runCommand "run-difftest-for-all-cases"
   ''
     mkdir -p "$out"
 
-    if difftest --config-path '${configFile}'; then
-      jq -n '.success = true' > "$out/meta.json"
+    if difftest --result-path ./result.json --config-path '${configFile}'; then
+      cp ./result.json "$out"
     else
-      jq -n '.success = false' > "$out/meta.json"
+      cp ./result.json "$out"
 
-      find '${all-tests}' -name '*.objdump' -type f -exec cp '{}' "$out/" ';'
-      find . -name '*-pokedex-sim-event.jsonl' -type f -exec cp '{}' "$out/" ';'
-      find . -name '*-spike-commits.log' -type f -exec cp '{}' "$out/" ';'
+      mkdir -p "$out/pass"
+      find . -name '*-pokedex-sim-event.jsonl' -type f -exec cp '{}' "$out/pass/" ';'
+      find . -name '*-spike-commits.log' -type f -exec cp '{}' "$out/pass/" ';'
+
+      failedCases=$(jq -r '.context|keys[]' ./result.json)
+      for case in "''${failedCases[@]}"; do
+        cp "$case".objdump "$out"
+        mv "$out/pass/$(basename $case)-pokedex-sim-event.jsonl" "$out"
+        mv "$out/pass/$(basename $case)-spike-commits.log" "$out"
+      done
     fi
   ''

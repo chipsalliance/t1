@@ -4,7 +4,8 @@ use pokedex::{PokedexEvent, PokedexLog};
 use serde::Deserialize;
 use serde::Deserializer;
 use spike::SpikeLog;
-use tracing::{error, info};
+use std::collections::HashMap;
+use tracing::{debug, error, info};
 use tracing_subscriber;
 
 mod pokedex;
@@ -45,8 +46,16 @@ struct CaseConfig {
 #[derive(clap::Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct DiffTestArgs {
-    #[arg(short = 'c', long, default_value_t = String::from("./sail_difftest_config.json"))]
+    #[arg(short = 'c', long, default_value_t = String::from("difftest_cfg.json"))]
     config_path: String,
+    #[arg(long, default_value_t = String::from("difftest_result.json"))]
+    result_path: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct DifftestResultDump {
+    context: HashMap<String, String>,
+    success: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -67,29 +76,38 @@ fn main() -> anyhow::Result<()> {
     let all_elf_files = glob::glob(&cfg.elf_path_glob)
         .with_context(|| format!("invalid path glob {}", cfg.elf_path_glob))?;
 
-    let mut errors = Vec::new();
+    let mut ctx = HashMap::new();
     for path in all_elf_files {
         let path = path.with_context(|| "internal error: glob leads to unreadable path")?;
 
-        info!("running difftest for {path:?}");
+        debug!("running {path:?}");
 
         let spike_log = spike::run_process(&cfg.spike_args, &path)?;
         let pokedex_log = pokedex::run_process(&cfg.pokedex_args, &path)?;
         let diff_result = diff(&spike_log, &pokedex_log, &cfg.end_pattern);
 
         if !diff_result.is_same {
-            errors.push((path, diff_result.context));
+            ctx.insert(path.to_string_lossy().to_string(), diff_result.context);
+            error!("FAILED: {path:?}")
         } else {
-            info!("difftest pass")
+            info!("PASS: {path:?}")
         }
     }
 
-    if errors.is_empty() {
+    let dump = DifftestResultDump {
+        success: ctx.is_empty(),
+        context: ctx,
+    };
+
+    std::fs::write(args.result_path, serde_json::to_string(&dump)?)?;
+
+    if dump.success {
         return Ok(());
     }
 
-    for (path, err) in errors {
-        error!("{}\n{}", path.display(), err)
+    error!("{} cases fail to align with spike", dump.context.len());
+    for (path, err) in dump.context {
+        eprintln!("ELF: {}\n{}", path, err)
     }
 
     anyhow::bail!("difftest fail")
