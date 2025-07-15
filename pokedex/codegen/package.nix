@@ -6,6 +6,8 @@
 
   mill,
   mill-ivy-fetcher,
+  mill-ivy-env-shell-hook,
+  metals,
   riscv-opcodes-src,
   ivy-gather,
   ivy-rvdecoderdb,
@@ -14,7 +16,7 @@
 let
   ivyCache = ivy-gather ./mill-lock.nix;
 in
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttr: rec {
   name = "pokedex-codegen-cli-jar";
 
   src =
@@ -54,6 +56,13 @@ stdenv.mkDerivation rec {
         mif run --project-dir ${src} -o ./mill-lock.nix "$@"
       '';
     };
+
+    shell = finalAttr.overrideAttrs (old: {
+      nativeBuildInputs = old.nativeBuildInputs ++ [ metals ];
+      shellHook = ''
+        ${mill-ivy-env-shell-hook}
+      '';
+    });
   };
 
   env = {
@@ -84,4 +93,4 @@ stdenv.mkDerivation rec {
   '';
 
   meta.mainProgram = "codegen";
-}
+})

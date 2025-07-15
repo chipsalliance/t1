@@ -191,7 +191,13 @@ class CodeGenerator(params: CodeGeneratorParams):
       )
       .filter(_.pseudoFrom.isEmpty)
 
-    val requiredInstructions = rv32Instructions ++ allInstructions
+    // Count and sort the amount of bit pattern: we always wants the pattern with
+    // least granularity to be at the end of the pattern match list.
+    val requiredInstructions = (rv32Instructions ++ allInstructions)
+      // first sort to ensure bits is listed from smallest to largest
+      .sortBy(inst => inst.encoding.toCustomBitPat("x", 32))
+      // second sort to ensure most concrete pattern match are on top
+      .sortBy(inst => inst.encoding.toCustomBitPat("x", 32).count(b => b == 'x'))
 
     val generateExecuteCode: Int => Instruction => Option[(Instruction, String)] =
       width =>
@@ -216,7 +222,6 @@ class CodeGenerator(params: CodeGeneratorParams):
 
     val executeCode = requiredInstructions
       .flatMap(generateExecuteCode(32))
-      .toMap
 
     val generateDispatchArm: Int => ((Instruction, String)) => String =
       width =>
@@ -241,18 +246,16 @@ class CodeGenerator(params: CodeGeneratorParams):
                            |end
                            |""".stripMargin
 
-    os.write.over(execute_path, executeCode.values.mkString("\n") + dispatchCode)
+    os.write.over(execute_path, executeCode.map((_, fn) => fn).mkString("\n") + dispatchCode)
 
-    val rvcInstruction = enabledExtensionSets
-      .filter(_ == "rv_c")
-      .flatMap(_ =>
-        rvdecoderdb
-          .filter(inst => inst.instructionSets.head.name == "rv_c")
-      )
+    val rvcInstruction = rvdecoderdb
+      .filter(inst => inst.instructionSets.head.name == "rv_c")
+      .toSeq
 
     val rvcExecCode = rvcInstruction
+      .sortBy(inst => inst.encoding.toCustomBitPat("x", 16))
+      .sortBy(inst => inst.encoding.toCustomBitPat("x", 16).count(b => b == 'x'))
       .flatMap(generateExecuteCode(16))
-      .toMap
 
     val rvcMatchArm = rvcExecCode.map(generateDispatchArm(16)).mkString("\n")
 
@@ -265,7 +268,7 @@ class CodeGenerator(params: CodeGeneratorParams):
                      |    end
                      |end
                      |""".stripMargin
-    os.write.append(execute_path, rvcExecCode.values.mkString("\n") + rvcCode)
+    os.write.append(execute_path, rvcExecCode.map((_, fn) => fn).mkString("\n") + rvcCode)
 
     val requiredInst = (requiredInstructions ++ rvcInstruction)
       .map(_.name.replace(".", "_"))

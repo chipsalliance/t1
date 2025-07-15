@@ -1199,7 +1199,7 @@ $ nix run ".#pokedex.codegen-cli.bump"
 == Setup Development Environment
 
 ```bash
-$ nix develop '.#pokedex.codegen-cli'
+$ nix develop .#pokedex.codegen-cli.shell -L
 ```
 
 = Rust Simulator <rust-simulator>
