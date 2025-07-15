@@ -94,9 +94,9 @@ impl Simulator {
         Ok(())
     }
 
-    pub fn load_elf<P: AsRef<std::path::Path>>(&mut self, fname: P) -> u32 {
-        let mut file = std::fs::File::open(fname)
-            .unwrap_or_else(|err| panic!("fail open ELF file to read: {err}"));
+    pub fn load_elf<P: AsRef<std::path::Path> + std::fmt::Debug>(&mut self, fname: P) -> u32 {
+        let mut file = std::fs::File::open(&fname)
+            .unwrap_or_else(|err| panic!("fail open '{fname:?}' to read: {err}"));
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).expect(
             "fail reading elf file to memory, maybe a broken file system or file too large",
