@@ -8,10 +8,6 @@ let src2 : integer = SInt(X[rs2]);
 
 if src1 < src2 then
   let target : bits(32) = PC + SignExtend(offset, 32);
-  if target[1] != '0' then
-    return Exception(CAUSE_MISALIGNED_FETCH, target);
-  end
-
   PC = target;
 else
   PC = PC + 4;

@@ -1061,8 +1061,6 @@ end
 setter MEPC = pc : bits(32)
 begin
   assert pc[0] == '0';
-  // todo: test IALIGN before assert after C extension implmented
-  assert pc[1] == '0';
   __MEPC = pc;
 end
 ```
@@ -1072,8 +1070,7 @@ Thus developer should verify address before writing to `mepc`.
 ```asl
 func Write_MEPC(value : bits(32)) => Result
 begin
-  // todo: C ext
-  MEPC = [ value[31:2], '00' ];
+  MEPC = [ value[31:1], '0' ];
 
   return Retired();
 end

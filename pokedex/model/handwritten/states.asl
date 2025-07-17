@@ -6,8 +6,6 @@ getter PC => bits(32) begin return __PC; end
 setter PC = npc : bits(32)
 begin
   assert npc[0] == '0';
-  // todo: test IALIGN before assert after C extension implmented
-  assert npc[1] == '0';
   __PC = npc;
 end
 
@@ -188,8 +186,8 @@ end
 setter MEPC = pc : bits(32)
 begin
   assert pc[0] == '0';
-  // todo: test IALIGN before assert after C extension implmented
-  assert pc[1] == '0';
+  // we don't support runtime switch off "C" extension so there is
+  // no need for misalign check at 1 bit.
   __MEPC = pc;
 end
 

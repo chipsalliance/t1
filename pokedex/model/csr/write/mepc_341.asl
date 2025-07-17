@@ -1,4 +1,3 @@
-// todo: C ext
-MEPC = [ value[31:2], '00' ];
+MEPC = [ value[31:1], '0' ];
 
 return Retired();
