@@ -11,7 +11,7 @@ import chisel3.ltl._
 import chisel3.ltl.Sequence._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.Decoder
-import org.chipsalliance.t1.rtl.lane.{CrossReadUnit, LaneState, VrfReadPipe}
+import org.chipsalliance.t1.rtl.lane.{CrossReadUnit, LaneState, PipeForSecondPipe, VrfReadPipe}
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 
 class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -37,6 +37,17 @@ class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val loadStore:           Bool         = Bool()
   val readFromScalar:      UInt         = UInt(parameter.datapathWidth.W)
   val bordersForMaskLogic: Bool         = Bool()
+
+  // pipe for mask stage
+  val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
+    new PipeForSecondPipe(
+      parameter.datapathWidth,
+      parameter.groupNumberBits,
+      parameter.laneNumberBits,
+      parameter.eLen
+    )
+  )
 }
 
 class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -70,6 +81,17 @@ class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 
   // pipe for mask pipe
   val readFromScalar: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+
+  // pipe for mask stage
+  val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
+    new PipeForSecondPipe(
+      parameter.datapathWidth,
+      parameter.groupNumberBits,
+      parameter.laneNumberBits,
+      parameter.eLen
+    )
+  )
 }
 
 /** 这一个stage 分两级流水, 分别是 读vrf 等vrf结果
@@ -389,6 +411,8 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   dequeue.bits.vd                  := pipeQueue.deq.bits.vd
   dequeue.bits.bordersForMaskLogic := pipeQueue.deq.bits.bordersForMaskLogic
   dequeue.bits.readFromScalar.foreach(_ := pipeQueue.deq.bits.readFromScalar)
+  dequeue.bits.secondPipe.foreach(_ := pipeQueue.deq.bits.secondPipe.get)
+  dequeue.bits.pipeForSecondPipe.foreach(_ := pipeQueue.deq.bits.pipeForSecondPipe.get)
 
   dequeue.bits.maskForFilter :=
     (FillInterleaved(
