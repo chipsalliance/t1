@@ -8,9 +8,6 @@ let rs1 : integer{0..31} = UInt(GetRS1(instruction));
 
 var target : bits(32) = offset + X[rs1];
 target[0] = '0';
-if target[1] != '0' then
-  return Exception(CAUSE_MISALIGNED_FETCH, target);
-end
 
 PC = target;
 

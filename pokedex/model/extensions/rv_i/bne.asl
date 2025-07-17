@@ -5,10 +5,6 @@ let rs2 : integer{0..31} = UInt(GetRS2(instruction));
 
 if X[rs1] != X[rs2] then
   let target : bits(32) = PC + SignExtend(offset, 32);
-  if target[1:0] != '00' then
-    return Exception(CAUSE_MISALIGNED_FETCH, target);
-  end
-
   PC = target;
 else
   PC = PC + 4;
