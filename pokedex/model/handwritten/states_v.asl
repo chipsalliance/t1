@@ -41,9 +41,41 @@ enumeration VLMUL_TYPE {
   VLMUL_1_8
 };
 
+type VREG_TYPE of integer{0..31};
+
 /////////////////////////////////
 // Architectural State Helpers //
 /////////////////////////////////
+
+getter VRF_8[vreg: VREG_TYPE, idx: integer] => bits(8)
+begin
+  return __VRF[vreg * VLEN + idx * 8 +: 8];
+end
+
+setter VRF_8[vreg: VREG_TYPE, idx: integer] = value : bits(8)
+begin
+  __VRF[vreg * VLEN + idx * 8 +: 8] = value;
+end
+
+getter VRF_16[vreg: VREG_TYPE, idx: integer] => bits(16)
+begin
+  return __VRF[vreg * VLEN + idx * 16 +: 16];
+end
+
+setter VRF_16[vreg: VREG_TYPE, idx: integer] = value : bits(16)
+begin
+  __VRF[vreg * VLEN + idx * 16 +: 16] = value;
+end
+
+getter VRF_32[vreg: VREG_TYPE, idx: integer] => bits(32)
+begin
+  return __VRF[vreg * VLEN + idx * 32 +: 32];
+end
+
+setter VRF_32[vreg: VREG_TYPE, idx: integer] = value : bits(32)
+begin
+  __VRF[vreg * VLEN + idx * 32 +: 32] = value;
+end
 
 func ClearVSTART()
 begin
@@ -206,6 +238,29 @@ begin
     when VLMUL_1_4 => return x * 4;
     when VLMUL_1_8 => return x * 8;
   end
+end
+
+func valid_with_lmul(lmul: VLMUL_TYPE, x: VREG_TYPE) => boolean
+begin
+  case lmul of
+    when VLMUL_1 => return TRUE;
+    when VLMUL_2 => return x MOD 2 == 0;
+    when VLMUL_4 => return x MOD 4 == 0;
+    when VLMUL_8 => return x MOD 8 == 0;
+    when VLMUL_1_2 => return TRUE;
+    when VLMUL_1_4 => return TRUE;
+    when VLMUL_1_8 => return TRUE;
+  end
+end
+
+func valid_with_lmul2(lmul: VLMUL_TYPE, x: VREG_TYPE, y: VREG_TYPE) => boolean
+begin
+  return valid_with_lmul(lmul, x) && valid_with_lmul(lmul, y);
+end
+
+func valid_with_lmul3(lmul: VLMUL_TYPE, x: VREG_TYPE, y: VREG_TYPE, z: VREG_TYPE) => boolean
+begin
+  return valid_with_lmul(lmul, x) && valid_with_lmul(lmul, y) && valid_with_lmul(lmul, z);
 end
 
 // VLMAX = VLEN * VLMUL / VSEW
