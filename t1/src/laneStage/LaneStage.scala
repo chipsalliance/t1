@@ -49,16 +49,17 @@ abstract class LaneStage[A <: Data, B <: Data](pipe: Boolean)(input: A, output: 
   val dequeue: DecoupledIO[B] = IO(Decoupled(output))
   @public
   val stageValid = IO(Output(Bool()))
-  val stageFinish:   Bool = WireDefault(true.B)
-  val stageValidReg: Bool = RegInit(false.B)
+  val stageDeqAllocate: Bool = WireDefault(true.B)
+  val bypassDeqValid:   Bool = WireDefault(false.B)
+  val stageValidReg:    Bool = RegInit(false.B)
   dontTouch(enqueue)
   dontTouch(dequeue)
   if (pipe) {
-    enqueue.ready := !stageValidReg || (dequeue.ready && stageFinish)
+    enqueue.ready := !stageValidReg || (dequeue.ready && stageDeqAllocate)
   } else {
     enqueue.ready := !stageValidReg
   }
 
-  dequeue.valid := stageValidReg && stageFinish
+  dequeue.valid := (stageValidReg && stageDeqAllocate) || bypassDeqValid
   stageValid    := stageValidReg
 }
