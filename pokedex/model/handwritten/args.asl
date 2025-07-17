@@ -55,6 +55,11 @@ begin
   return inst[31:20];
 end
 
+func GetVM(inst : bits(32)) => bit
+begin
+  return inst[25];
+end
+
 func GetCLWSP_IMM(inst : bits(16)) => bits(6)
 begin
   return [inst[3:2], inst[12], inst[6:4]];
