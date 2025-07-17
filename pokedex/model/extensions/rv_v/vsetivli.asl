@@ -1,5 +1,6 @@
+// rd=new_vl, rs1(imm)=AVL, imm=new_vtype
+
 let rs1 : integer{0..31} = UInt(GetRS1(instruction));
-let rs2 : integer{0..31} = UInt(GetRS2(instruction));
 let rd  : integer{0..31} = UInt(GetRD(instruction));
 
 let new_vtype_bits = [Zeros(22), instruction[29:20]];

@@ -1,5 +1,6 @@
 // Architectural Congifurations
 constant VLEN : integer = 256;
+constant ELEN : integer = 32;
 
 constant LOG2_VLEN : integer = 8;
 
@@ -41,9 +42,46 @@ enumeration VLMUL_TYPE {
   VLMUL_1_8
 };
 
+type VREG_TYPE of integer{0..31};
+
 /////////////////////////////////
 // Architectural State Helpers //
 /////////////////////////////////
+
+getter V0_MASK[idx: integer] => boolean
+begin
+  return (__VRF[idx]) as boolean;
+end
+
+getter VRF_8[vreg: VREG_TYPE, idx: integer] => bits(8)
+begin
+  return __VRF[vreg * VLEN + idx * 8 +: 8];
+end
+
+setter VRF_8[vreg: VREG_TYPE, idx: integer] = value : bits(8)
+begin
+  __VRF[vreg * VLEN + idx * 8 +: 8] = value;
+end
+
+getter VRF_16[vreg: VREG_TYPE, idx: integer] => bits(16)
+begin
+  return __VRF[vreg * VLEN + idx * 16 +: 16];
+end
+
+setter VRF_16[vreg: VREG_TYPE, idx: integer] = value : bits(16)
+begin
+  __VRF[vreg * VLEN + idx * 16 +: 16] = value;
+end
+
+getter VRF_32[vreg: VREG_TYPE, idx: integer] => bits(32)
+begin
+  return __VRF[vreg * VLEN + idx * 32 +: 32];
+end
+
+setter VRF_32[vreg: VREG_TYPE, idx: integer] = value : bits(32)
+begin
+  __VRF[vreg * VLEN + idx * 32 +: 32] = value;
+end
 
 func ClearVSTART()
 begin
@@ -205,6 +243,79 @@ begin
     when VLMUL_1_2 => return x * 2;
     when VLMUL_1_4 => return x * 4;
     when VLMUL_1_8 => return x * 8;
+  end
+end
+
+func invalid_vreg(lmul: VLMUL_TYPE, x: VREG_TYPE) => boolean
+begin
+  case lmul of
+    when VLMUL_1 => return FALSE;
+    when VLMUL_2 => return x MOD 2 != 0;
+    when VLMUL_4 => return x MOD 4 != 0;
+    when VLMUL_8 => return x MOD 8 != 0;
+    when VLMUL_1_2 => return FALSE;
+    when VLMUL_1_4 => return FALSE;
+    when VLMUL_1_8 => return FALSE;
+  end
+end
+
+func invalid_double_lmul(lmul: VLMUL_TYPE) => boolean
+begin
+  case lmul of
+    when VLMUL_1 => return FALSE;
+    when VLMUL_2 => return FALSE;
+    when VLMUL_4 => return FALSE;
+    when VLMUL_8 => return TRUE;
+    when VLMUL_1_2 => return FALSE;
+    when VLMUL_1_4 => return FALSE;
+    when VLMUL_1_8 => return FALSE;
+  end
+end
+
+// eew(x) = 2 * sew
+func invalid_vreg_2sew(lmul: VLMUL_TYPE, x: VREG_TYPE) => boolean
+begin
+  case lmul of
+    when VLMUL_1 => return x MOD 2 != 0;
+    when VLMUL_2 => return x MOD 4 != 0;
+    when VLMUL_4 => return x MOD 8 != 0;
+    when VLMUL_8 => assert FALSE;
+    when VLMUL_1_2 => return FALSE;
+    when VLMUL_1_4 => return FALSE;
+    when VLMUL_1_8 => return FALSE;
+  end
+end
+
+// eew(vd) = 2*sew, eew(vs) = sew
+// return TRUE iff they have overlap and the overlap is invalid
+// assuming vd/vs already checked by invalid_vreg_2sew/invalid_reg
+func invalid_overlap_dst_src_2_1(lmul: VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
+begin
+  // 1. when lmul < 1:
+  //   they have overlap when (vd == vs),
+  //   and the overlap is illegal
+  //
+  // 2. when lmul < 1:
+  //   they have overlap when (vd == vs) or (vs == vd + lmul),
+  //     (vs == vd) is invalid overlap
+  //     (vs == vd + lmul) is valid overlap
+
+  return vd == vs;
+end
+
+// eew(vw) = 2 * sew, eew(vn) = sew
+// return TRUE iff they have overlap
+// assuming vw/vn already checked by invalid_vreg_2sew/invalid_reg
+func invalid_overlap_src_2_1(lmul: VLMUL_TYPE, vw: VREG_TYPE, vn: VREG_TYPE) => boolean
+begin
+  case lmul of
+    when VLMUL_1 => return vw >> 1 == vn >> 1;
+    when VLMUL_2 => return vw >> 2 == vn >> 2;
+    when VLMUL_4 => return vw >> 3 == vn >> 3;
+    when VLMUL_8 => assert FALSE;
+    when VLMUL_1_2 => return vw == vn;
+    when VLMUL_1_4 => return vw == vn;
+    when VLMUL_1_8 => return vw == vn;
   end
 end
 
