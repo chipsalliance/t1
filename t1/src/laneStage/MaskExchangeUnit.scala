@@ -21,7 +21,8 @@ class PipeForMaskUnit(parameter: LaneParameter) extends Bundle {
 }
 
 class MaskExchangeRelease extends Bundle {
-  val maskPipe: Bool = Bool()
+  val maskPipe:   Bool = Bool()
+  val secondPipe: Bool = Bool()
 }
 
 class MaskPipeBundle(parameter: LaneParameter) extends Bundle {
@@ -52,12 +53,20 @@ class GatherRequest0(parameter: LaneParameter) extends Bundle {
   val readIndex:    UInt = UInt(parameter.eLen.W)
 }
 
+class PipeForSecondPipe(datapathWidth: Int, groupNumberBits: Int, laneNumberBits: Int, eLen: Int) extends Bundle {
+  val readOffset:   UInt = UInt(log2Ceil(datapathWidth / 8).W)
+  val writeSink:    UInt = UInt(laneNumberBits.W)
+  val writeCounter: UInt = UInt(groupNumberBits.W)
+  val writeOffset:  UInt = UInt(log2Ceil(datapathWidth / 8).W)
+  val mask:         UInt = UInt((eLen / 8).W)
+}
+
 class GatherRequest1(datapathWidth: Int, groupNumberBits: Int, laneNumberBits: Int, eLen: Int) extends Bundle {
   val readSink:    UInt = UInt(laneNumberBits.W)
   val readCounter: UInt = UInt(groupNumberBits.W)
-  val readOffset:  UInt = UInt(log2Ceil(datapathWidth / 8).W)
   val skipRead:    Bool = Bool()
 
+  val readOffset:   UInt = UInt(log2Ceil(datapathWidth / 8).W)
   val writeSink:    UInt = UInt(laneNumberBits.W)
   val writeCounter: UInt = UInt(groupNumberBits.W)
   val writeOffset:  UInt = UInt(log2Ceil(datapathWidth / 8).W)
@@ -190,20 +199,6 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     )
 
   @public
-  val freeCrossReqEnq: DecoupledIO[FreeWriteBusRequest] =
-    IO(
-      Flipped(
-        Decoupled(
-          new FreeWriteBusRequest(
-            parameter.datapathWidth,
-            parameter.groupNumberBits,
-            parameter.laneNumberBits
-          )
-        )
-      )
-    )
-
-  @public
   val maskPipeRelease: MaskExchangeRelease = IO(Output(new MaskExchangeRelease))
 
   @public
@@ -242,10 +237,18 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   // mask pipe request queue
   val maskReqQueue: queue.QueueIO[MaskPipeBundle] =
     Queue.io(new MaskPipeBundle(parameter), parameter.maskRequestQueueSize)
-  maskReqQueue.enq.valid         := enqueue.valid && enqSendMaskPipe
+  maskReqQueue.enq.valid         := enqueue.valid && enqSendMaskPipe && !enqueue.bits.secondPipe.get
   maskPipeRelease.maskPipe       := maskReqQueue.deq.fire
   maskReqQueue.enq.bits.req      := enqueue.bits
   maskReqQueue.enq.bits.maskPipe := pipeForMask
+
+  // second pipe request queue
+  val secondReqQueue: queue.QueueIO[MaskPipeBundle] =
+    Queue.io(new MaskPipeBundle(parameter), parameter.maskRequestQueueSize)
+  secondReqQueue.enq.valid         := enqueue.valid && enqSendMaskPipe && enqueue.bits.secondPipe.get
+  maskPipeRelease.secondPipe       := secondReqQueue.deq.fire
+  secondReqQueue.enq.bits.req      := enqueue.bits
+  secondReqQueue.enq.bits.maskPipe := pipeForMask
 
   // opcode (0, 1) cross write 2/4
   val crossWriteState: UInt = RegInit(15.U(4.W))
@@ -682,6 +685,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   freeCrossReqDeq.bits.writeSink    := gatherRequestReg1.bits.writeSink
   freeCrossReqDeq.bits.writeCounter := gatherRequestReg1.bits.writeCounter
   freeCrossReqDeq.bits.writeOffset  := gatherRequestReg1.bits.writeOffset
+  freeCrossReqDeq.bits.mask         := gatherRequestReg1.bits.mask
 
   when(maskPipeEnqIsGather) {
     freeCrossDataDeq.valid        := gatherRequestReg1.valid && gatherRequestReg1.bits.skipRead && !sameLane
@@ -696,21 +700,21 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     crossLaneWriteQueue.last.enq.bits.groupCounter := gatherRequestReg1.bits.writeCounter
   }
 
-  val gatherRequest1DeqReady: Bool = Mux(
+  val freeCrossDataUsedBySecondPipe:  Bool = Wire(Bool())
+  val crossLaneWriteUsedBySecondPipe: Bool = Wire(Bool())
+  val gatherRequest1DeqReady:         Bool = Mux(
     gatherRequestReg1.bits.skipRead,
     Mux(
       sameLane,
-      crossLaneWriteQueue.last.enq.ready,
-      freeCrossDataDeq.ready
+      crossLaneWriteQueue.last.enq.ready && !crossLaneWriteUsedBySecondPipe,
+      freeCrossDataDeq.ready && !freeCrossDataUsedBySecondPipe
     ),
-    freeCrossDataDeq.ready
+    freeCrossReqDeq.ready
   )
   gatherRequest1DeqFire := gatherRequestReg1.valid && gatherRequest1DeqReady
 
   gatherRequestDeqReady0 := !gatherRequestReg1.valid || gatherRequest1DeqReady
 
-  // todo: The second pipe for gather
-  freeCrossReqEnq.ready := true.B
   // enq ready
   val extendType:    Bool = maskPipeEnqIsExtend
   val crossDataType: Bool = maskPipeEnqIsGather || maskPipeEnqIsSlid
@@ -720,4 +724,44 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
       crossDataType -> !remainder.orR
     )
   )
+
+  // update register
+  val secondReqReg:     ValidIO[LaneStage3Enqueue] = RegInit(0.U.asTypeOf(Valid(new LaneStage3Enqueue(parameter, true))))
+  val secondMessageReg: PipeForMaskUnit            = RegInit(0.U.asTypeOf(new PipeForMaskUnit(parameter)))
+
+  val secondDeqReady: Bool = Wire(Bool())
+  val secondDeqFire:  Bool = secondDeqReady && secondReqReg.valid
+  val secondEnqFire:  Bool = secondReqQueue.deq.fire
+  secondReqQueue.deq.ready := !secondReqReg.valid || secondDeqReady
+
+  when(secondEnqFire) {
+    secondReqReg.bits := secondReqQueue.deq.bits.req
+    secondMessageReg  := secondReqQueue.deq.bits.maskPipe
+  }
+
+  when(secondEnqFire ^ secondDeqFire) {
+    secondReqReg.valid := secondEnqFire
+  }
+
+  val secondPipeSameLane: Bool = secondReqReg.bits.pipeForSecondPipe.get.writeSink === laneIndex
+  val gatherWriteData:    Bits = secondMessageReg.source2 >> (secondReqReg.bits.pipeForSecondPipe.get.readOffset ## 0.U(
+    3.W
+  )) << (secondReqReg.bits.pipeForSecondPipe.get.writeOffset ## 0.U(3.W))
+  crossLaneWriteUsedBySecondPipe := secondReqReg.valid && secondPipeSameLane
+  when(secondReqReg.valid && secondPipeSameLane) {
+    crossLaneWriteQueue.last.enq.valid             := true.B
+    crossLaneWriteQueue.last.enq.bits.data         := gatherWriteData
+    crossLaneWriteQueue.last.enq.bits.mask         := secondReqReg.bits.pipeForSecondPipe.get.mask
+    crossLaneWriteQueue.last.enq.bits.groupCounter := secondReqReg.bits.pipeForSecondPipe.get.writeCounter
+  }
+  freeCrossDataUsedBySecondPipe  := secondReqReg.valid && !secondPipeSameLane
+  when(secondReqReg.valid && !secondPipeSameLane) {
+    freeCrossDataDeq.valid        := true.B
+    freeCrossDataDeq.bits.data    := gatherWriteData
+    freeCrossDataDeq.bits.mask    := secondReqReg.bits.pipeForSecondPipe.get.mask
+    freeCrossDataDeq.bits.counter := secondReqReg.bits.pipeForSecondPipe.get.writeCounter
+    freeCrossDataDeq.bits.sink    := secondReqReg.bits.pipeForSecondPipe.get.writeSink
+  }
+
+  secondDeqReady := Mux(secondPipeSameLane, crossLaneWriteQueue.last.enq.ready, freeCrossDataDeq.ready)
 }

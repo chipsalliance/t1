@@ -194,6 +194,8 @@ case class LaneParameter(
 
   // outstanding of MaskExchangeUnit.maskReq
   val maskRequestQueueSize: Int = 8
+  // outstanding of second pipe in MaskExchangeUnit
+  val secondQueueSize:      Int = 8
 
   val lsuSize = 1
   // lane + lsu + top + mask unit
@@ -836,7 +838,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       freeCrossDataDeq <> maskStage.get.freeCrossDataDeq
       maskStage.get.freeCrossDataEnq <> freeCrossDataEnq
       freeCrossReqDeq <> maskStage.get.freeCrossReqDeq
-      maskStage.get.freeCrossReqEnq <> freeCrossReqEnq
+      stage0.freeCrossReqEnq.get <> freeCrossReqEnq
+      stage0.maskPipeRelease.get <> maskStage.get.maskPipeRelease
+
+      stage1.enqueue.bits.secondPipe.get        := stage0.dequeue.bits.secondPipe.get
+      stage1.enqueue.bits.pipeForSecondPipe.get := stage0.dequeue.bits.pipeForSecondPipe.get
+
+      stage2.enqueue.bits.secondPipe.get        := stage1.dequeue.bits.secondPipe.get
+      stage2.enqueue.bits.pipeForSecondPipe.get := stage1.dequeue.bits.pipeForSecondPipe.get
     }
 
     stage2.enqueue.valid        := stage1.dequeue.valid && executionUnit.enqueue.ready
@@ -902,11 +911,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     stage3EnqWire.bits.groupCounter     := stage2.dequeue.bits.groupCounter
     stage3EnqWire.bits.mask             := stage2.dequeue.bits.mask
     if (isLastSlot) {
-      stage3EnqWire.bits.sSendResponse := stage2.dequeue.bits.sSendResponse.get
-      stage3EnqWire.bits.ffoSuccess    := executionUnit.dequeue.bits.ffoSuccess.get
+      stage3EnqWire.bits.sSendResponse         := stage2.dequeue.bits.sSendResponse.get
+      stage3EnqWire.bits.ffoSuccess            := executionUnit.dequeue.bits.ffoSuccess.get
       stage3EnqWire.bits.fpReduceValid.zip(executionUnit.dequeue.bits.fpReduceValid).foreach { case (sink, source) =>
         sink := source
       }
+      // for mask pipe
+      stage3EnqWire.bits.secondPipe.get        := stage2.dequeue.bits.secondPipe.get
+      stage3EnqWire.bits.pipeForSecondPipe.get := stage2.dequeue.bits.pipeForSecondPipe.get
     }
     stage3EnqWire.bits.data             := executionUnit.dequeue.bits.data
     stage3EnqWire.bits.pipeData         := stage2.dequeue.bits.pipeData.getOrElse(DontCare)
