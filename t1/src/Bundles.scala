@@ -7,6 +7,7 @@ import chisel3._
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util.{log2Ceil, Decoupled, DecoupledIO, Valid, ValidIO}
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
+import org.chipsalliance.t1.rtl.lane.PipeForSecondPipe
 import org.chipsalliance.t1.rtl.lsu.LSUParameter
 import org.chipsalliance.t1.rtl.vrf.VRFParam
 
@@ -516,6 +517,17 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
 
   // pipe for mask pipe
   val readFromScalar: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+
+  // pipe for mask stage
+  val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
+    new PipeForSecondPipe(
+      parameter.datapathWidth,
+      parameter.groupNumberBits,
+      parameter.laneNumberBits,
+      parameter.eLen
+    )
+  )
 }
 
 // Record of temporary execution units
@@ -864,6 +876,7 @@ class FreeWriteBusRequest(datapathWidth: Int, groupNumberBits: Int, laneNumberBi
   val writeSink:    UInt = UInt(laneNumberBits.W)
   val writeCounter: UInt = UInt(groupNumberBits.W)
   val writeOffset:  UInt = UInt(log2Ceil(datapathWidth / 8).W)
+  val mask:         UInt = UInt((datapathWidth / 2 / 8).W)
 }
 
 class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
