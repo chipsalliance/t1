@@ -1,3 +1,4 @@
+use miette::{Context, IntoDiagnostic};
 use std::io::Read;
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -16,26 +17,26 @@ pub enum SimulationException {
     Exited,
 }
 
-pub struct SimulatorParams<'a> {
-    pub memory_size: usize,
+pub struct SimulatorParams<'a, 'b> {
     pub max_same_instruction: u8,
-    pub elf_path: &'a std::path::Path,
+    pub dts_cfg_path: &'a str,
+    pub elf_path: &'b str,
 }
 
-impl<'a> SimulatorParams<'a> {
-    pub fn build(self) -> Simulator {
-        let mut sim = Simulator::new(self.memory_size, self.max_same_instruction);
+impl<'a, 'b> SimulatorParams<'a, 'b> {
+    pub fn try_build(self) -> miette::Result<Simulator> {
+        let mut sim = Simulator::new(self.elf_path, self.max_same_instruction)?;
 
         let entry = sim.load_elf(self.elf_path);
         sim.reset_vector(entry);
 
-        sim
+        Ok(sim)
     }
 }
 
 // simulator states not in ASL side
 pub(crate) struct SimulatorState {
-    memory: Vec<u8>,
+    address_space: AddressSpace,
     pc: u32,
     statistic: Statistic,
     exception: Option<SimulationException>,
@@ -53,10 +54,13 @@ pub struct Simulator {
 }
 
 impl Simulator {
-    fn new(memory_size: usize, max_same_instruction: u8) -> Self {
+    fn new<P: AsRef<std::path::Path> + std::fmt::Debug>(
+        dts: P,
+        max_same_instruction: u8,
+    ) -> miette::Result<Self> {
         let handle = SimulatorHandle::new();
         let state = SimulatorState {
-            memory: vec![0u8; memory_size],
+            address_space: AddressSpace::from_device_config(dts)?,
             pc: 0x1000,
             statistic: Statistic::new(),
             exception: None,
@@ -64,7 +68,7 @@ impl Simulator {
             max_same_instruction,
         };
 
-        Simulator { handle, state }
+        Ok(Simulator { handle, state })
     }
 
     pub fn reset_vector(&mut self, addr: u32) {
@@ -117,7 +121,7 @@ impl Simulator {
 
                     let slice = &buffer[offset..offset + size];
 
-                    let dst: &mut _ = &mut self.state.memory[addr..addr + size];
+                    let dst: &mut _ = &mut self.state.address_space[addr..addr + size];
                     dst.copy_from_slice(slice);
                 }
             }
@@ -357,5 +361,229 @@ impl Drop for SimulatorHandle {
     fn drop(&mut self) {
         // unlock the mutex
         SIMULATOR_MUTEX.store(0, Ordering::Release);
+    }
+}
+
+#[derive(Debug, knuffel::Decode)]
+enum AddressSpaceDescNode {
+    MMIO(KdlNodeMMIO),
+    SRAM(KdlNodeSRAM),
+}
+
+#[derive(Debug, knuffel::Decode)]
+struct KdlNodeSRAM {
+    #[knuffel(argument)]
+    name: String,
+    #[knuffel(property)]
+    base: u32,
+    #[knuffel(property)]
+    capacity: u32,
+}
+
+#[derive(Debug, knuffel::Decode)]
+struct KdlNodeMMIO {
+    #[knuffel(property)]
+    base: u32,
+    #[knuffel(property)]
+    capacity: u32,
+    #[knuffel(children)]
+    mapping: Vec<KdlNodeMMIOMapping>,
+}
+
+#[derive(Debug, knuffel::Decode)]
+struct KdlNodeMMIOMapping {
+    #[knuffel(argument)]
+    name: String,
+    #[knuffel(property)]
+    offset: u32,
+}
+
+#[derive(Debug)]
+pub struct AddressSpace {
+    segments: Vec<Box<dyn Segment>>,
+    index: Vec<(usize, usize)>,
+}
+
+impl AddressSpace {
+    pub fn from_device_config<P: AsRef<std::path::Path> + std::fmt::Debug>(
+        p: P,
+    ) -> miette::Result<Self> {
+        let content = std::fs::read_to_string(&p)
+            .into_diagnostic()
+            .wrap_err_with(|| format!("fail read path: {:?}", &p))?;
+
+        let filepath = p.as_ref().to_string_lossy();
+        let address_space: Vec<AddressSpaceDescNode> =
+            knuffel::parse(&filepath, &content).into_diagnostic()?;
+
+        let (segments, index): (Vec<Box<dyn Segment>>, Vec<(usize, usize)>) = address_space
+            .iter()
+            .map(|node| match node {
+                AddressSpaceDescNode::SRAM(sram) => {
+                    let naive_memory = NaiveMemory::new(sram.capacity as usize);
+                    let boxed: Box<dyn Segment> = Box::new(naive_memory);
+                    (boxed, (sram.base as usize, sram.capacity as usize))
+                }
+                _ => todo!(),
+            })
+            .unzip();
+
+        let mut overlapped_segment = None;
+        let mut unchecked_index = index.clone();
+        unchecked_index.sort_by_key(|(offset, _)| *offset);
+        for window in unchecked_index.windows(2) {
+            let (offset1, length1) = window[0];
+            let (offset2, _) = window[2];
+            if offset2 < (offset1 + length1) {
+                overlapped_segment = Some(window[2]);
+            }
+        }
+
+        if let Some((offset, length)) = overlapped_segment {
+            miette::bail!("Address space with offset={offset} length={length} overlapped previous address space")
+        }
+
+        Ok(Self { segments, index })
+    }
+
+    pub fn request_read(&mut self, addr: usize, length: u32) -> MemResp<'_> {
+        let result = self
+            .index
+            .iter()
+            .enumerate()
+            .find(|(_, (offset, length))| addr >= *offset && addr < offset + length);
+
+        let Some((idx, (base, _))) = result else {
+            return MemResp::IOError(IOError::OutOfMemory);
+        };
+
+        let addr_info = MemReqAddrInfo {
+            offset: addr - *base,
+            length: length as usize,
+        };
+
+        self.segments[idx].send_mem_req(MemReq {
+            payload: MemReqPayload::Read,
+            addr_info,
+        })
+    }
+
+    pub fn request_write<'a, 'b>(&'a mut self, addr: usize, data: &'b [u8]) -> MemResp<'a> {
+        let result = self
+            .index
+            .iter()
+            .enumerate()
+            .find(|(_, (offset, length))| addr >= *offset && addr < offset + length);
+
+        let Some((idx, (base, _))) = result else {
+            return MemResp::IOError(IOError::OutOfMemory);
+        };
+
+        let addr_info = MemReqAddrInfo {
+            offset: addr - *base,
+            length: data.len(),
+        };
+
+        self.segments[idx].send_mem_req(MemReq {
+            payload: MemReqPayload::Write(data),
+            addr_info,
+        })
+    }
+}
+
+#[test]
+fn test_address_space() {
+    let addr_spc = AddressSpace::from_device_config("./assets/devices.kdl").unwrap();
+    println!("{:#?}", addr_spc);
+}
+
+pub struct MemReqAddrInfo {
+    offset: usize,
+    length: usize,
+}
+
+impl MemReqAddrInfo {
+    pub fn is_not_valid_in(&self, data: &[u8]) -> bool {
+        self.offset >= data.len() || self.offset + self.length > data.len()
+    }
+}
+
+pub enum MemReqPayload<'a> {
+    Read,
+    Write(&'a [u8]),
+}
+
+pub struct MemReq<'a> {
+    payload: MemReqPayload<'a>,
+    addr_info: MemReqAddrInfo,
+}
+
+pub enum MemResp<'a> {
+    Read(&'a [u8]),
+    WriteAck,
+    IOError(IOError),
+}
+
+pub enum IOError {
+    OutOfMemory,
+    Invalid,
+}
+
+pub trait Segment: std::fmt::Debug {
+    // todo: here is a simple ping pong service, we can have bufferize and decoupled IO in later
+    // refactor
+    fn send_mem_req<'a>(&'a mut self, req: MemReq<'a>) -> MemResp<'a>;
+}
+
+#[derive(Debug)]
+pub struct NaiveMemory {
+    memory: Vec<u8>,
+}
+
+impl NaiveMemory {
+    pub fn new(size: usize) -> Self {
+        Self {
+            memory: Vec::with_capacity(size),
+        }
+    }
+
+    /// read return a slice of the inner memory. Caller should guarantee index and read length is
+    /// valid. An out of range slicing will directly bail out.
+    fn read(&self, index: usize, length: usize) -> &[u8] {
+        &self.memory[index..index + length]
+    }
+
+    fn write(&mut self, index: usize, data: &[u8], length: usize) {
+        assert!(data.len() >= length);
+
+        (&mut self.memory[index..index + length]).copy_from_slice(&data[0..length]);
+    }
+}
+
+impl Segment for NaiveMemory {
+    fn send_mem_req<'a, 'b>(&'a mut self, req: MemReq<'b>) -> MemResp<'a> {
+        if req.addr_info.is_not_valid_in(&self.memory) {
+            return MemResp::IOError(IOError::OutOfMemory);
+        }
+
+        match req.payload {
+            MemReqPayload::Read => {
+                let raw_bytes = self.read(req.addr_info.offset, req.addr_info.length);
+                MemResp::Read(raw_bytes)
+            }
+            MemReqPayload::Write(payload) => {
+                if payload.len() < req.addr_info.length {
+                    MemResp::IOError(IOError::Invalid)
+                } else {
+                    self.write(
+                        req.addr_info.offset,
+                        &payload[0..req.addr_info.length],
+                        req.addr_info.length,
+                    );
+
+                    MemResp::WriteAck
+                }
+            }
+        }
     }
 }
