@@ -3,7 +3,7 @@ ENTRY(_start)
 
 MEMORY {
   SRAM   (RWX) : ORIGIN = 0x80000000, LENGTH = 512M /* put first to set it as default */
-  MMIO   (RW)  : ORIGIN = 0x40000000, LENGTH = 512M
+  MMIO   (RW)  : ORIGIN = 0x40000000, LENGTH = 4K
 }
 
 SECTIONS {
@@ -28,9 +28,12 @@ SECTIONS {
 
   __stacktop = ORIGIN(SRAM) + LENGTH(SRAM);
 
-  . = ORIGIN(MMIO);
+  /* MMIO address with in 0x800 offset is reserved for pokedex usage. Symbols
+   * tohost and fromhost are used by spike, which can enable exit functionality
+   */
+  . = ORIGIN(MMIO) + 0x800;
   tohost = .;
-  . = ALIGN(0x1000);
+  . = ALIGN(4);
   fromhost = .;
-  . = ALIGN(0x1000);
+  . = ALIGN(4);
 }
