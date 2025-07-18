@@ -1,15 +1,35 @@
     .globl _start
 
 // tohost address define in ld
-do_tohost:
-    lui     a5,%hi(tohost)
-    sw      a0,%lo(tohost)(a5)
+_poweroff_spike:
+    // override a0. Spike have special treatment for value at tohost address.
+    li a0, 1
+    lui a5,%hi(tohost)
+    sw a0,%lo(tohost)(a5)
+    ebreak
     ret
 
-trap_handler:
-    li a0, 1
-    call do_tohost
-    ebreak
+_poweroff_pokedex:
+    lui a5,%hi(pokedex_mmio_exit)
+    sw a0,%lo(pokedex_mmio_exit)(a5)
+    ret
+
+
+_trap_handler:
+    // exit with 4, common used for SIGILL
+    li a0, 4
+    call _poweroff_pokedex
+    call _poweroff_spike
+    j .
+
+
+_poweroff:
+    // exit with 0
+    li a0, 0
+    call _poweroff_pokedex
+    call _poweroff_spike
+    j .
+
 
 _start:
     csrr a0, mhartid
@@ -47,16 +67,14 @@ _start:
 
     la sp, __stacktop
 
-    la t0, trap_handler
+    la t0, _trap_handler
     csrw mtvec, t0
 
     // no ra to save
     call test
 
     // exit
-    li a0, 1
-    call do_tohost
-    ebreak
+    call _poweroff
 
     .p2align 2
 

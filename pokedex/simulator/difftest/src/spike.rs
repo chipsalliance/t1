@@ -294,7 +294,7 @@ impl ParseContext<'_> {
         Self::default()
     }
 
-    fn to_spike_log(self) -> Result<SpikeLogSyntax, String> {
+    fn try_parse(self) -> Result<SpikeLogSyntax, String> {
         match self.cursor {
             ParseCursor::Error(err) => Err(err),
             _ => Ok(self.state),
@@ -333,7 +333,7 @@ impl SpikeLogSyntax {
                                 return ctx;
                             }
 
-                            match (&elem[0..elem.len() - 1]).parse::<u8>() {
+                            match (elem[0..elem.len() - 1]).parse::<u8>() {
                                 Ok(v) => {
                                     ctx.state.core = v;
                                     ctx.cursor = ParseCursor::Priv;
@@ -548,7 +548,7 @@ impl SpikeLogSyntax {
                     }
                 });
 
-        ctx.to_spike_log()
+        ctx.try_parse()
     }
 }
 

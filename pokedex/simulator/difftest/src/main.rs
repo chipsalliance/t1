@@ -6,7 +6,6 @@ use serde::Deserializer;
 use spike::SpikeLog;
 use std::collections::HashMap;
 use tracing::{debug, error, info};
-use tracing_subscriber;
 
 mod pokedex;
 mod spike;
@@ -186,9 +185,7 @@ fn diff(spike_log: &SpikeLog, pokedex_log: &PokedexLog, end_pattern: &EndPattern
             .iter()
             .enumerate()
             .find_map(|(i, event)| {
-                let Some(pc) = event.get_pc() else {
-                    return None;
-                };
+                let pc = event.get_pc()?;
 
                 if pc == spike_event.pc {
                     pokedex_log_cursor = i;

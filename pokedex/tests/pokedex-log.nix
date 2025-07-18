@@ -1,5 +1,6 @@
 {
   runCommand,
+  global-pokedex-config,
   simulator,
   all-tests,
 }:
@@ -17,7 +18,7 @@ runCommand "run-pokedex-for-all-tests"
     for f in "''${elfs[@]}"; do
       pokedex \
         --elf-path "$f" \
-        --memory-size 0xc0000000 \
+        --dts-cfg-path '${global-pokedex-config}' \
         -vvv \
         -o "$out/$(basename "$f").pokedex-log.jsonl"
     done

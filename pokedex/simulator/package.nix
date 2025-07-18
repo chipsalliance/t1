@@ -4,6 +4,7 @@
   asl-interpreter,
   sim-lib,
   rust-analyzer,
+  clippy,
 }:
 rustPlatform.buildRustPackage (finalAttr: {
   name = "pokedex-simulator";
@@ -25,6 +26,7 @@ rustPlatform.buildRustPackage (finalAttr: {
   passthru.shell = finalAttr.overrideAttrs (old: {
     nativeBuildInputs = old.nativeBuildInputs ++ [
       rust-analyzer
+      clippy
     ];
   });
 

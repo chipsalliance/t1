@@ -6,6 +6,7 @@
   spike,
   dtc,
   all-tests,
+  global-pokedex-config,
 }:
 let
   configuration = {
@@ -14,18 +15,18 @@ let
       "--isa=rv32im"
       "--priv=m"
       "--log-commits"
-      "-m0x80000000:0x20000000,0x40000000:0x20000000"
+      "-m0x80000000:0x20000000,0x40000000:0x1000"
     ];
     pokedex_args = [
-      "--memory-size"
-      "0xc0000000"
+      "--dts-cfg-path"
+      "${global-pokedex-config}"
       "--max-same-instruction"
       "20"
     ];
     end_pattern = {
       action = "write";
-      memory_address = "0x40000000";
-      data = "0x1";
+      memory_address = "0x40000004";
+      data = "0x0";
     };
   };
   configFile = writeText "difftest.json" (builtins.toJSON configuration);
