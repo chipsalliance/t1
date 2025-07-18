@@ -3,7 +3,7 @@ ENTRY(_start)
 
 MEMORY {
   SRAM   (RWX) : ORIGIN = 0x80000000, LENGTH = 512M /* put first to set it as default */
-  MMIO   (RW)  : ORIGIN = 0x40000000, LENGTH = 512M
+  MMIO   (RW)  : ORIGIN = 0x40000000, LENGTH = 4K
 }
 
 SECTIONS {
@@ -28,9 +28,14 @@ SECTIONS {
 
   __stacktop = ORIGIN(SRAM) + LENGTH(SRAM);
 
-  . = ORIGIN(MMIO);
+  . = ALIGN(0x1000);
+
+  . = ORIGIN(MMIO) + 0x4;
+  pokedex_mmio_exit = .;
+
+  . = ORIGIN(MMIO) + LENGTH(MMIO) - 0x8;
   tohost = .;
-  . = ALIGN(0x1000);
+
+  . = ORIGIN(MMIO) + LENGTH(MMIO) - 0x4;
   fromhost = .;
-  . = ALIGN(0x1000);
 }

@@ -14,3 +14,5 @@ thiserror = { workspace = true }
 hex = { workspace = true }
 clap = { workspace = true }
 tracing-subscriber = { workspace = true }
+knuffel = "3.2.0"
+miette = { version = "5.10.0", features = ["fancy-no-backtrace"] }

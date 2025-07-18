@@ -1,6 +1,11 @@
+use miette::{Context, IntoDiagnostic};
+use std::fmt::Debug;
 use std::io::Read;
 use std::marker::PhantomData;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::ops::Range;
+use std::path::Path;
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
+use std::sync::Arc;
 use thiserror::Error;
 use tracing::{event, Level};
 use xmas_elf::program::{ProgramHeader, Type};
@@ -13,32 +18,33 @@ pub enum SimulationException {
     #[error("Same instruction occur too many time")]
     InfiniteInstruction,
     #[error("simulator exited")]
-    Exited,
+    Exited(i32),
 }
 
-pub struct SimulatorParams<'a> {
-    pub memory_size: usize,
+pub struct SimulatorParams<'a, 'b> {
     pub max_same_instruction: u8,
-    pub elf_path: &'a std::path::Path,
+    pub dts_cfg_path: &'a str,
+    pub elf_path: &'b str,
 }
 
-impl<'a> SimulatorParams<'a> {
-    pub fn build(self) -> Simulator {
-        let mut sim = Simulator::new(self.memory_size, self.max_same_instruction);
+impl SimulatorParams<'_, '_> {
+    pub fn try_build(self) -> miette::Result<Simulator> {
+        let mut sim = Simulator::new(self.dts_cfg_path, self.max_same_instruction)?;
 
         let entry = sim.load_elf(self.elf_path);
         sim.reset_vector(entry);
 
-        sim
+        Ok(sim)
     }
 }
 
 // simulator states not in ASL side
 pub(crate) struct SimulatorState {
-    memory: Vec<u8>,
+    bus_bridge: BusBridge,
     pc: u32,
     statistic: Statistic,
     exception: Option<SimulationException>,
+    ic_handle: ICHandle,
 
     last_instruction_met_count: u8,
     max_same_instruction: u8,
@@ -53,18 +59,20 @@ pub struct Simulator {
 }
 
 impl Simulator {
-    fn new(memory_size: usize, max_same_instruction: u8) -> Self {
+    fn new<P: AsRef<Path>>(dts: P, max_same_instruction: u8) -> miette::Result<Self> {
         let handle = SimulatorHandle::new();
+        let bus_info = BusInfo::from_device_config(dts)?;
         let state = SimulatorState {
-            memory: vec![0u8; memory_size],
+            bus_bridge: bus_info.bus_bridge,
             pc: 0x1000,
             statistic: Statistic::new(),
+            ic_handle: bus_info.ic_handle,
             exception: None,
             last_instruction_met_count: 0,
             max_same_instruction,
         };
 
-        Simulator { handle, state }
+        Ok(Simulator { handle, state })
     }
 
     pub fn reset_vector(&mut self, addr: u32) {
@@ -89,10 +97,20 @@ impl Simulator {
         self.state.statistic.step_count += 1;
         self.state.pc = self.handle.get_pc();
 
+        if let Some(ic) = self.state.ic_handle.get_enabled_ic() {
+            match ic.get_id() {
+                InterruptType::Exit => {
+                    let value = ic.get_value();
+                    let exit_code = i32::from_le_bytes(value);
+                    return Err(SimulationException::Exited(exit_code));
+                }
+            }
+        }
+
         Ok(())
     }
 
-    pub fn load_elf<P: AsRef<std::path::Path> + std::fmt::Debug>(&mut self, fname: P) -> u32 {
+    pub fn load_elf<P: AsRef<Path> + Debug>(&mut self, fname: P) -> u32 {
         let mut file = std::fs::File::open(&fname)
             .unwrap_or_else(|err| panic!("fail open '{fname:?}' to read: {err}"));
         let mut buffer = Vec::new();
@@ -113,12 +131,13 @@ impl Simulator {
                 if ph.get_type() == Ok(Type::Load) {
                     let offset = ph.offset as usize;
                     let size = ph.file_size as usize;
-                    let addr = ph.virtual_addr as usize;
+                    let addr = ph.virtual_addr;
 
                     let slice = &buffer[offset..offset + size];
 
-                    let dst: &mut _ = &mut self.state.memory[addr..addr + size];
-                    dst.copy_from_slice(slice);
+                    if let Err(err) = self.state.req_bus_write(addr, slice) {
+                        panic!("fail loading elf to memory: {err:?}");
+                    };
                 }
             }
         }
@@ -137,8 +156,45 @@ impl Simulator {
 
 // callback for ASL generated code
 impl SimulatorState {
+    pub fn req_bus_read<const N: usize>(&mut self, addr: u32) -> Result<[u8; N], BusError> {
+        let result = self
+            .bus_bridge
+            .address_space
+            .iter_mut()
+            .find(|(addr_space, _)| addr_space.contains(&addr));
+
+        let Some((addr_space, device)) = result else {
+            return Err(BusError::DecodeError(addr));
+        };
+
+        let offset = addr - addr_space.start;
+
+        let mut buffer = [0u8; N];
+        device.do_bus_read(offset, &mut buffer).map(|_| buffer)
+    }
+
+    pub fn req_bus_write(&mut self, addr: u32, data: &[u8]) -> Result<(), BusError> {
+        let result = self
+            .bus_bridge
+            .address_space
+            .iter_mut()
+            .find(|(addr_space, _)| addr_space.contains(&addr));
+
+        let Some((addr_space, device)) = result else {
+            return Err(BusError::DecodeError(addr));
+        };
+
+        let offset = addr - addr_space.start;
+
+        device.do_bus_write(offset, data)
+    }
+
     pub(crate) fn inst_fetch(&mut self, pc: u32) -> Option<u16> {
-        let inst: u16 = u16::from_le_bytes(self.phy_readmem(pc)?).into();
+        let Ok(inst): Result<[u8; 2], _> = self.req_bus_read(pc) else {
+            return None;
+        };
+
+        let inst: u16 = u16::from_le_bytes(inst);
         self.statistic.fetch_count += 1;
 
         if pc == self.pc {
@@ -161,102 +217,11 @@ impl SimulatorState {
         Some(inst)
     }
 
-    /// [`phy_readmem`] is `N` length u8 array starting from `address`.
-    ///
-    /// [`phy_readmem`] will panic in following circumstance:
-    ///   * if the u32 `address` fail convert into usize;
-    pub(crate) fn phy_readmem<const N: usize>(&self, address: u32) -> Option<[u8; N]> {
-        assert!(N != 0 && N % 2 == 0);
-
-        let idx: usize = address.try_into().unwrap_or_else(|_| {
-            panic!(
-                "phy_readmem: internal error occur: fail to convert address {} to usize type",
-                address
-            )
-        });
-
-        let last_idx = self.memory.len() - 1;
-        // N is not possible to be zero, so idx cannot be last index
-        if idx >= last_idx && idx + N > last_idx {
-            return None;
-        }
-
-        let mut data = [0u8; N];
-        data.copy_from_slice(&self.memory[idx..idx + N]);
-
-        event!(
-            Level::TRACE,
-            event_type = "physical_memory",
-            action = "read",
-            bytes = N,
-            address = address,
-            data = ?data,
-            "read {} bytes from physical memory address: {:#x}",
-            N,
-            address
-        );
-
-        Some(data)
-    }
-
-    pub(crate) fn fence_i(&self) -> () {
+    pub(crate) fn fence_i(&self) {
         event!(Level::DEBUG, "fence_i called");
     }
 
-    /// [`phy_write_mem`] write each byte of `value` in little endian order to `address` at
-    /// internal physical memory.
-    ///
-    /// This function will panic in following circumstance:
-    ///   * fail converting u64 `address` to usize
-    ///   * index overflow
-    pub(crate) fn phy_write_mem<T, const N: usize>(&mut self, address: u32, value: T) -> bool
-    where
-        T: num::ToPrimitive
-            + num::traits::ToBytes<Bytes = [u8; N]>
-            + PartialEq
-            + Eq
-            + std::fmt::LowerHex,
-    {
-        assert!(N != 0 && N % 2 == 0);
-
-        let hex_value = format!("{:#x}", value);
-        event!(
-            Level::TRACE,
-            event_type = "physical_memory",
-            action = "write",
-            bytes = N,
-            address = address,
-            data = hex_value,
-            "write {N} bytes data {hex_value} to physical memory address: {:#x}",
-            address
-        );
-
-        const EXIT_ADDR: u32 = 0x40000000;
-
-        // we can safely unwrap here since we already type check the size of input `N`
-        if address == EXIT_ADDR {
-            event!(Level::DEBUG, "exit address got written, exit simulator");
-            self.exception = Some(SimulationException::Exited);
-            return true;
-        }
-
-        let mem_last = self.memory.len() - 1;
-
-        let idx: usize = address.try_into().unwrap();
-
-        if idx >= mem_last || idx + N > mem_last {
-            return false;
-        }
-
-        // data bit width has trait constraint, so we are free to not check it
-        let data = value.to_le_bytes();
-        for i in 0..N {
-            self.memory[idx + i] = data[i];
-        }
-
-        return true;
-    }
-
+    #[allow(dead_code)]
     pub fn take_statistic(&mut self) -> Statistic {
         let stat = self.statistic.clone();
         self.statistic = Statistic::new();
@@ -302,8 +267,9 @@ impl SimulatorState {
         event!(Level::DEBUG, "TODO: model met ecall")
     }
 
+    #[allow(dead_code)]
     pub(crate) fn write_pending_interrupt(&self) -> u32 {
-        return 0;
+        0
     }
 }
 
@@ -357,5 +323,338 @@ impl Drop for SimulatorHandle {
     fn drop(&mut self) {
         // unlock the mutex
         SIMULATOR_MUTEX.store(0, Ordering::Release);
+    }
+}
+
+#[derive(Debug, knuffel::Decode)]
+enum AddressSpaceDescNode {
+    MMIO(KdlNodeMMIO),
+    SRAM(KdlNodeSRAM),
+}
+
+#[derive(Debug, knuffel::Decode)]
+struct KdlNodeSRAM {
+    #[allow(dead_code)]
+    #[knuffel(argument)]
+    name: String,
+    #[knuffel(property)]
+    base: u32,
+    #[knuffel(property)]
+    length: u32,
+}
+
+#[derive(Debug, knuffel::Decode)]
+struct KdlNodeMMIO {
+    #[knuffel(property)]
+    base: u32,
+    #[knuffel(property)]
+    length: u32,
+    #[knuffel(children)]
+    mmap: Vec<KdlNodeMMIOMapping>,
+}
+
+#[derive(Debug, knuffel::Decode)]
+struct KdlNodeMMIOMapping {
+    #[knuffel(argument)]
+    name: String,
+    #[knuffel(property)]
+    offset: u32,
+}
+
+pub struct BusBridge {
+    address_space: Vec<(Range<u32>, Box<dyn Addressable>)>,
+}
+
+struct BusInfo {
+    bus_bridge: BusBridge,
+    ic_handle: ICHandle,
+}
+
+impl BusInfo {
+    pub fn from_device_config<P: AsRef<Path>>(p: P) -> miette::Result<Self> {
+        let content = std::fs::read_to_string(&p)
+            .into_diagnostic()
+            .wrap_err_with(|| format!("fail read path: {}", p.as_ref().display()))?;
+
+        let filepath = p.as_ref().to_string_lossy();
+        let configuration: Vec<AddressSpaceDescNode> = knuffel::parse(&filepath, &content)?;
+
+        let mut segments = Vec::new();
+        let mut ic_handle = None;
+        for node in configuration {
+            match node {
+                AddressSpaceDescNode::SRAM(sram) => {
+                    let naive_memory = NaiveMemory::new(sram.length as usize);
+                    let boxed: Box<dyn Addressable> = Box::new(naive_memory);
+                    segments.push(((sram.base..sram.base + sram.length), boxed))
+                }
+                AddressSpaceDescNode::MMIO(mmio_config) => {
+                    let (mmio_decoder, controllers) =
+                        MMIOAddrDecoder::try_build_from(mmio_config.mmap)?;
+                    ic_handle = Some(controllers);
+                    let boxed: Box<dyn Addressable> = Box::new(mmio_decoder);
+                    segments.push((
+                        (mmio_config.base..mmio_config.base + mmio_config.length),
+                        boxed,
+                    ))
+                }
+            }
+        }
+
+        let mut overlapped_segment = None;
+        let mut unchecked_index: Vec<Range<u32>> =
+            segments.iter().map(|(index, _)| index.clone()).collect();
+        unchecked_index.sort_by_key(|range| range.start);
+        for window in unchecked_index.windows(2) {
+            let addr1 = &window[0];
+            let addr2 = &window[1];
+            if addr2.start < addr1.end {
+                overlapped_segment = Some(&window[1]);
+            }
+        }
+
+        if let Some(range) = overlapped_segment {
+            miette::bail!(
+                "Address space with offset={:#010x} length={:#010x} overlapped previous address space",
+                range.start,
+                range.end - range.start
+            )
+        }
+
+        Ok(Self {
+            ic_handle: ic_handle.unwrap(),
+            bus_bridge: BusBridge {
+                address_space: segments,
+            },
+        })
+    }
+}
+
+#[test]
+fn test_address_space() -> miette::Result<()> {
+    let _ = BusInfo::from_device_config("./assets/devices.kdl")?;
+    Ok(())
+}
+
+pub enum InterruptType {
+    Exit,
+}
+
+pub trait InterruptController: Sync + Send {
+    fn get_id(&self) -> InterruptType;
+    fn is_enabled(&self) -> bool;
+    fn set_enable(&mut self);
+    fn get_value(&self) -> [u8; 4];
+    fn set_value(&mut self, val: [u8; 4]);
+}
+
+struct ICHandle(Vec<Box<dyn InterruptController>>);
+impl ICHandle {
+    fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    fn add<T: InterruptController + 'static>(&mut self, ic: T) {
+        self.0.push(Box::new(ic))
+    }
+
+    fn get_enabled_ic(&self) -> Option<&Box<dyn InterruptController>> {
+        self.0.iter().find(|ic| ic.is_enabled())
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ExitController(Arc<AtomicBool>, Arc<AtomicI32>);
+impl ExitController {
+    fn new() -> Self {
+        Self(
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicI32::new(0)),
+        )
+    }
+}
+
+impl InterruptController for ExitController {
+    fn get_id(&self) -> InterruptType {
+        InterruptType::Exit
+    }
+
+    fn is_enabled(&self) -> bool {
+        self.0.load(Ordering::Acquire)
+    }
+
+    fn set_enable(&mut self) {
+        self.0.store(true, Ordering::Release);
+    }
+
+    fn set_value(&mut self, val: [u8; 4]) {
+        let v = i32::from_le_bytes(val);
+        self.1.store(v, Ordering::Release);
+    }
+
+    fn get_value(&self) -> [u8; 4] {
+        let v = self.1.load(Ordering::Acquire);
+        v.to_le_bytes()
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum BusError {
+    #[error("device fail {id} at {addr} with length {len}")]
+    DeviceError {
+        id: &'static str,
+        addr: u32,
+        len: u32,
+    },
+    #[error("no device map at address {0}")]
+    DecodeError(u32),
+}
+
+pub trait Addressable: Send {
+    fn do_bus_read(&mut self, offset: u32, dest: &mut [u8]) -> Result<(), BusError>;
+    fn do_bus_write(&mut self, offset: u32, data: &[u8]) -> Result<(), BusError>;
+}
+
+#[derive(Debug)]
+pub struct NaiveMemory {
+    memory: Vec<u8>,
+}
+
+impl NaiveMemory {
+    pub fn new(size: usize) -> Self {
+        Self {
+            memory: vec![0u8; size],
+        }
+    }
+}
+
+impl Addressable for NaiveMemory {
+    /// read return a slice of the inner memory. Caller should guarantee index and read length is
+    /// valid. An out of range slicing will directly bail out.
+    fn do_bus_read(&mut self, offset: u32, dest: &mut [u8]) -> Result<(), BusError> {
+        let length = self.memory.len() as u32;
+        if offset >= length || offset + dest.len() as u32 > length {
+            return Err(BusError::DeviceError {
+                id: "NaiveMemoryRead",
+                addr: offset,
+                len: dest.len() as u32,
+            });
+        }
+
+        dest.copy_from_slice(&self.memory[offset as usize..offset as usize + dest.len()]);
+
+        Ok(())
+    }
+
+    fn do_bus_write(&mut self, offset: u32, data: &[u8]) -> Result<(), BusError> {
+        let length = self.memory.len() as u32;
+        if offset >= length || offset + data.len() as u32 > length {
+            return Err(BusError::DeviceError {
+                id: "NaiveMemoryWrite",
+                addr: offset,
+                len: data.len() as u32,
+            });
+        }
+
+        self.memory[offset as usize..offset as usize + data.len()].copy_from_slice(data);
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum MMIO {
+    Exit(ExitController),
+}
+
+impl MMIO {
+    fn load(&self) -> u32 {
+        match self {
+            Self::Exit(_) => {
+                panic!("unexpected read from exit MMIO device");
+            }
+        }
+    }
+
+    fn store(&mut self, v: u32) {
+        match self {
+            Self::Exit(eic) => {
+                eic.set_value(v.to_le_bytes());
+                eic.set_enable();
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MMIOAddrDecoder {
+    // offset, type
+    regs: Vec<(u32, MMIO)>,
+}
+
+impl MMIOAddrDecoder {
+    fn try_build_from(config: Vec<KdlNodeMMIOMapping>) -> Result<(Self, ICHandle), miette::Error> {
+        let mut regs = Vec::new();
+        let mut ic_handle = ICHandle::new();
+        for node in config {
+            match node.name.as_str() {
+                "exit" => {
+                    let exit_rc = ExitController::new();
+                    ic_handle.add(exit_rc.clone());
+                    regs.push((node.offset, MMIO::Exit(exit_rc)))
+                }
+                name => miette::bail!("unsupported MMIO device {name}"),
+            }
+        }
+
+        if regs.is_empty() {
+            miette::bail!("no mmio node found");
+        }
+
+        regs.sort_unstable_by_key(|(offset, _)| *offset);
+
+        Ok((Self { regs }, ic_handle))
+    }
+}
+
+impl Addressable for MMIOAddrDecoder {
+    fn do_bus_write(&mut self, offset: u32, data: &[u8]) -> Result<(), BusError> {
+        // a non u32 write is consider as implmentation bug and should be immediately bail out
+        let new_val = u32::from_le_bytes(data.try_into().unwrap());
+        let index = self.regs.binary_search_by(|(reg, _)| reg.cmp(&offset));
+
+        if let Ok(i) = index {
+            self.regs[i].1.store(new_val);
+
+            Ok(())
+        } else {
+            event!(
+                Level::DEBUG,
+                "unhandle MMIO write to offset={offset} with value {new_val}"
+            );
+            Err(BusError::DeviceError {
+                id: "MMIOWrite",
+                addr: offset,
+                len: data.len() as u32,
+            })
+        }
+    }
+
+    fn do_bus_read(&mut self, offset: u32, dest: &mut [u8]) -> Result<(), BusError> {
+        let index = self.regs.binary_search_by(|(reg, _)| reg.cmp(&offset));
+
+        if let Ok(i) = index {
+            // a non u32 read is consider as implmentation bug and should be immediately bail out
+            dest.copy_from_slice(&self.regs[i].1.load().to_le_bytes());
+
+            Ok(())
+        } else {
+            event!(Level::DEBUG, "unhandle MMIO read to offset={offset}");
+            Err(BusError::DeviceError {
+                id: "MMIORead",
+                addr: offset,
+                len: 0,
+            })
+        }
     }
 }

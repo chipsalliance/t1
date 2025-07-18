@@ -116,8 +116,8 @@ impl PokedexEvent {
 
     pub fn get_pc(&self) -> Option<u32> {
         match self {
-            Self::CSR { pc, .. } => Some(pc.clone()),
-            Self::Register { pc, .. } => Some(pc.clone()),
+            Self::CSR { pc, .. } => Some(*pc),
+            Self::Register { pc, .. } => Some(*pc),
             _ => None,
         }
     }
