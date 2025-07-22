@@ -12,6 +12,7 @@ X[rd] = csr_read.value;
 
 let rs1 : integer{0..31} = UInt(GetRS1(instruction));
 if rs1 != 0 then
+  PC = PC + 4;
   return WriteCSR(csr, csr_read.value AND (NOT X[rs1]));
 end
 
