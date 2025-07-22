@@ -413,6 +413,14 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   @public
   val laneProbe = IO(Output(Probe(new LaneProbe(parameter), layers.Verification)))
 
+  @public
+  val reduceMaskRequest: DecoupledIO[reduceMaskRequest] = IO(Decoupled(new reduceMaskRequest(parameter.datapathWidth)))
+
+  @public
+  val reduceMaskResponse: DecoupledIO[reduceMaskRequest] = IO(
+    Flipped(Decoupled(new reduceMaskRequest(parameter.datapathWidth)))
+  )
+
   // TODO: remove
   dontTouch(writeBusPort2)
   val csrInterface: CSRInterface = laneRequest.bits.csrInterface
@@ -714,6 +722,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       mask.pipeForMask.vl            := executionUnit.dequeue.bits.vl.get
       mask.pipeForMask.vlmul         := executionUnit.dequeue.bits.vlmul.get
       mask.laneIndex                 := laneIndex
+      mask.reduceVRFRequest.ready    := true.B
       maskUnitRequest <> mask.maskReq
       maskUnitRequest.bits.maskRequestToLSU <> mask.maskRequestToLSU
       mask.dequeue
@@ -840,6 +849,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       freeCrossReqDeq <> maskStage.get.freeCrossReqDeq
       stage0.freeCrossReqEnq.get <> freeCrossReqEnq
       stage0.maskPipeRelease.get <> maskStage.get.maskPipeRelease
+
+      reduceMaskRequest <> maskStage.get.reduceMaskRequest
+      maskStage.get.reduceMaskResponse <> reduceMaskResponse
 
       stage1.enqueue.bits.secondPipe.get        := stage0.dequeue.bits.secondPipe.get
       stage1.enqueue.bits.pipeForSecondPipe.get := stage0.dequeue.bits.pipeForSecondPipe.get
