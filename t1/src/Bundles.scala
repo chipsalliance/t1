@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.util.experimental.decode.DecodeBundle
 import chisel3.util.{log2Ceil, Decoupled, DecoupledIO, Valid, ValidIO}
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
-import org.chipsalliance.t1.rtl.lane.PipeForSecondPipe
+import org.chipsalliance.t1.rtl.lane.{reduceMaskRequest, PipeForSecondPipe}
 import org.chipsalliance.t1.rtl.lsu.LSUParameter
 import org.chipsalliance.t1.rtl.vrf.VRFParam
 
@@ -1133,6 +1133,23 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   val freeCrossRequestOutputVC: DecoupledIO[LaneVirtualChannel] = Decoupled(
     new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
   )
+
+  val reduceMaskRequest: DecoupledIO[reduceMaskRequest] = Flipped(
+    Decoupled(new reduceMaskRequest(parameter.datapathWidth))
+  )
+
+  val reduceMaskResponse: DecoupledIO[reduceMaskRequest] = Decoupled(new reduceMaskRequest(parameter.datapathWidth))
+
+  val reduceRequestInputVC: DecoupledIO[LaneVirtualChannel] = Flipped(
+    Decoupled(
+      new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
+    )
+  )
+
+  val reduceRequestOutputVC: DecoupledIO[LaneVirtualChannel] = Decoupled(
+    new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
+  )
+
 }
 
 class LSURequestInterface(dataWidth: Int, chainingSize: Int, vlWidth: Int) extends Bundle {
