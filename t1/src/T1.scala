@@ -679,6 +679,14 @@ class T1(val parameter: T1Parameter)
     sourceVC.ready := VecInit(readyVec).asUInt.orR
   }
 
+  // connect reduce request interface
+  Seq.tabulate(parameter.laneNumber) { sourceIndex =>
+    val sinkIndex = if (sourceIndex == (parameter.laneNumber - 1)) 0 else (sourceIndex + 1)
+    val sourceVC  = laneIFVec(sourceIndex).io.reduceRequestOutputVC
+    val sinkVC    = laneIFVec(sinkIndex).io.reduceRequestInputVC
+    connectNode(sourceVC, sinkVC)(2)
+  }
+
   /** maintain a [[DecoupleIO]] for [[requestReg]]. */
   val requestRegDequeue = Wire(Decoupled(new T1Issue(parameter.xLen, parameter.vLen)))
   // latch instruction, csr, decode result and instruction index to requestReg.
@@ -1090,6 +1098,9 @@ class T1(val parameter: T1Parameter)
 
     lane.freeCrossReqEnq <> laneIF.io.freeCrossReqEnq
     laneIF.io.freeCrossReqDeq <> lane.freeCrossReqDeq
+
+    lane.reduceMaskResponse <> laneIF.io.reduceMaskResponse
+    laneIF.io.reduceMaskRequest <> lane.reduceMaskRequest
 
     val instructionFinishedPipe =
       maskAnd(laneResponseVec(index).valid, laneResponseVec(index).bits.instructionFinished).asUInt
