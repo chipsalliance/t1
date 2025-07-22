@@ -12,7 +12,7 @@ let
   configuration = {
     elf_path_glob = "${all-tests}/**/*.elf";
     spike_args = [
-      "--isa=rv32im"
+      "--isa=rv32im_zvl256b_zve32x"
       "--priv=m"
       "--log-commits"
       "-m0x80000000:0x20000000,0x40000000:0x1000"
