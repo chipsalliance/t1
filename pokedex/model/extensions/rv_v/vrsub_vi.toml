@@ -1,0 +1,4 @@
+template = "vop_vi"
+
+op_func = "__op_rsub"
+function_description="compute vd = imm - vs2, optionally masked by vm"

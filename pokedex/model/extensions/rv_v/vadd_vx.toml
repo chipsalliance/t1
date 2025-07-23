@@ -1,0 +1,4 @@
+template = "vop_vx"
+
+op_func = "__op_add"
+function_description="compute vd = vs2 + rs1, optionally masked by vm"
