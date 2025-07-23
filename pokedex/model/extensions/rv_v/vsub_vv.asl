@@ -1,6 +1,6 @@
-// vwadd.vv vd, vs2, vs1, vm
-// eew(vd) = 2 * sew, eew(vs2, vs1) = sew
-// compute vd = sext(vs2) + sext(vs1), optionally masked by vm
+// vsub.vv vd, vs2, vs1, vm
+// eew(vd, vs2, vs1) = sew
+// compute vd = vs2 - vs1, optionally masked by vm
 
 let vd : VREG_TYPE = UInt(GetRD(instruction));
 let vs2 : VREG_TYPE = UInt(GetRS2(instruction));
@@ -16,12 +16,7 @@ let lmul = VTYPE.lmul;
 let vlmax = VLMAX;
 let vl = VL;
 
-if invalid_double_lmul(lmul) then
-  return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
-end
-
-if invalid_vreg_2sew(lmul, vd) then
-  // eew(vd) = 2 * sew
+if invalid_vreg(lmul, vd) then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
 end
 
@@ -30,14 +25,6 @@ if invalid_vreg(lmul, vs2) then
 end
 
 if invalid_vreg(lmul, vs1) then
-  return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
-end
-
-if invalid_overlap_dst_src_2_1(lmul, vd, vs2) then
-  return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
-end
-
-if invalid_overlap_dst_src_2_1(lmul, vd, vs1) then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
 end
 
@@ -60,29 +47,37 @@ case sew of
         let src2 = VRF_8[vs2, idx];
         let src1 = VRF_8[vs1, idx];
 
-        let res = SInt(src2)[15:0] + SInt(src1)[15:0];
+        let res = src2 - src1;
 
-        VRF_16[vd, idx] = res;
+        VRF_8[vd, idx] = res;
       end
     end
   end
 
   when 16 => begin
     for idx = 0 to vl - 1 do
-      if vm =='0' && V0_MASK[idx] then
+      if vm == '0' && V0_MASK[idx] then
         let src2 = VRF_16[vs2, idx];
         let src1 = VRF_16[vs1, idx];
 
-        let res = SInt(src2)[31:0] + SInt(src1)[31:0];
+        let res = src2 - src1;
 
-        VRF_32[vd, idx] = res[31:0];
+        VRF_16[vd, idx] = res;
       end
     end
   end
 
   when 32 => begin
-    assert ELEN == 32;
-    return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
+    for idx = 0 to vl - 1 do
+      if vm == '0' && V0_MASK[idx] then
+        let src2 = VRF_32[vs2, idx];
+        let src1 = VRF_32[vs1, idx];
+
+        let res = src2 - src1;
+
+        VRF_32[vd, idx] = res;
+      end
+    end
   end
   
   otherwise => assert FALSE; // TODO
