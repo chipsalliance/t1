@@ -1,0 +1,4 @@
+template = "vop_vx"
+
+op_func = "__op_rsub"
+function_description="compute vd = rs1 - vs2, optionally masked by vm"

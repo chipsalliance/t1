@@ -4,8 +4,8 @@
 //   inst = {{ inst }}
 //   op_func = {{ op_func }}
 
-// vadd.vx vd, vs2, rs1, vm
-// eew(vd, vs2) = sew
+// {{ inst_dot }} vd, vs2, rs1, vm
+// eew(vd, vs2) = sew, w(rs1) = sew, rs1 is sext/truncated from X[rs1]
 // {{ function_description }}
 
 let vd : VREG_TYPE = UInt(GetRD(instruction));

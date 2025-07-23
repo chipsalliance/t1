@@ -1,0 +1,4 @@
+template = "vop_vi"
+
+op_func = "__op_or"
+function_description="compute vd = vs2 | imm, optionally masked by vm"
