@@ -1,4 +1,4 @@
-// vwadd.vv vd, vs2, vs1, vm
+// vwadd.wv vd, vs2, vs1, vm
 // eew(vd, vs2) = 2 * sew, eew(vs1) = sew
 // compute vd = vs2 + sext(vs1), optionally masked by vm
 

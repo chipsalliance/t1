@@ -21,6 +21,8 @@ begin
   end
 end
 
+type XREG_TYPE of integer{0..31};
+
 // Global getter setter functions for register: developers should never use the private __GPR variable
 getter X[i : integer {0..31}] => bits(32)
 begin

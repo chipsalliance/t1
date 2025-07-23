@@ -1,6 +1,6 @@
-// vwadd.vv vd, vs2, vs1, vm
+// vwsubu.vv vd, vs2, vs1, vm
 // eew(vd) = 2 * sew, eew(vs2, vs1) = sew
-// compute vd = sext(vs2) + sext(vs1), optionally masked by vm
+// compute vd = zext(vs2) - zext(vs1), optionally masked by vm
 
 let vd : VREG_TYPE = UInt(GetRD(instruction));
 let vs2 : VREG_TYPE = UInt(GetRS2(instruction));
@@ -60,7 +60,7 @@ case sew of
         let src2 = VRF_8[vs2, idx];
         let src1 = VRF_8[vs1, idx];
 
-        let res = SInt(src2)[15:0] + SInt(src1)[15:0];
+        let res = UInt(src2)[15:0] - UInt(src1)[15:0];
 
         VRF_16[vd, idx] = res;
       end
@@ -73,9 +73,9 @@ case sew of
         let src2 = VRF_16[vs2, idx];
         let src1 = VRF_16[vs1, idx];
 
-        let res = SInt(src2)[31:0] + SInt(src1)[31:0];
+        let res = UInt(src2)[31:0] - UInt(src1)[31:0];
 
-        VRF_32[vd, idx] = res[31:0];
+        VRF_32[vd, idx] = res;
       end
     end
   end
