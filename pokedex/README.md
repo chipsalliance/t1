@@ -101,98 +101,124 @@
 
 6.2.Interrupt <span style="display: inline-block;"></span> ⁠1
 
-7.Rust Simulator <span style="display: inline-block;"></span> ⁠1
+7.Codegen CLI <span style="display: inline-block;"></span> ⁠1
 
-7.1.File Structures <span style="display: inline-block;"></span> ⁠1
-
-7.2.Simulator States <span style="display: inline-block;"></span> ⁠1
-
-7.3.FFI functions <span style="display: inline-block;"></span> ⁠1
-
-7.3.1.Memory Read Write APIs
+7.1.Update Codegen CLI Scala Dependency
 <span style="display: inline-block;"></span> ⁠1
 
-7.4.Hook APIs <span style="display: inline-block;"></span> ⁠1
-
-7.5.Trap APIs <span style="display: inline-block;"></span> ⁠1
-
-7.6.Debug APIs <span style="display: inline-block;"></span> ⁠1
-
-8.Build Instruction <span style="display: inline-block;"></span> ⁠1
-
-8.1.Debug generated code <span style="display: inline-block;"></span> ⁠1
-
-8.2.Get archived ASL library
+7.2.Setup Development Environment
 <span style="display: inline-block;"></span> ⁠1
 
-8.3.Compile final simulator <span style="display: inline-block;"></span>
+8.Rust Simulator <span style="display: inline-block;"></span> ⁠1
+
+8.1.File Structures <span style="display: inline-block;"></span> ⁠1
+
+8.2.Simulator States <span style="display: inline-block;"></span> ⁠1
+
+8.2.1.Shadowed Program Counter
+<span style="display: inline-block;"></span> ⁠1
+
+8.2.2.Interconnection <span style="display: inline-block;"></span> ⁠1
+
+8.2.3.MMIO and External Interrupt
+<span style="display: inline-block;"></span> ⁠1
+
+8.2.3.1.Example: The
+<span style="display: inline-block;">`ExitController`</span>
+<span style="display: inline-block;"></span> ⁠1
+
+8.2.4.Exception <span style="display: inline-block;"></span> ⁠1
+
+8.2.5.Statistic <span style="display: inline-block;"></span> ⁠1
+
+8.3.FFI functions <span style="display: inline-block;"></span> ⁠1
+
+8.3.1.Memory Read Write APIs
+<span style="display: inline-block;"></span> ⁠1
+
+8.4.Hook APIs <span style="display: inline-block;"></span> ⁠1
+
+8.5.Trap APIs <span style="display: inline-block;"></span> ⁠1
+
+8.6.Debug APIs <span style="display: inline-block;"></span> ⁠1
+
+9.Build Instruction <span style="display: inline-block;"></span> ⁠1
+
+9.1.Debug generated code <span style="display: inline-block;"></span> ⁠1
+
+9.2.Get archived ASL library
+<span style="display: inline-block;"></span> ⁠1
+
+9.3.Compile final simulator <span style="display: inline-block;"></span>
 ⁠1
 
-9.Appendix A: <span style="display: inline-block;">`ASLi`</span>
+10.Appendix A: <span style="display: inline-block;">`ASLi`</span>
 commands for lowering <span style="display: inline-block;"></span> ⁠1
 
-9.1.Filter unreachable code from exports
+10.1.Filter unreachable code from exports
 <span style="display: inline-block;"></span> ⁠1
 
-9.2.Eliminate <span style="display: inline-block;">`typedef`</span>
+10.2.Eliminate <span style="display: inline-block;">`typedef`</span>
 <span style="display: inline-block;"></span> ⁠1
 
-9.3.Eliminate bit and int arithmetic operation
+10.3.Eliminate bit and int arithmetic operation
 <span style="display: inline-block;"></span> ⁠1
 
-9.4.Eliminate bit vector concatenate
+10.4.Eliminate bit vector concatenate
 <span style="display: inline-block;"></span> ⁠1
 
-9.5.Convert bit-slice operation
+10.5.Convert bit-slice operation
 <span style="display: inline-block;"></span> ⁠1
 
-9.6.Eliminate slices of integers
+10.6.Eliminate slices of integers
 <span style="display: inline-block;"></span> ⁠1
 
-9.7.Convert getter/setter <span style="display: inline-block;"></span> ⁠1
+10.7.Convert getter/setter <span style="display: inline-block;"></span>
+⁠1
 
-9.8.TODO <span style="display: inline-block;"></span> ⁠1
+10.8.TODO <span style="display: inline-block;"></span> ⁠1
 
-9.9.Constant propagation <span style="display: inline-block;"></span> ⁠1
+10.9.Constant propagation <span style="display: inline-block;"></span> ⁠1
 
-9.10.Monomorphicalize functions
+10.10.Monomorphicalize functions
 <span style="display: inline-block;"></span> ⁠1
 
-9.11.Lift let-expressions <span style="display: inline-block;"></span> ⁠1
+10.11.Lift let-expressions <span style="display: inline-block;"></span>
+⁠1
 
-9.12.Convert bit vector slice operation to bit operation
+10.12.Convert bit vector slice operation to bit operation
 <span style="display: inline-block;"></span> ⁠1
 
-9.13.Convert match to if <span style="display: inline-block;"></span> ⁠1
+10.13.Convert match to if <span style="display: inline-block;"></span> ⁠1
 
-9.14.Wrap variable <span style="display: inline-block;"></span> ⁠1
+10.14.Wrap variable <span style="display: inline-block;"></span> ⁠1
 
-9.15.Create bounded int <span style="display: inline-block;"></span> ⁠1
+10.15.Create bounded int <span style="display: inline-block;"></span> ⁠1
 
-9.16.Filter function not listed in imports
+10.16.Filter function not listed in imports
 <span style="display: inline-block;"></span> ⁠1
 
-9.17.Check monomorphic <span style="display: inline-block;"></span> ⁠1
+10.17.Check monomorphic <span style="display: inline-block;"></span> ⁠1
 
-10.Appendix B: Coding convention
+11.Appendix B: Coding convention
 <span style="display: inline-block;"></span> ⁠1
 
-10.1.Use Explicit Type Declarations
+11.1.Use Explicit Type Declarations
 <span style="display: inline-block;"></span> ⁠1
 
-10.2.Avoid Deeply Nested Operations
+11.2.Avoid Deeply Nested Operations
 <span style="display: inline-block;"></span> ⁠1
 
-10.3.Declare architecture states with UPPERCASE
+11.3.Declare architecture states with UPPERCASE
 <span style="display: inline-block;"></span> ⁠1
 
-10.4.Pad Literal Bit Vectors for Clarity
+11.4.Pad Literal Bit Vectors for Clarity
 <span style="display: inline-block;"></span> ⁠1
 
-10.5.Declare local variable with lower\_case
+11.5.Declare local variable with lower\_case
 <span style="display: inline-block;"></span> ⁠1
 
-10.6.Use double underscore to indicate private value
+11.6.Use double underscore to indicate private value
 <span style="display: inline-block;"></span> ⁠1
 
 ## 1. Introduction
@@ -353,7 +379,7 @@ These bindings are then used by the
 <span style="display: inline-block;">`model.rs`</span> module to
 interact with the ISA model.
 
-Implementation details can be found at chapter Section 7.
+Implementation details can be found at chapter Section 8.
 
 ### 2.3. Differential Testing with Spike
 
@@ -1406,8 +1432,6 @@ store value. Any write to the
     setter MEPC = pc : bits(32)
     begin
       assert pc[0] == '0';
-      // todo: test IALIGN before assert after C extension implmented
-      assert pc[1] == '0';
       __MEPC = pc;
     end
 
@@ -1416,8 +1440,7 @@ Thus developer should verify address before writing to
 
     func Write_MEPC(value : bits(32)) => Result
     begin
-      // todo: C ext
-      MEPC = [ value[31:2], '00' ];
+      MEPC = [ value[31:1], '0' ];
 
       return Retired();
     end
@@ -1531,7 +1554,18 @@ and PC is handled by least significant bits of
       end
     end
 
-## 7. Rust Simulator
+## 7. Codegen CLI
+
+### 7.1. Update Codegen CLI Scala Dependency
+
+    $ cd pokedex/codegen
+    $ nix run ".#pokedex.codegen-cli.bump"
+
+### 7.2. Setup Development Environment
+
+    $ nix develop .#pokedex.codegen-cli.shell -L
+
+## 8. Rust Simulator
 
 The ASL model itself is designed as a passive library. Its sole
 responsibility is to define the RISC-V instruction set architecture,
@@ -1546,7 +1580,7 @@ memory, maintaining memory state, driving the model to consume
 instructions and recording each change happens in model architecture
 states.
 
-### 7.1. File Structures
+### 8.1. File Structures
 
     model/simulator/
         ├── difftest
@@ -1570,21 +1604,22 @@ states.
         ├── Cargo.lock
         └── Cargo.toml
 
-### 7.2. Simulator States
+### 8.2. Simulator States
 
 We maintain following states at Rust side
 
-    pub struct Simulator {
+    pub struct SimulatorState {
         pc: u32,
-        memory: Vec<u8>,
+        bus_bridge: BusBridge,
+        ic_handle: ICHandle,
         exception: Option<SimulationException>,
+        statistic: Statistic,
 
-        last_instruction: u32,
         last_instruction_met_count: u8,
         max_same_instruction: u8,
-
-        statistic: Statistic,
     }
+
+#### 8.2.1. Shadowed Program Counter
 
 The <span style="display: inline-block;">`pc`</span> field holds the
 address of the instruction currently being executed. Its primary purpose
@@ -1613,10 +1648,267 @@ register write, we use this value to ensure the log entry is correctly
 associated with the instruction that caused it, guaranteeing an accurate
 comparison with the reference log from Spike.
 
-The <span style="display: inline-block;">`memory`</span> field is a
-simple, large, byte indexed array. It will be read and written by
-corresponding FFI functions from model, it will also be written when
-first loading executable file into memory.
+#### 8.2.2. Interconnection
+
+<span style="display: inline-block;">`bus_bridge`</span> represents the
+primary system bus. It manages connections to multiple slave devices,
+such as SRAM and MMIO, by mapping them to specific ranges in the
+physical address space.
+
+    pub struct BusBridge {
+        address_space: Vec<(Range<u32>, Box<dyn Addressable>)>,
+    }
+
+The <span style="display: inline-block;">`address_space`</span> field
+contains a vector of tuples, where each tuple maps a physical address
+range (<span style="display: inline-block;">`Range<u32>`</span>) to a
+device
+(<span style="display: inline-block;">`Box<dyn Addressable>`</span>). To
+support different type of devices, device-specific information is
+abstractd using the
+<span style="display: inline-block;">`Addressable`</span> trait. Any
+device connected to the bus must implement the
+<span style="display: inline-block;">`Addressable`</span> trait.
+
+    pub trait Addressable: Send {
+        fn do_bus_read(&mut self, offset: u32, dest: &mut [u8]) -> Result<(), BusError>;
+        fn do_bus_write(&mut self, offset: u32, data: &[u8]) -> Result<(), BusError>;
+    }
+
+A key design principle is that devices are unaware of their absolute
+physical address on SoC. Instead, the bus provides a translated
+<span style="display: inline-block;">`offset`</span> relative to the
+device's own base address.
+
+-   <span style="display: inline-block;">`do_bus_read`</span>: device
+    perform a read at the given
+    <span style="display: inline-block;">`offset`</span>. The data is
+    written into
+
+the <span style="display: inline-block;">`dest`</span> slice, and
+numbers of bytes to read is determined by the slice's length.
+
+-   <span style="display: inline-block;">`do_bus_write`</span>: device
+    perform a write at given
+    <span style="display: inline-block;">`offset`</span> using the
+    provided <span style="display: inline-block;">`data`</span> slice.
+
+For example, consider an SRAM with a base address of
+<span style="display: inline-block;">`0x8000_0000`</span>. If a core
+requests a read at physical address
+<span style="display: inline-block;">`0x8000_FC00`</span>, the
+<span style="display: inline-block;">`BusBridge`</span> will call the
+<span style="display: inline-block;">`SRAM`</span>'s
+<span style="display: inline-block;">`do_bus_read`</span> method with
+<span style="display: inline-block;">`offset`</span> of
+<span style="display: inline-block;">`0xFC00`</span>. The SRAM device
+only needs to handle this local offset and does not need to aware of the
+full 32-bit address space.
+
+Device mappings are configured using a KDL file. This file specifies
+each device's base address, the length of its address space and other
+device-specific parameters.
+
+    sram "naive" base=0x80000000 length=0x20000000
+
+    mmio base=0x40000000 length=0x1000 {
+      mmap "exit" offset=0x4
+    }
+
+In this example:
+
+-   An SRAM device named "naive" is mapped at base address
+    <span style="display: inline-block;">`0x8000_0000`</span> and
+    occupies a <span style="display: inline-block;">`0x2000_0000`</span>
+    bytes (512MB) address range on system bus.
+-   An MMIO device is mapped at base address
+    <span style="display: inline-block;">`0x4000_0000`</span> and
+    occupies <span style="display: inline-block;">`0x1000`</span> bytes
+    (4KB) range. It also contains an internal
+    <span style="display: inline-block;">`exit`</span> interrupt
+    controller at local offset of
+    <span style="display: inline-block;">`0x4`</span>.
+
+> The <span style="display: inline-block;">`length`</span> parameter in
+> the configuration defines a size of the address range that the
+> <span style="display: inline-block;">`BusBridge`</span> maps to a
+> device. This is distinct from the device's internal storage capacity.
+> A device can implement its own address translation logic, allowing its
+> actual capacity to be smaller or larger than its mapped address space.
+
+The simulator provides high-level methods to interact with the bus:
+
+-   <span style="display: inline-block;">`req_bus_read<const N: usize>(addr: u32) -> Result<[u8; N], BusError>`</span>
+-   <span style="display: inline-block;">`req_bus_write<const N: usize>(addr: u32, data: &[u8]) -> Result<(), BusError>`</span>
+
+When these functions are called, the
+<span style="display: inline-block;">`BusBridge`</span> finds the device
+mapped at the specified
+<span style="display: inline-block;">`addr`</span>, translates it to a
+device-local offset, and dispatches the request to the device's
+Addressable implementation. If no device is mapped at the address, a
+<span style="display: inline-block;">`BusError::DecodeError`</span> is
+returned.
+
+#### 8.2.3. MMIO and External Interrupt
+
+In our simulator's design, peripheral devices can't directly contact the
+CPU core. So, we need a mechanism for them to signal events or request
+actions, like indicating that a task is complete or that the simulation
+should terminate.
+
+This is achieved using a system of interrupt controllers. Devices write
+to their associated controllers to update a **shared** state. After each
+instruction cycle, the SoC polls these controllers and acts on any
+pending signals.
+
+Any component that needs to signal the SoC must implement the
+<span style="display: inline-block;">`InterruptController`</span> trait.
+This ensures a standard interface for the SoC to interact with.
+
+    pub enum InterruptType {
+      // ...
+    }
+
+    pub trait InterruptController: Sync + Send {
+        fn get_id(&self) -> InterruptType;
+        fn is_enabled(&self) -> bool;
+        fn set_enable(&mut self);
+        fn get_value(&self) -> [u8; 4];
+        fn set_value(&mut self, val: [u8; 4]);
+    }
+
+-   <span style="display: inline-block;">`get_id`</span>: Returns a
+    unique <span style="display: inline-block;">`InterruptType`</span>
+    to identify the interrupt's source.
+-   <span style="display: inline-block;">`is_enabled`</span>: Returns
+    <span style="display: inline-block;">`true`</span> if an interrupt
+    is pending. The SoC only acts on
+    <span style="display: inline-block;">`enabled`</span> interrupts.
+-   <span style="display: inline-block;">`set_enabled`</span>: Marks the
+    interrupt as pending for the SoC to handle.
+-   <span style="display: inline-block;">`get_value`</span>: get a
+    4-byte value associated with the interrupt controller
+-   <span style="display: inline-block;">`set_value`</span>: set a
+    4-byte value associated with the interrupt controller
+
+> The trait requires both
+> <span style="display: inline-block;">`Sync`</span> and
+> <span style="display: inline-block;">`Send`</span> because controllers
+> are shared resources.
+
+The <span style="display: inline-block;">`ICHandle`</span> is a simple
+helper struct that centrally manages all registered interrupt
+controllers in the system.
+
+    struct ICHandle(Vec<Box<dyn InterruptController>>);
+    impl ICHandle {
+        fn new() -> Self {
+            Self(Vec::new())
+        }
+
+        fn add<T: InterruptController + 'static>(&mut self, ic: T) {
+            self.0.push(Box::new(ic))
+        }
+
+        fn get_enabled_ic(&self) -> Option<&Box<dyn InterruptController>> {
+            self.0.iter().find(|ic| ic.is_enabled())
+        }
+    }
+
+When the simulator starts, this handle is created. As devices are
+initialized, they create their specific interrupt controllers, which are
+then added to the
+<span style="display: inline-block;">`ICHandle`</span>. The SoC holds
+onto this handle to check for pending interrupts during execution.
+
+##### 8.2.3.1. Example: The <span style="display: inline-block;">`ExitController`</span>
+
+Here is a complete walkthrough of how a MMIO write can trigger
+simulation to exit.
+
+First, we define a controller specifically for the exit signal. It uses
+atomic types to safely manage the state across threads.
+
+The <span style="display: inline-block;">`ExitController`</span> wraps
+two atomic values: an
+<span style="display: inline-block;">`AtomicBool`</span> to flag if the
+interrupt is enabled and an
+<span style="display: inline-block;">`AtomicI32`</span> to store the
+exit code.
+
+    #[derive(Debug, Clone, Default)]
+    pub struct ExitController(Arc<AtomicBool>, Arc<AtomicI32>);
+    impl InterruptController for ExitController {
+        fn get_id(&self) -> InterruptType {
+            InterruptType::Exit
+        }
+
+        fn is_enabled(&self) -> bool {
+            self.0.load(Ordering::Acquire)
+        }
+
+        fn set_enable(&mut self) {
+            self.0.store(true, Ordering::Release);
+        }
+
+        fn set_value(&mut self, val: [u8; 4]) {
+            let v = i32::from_le_bytes(val);
+            self.1.store(v, Ordering::Release);
+        }
+
+        fn get_value(&self) -> [u8; 4] {
+            let v = self.1.load(Ordering::Acquire);
+            v.to_le_bytes()
+        }
+    }
+
+Then we need to connect the controller to a MMIO device.
+
+When the simulated program writes to the address of the
+<span style="display: inline-block;">`Exit`</span> MMIO register, its
+<span style="display: inline-block;">`store`</span> method is called,
+this updates the
+<span style="display: inline-block;">`ExitController`</span> value with
+exit code and flag the interrupt.
+
+    pub enum MMIO {
+        Exit(ExitController),
+    }
+    impl MMIO {
+        fn load(&self) -> u32 {/*...*/}
+
+        // when a MMIO write to the Exit register, we update the Exit Interrupt Controller
+        fn store(&mut self, v: u32) {
+            match self {
+                Self::Exit(eic) => {
+                    eic.set_value(v.to_le_bytes());
+                    eic.set_enable();
+                }
+            }
+        }
+    }
+
+Finaly, the SoC's main execution loop checks for pending interrupts
+after each instruction. The loop calls
+<span style="display: inline-block;">`get_enabled_ic()`</span>. If it
+finds the now-enabled
+<span style="display: inline-block;">`ExitController`</span>, it
+retrieves the exit code and terminates the simulation by returning an
+error.
+
+    // In main `step` function
+      if let Some(ic) = self.state.ic_handle.get_enabled_ic() {
+          match ic.get_id() {
+              InterruptType::Exit => {
+                  let value = ic.get_value();
+                  let exit_code = i32::from_le_bytes(value);
+                  return Err(SimulationException::Exited(exit_code));
+              }
+          }
+      }
+
+#### 8.2.4. Exception
 
 The simulator includes an
 <span style="display: inline-block;">`exception`</span> field designed
@@ -1632,6 +1924,8 @@ loop, executable notify a power off signal…etc.
 > that cannot fit into unsigned 32-bit integer represents a fundamental
 > flaw and should be immediately rejected with fatal error, not
 > considered recoverable.
+
+#### 8.2.5. Statistic
 
 To avoid spamming the terminal during an infinite exception loop—a
 common issue for those familiar with Spike—this simulator includes a
@@ -1656,7 +1950,7 @@ The <span style="display: inline-block;">`statistic`</span> field
 contains counters to record runtime information that will be reported
 after simulation end.
 
-### 7.3. FFI functions
+### 8.3. FFI functions
 
 Following are FFI functions required from ASL model that developers
 should implemented on Rust side. These function are explicitly declare
@@ -1668,7 +1962,7 @@ at <span style="display: inline-block;">`external.asl`</span> file.
 > signatures at <span style="display: inline-block;">`*_types.h`</span>
 > header file after ASLi generated C files.
 
-#### 7.3.1. Memory Read Write APIs
+#### 8.3.1. Memory Read Write APIs
 
 All the memory API have following return type:
 
@@ -1723,7 +2017,7 @@ any memory violation will be capture and raise an memory load store
 fault exception back to model. Unaligned read/write is not supported at
 memory platform side and is also thrown as exception.
 
-### 7.4. Hook APIs
+### 8.4. Hook APIs
 
 Model required following hooks from platform to notify real time info of
 model current behavior.
@@ -1733,7 +2027,7 @@ model current behavior.
     // Execute when GPR get written
     func FFI_write_GPR_hook(reg_idx: integer{0..31}, data: bits(32));
 
-### 7.5. Trap APIs
+### 8.5. Trap APIs
 
 Model required platform provide following functions for
 exception/interrupt trap supports.
@@ -1743,7 +2037,7 @@ exception/interrupt trap supports.
     func FFI_ebreak();
     func FFI_ecall();
 
-### 7.6. Debug APIs
+### 8.6. Debug APIs
 
 Model required platform provide following functions implementation to
 debug model.
@@ -1751,9 +2045,9 @@ debug model.
     func FFI_print_str(s: string);
     func FFI_print_bits_hex(v: bits(32));
 
-## 8. Build Instruction
+## 9. Build Instruction
 
-### 8.1. Debug generated code
+### 9.1. Debug generated code
 
 Developers can run following commands to get full source code prepare
 for ASLi to compile.
@@ -1776,11 +2070,6 @@ list of optimization and lowering pass ASLi needs to run. Lowering pass
 used in <span style="display: inline-block;">`asl2c.prj`</span> is
 documented at chapter Appendix A.
 
-> Note that the default optimization
-> <span style="display: inline-block;">`:xform_constprop`</span> is not
-> enabled, details at
-> [<span style="display: inline-block;">`IntelLab/asl-interpreter issue#105`</span>](https://github.com/IntelLabs/asl-interpreter/issues/105)
-
 File <span style="display: inline-block;">`project.json`</span> record
 all the functions used for FFI. The
 <span style="display: inline-block;">`imports`</span> field records
@@ -1799,7 +2088,7 @@ The <span style="display: inline-block;">`dumps/`</span> directory
 collect ASL code dumps after each lowering pass, developers can debug
 the optimization by inspect those dump file.
 
-### 8.2. Get archived ASL library
+### 9.2. Get archived ASL library
 
 Developers can get the archive file with following commands
 
@@ -1813,7 +2102,7 @@ Generated headers are placed under the
 the ASL model code is packaged under
 <span style="display: inline-block;">`lib/`</span> directory.
 
-### 8.3. Compile final simulator
+### 9.3. Compile final simulator
 
 Developer can get binary with following command:
 
@@ -1826,9 +2115,9 @@ Or build the emulator by invoking cargo manually:
     $ cd pokedex/simulator
     $ cargo build
 
-## 9. Appendix A: <span style="display: inline-block;">`ASLi`</span> commands for lowering
+## 10. Appendix A: <span style="display: inline-block;">`ASLi`</span> commands for lowering
 
-### 9.1. Filter unreachable code from exports
+### 10.1. Filter unreachable code from exports
 
 This command discard any code not reachable from the list of exported
 functions.
@@ -1840,30 +2129,30 @@ flag to remove unreachable prelude functions. Be aware the removal of
 built-ins functions better to be used at the end of the pass pipeline to
 avoid missing functions after optimization.
 
-### 9.2. Eliminate <span style="display: inline-block;">`typedef`</span>
+### 10.2. Eliminate <span style="display: inline-block;">`typedef`</span>
 
     :xform_named_type
 
-### 9.3. Eliminate bit and int arithmetic operation
+### 10.3. Eliminate bit and int arithmetic operation
 
 Eliminate bit,int arithmetic operations like "'000' + 3".
 
     :xform_desugar
 
-### 9.4. Eliminate bit vector concatenate
+### 10.4. Eliminate bit vector concatenate
 
 Eliminate bit-tuples like "\[x,y\] = z;" and "x\[7:0, 15:8\]".
 
     :xform_bittuples
 
-### 9.5. Convert bit-slice operation
+### 10.5. Convert bit-slice operation
 
 Convert all bit-slice operations to use the +: syntax, e.g., "x\[7:0\]"
 –&gt; "x\[0 +: 8\]".
 
     :xform_lower
 
-### 9.6. Eliminate slices of integers
+### 10.6. Eliminate slices of integers
 
 Eliminate slices of integers by first converting the integer to a
 bitvector. E.g., if <span style="display: inline-block;">`x`</span> is
@@ -1873,7 +2162,7 @@ convert <span style="display: inline-block;">`x[1 +: 8]`</span> to
 
     :xform_int_bitslices
 
-### 9.7. Convert getter/setter
+### 10.7. Convert getter/setter
 
 Convert use of getter/setter syntax to function calls. E.g.,
 <span style="display: inline-block;">`Mem[a, sz] = x`</span> –&gt;
@@ -1881,18 +2170,18 @@ Convert use of getter/setter syntax to function calls. E.g.,
 
     :xform_getset
 
-### 9.8. TODO
+### 10.8. TODO
 
     :xform_valid track-valid
 
-### 9.9. Constant propagation
+### 10.9. Constant propagation
 
 Perform constant propagation without unrolling loops. This helps
 identify potential targets for the monomorphicalize pass.
 
     :xform_constprop --nounroll
 
-### 9.10. Monomorphicalize functions
+### 10.10. Monomorphicalize functions
 
 Create specialized versions of every bitwidth-polymorphic function and
 change all function calls to use the appropriate specialized version.
@@ -1900,7 +2189,7 @@ change all function calls to use the appropriate specialized version.
 
     :xform_monomorphize --auto-case-split
 
-### 9.11. Lift let-expressions
+### 10.11. Lift let-expressions
 
 Lift let-expressions as high as possible out of an expression e.g.,
 <span style="display: inline-block;">`F(G(let t = 1 in H(t))) -> let t = 1 in F(G(H(t)))`</span>.
@@ -1914,7 +2203,7 @@ only exist to make some transformations easier to write.
 
     :xform_hoist_lets
 
-### 9.12. Convert bit vector slice operation to bit operation
+### 10.12. Convert bit vector slice operation to bit operation
 
 Convert bitslice operations like "x\[i\] = '1';" to a combination of
 AND/OR and shift operations like "x = x OR (1 &lt;&lt; i);" This works
@@ -1926,7 +2215,7 @@ Add flag <span style="display: inline-block;">`--notransform`</span>
 when using <span style="display: inline-block;">`ac`</span>,
 <span style="display: inline-block;">`sc`</span> backend.
 
-### 9.13. Convert match to if
+### 10.13. Convert match to if
 
 Any case statement that does not correspond to what the C language
 supports is converted to an if statement. This works better after
@@ -1935,15 +2224,15 @@ eliminate/simplify guards on the clauses of the case statement.
 
     :xform_case
 
-### 9.14. Wrap variable
+### 10.14. Wrap variable
 
     :xform_wrap
 
-### 9.15. Create bounded int
+### 10.15. Create bounded int
 
     :xform_bounded
 
-### 9.16. Filter function not listed in imports
+### 10.16. Filter function not listed in imports
 
 The <span style="display: inline-block;">`imports`</span> field should
 be defined in configuration in following form:
@@ -1957,7 +2246,7 @@ be defined in configuration in following form:
 
     :filter_unlisted_functions imports
 
-### 9.17. Check monomorphic
+### 10.17. Check monomorphic
 
 Check that all definitions are bitwidth-monomorphic and report a useful
 error message if they are not. The code generator will produce an error
@@ -1969,12 +2258,12 @@ are the ones that you need to fix).
 
     :check_monomorphization --fatal --verbose
 
-## 10. Appendix B: Coding convention
+## 11. Appendix B: Coding convention
 
 To ensure consistency and readability across the project, please adhere
 to the following conventions when writing ASL code.
 
-### 10.1. Use Explicit Type Declarations
+### 11.1. Use Explicit Type Declarations
 
 Always provide a type annotation when declaring a variable with
 <span style="display: inline-block;">`let`</span> or
@@ -1989,7 +2278,7 @@ Avoid:
 
     let i = 0x1;
 
-### 10.2. Avoid Deeply Nested Operations
+### 11.2. Avoid Deeply Nested Operations
 
 Instead of nesting multiple function calls or operations in a single
 statement, use intermediate variables to store the results of each step.
@@ -2004,7 +2293,7 @@ Avoid:
 
     let not_a : bits(32) = NOT(ZeroExtend(GPR[1]));
 
-### 10.3. Declare architecture states with UPPERCASE
+### 11.3. Declare architecture states with UPPERCASE
 
 Architecture states reads like global variable in normal code, thus we
 prefer using UPPERCASE for the states variable name.
@@ -2017,7 +2306,7 @@ Avoid:
 
     var mpp : bits(2)
 
-### 10.4. Pad Literal Bit Vectors for Clarity
+### 11.4. Pad Literal Bit Vectors for Clarity
 
 In the ASL specification, single quotes are used to define literal bit
 vectors (e.g., <span style="display: inline-block;">`'1'`</span>).
@@ -2035,7 +2324,7 @@ Avoid:
 
     GPR[rd] = ZeroExtend('1');
 
-### 10.5. Declare local variable with lower\_case
+### 11.5. Declare local variable with lower\_case
 
 Function local variable should be declared in "lower\_case".
 
@@ -2055,7 +2344,7 @@ Avoid:
       let SHIFT_AMOUNT : integer = UInt(X[rs1]);
     end
 
-### 10.6. Use double underscore to indicate private value
+### 11.6. Use double underscore to indicate private value
 
 Function, value binding that should only be used in current file should
 be prefixed with double underscore.
