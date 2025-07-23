@@ -1244,19 +1244,19 @@ model/simulator/
 We maintain following states at Rust side
 
 ```rust
-pub struct Simulator {
+pub struct SimulatorState {
     pc: u32,
-    memory: Vec<u8>,
+    bus_bridge: BusBridge,
+    ic_handle: ICHandle,
     exception: Option<SimulationException>,
+    statistic: Statistic,
 
-    last_instruction: u32,
     last_instruction_met_count: u8,
     max_same_instruction: u8,
-
-    statistic: Statistic,
 }
 ```
 
+=== Shadowed Program Counter
 The `pc` field holds the address of the instruction currently being executed. Its
 primary purpose is to ensure accurate logging for differential testing against
 Spike.
@@ -1278,10 +1278,217 @@ value to ensure the log entry is correctly associated with the instruction that
 caused it, guaranteeing an accurate comparison with the reference log from
 Spike.
 
-The `memory` field is a simple, large, byte indexed array. It will be read and
-written by corresponding FFI functions from model, it will also be written when
-first loading executable file into memory.
+=== Interconnection
+`bus_bridge` represents the primary system bus. It manages connections to
+multiple slave devices, such as SRAM and MMIO, by mapping them to specific
+ranges in the physical address space.
 
+```rust
+pub struct BusBridge {
+    address_space: Vec<(Range<u32>, Box<dyn Addressable>)>,
+}
+```
+
+The `address_space` field contains a vector of tuples, where each tuple maps a
+physical address range (`Range<u32>`) to a device (`Box<dyn Addressable>`). To
+support different type of devices, device-specific information is abstractd
+using the `Addressable` trait. Any device connected to the bus must implement
+the `Addressable` trait.
+
+```rust
+pub trait Addressable: Send {
+    fn do_bus_read(&mut self, offset: u32, dest: &mut [u8]) -> Result<(), BusError>;
+    fn do_bus_write(&mut self, offset: u32, data: &[u8]) -> Result<(), BusError>;
+}
+```
+
+A key design principle is that devices are unaware of their absolute physical address
+on SoC. Instead, the bus provides a translated `offset` relative to the device's own
+base address.
+
+- `do_bus_read`: device perform a read at the given `offset`. The data is written into
+the `dest` slice, and numbers of bytes to read is determined by the slice's length.
+- `do_bus_write`: device perform a write at given `offset` using the provided `data` slice.
+
+For example, consider an SRAM with a base address of `0x8000_0000`. If a core requests
+a read at physical address `0x8000_FC00`, the `BusBridge` will call the `SRAM`'s
+`do_bus_read` method with `offset` of `0xFC00`. The SRAM device only needs to handle
+this local offset and does not need to aware of the full 32-bit address space.
+
+Device mappings are configured using a KDL file. This file specifies each device's
+base address, the length of its address space and other device-specific parameters.
+
+```kdl
+sram "naive" base=0x80000000 length=0x20000000
+
+mmio base=0x40000000 length=0x1000 {
+  mmap "exit" offset=0x4
+}
+```
+
+In this example:
+- An SRAM device named "naive" is mapped at base address `0x8000_0000` and occupies
+  a `0x2000_0000` bytes (512MB) address range on system bus.
+- An MMIO device is mapped at base address `0x4000_0000` and occupies `0x1000` bytes
+  (4KB) range. It also contains an internal `exit` interrupt controller at local offset
+  of `0x4`.
+
+#notes[The `length` parameter in the configuration defines a size of the address range
+  that the `BusBridge` maps to a device. This is distinct from the device's internal
+  storage capacity. A device can implement its own address translation logic, allowing
+  its actual capacity to be smaller or larger than its mapped address space.]
+
+The simulator provides high-level methods to interact with the bus:
+
+- `req_bus_read<const N: usize>(addr: u32) -> Result<[u8; N], BusError>`
+- `req_bus_write<const N: usize>(addr: u32, data: &[u8]) -> Result<(), BusError>`
+
+When these functions are called, the `BusBridge` finds the device mapped at the
+specified `addr`, translates it to a device-local offset, and dispatches the
+request to the device's Addressable implementation. If no device is mapped at
+the address, a `BusError::DecodeError` is returned.
+
+=== MMIO and External Interrupt
+
+In our simulator's design, peripheral devices can't directly contact the CPU
+core. So, we need a mechanism for them to signal events or request actions,
+like indicating that a task is complete or that the simulation should
+terminate.
+
+This is achieved using a system of interrupt controllers. Devices write to
+their associated controllers to update a *shared* state. After each instruction
+cycle, the SoC polls these controllers and acts on any pending signals.
+
+Any component that needs to signal the SoC must implement the
+`InterruptController` trait. This ensures a standard interface for the SoC to
+interact with.
+
+```rust
+pub enum InterruptType {
+  // ...
+}
+
+pub trait InterruptController: Sync + Send {
+    fn get_id(&self) -> InterruptType;
+    fn is_enabled(&self) -> bool;
+    fn set_enable(&mut self);
+    fn get_value(&self) -> [u8; 4];
+    fn set_value(&mut self, val: [u8; 4]);
+}
+```
+
+- `get_id`: Returns a unique `InterruptType` to identify the interrupt's source.
+- `is_enabled`: Returns `true` if an interrupt is pending. The SoC only acts on `enabled` interrupts.
+- `set_enabled`: Marks the interrupt as pending for the SoC to handle.
+- `get_value`: get a 4-byte value associated with the interrupt controller
+- `set_value`: set a 4-byte value associated with the interrupt controller
+
+#notes[The trait requires both `Sync` and `Send` because controllers are shared resources.]
+
+The `ICHandle` is a simple helper struct that centrally manages all registered
+interrupt controllers in the system.
+
+```rust
+struct ICHandle(Vec<Box<dyn InterruptController>>);
+impl ICHandle {
+    fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    fn add<T: InterruptController + 'static>(&mut self, ic: T) {
+        self.0.push(Box::new(ic))
+    }
+
+    fn get_enabled_ic(&self) -> Option<&Box<dyn InterruptController>> {
+        self.0.iter().find(|ic| ic.is_enabled())
+    }
+}
+```
+
+When the simulator starts, this handle is created. As devices are initialized,
+they create their specific interrupt controllers, which are then added to the
+`ICHandle`. The SoC holds onto this handle to check for pending interrupts during
+execution.
+
+==== Example: The `ExitController`
+Here is a complete walkthrough of how a MMIO write can trigger simulation to exit.
+
+First, we define a controller specifically for the exit signal. It uses atomic
+types to safely manage the state across threads.
+
+The `ExitController` wraps two atomic values: an `AtomicBool` to flag if the
+interrupt is enabled and an `AtomicI32` to store the exit code.
+
+```Rust
+#[derive(Debug, Clone, Default)]
+pub struct ExitController(Arc<AtomicBool>, Arc<AtomicI32>);
+impl InterruptController for ExitController {
+    fn get_id(&self) -> InterruptType {
+        InterruptType::Exit
+    }
+
+    fn is_enabled(&self) -> bool {
+        self.0.load(Ordering::Acquire)
+    }
+
+    fn set_enable(&mut self) {
+        self.0.store(true, Ordering::Release);
+    }
+
+    fn set_value(&mut self, val: [u8; 4]) {
+        let v = i32::from_le_bytes(val);
+        self.1.store(v, Ordering::Release);
+    }
+
+    fn get_value(&self) -> [u8; 4] {
+        let v = self.1.load(Ordering::Acquire);
+        v.to_le_bytes()
+    }
+}
+
+```
+
+Then we need to connect the controller to a MMIO device.
+
+When the simulated program writes to the address of the `Exit` MMIO register, its
+`store` method is called, this updates the `ExitController` value with exit code
+and flag the interrupt.
+
+```rust
+pub enum MMIO {
+    Exit(ExitController),
+}
+impl MMIO {
+    fn load(&self) -> u32 {/*...*/}
+
+    // when a MMIO write to the Exit register, we update the Exit Interrupt Controller
+    fn store(&mut self, v: u32) {
+        match self {
+            Self::Exit(eic) => {
+                eic.set_value(v.to_le_bytes());
+                eic.set_enable();
+            }
+        }
+    }
+}
+```
+
+Finaly, the SoC's main execution loop checks for pending interrupts after each instruction.
+The loop calls `get_enabled_ic()`. If it finds the now-enabled `ExitController`, it
+retrieves the exit code and terminates the simulation by returning an error.
+```rust
+// In main `step` function
+  if let Some(ic) = self.state.ic_handle.get_enabled_ic() {
+      match ic.get_id() {
+          InterruptType::Exit => {
+              let value = ic.get_value();
+              let exit_code = i32::from_le_bytes(value);
+              return Err(SimulationException::Exited(exit_code));
+          }
+      }
+  }
+```
+=== Exception
 The simulator includes an `exception` field designed to capture events that occur
 within the guest executable and are caught by the host simulator. This field
 is used for recoverable or expected events originating from the code being
@@ -1294,6 +1501,7 @@ simulated, including infinite loop, executable notify a power off signal...etc.
   32-bit integer represents a fundamental flaw and should be immediately rejected
   with fatal error, not considered recoverable.]
 
+=== Statistic
 To avoid spamming the terminal during an infinite exception loop—a common issue
 for those familiar with Spike—this simulator includes a mechanism to detect and
 halt prolonged instruction repetition. This feature helps diagnose potential
