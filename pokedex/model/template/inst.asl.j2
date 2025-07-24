@@ -2,6 +2,8 @@
   {% include "vop_vv.asl.j2" %}
 {% elif template == "vop_vx" %}
   {% include "vop_vx.asl.j2" %}
+{% elif template == "vop_vi" %}
+  {% include "vop_vi.asl.j2" %}
 {% else %}
   {{ explicit_error_template_is_unknown }}
 {% endif %}
