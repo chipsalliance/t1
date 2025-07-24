@@ -1,0 +1,4 @@
+template = "vop_vv"
+
+op_func = "__op_min_u"
+function_description="compute vd = min_u(vs2, vs1), optionally masked by vm"
