@@ -1,0 +1,4 @@
+template = "vwop_vx"
+
+op_func_widen_xx = "__op_widen_mul_uu"
+function_description="compute vd = zext(vs2) * zext(rs1), optionally masked by vm"

@@ -123,3 +123,18 @@ func __op_widen_sub_wu(rs1: bits(2*N), rs2: bits(N)) => bits(2*N)
 begin
   return rs1 - SInt(rs2)[2*N-1:0];
 end
+
+func __op_widen_mul_ss(rs1: bits(N), rs2: bits(N)) => bits(2*N)
+begin
+  return (SInt(rs1) * SInt(rs2))[2*N-1:0];
+end
+
+func __op_widen_mul_su(rs1: bits(N), rs2: bits(N)) => bits(2*N)
+begin
+  return (SInt(rs1) * UInt(rs2))[2*N-1:0];
+end
+
+func __op_widen_mul_uu(rs1: bits(N), rs2: bits(N)) => bits(2*N)
+begin
+  return (UInt(rs1) * UInt(rs2))[2*N-1:0];
+end
