@@ -1,0 +1,3 @@
+template = "vwop_wx"
+op_func_widen_wx = "__op_widen_add_wu"
+function_description="compute vd = vs2 + zext(sext(rs1)), optionally masked by vm"
