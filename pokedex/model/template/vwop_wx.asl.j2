@@ -7,7 +7,7 @@
 // {{ inst_dot }} vd, vs2, rs1, vm
 // eew(vd, vs2) = 2 * sew
 // {{ function_description }}
-// note: rs1 first sext/truncate to sew, then sext to 2*sew
+// note: rs1 first sext/truncate to sew, then sext/zext to 2*sew
 
 let vd : VREG_TYPE = UInt(GetRD(instruction));
 let vs2 : VREG_TYPE = UInt(GetRS2(instruction));
