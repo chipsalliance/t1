@@ -1,0 +1,4 @@
+template = "vop_vv"
+
+op_func = "__op_div_u"
+function_description="compute vd = div_u(vs2, vs1), optionally masked by vm"
