@@ -84,6 +84,60 @@ begin
   return (UInt(rs1) * UInt(rs2))[2*N-1:N];
 end
 
+// follow RISC-V convention:
+// divrem_s(x, 0) = (-1, x)
+// divrem_s(SINT_MIN, -1) = (SINT_MIN, 0)
+func __op_div_s(rs1: bits(N), rs2: bits(N)) => bits(N)
+begin
+  if IsZero(rs2) then
+    // division by zero
+    return Ones(N);
+  elsif rs1 == ['1', Zeros(N-1)] && IsOnes(rs2) then
+    return ['1', Zeros(N-1)];
+  else
+    // Division: rount to zero
+    return (SInt(rs1) QUOT SInt(rs2))[N-1:0];
+  end
+end
+
+func __op_rem_s(rs1: bits(N), rs2: bits(N)) => bits(N)
+begin
+  if IsZero(rs2) then
+    // division by zero
+    return rs1;
+  elsif rs1 == ['1', Zeros(N-1)] && IsOnes(rs2) then
+    // overflow
+    return Zeros(N);
+  else
+    // Division: rount to zero
+    return (SInt(rs1) REM SInt(rs2))[N-1:0];
+  end
+end
+
+// follow RISC-V convention:
+// divrem_u(x, 0) = (UINT_MAX , x)
+func __op_div_u(rs1: bits(N), rs2: bits(N)) => bits(N)
+begin
+  if IsZero(rs2) then
+    // division by zero
+    return Ones(N);
+  else
+    // Division: rount to zero
+    return (UInt(rs1) QUOT UInt(rs2))[N-1:0];
+  end
+end
+
+func __op_rem_u(rs1: bits(N), rs2: bits(N)) => bits(N)
+begin
+  if IsZero(rs2) then
+    // division by zero
+    return rs1;
+  else
+    // Division: rount to zero
+    return (UInt(rs1) REM UInt(rs2))[N-1:0];
+  end
+end
+
 func __op_widen_add_ss(rs1: bits(N), rs2: bits(N)) => bits(2*N)
 begin
   return (SInt(rs1) + SInt(rs2))[2*N-1:0];
