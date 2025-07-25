@@ -4,6 +4,14 @@
   {% include "vop_vx.asl.j2" %}
 {% elif template == "vop_vi" %}
   {% include "vop_vi.asl.j2" %}
+{% elif template == "vwop_vv" %}
+  {% include "vwop_vv.asl.j2" %}
+{% elif template == "vwop_vx" %}
+  {% include "vwop_vx.asl.j2" %}
+{% elif template == "vwop_wv" %}
+  {% include "vwop_wv.asl.j2" %}
+{% elif template == "vwop_wx" %}
+  {% include "vwop_wx.asl.j2" %}
 {% else %}
   {{ explicit_error_template_is_unknown }}
 {% endif %}

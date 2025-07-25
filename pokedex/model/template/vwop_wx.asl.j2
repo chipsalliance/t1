@@ -1,7 +1,13 @@
-// vwadd.vx vd, vs2, rs1, vm
-// eew(vd) = 2 * sew, eew(vs2) = sew
-// compute vd = sext(vs2) + sext(sext(rs1)), optionally masked by vm
-// rs1 first sext/truncate to sew, then sext to 2*sew
+{% set inst_dot = inst | replace('_', '.') %}
+// auto-generated from template vwop_wx.asl.j2
+// PARAMS:
+//   inst = {{ inst }}
+//   op_func_widen_wx = {{ op_func_widen_wx }}
+
+// {{ inst_dot }} vd, vs2, rs1, vm
+// eew(vd, vs2) = 2 * sew
+// {{ function_description }}
+// note: rs1 first sext/truncate to sew, then sext to 2*sew
 
 let vd : VREG_TYPE = UInt(GetRD(instruction));
 let vs2 : VREG_TYPE = UInt(GetRS2(instruction));
@@ -26,11 +32,7 @@ if invalid_vreg_2sew(lmul, vd) then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
 end
 
-if invalid_vreg(lmul, vs2) then
-  return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
-end
-
-if invalid_overlap_dst_src_2_1(lmul, vd, vs2) then
+if invalid_vreg_2sew(lmul, vs2) then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
 end
 
@@ -48,14 +50,13 @@ end
 // TOOD: support agnostic to reduce VRF read
 case sew of
   when 8 => begin
-    let src1_ = SInt(X[rs1])[7:0];
-    let src1 = SInt(src1_)[15:0];
+    let src1 = SInt(X[rs1])[7:0];
 
     for idx = 0 to vl - 1 do
       if vm == '0' && V0_MASK[idx] then
-        let src2 = VRF_8[vs2, idx];
+        let src2 = VRF_16[vs2, idx];
 
-        let res = SInt(src2)[15:0] + src1;
+        let res = {{ op_func_widen_wx }}(src2, src1);
 
         VRF_16[vd, idx] = res;
       end
@@ -63,14 +64,13 @@ case sew of
   end
 
   when 16 => begin
-    let src1_ = SInt(X[rs1])[15:0];
-    let src1 = SInt(src1_)[31:0];
+    let src1 = SInt(X[rs1])[15:0];
 
     for idx = 0 to vl - 1 do
-      if vm =='0' && V0_MASK[idx] then
-        let src2 = VRF_16[vs2, idx];
+      if vm == '0' && V0_MASK[idx] then
+        let src2 = VRF_32[vs2, idx];
 
-        let res = SInt(src2)[31:0] + src1;
+        let res = {{ op_func_widen_wx }}(src2, src1);
 
         VRF_32[vd, idx] = res;
       end

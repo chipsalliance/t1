@@ -1,6 +1,12 @@
-// vwadd.wv vd, vs2, vs1, vm
+{% set inst_dot = inst | replace('_', '.') %}
+// auto-generated from template vwop_wv.asl.j2
+// PARAMS:
+//   inst = {{ inst }}
+//   op_func_widen_wx = {{ op_func_widen_wx }}
+
+// {{ inst_dot }} vd, vs2, vs1, vm
 // eew(vd, vs2) = 2 * sew, eew(vs1) = sew
-// compute vd = vs2 + zext(vs1), optionally masked by vm
+// {{ function_description }}
 
 let vd : VREG_TYPE = UInt(GetRD(instruction));
 let vs2 : VREG_TYPE = UInt(GetRS2(instruction));
@@ -60,9 +66,9 @@ case sew of
         let src2 = VRF_16[vs2, idx];
         let src1 = VRF_8[vs1, idx];
 
-        let res = src2 + UInt(src1)[15:0];
+        let res = {{ op_func_widen_wx }}(src2, src1);
 
-        VRF_16[vd, idx] = res[15:0];
+        VRF_16[vd, idx] = res;
       end
     end
   end
@@ -73,9 +79,9 @@ case sew of
         let src2 = VRF_32[vs2, idx];
         let src1 = VRF_16[vs1, idx];
 
-        let res = src2 + UInt(src1)[31:0];
+        let res = {{ op_func_widen_wx }}(src2, src1);
 
-        VRF_32[vd, idx] = res[31:0];
+        VRF_32[vd, idx] = res;
       end
     end
   end
