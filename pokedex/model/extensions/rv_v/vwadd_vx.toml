@@ -1,3 +1,3 @@
 template = "vwop_vx"
 op_func_widen_xx = "__op_widen_add_ss"
-function_description="compute vd = sext(vs2) + sext(sext(rs1)), optionally masked by vm"
+function_description="compute vd = sext(vs2) + sext(rs1), optionally masked by vm"
