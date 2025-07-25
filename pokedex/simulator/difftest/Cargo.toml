@@ -15,3 +15,4 @@ glob = "0.3.2"
 # Rust standard process library have unexpected behavior of finding exeuctable in PATH.
 which = "7.0.3"
 indoc = "2"
+wait-timeout = "0.2.1"
