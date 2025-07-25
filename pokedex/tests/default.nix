@@ -14,4 +14,13 @@ lib.makeScope newScope (scope: {
   ) { };
   pokedex-log = scope.callPackage ./pokedex-log.nix { };
   difftest-meta = scope.callPackage ./difftest-meta.nix { };
+  riscv-tests = scope.callPackage (
+    { fetchFromGitHub }:
+    fetchFromGitHub {
+      repo = "riscv-tests";
+      owner = "riscv-software-src";
+      rev = "b5ba87097c42aa41c56657e0ae049c2996e8d8d8";
+      hash = "sha256-P2Rx3xjEEUKdYH9rTP8rB5LcbOOSZzqpu1/18aikL9A=";
+    }
+  ) { };
 })
