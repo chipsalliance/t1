@@ -2,6 +2,12 @@
   {% include "vop_vv.asl.j2" %}
 {% elif template == "vop_vx" %}
   {% include "vop_vx.asl.j2" %}
+{% elif template == "vop_vv_no_sew64" %}
+  {# TODO: current we support sew=32 only #}
+  {% include "vop_vv.asl.j2" %}
+{% elif template == "vop_vx_no_sew64" %}
+  {# TODO: current we support sew=32 only #}
+  {% include "vop_vx.asl.j2" %}
 {% elif template == "vop_vi" %}
   {% include "vop_vi.asl.j2" %}
 {% elif template == "vwop_vv" %}

@@ -64,6 +64,26 @@ begin
   end
 end
 
+func __op_mul(rs1: bits(N), rs2: bits(N)) => bits(N)
+begin
+  return rs1 * rs2;
+end
+
+func __op_mulh_ss(rs1: bits(N), rs2: bits(N)) => bits(N)
+begin
+  return (SInt(rs1) * SInt(rs2))[2*N-1:N];
+end
+
+func __op_mulh_su(rs1: bits(N), rs2: bits(N)) => bits(N)
+begin
+  return (SInt(rs1) * UInt(rs2))[2*N-1:N];
+end
+
+func __op_mulh_uu(rs1: bits(N), rs2: bits(N)) => bits(N)
+begin
+  return (UInt(rs1) * UInt(rs2))[2*N-1:N];
+end
+
 func __op_widen_add_ss(rs1: bits(N), rs2: bits(N)) => bits(2*N)
 begin
   return (SInt(rs1) + SInt(rs2))[2*N-1:0];
