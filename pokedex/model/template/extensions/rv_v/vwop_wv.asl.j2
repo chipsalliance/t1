@@ -62,7 +62,7 @@ end
 case sew of
   when 8 => begin
     for idx = 0 to vl - 1 do
-      if vm == '0' && V0_MASK[idx] then
+      if vm != '0' || V0_MASK[idx] then
         let src2 = VRF_16[vs2, idx];
         let src1 = VRF_8[vs1, idx];
 
@@ -75,7 +75,7 @@ case sew of
 
   when 16 => begin
     for idx = 0 to vl - 1 do
-      if vm == '0' && V0_MASK[idx] then
+      if vm != '0' || V0_MASK[idx] then
         let src2 = VRF_32[vs2, idx];
         let src1 = VRF_16[vs1, idx];
 

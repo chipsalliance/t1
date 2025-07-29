@@ -1,0 +1,4 @@
+template = "vop_vv"
+
+op_func = "__op_srav"
+function_description="compute vd = vs2 s>> vs1, only lower log2(sew) bits of vs1 is used, optionally masked by vm"

@@ -53,6 +53,16 @@ begin
   return (__VRF[idx]) as boolean;
 end
 
+getter VRF_MASK[vreg: VREG_TYPE, idx: integer] => bit
+begin
+  return __VRF[vreg * VLEN + idx];
+end
+
+setter VRF_MASK[vreg: VREG_TYPE, idx: integer] = value : bit
+begin
+  __VRF[vreg * VLEN + idx] = value;
+end
+
 getter VRF_8[vreg: VREG_TYPE, idx: integer] => bits(8)
 begin
   return __VRF[vreg * VLEN + idx * 8 +: 8];
@@ -293,9 +303,9 @@ func invalid_overlap_dst_src_2_1(lmul: VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE)
 begin
   // 1. when lmul < 1:
   //   they have overlap when (vd == vs),
-  //   and the overlap is illegal
+  //   and the overlap is invalid
   //
-  // 2. when lmul < 1:
+  // 2. when lmul >= 1:
   //   they have overlap when (vd == vs) or (vs == vd + lmul),
   //     (vs == vd) is invalid overlap
   //     (vs == vd + lmul) is valid overlap
@@ -312,10 +322,75 @@ begin
     when VLMUL_1 => return vw >> 1 == vn >> 1;
     when VLMUL_2 => return vw >> 2 == vn >> 2;
     when VLMUL_4 => return vw >> 3 == vn >> 3;
-    when VLMUL_8 => assert FALSE;
+    when VLMUL_8 => Unreachable();
     when VLMUL_1_2 => return vw == vn;
     when VLMUL_1_4 => return vw == vn;
     when VLMUL_1_8 => return vw == vn;
+  end
+end
+
+// eew(vm) = 1, eew(vs) = sew
+// return TRUE iff they have overlap
+// assuming vs already checked by invalid_reg
+func invalid_overlap_src_m_1(lmul: VLMUL_TYPE, vm: VREG_TYPE, vs: VREG_TYPE) => boolean
+begin
+  case lmul of
+    when VLMUL_1 => return vm == vs;
+    when VLMUL_2 => return vm >> 1 == vs >> 1;
+    when VLMUL_4 => return vm >> 2 == vs >> 2;
+    when VLMUL_8 => return vm >> 3 == vs >> 3;
+    when VLMUL_1_2 => return vm == vs;
+    when VLMUL_1_4 => return vm == vs;
+    when VLMUL_1_8 => return vm == vs;
+  end
+end
+
+// eew(vd) = sew, eew(vs) = 2*sew
+// return TRUE iff they have overlap and the overlap is invalid
+// assuming vd/vs already checked by invalid_vreg_2sew/invalid_reg
+func invalid_overlap_dst_src_1_2(lmul: VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
+begin
+  // 1. when lmul < 1:
+  //   they have overlap when (vd == vs),
+  //   and the overlap is valid
+  //
+  // 2. when lmul >= 1:
+  //   they have overlap when (vd == vs) or (vd == vs + lmul),
+  //     (vd == vs) is valid overlap
+  //     (vd == vs + lmul) is invalid overlap
+
+  case lmul of
+    when VLMUL_1 => return vd == vs + 1;
+    when VLMUL_2 => return vd == vs + 2;
+    when VLMUL_4 => return vd == vs + 4;
+    when VLMUL_8 => Unreachable();
+    when VLMUL_1_2 => return FALSE;
+    when VLMUL_1_4 => return FALSE;
+    when VLMUL_1_8 => return FALSE;
+  end
+end
+
+// eew(vd) = 1, eew(vs) = sew, vd is mask
+// return TRUE iff they have overlap and the overlap is invalid
+// assuming vs already checked by invalid_reg
+func invalid_overlap_dst_src_m_1(lmul: VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
+begin
+  // 1. when lmul < 1:
+  //   they have overlap when (vd == vs),
+  //   and the overlap is valid
+  //
+  // 2. when lmul >= 1:
+  //     (vd == vs) is valid overlap
+  //     (vd in vs+1 ..= vs + lmul) is invalid overlap
+
+  case lmul of
+    when VLMUL_1 => return FALSE;
+    when VLMUL_2 => return (vd >> 1 == vs >> 1) && (vd != vs);
+    when VLMUL_4 => return (vd >> 2 == vs >> 2) && (vd != vs);
+    when VLMUL_8 => return (vd >> 3 == vs >> 3) && (vd != vs);
+    when VLMUL_1_2 => return FALSE;
+    when VLMUL_1_4 => return FALSE;
+    when VLMUL_1_8 => return FALSE;
   end
 end
 
