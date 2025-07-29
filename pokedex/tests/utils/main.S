@@ -4,14 +4,12 @@
 _poweroff_spike:
     // override a0. Spike have special treatment for value at tohost address.
     li a0, 1
-    lui a5,%hi(tohost)
-    sw a0,%lo(tohost)(a5)
+    sw a0, tohost, t5
     ebreak
     ret
 
 _poweroff_pokedex:
-    lui a5,%hi(pokedex_mmio_exit)
-    sw a0,%lo(pokedex_mmio_exit)(a5)
+    sw a0, pokedex_mmio_exit, t5
     ret
 
 
