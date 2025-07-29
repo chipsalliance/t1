@@ -1,5 +1,5 @@
 let imm : bits(8) = GetCIW_IMM(instruction);
-let imm_ext : bits(32) = ZeroExtend(imm, 32);
+let imm_ext : bits(32) = ZeroExtend([imm, '00'], 32);
 
 if IsZero(imm_ext) then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, instruction);

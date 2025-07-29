@@ -3,7 +3,7 @@ if rs1 == 0 then
   return Exception(CAUSE_BREAKPOINT, Zeros(32));
 end
 
-X[1] = PC;
-PC = PC + X[rs1];
+X[1] = PC + 2;
+PC = X[rs1];
 
 return Retired();

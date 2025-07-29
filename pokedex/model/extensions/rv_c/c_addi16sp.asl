@@ -8,4 +8,6 @@ end
 
 X[2] = X[2] + imm;
 
+PC = PC + 2;
+
 return Retired();
