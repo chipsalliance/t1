@@ -1,217 +1,321 @@
-{"event_type":"reset_vector","new_addr":2147483676}
-{"message":"read 4 bytes from physical memory address: 0x8000001c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483676,"data":"[115, 37, 64, 241]"}
-{"event_type":"instruction_fetch","data":4047512947,"encoding":"0xf1402573"}
-{"event_type":"register","action":"write","pc":2147483676,"reg_idx":10,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000020","event_type":"physical_memory","action":"read","bytes":4,"address":2147483680,"data":"[147, 0, 0, 0]"}
-{"event_type":"instruction_fetch","data":147,"encoding":"0x00000093"}
-{"event_type":"register","action":"write","pc":2147483680,"reg_idx":1,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000024","event_type":"physical_memory","action":"read","bytes":4,"address":2147483684,"data":"[19, 1, 0, 0]"}
-{"event_type":"instruction_fetch","data":275,"encoding":"0x00000113"}
-{"event_type":"register","action":"write","pc":2147483684,"reg_idx":2,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000028","event_type":"physical_memory","action":"read","bytes":4,"address":2147483688,"data":"[147, 1, 0, 0]"}
-{"event_type":"instruction_fetch","data":403,"encoding":"0x00000193"}
-{"event_type":"register","action":"write","pc":2147483688,"reg_idx":3,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x8000002c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483692,"data":"[19, 2, 0, 0]"}
-{"event_type":"instruction_fetch","data":531,"encoding":"0x00000213"}
-{"event_type":"register","action":"write","pc":2147483692,"reg_idx":4,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000030","event_type":"physical_memory","action":"read","bytes":4,"address":2147483696,"data":"[147, 2, 0, 0]"}
-{"event_type":"instruction_fetch","data":659,"encoding":"0x00000293"}
-{"event_type":"register","action":"write","pc":2147483696,"reg_idx":5,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000034","event_type":"physical_memory","action":"read","bytes":4,"address":2147483700,"data":"[19, 3, 0, 0]"}
-{"event_type":"instruction_fetch","data":787,"encoding":"0x00000313"}
-{"event_type":"register","action":"write","pc":2147483700,"reg_idx":6,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000038","event_type":"physical_memory","action":"read","bytes":4,"address":2147483704,"data":"[147, 3, 0, 0]"}
-{"event_type":"instruction_fetch","data":915,"encoding":"0x00000393"}
-{"event_type":"register","action":"write","pc":2147483704,"reg_idx":7,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x8000003c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483708,"data":"[19, 4, 0, 0]"}
-{"event_type":"instruction_fetch","data":1043,"encoding":"0x00000413"}
-{"event_type":"register","action":"write","pc":2147483708,"reg_idx":8,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000040","event_type":"physical_memory","action":"read","bytes":4,"address":2147483712,"data":"[147, 4, 0, 0]"}
-{"event_type":"instruction_fetch","data":1171,"encoding":"0x00000493"}
-{"event_type":"register","action":"write","pc":2147483712,"reg_idx":9,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000044","event_type":"physical_memory","action":"read","bytes":4,"address":2147483716,"data":"[19, 5, 0, 0]"}
-{"event_type":"instruction_fetch","data":1299,"encoding":"0x00000513"}
-{"event_type":"register","action":"write","pc":2147483716,"reg_idx":10,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000048","event_type":"physical_memory","action":"read","bytes":4,"address":2147483720,"data":"[147, 5, 0, 0]"}
-{"event_type":"instruction_fetch","data":1427,"encoding":"0x00000593"}
-{"event_type":"register","action":"write","pc":2147483720,"reg_idx":11,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x8000004c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483724,"data":"[19, 6, 0, 0]"}
-{"event_type":"instruction_fetch","data":1555,"encoding":"0x00000613"}
-{"event_type":"register","action":"write","pc":2147483724,"reg_idx":12,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000050","event_type":"physical_memory","action":"read","bytes":4,"address":2147483728,"data":"[147, 6, 0, 0]"}
-{"event_type":"instruction_fetch","data":1683,"encoding":"0x00000693"}
-{"event_type":"register","action":"write","pc":2147483728,"reg_idx":13,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000054","event_type":"physical_memory","action":"read","bytes":4,"address":2147483732,"data":"[19, 7, 0, 0]"}
-{"event_type":"instruction_fetch","data":1811,"encoding":"0x00000713"}
-{"event_type":"register","action":"write","pc":2147483732,"reg_idx":14,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000058","event_type":"physical_memory","action":"read","bytes":4,"address":2147483736,"data":"[147, 7, 0, 0]"}
-{"event_type":"instruction_fetch","data":1939,"encoding":"0x00000793"}
-{"event_type":"register","action":"write","pc":2147483736,"reg_idx":15,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x8000005c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483740,"data":"[19, 8, 0, 0]"}
-{"event_type":"instruction_fetch","data":2067,"encoding":"0x00000813"}
-{"event_type":"register","action":"write","pc":2147483740,"reg_idx":16,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000060","event_type":"physical_memory","action":"read","bytes":4,"address":2147483744,"data":"[147, 8, 0, 0]"}
-{"event_type":"instruction_fetch","data":2195,"encoding":"0x00000893"}
-{"event_type":"register","action":"write","pc":2147483744,"reg_idx":17,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000064","event_type":"physical_memory","action":"read","bytes":4,"address":2147483748,"data":"[19, 9, 0, 0]"}
-{"event_type":"instruction_fetch","data":2323,"encoding":"0x00000913"}
-{"event_type":"register","action":"write","pc":2147483748,"reg_idx":18,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000068","event_type":"physical_memory","action":"read","bytes":4,"address":2147483752,"data":"[147, 9, 0, 0]"}
-{"event_type":"instruction_fetch","data":2451,"encoding":"0x00000993"}
-{"event_type":"register","action":"write","pc":2147483752,"reg_idx":19,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x8000006c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483756,"data":"[19, 10, 0, 0]"}
-{"event_type":"instruction_fetch","data":2579,"encoding":"0x00000a13"}
-{"event_type":"register","action":"write","pc":2147483756,"reg_idx":20,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000070","event_type":"physical_memory","action":"read","bytes":4,"address":2147483760,"data":"[147, 10, 0, 0]"}
-{"event_type":"instruction_fetch","data":2707,"encoding":"0x00000a93"}
-{"event_type":"register","action":"write","pc":2147483760,"reg_idx":21,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000074","event_type":"physical_memory","action":"read","bytes":4,"address":2147483764,"data":"[19, 11, 0, 0]"}
-{"event_type":"instruction_fetch","data":2835,"encoding":"0x00000b13"}
-{"event_type":"register","action":"write","pc":2147483764,"reg_idx":22,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000078","event_type":"physical_memory","action":"read","bytes":4,"address":2147483768,"data":"[147, 11, 0, 0]"}
-{"event_type":"instruction_fetch","data":2963,"encoding":"0x00000b93"}
-{"event_type":"register","action":"write","pc":2147483768,"reg_idx":23,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x8000007c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483772,"data":"[19, 12, 0, 0]"}
-{"event_type":"instruction_fetch","data":3091,"encoding":"0x00000c13"}
-{"event_type":"register","action":"write","pc":2147483772,"reg_idx":24,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000080","event_type":"physical_memory","action":"read","bytes":4,"address":2147483776,"data":"[147, 12, 0, 0]"}
-{"event_type":"instruction_fetch","data":3219,"encoding":"0x00000c93"}
-{"event_type":"register","action":"write","pc":2147483776,"reg_idx":25,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000084","event_type":"physical_memory","action":"read","bytes":4,"address":2147483780,"data":"[19, 13, 0, 0]"}
-{"event_type":"instruction_fetch","data":3347,"encoding":"0x00000d13"}
-{"event_type":"register","action":"write","pc":2147483780,"reg_idx":26,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000088","event_type":"physical_memory","action":"read","bytes":4,"address":2147483784,"data":"[147, 13, 0, 0]"}
-{"event_type":"instruction_fetch","data":3475,"encoding":"0x00000d93"}
-{"event_type":"register","action":"write","pc":2147483784,"reg_idx":27,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x8000008c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483788,"data":"[19, 14, 0, 0]"}
-{"event_type":"instruction_fetch","data":3603,"encoding":"0x00000e13"}
-{"event_type":"register","action":"write","pc":2147483788,"reg_idx":28,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000090","event_type":"physical_memory","action":"read","bytes":4,"address":2147483792,"data":"[147, 14, 0, 0]"}
-{"event_type":"instruction_fetch","data":3731,"encoding":"0x00000e93"}
-{"event_type":"register","action":"write","pc":2147483792,"reg_idx":29,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000094","event_type":"physical_memory","action":"read","bytes":4,"address":2147483796,"data":"[19, 15, 0, 0]"}
-{"event_type":"instruction_fetch","data":3859,"encoding":"0x00000f13"}
-{"event_type":"register","action":"write","pc":2147483796,"reg_idx":30,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000098","event_type":"physical_memory","action":"read","bytes":4,"address":2147483800,"data":"[147, 15, 0, 0]"}
-{"event_type":"instruction_fetch","data":3987,"encoding":"0x00000f93"}
-{"event_type":"register","action":"write","pc":2147483800,"reg_idx":31,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x8000009c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483804,"data":"[23, 1, 0, 32]"}
-{"event_type":"instruction_fetch","data":536871191,"encoding":"0x20000117"}
-{"event_type":"register","action":"write","pc":2147483804,"reg_idx":2,"data":2684354716}
-{"message":"read 4 bytes from physical memory address: 0x800000a0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483808,"data":"[19, 1, 65, 246]"}
-{"event_type":"instruction_fetch","data":4131455251,"encoding":"0xf6410113"}
-{"event_type":"register","action":"write","pc":2147483808,"reg_idx":2,"data":2684354560}
-{"message":"read 4 bytes from physical memory address: 0x800000a4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483812,"data":"[151, 2, 0, 0]"}
-{"event_type":"instruction_fetch","data":663,"encoding":"0x00000297"}
-{"event_type":"register","action":"write","pc":2147483812,"reg_idx":5,"data":2147483812}
-{"message":"read 4 bytes from physical memory address: 0x800000a8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483816,"data":"[147, 130, 130, 246]"}
-{"event_type":"instruction_fetch","data":4135748243,"encoding":"0xf6828293"}
-{"event_type":"register","action":"write","pc":2147483816,"reg_idx":5,"data":2147483660}
-{"message":"read 4 bytes from physical memory address: 0x800000ac","event_type":"physical_memory","action":"read","bytes":4,"address":2147483820,"data":"[115, 144, 82, 48]"}
-{"event_type":"instruction_fetch","data":810717299,"encoding":"0x30529073"}
-{"event_type":"csr","action":"write","pc":2147483820,"csr_idx":773,"csr_name":"mtvec","data":2147483660}
-{"message":"read 4 bytes from physical memory address: 0x800000b0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483824,"data":"[151, 0, 0, 0]"}
-{"event_type":"instruction_fetch","data":151,"encoding":"0x00000097"}
-{"event_type":"register","action":"write","pc":2147483824,"reg_idx":1,"data":2147483824}
-{"message":"read 4 bytes from physical memory address: 0x800000b4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483828,"data":"[231, 128, 128, 1]"}
-{"event_type":"instruction_fetch","data":25198823,"encoding":"0x018080e7"}
-{"event_type":"register","action":"write","pc":2147483828,"reg_idx":1,"data":2147483832}
-{"message":"read 4 bytes from physical memory address: 0x800000c8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483848,"data":"[19, 1, 1, 254]"}
-{"event_type":"instruction_fetch","data":4261478675,"encoding":"0xfe010113"}
-{"event_type":"register","action":"write","pc":2147483848,"reg_idx":2,"data":2684354528}
-{"message":"read 4 bytes from physical memory address: 0x800000cc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483852,"data":"[35, 46, 17, 0]"}
-{"event_type":"instruction_fetch","data":1125923,"encoding":"0x00112e23"}
-{"message":"write 4 bytes data 0x800000b8 to physical memory address: 0x9ffffffc","event_type":"physical_memory","action":"write","bytes":4,"address":2684354556,"data":"0x800000b8"}
-{"message":"read 4 bytes from physical memory address: 0x800000d0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483856,"data":"[35, 44, 129, 0]"}
-{"event_type":"instruction_fetch","data":8465443,"encoding":"0x00812c23"}
-{"message":"write 4 bytes data 0x0 to physical memory address: 0x9ffffff8","event_type":"physical_memory","action":"write","bytes":4,"address":2684354552,"data":"0x0"}
-{"message":"read 4 bytes from physical memory address: 0x800000d4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483860,"data":"[19, 4, 1, 2]"}
-{"event_type":"instruction_fetch","data":33621011,"encoding":"0x02010413"}
-{"event_type":"register","action":"write","pc":2147483860,"reg_idx":8,"data":2684354560}
-{"message":"read 4 bytes from physical memory address: 0x800000d8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483864,"data":"[19, 5, 0, 0]"}
-{"event_type":"instruction_fetch","data":1299,"encoding":"0x00000513"}
-{"event_type":"register","action":"write","pc":2147483864,"reg_idx":10,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x800000dc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483868,"data":"[35, 42, 164, 254]"}
-{"event_type":"instruction_fetch","data":4272171555,"encoding":"0xfea42a23"}
-{"message":"write 4 bytes data 0x0 to physical memory address: 0x9ffffff4","event_type":"physical_memory","action":"write","bytes":4,"address":2684354548,"data":"0x0"}
-{"message":"read 4 bytes from physical memory address: 0x800000e0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483872,"data":"[19, 5, 16, 0]"}
-{"event_type":"instruction_fetch","data":1049875,"encoding":"0x00100513"}
-{"event_type":"register","action":"write","pc":2147483872,"reg_idx":10,"data":1}
-{"message":"read 4 bytes from physical memory address: 0x800000e4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483876,"data":"[35, 40, 164, 254]"}
-{"event_type":"instruction_fetch","data":4272171043,"encoding":"0xfea42823"}
-{"message":"write 4 bytes data 0x1 to physical memory address: 0x9ffffff0","event_type":"physical_memory","action":"write","bytes":4,"address":2684354544,"data":"0x1"}
-{"message":"read 4 bytes from physical memory address: 0x800000e8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483880,"data":"[19, 5, 32, 0]"}
-{"event_type":"instruction_fetch","data":2098451,"encoding":"0x00200513"}
-{"event_type":"register","action":"write","pc":2147483880,"reg_idx":10,"data":2}
-{"message":"read 4 bytes from physical memory address: 0x800000ec","event_type":"physical_memory","action":"read","bytes":4,"address":2147483884,"data":"[35, 38, 164, 254]"}
-{"event_type":"instruction_fetch","data":4272170531,"encoding":"0xfea42623"}
-{"message":"write 4 bytes data 0x2 to physical memory address: 0x9fffffec","event_type":"physical_memory","action":"write","bytes":4,"address":2684354540,"data":"0x2"}
-{"message":"read 4 bytes from physical memory address: 0x800000f0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483888,"data":"[19, 5, 48, 0]"}
-{"event_type":"instruction_fetch","data":3147027,"encoding":"0x00300513"}
-{"event_type":"register","action":"write","pc":2147483888,"reg_idx":10,"data":3}
-{"message":"read 4 bytes from physical memory address: 0x800000f4","event_type":"physical_memory","action":"read","bytes":4,"address":2147483892,"data":"[35, 36, 164, 254]"}
-{"event_type":"instruction_fetch","data":4272170019,"encoding":"0xfea42423"}
-{"message":"write 4 bytes data 0x3 to physical memory address: 0x9fffffe8","event_type":"physical_memory","action":"write","bytes":4,"address":2684354536,"data":"0x3"}
-{"message":"read 4 bytes from physical memory address: 0x800000f8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483896,"data":"[3, 37, 4, 255]"}
-{"event_type":"instruction_fetch","data":4278461699,"encoding":"0xff042503"}
-{"message":"read 4 bytes from physical memory address: 0x9ffffff0","event_type":"physical_memory","action":"read","bytes":4,"address":2684354544,"data":"[1, 0, 0, 0]"}
-{"event_type":"register","action":"write","pc":2147483896,"reg_idx":10,"data":1}
-{"message":"read 4 bytes from physical memory address: 0x800000fc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483900,"data":"[131, 37, 196, 254]"}
-{"event_type":"instruction_fetch","data":4274267523,"encoding":"0xfec42583"}
-{"message":"read 4 bytes from physical memory address: 0x9fffffec","event_type":"physical_memory","action":"read","bytes":4,"address":2684354540,"data":"[2, 0, 0, 0]"}
-{"event_type":"register","action":"write","pc":2147483900,"reg_idx":11,"data":2}
-{"message":"read 4 bytes from physical memory address: 0x80000100","event_type":"physical_memory","action":"read","bytes":4,"address":2147483904,"data":"[51, 5, 181, 0]"}
-{"event_type":"instruction_fetch","data":11863347,"encoding":"0x00b50533"}
-{"event_type":"register","action":"write","pc":2147483904,"reg_idx":10,"data":3}
-{"message":"read 4 bytes from physical memory address: 0x80000104","event_type":"physical_memory","action":"read","bytes":4,"address":2147483908,"data":"[131, 37, 132, 254]"}
-{"event_type":"instruction_fetch","data":4270073219,"encoding":"0xfe842583"}
-{"message":"read 4 bytes from physical memory address: 0x9fffffe8","event_type":"physical_memory","action":"read","bytes":4,"address":2684354536,"data":"[3, 0, 0, 0]"}
-{"event_type":"register","action":"write","pc":2147483908,"reg_idx":11,"data":3}
-{"message":"read 4 bytes from physical memory address: 0x80000108","event_type":"physical_memory","action":"read","bytes":4,"address":2147483912,"data":"[99, 94, 181, 0]"}
-{"event_type":"instruction_fetch","data":11886179,"encoding":"0x00b55e63"}
-{"message":"read 4 bytes from physical memory address: 0x80000124","event_type":"physical_memory","action":"read","bytes":4,"address":2147483940,"data":"[3, 37, 196, 254]"}
-{"event_type":"instruction_fetch","data":4274267395,"encoding":"0xfec42503"}
-{"message":"read 4 bytes from physical memory address: 0x9fffffec","event_type":"physical_memory","action":"read","bytes":4,"address":2684354540,"data":"[2, 0, 0, 0]"}
-{"event_type":"register","action":"write","pc":2147483940,"reg_idx":10,"data":2}
-{"message":"read 4 bytes from physical memory address: 0x80000128","event_type":"physical_memory","action":"read","bytes":4,"address":2147483944,"data":"[131, 37, 4, 255]"}
-{"event_type":"instruction_fetch","data":4278461827,"encoding":"0xff042583"}
-{"message":"read 4 bytes from physical memory address: 0x9ffffff0","event_type":"physical_memory","action":"read","bytes":4,"address":2684354544,"data":"[1, 0, 0, 0]"}
-{"event_type":"register","action":"write","pc":2147483944,"reg_idx":11,"data":1}
-{"message":"read 4 bytes from physical memory address: 0x8000012c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483948,"data":"[51, 5, 181, 64]"}
-{"event_type":"instruction_fetch","data":1085605171,"encoding":"0x40b50533"}
-{"event_type":"register","action":"write","pc":2147483948,"reg_idx":10,"data":1}
-{"message":"read 4 bytes from physical memory address: 0x80000130","event_type":"physical_memory","action":"read","bytes":4,"address":2147483952,"data":"[35, 42, 164, 254]"}
-{"event_type":"instruction_fetch","data":4272171555,"encoding":"0xfea42a23"}
-{"message":"write 4 bytes data 0x1 to physical memory address: 0x9ffffff4","event_type":"physical_memory","action":"write","bytes":4,"address":2684354548,"data":"0x1"}
-{"message":"read 4 bytes from physical memory address: 0x80000134","event_type":"physical_memory","action":"read","bytes":4,"address":2147483956,"data":"[111, 0, 64, 0]"}
-{"event_type":"instruction_fetch","data":4194415,"encoding":"0x0040006f"}
-{"event_type":"register","action":"write","pc":2147483956,"reg_idx":0,"data":2147483960}
-{"message":"read 4 bytes from physical memory address: 0x80000138","event_type":"physical_memory","action":"read","bytes":4,"address":2147483960,"data":"[131, 32, 193, 1]"}
-{"event_type":"instruction_fetch","data":29433987,"encoding":"0x01c12083"}
-{"message":"read 4 bytes from physical memory address: 0x9ffffffc","event_type":"physical_memory","action":"read","bytes":4,"address":2684354556,"data":"[184, 0, 0, 128]"}
-{"event_type":"register","action":"write","pc":2147483960,"reg_idx":1,"data":2147483832}
-{"message":"read 4 bytes from physical memory address: 0x8000013c","event_type":"physical_memory","action":"read","bytes":4,"address":2147483964,"data":"[3, 36, 129, 1]"}
-{"event_type":"instruction_fetch","data":25240579,"encoding":"0x01812403"}
-{"message":"read 4 bytes from physical memory address: 0x9ffffff8","event_type":"physical_memory","action":"read","bytes":4,"address":2684354552,"data":"[0, 0, 0, 0]"}
-{"event_type":"register","action":"write","pc":2147483964,"reg_idx":8,"data":0}
-{"message":"read 4 bytes from physical memory address: 0x80000140","event_type":"physical_memory","action":"read","bytes":4,"address":2147483968,"data":"[19, 1, 1, 2]"}
-{"event_type":"instruction_fetch","data":33620243,"encoding":"0x02010113"}
-{"event_type":"register","action":"write","pc":2147483968,"reg_idx":2,"data":2684354560}
-{"message":"read 4 bytes from physical memory address: 0x80000144","event_type":"physical_memory","action":"read","bytes":4,"address":2147483972,"data":"[103, 128, 0, 0]"}
-{"event_type":"instruction_fetch","data":32871,"encoding":"0x00008067"}
-{"event_type":"register","action":"write","pc":2147483972,"reg_idx":0,"data":2147483976}
-{"message":"read 4 bytes from physical memory address: 0x800000b8","event_type":"physical_memory","action":"read","bytes":4,"address":2147483832,"data":"[19, 5, 16, 0]"}
-{"event_type":"instruction_fetch","data":1049875,"encoding":"0x00100513"}
-{"event_type":"register","action":"write","pc":2147483832,"reg_idx":10,"data":1}
-{"message":"read 4 bytes from physical memory address: 0x800000bc","event_type":"physical_memory","action":"read","bytes":4,"address":2147483836,"data":"[151, 0, 0, 0]"}
-{"event_type":"instruction_fetch","data":151,"encoding":"0x00000097"}
-{"event_type":"register","action":"write","pc":2147483836,"reg_idx":1,"data":2147483836}
-{"message":"read 4 bytes from physical memory address: 0x800000c0","event_type":"physical_memory","action":"read","bytes":4,"address":2147483840,"data":"[231, 128, 64, 244]"}
-{"event_type":"instruction_fetch","data":4097868007,"encoding":"0xf44080e7"}
-{"event_type":"register","action":"write","pc":2147483840,"reg_idx":1,"data":2147483844}
-{"message":"read 4 bytes from physical memory address: 0x80000000","event_type":"physical_memory","action":"read","bytes":4,"address":2147483648,"data":"[183, 7, 0, 64]"}
-{"event_type":"instruction_fetch","data":1073743799,"encoding":"0x400007b7"}
-{"event_type":"register","action":"write","pc":2147483648,"reg_idx":15,"data":1073741824}
-{"message":"read 4 bytes from physical memory address: 0x80000004","event_type":"physical_memory","action":"read","bytes":4,"address":2147483652,"data":"[35, 160, 167, 0]"}
-{"event_type":"instruction_fetch","data":10985507,"encoding":"0x00a7a023"}
-{"message":"write 4 bytes data 0x1 to physical memory address: 0x40000000","event_type":"physical_memory","action":"write","bytes":4,"address":1073741824,"data":"0x1"}
+{"event_type":"reset_vector","new_addr":2147483712}
+{"event_type":"physical_memory","action":"read","pc":"0x80000040","address":2147483712,"addr_hex":"0x80000040","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483712,"pc_hex":"0x80000040","instruction":1299,"inst_hex":"0x0513"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000040","address":2147483714,"addr_hex":"0x80000042","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483714,"pc_hex":"0x80000042","instruction":272,"inst_hex":"0x0110"}
+{"event_type":"register","action":"write","pc":2147483712,"pc_hex":"0x80000040","reg_idx":10,"data":17,"data_hex":"0x00000011"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000044","address":2147483716,"addr_hex":"0x80000044","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483716,"pc_hex":"0x80000044","instruction":5395,"inst_hex":"0x1513"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000044","address":2147483718,"addr_hex":"0x80000046","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483718,"pc_hex":"0x80000046","instruction":149,"inst_hex":"0x0095"}
+{"event_type":"register","action":"write","pc":2147483716,"pc_hex":"0x80000044","reg_idx":10,"data":8704,"data_hex":"0x00002200"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000048","address":2147483720,"addr_hex":"0x80000048","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483720,"pc_hex":"0x80000048","instruction":8307,"inst_hex":"0x2073"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000048","address":2147483722,"addr_hex":"0x8000004a","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483722,"pc_hex":"0x8000004a","instruction":12293,"inst_hex":"0x3005"}
+{"event_type":"register","action":"write","pc":2147483720,"pc_hex":"0x80000048","reg_idx":0,"data":6144,"data_hex":"0x00001800"}
+{"event_type":"csr","action":"write","pc":2147483720,"pc_hex":"0x80000048","csr_idx":768,"csr_idx_hex":"0x300","csr_name":"mstatus","data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000004c","address":2147483724,"addr_hex":"0x8000004c","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483724,"pc_hex":"0x8000004c","instruction":20595,"inst_hex":"0x5073"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000004c","address":2147483726,"addr_hex":"0x8000004e","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483726,"pc_hex":"0x8000004e","instruction":240,"inst_hex":"0x00f0"}
+{"event_type":"csr","action":"write","pc":2147483724,"pc_hex":"0x8000004c","csr_idx":15,"csr_idx_hex":"0xf","csr_name":"vcsr","data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000050","address":2147483728,"addr_hex":"0x80000050","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483728,"pc_hex":"0x80000050","instruction":9587,"inst_hex":"0x2573"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000050","address":2147483730,"addr_hex":"0x80000052","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483730,"pc_hex":"0x80000052","instruction":61760,"inst_hex":"0xf140"}
+{"event_type":"register","action":"write","pc":2147483728,"pc_hex":"0x80000050","reg_idx":10,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000054","address":2147483732,"addr_hex":"0x80000054","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483732,"pc_hex":"0x80000054","instruction":147,"inst_hex":"0x0093"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000054","address":2147483734,"addr_hex":"0x80000056","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483734,"pc_hex":"0x80000056","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483732,"pc_hex":"0x80000054","reg_idx":1,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000058","address":2147483736,"addr_hex":"0x80000058","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483736,"pc_hex":"0x80000058","instruction":275,"inst_hex":"0x0113"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000058","address":2147483738,"addr_hex":"0x8000005a","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483738,"pc_hex":"0x8000005a","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483736,"pc_hex":"0x80000058","reg_idx":2,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000005c","address":2147483740,"addr_hex":"0x8000005c","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483740,"pc_hex":"0x8000005c","instruction":403,"inst_hex":"0x0193"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000005c","address":2147483742,"addr_hex":"0x8000005e","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483742,"pc_hex":"0x8000005e","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483740,"pc_hex":"0x8000005c","reg_idx":3,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000060","address":2147483744,"addr_hex":"0x80000060","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483744,"pc_hex":"0x80000060","instruction":531,"inst_hex":"0x0213"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000060","address":2147483746,"addr_hex":"0x80000062","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483746,"pc_hex":"0x80000062","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483744,"pc_hex":"0x80000060","reg_idx":4,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000064","address":2147483748,"addr_hex":"0x80000064","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483748,"pc_hex":"0x80000064","instruction":659,"inst_hex":"0x0293"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000064","address":2147483750,"addr_hex":"0x80000066","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483750,"pc_hex":"0x80000066","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483748,"pc_hex":"0x80000064","reg_idx":5,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000068","address":2147483752,"addr_hex":"0x80000068","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483752,"pc_hex":"0x80000068","instruction":787,"inst_hex":"0x0313"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000068","address":2147483754,"addr_hex":"0x8000006a","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483754,"pc_hex":"0x8000006a","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483752,"pc_hex":"0x80000068","reg_idx":6,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000006c","address":2147483756,"addr_hex":"0x8000006c","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483756,"pc_hex":"0x8000006c","instruction":915,"inst_hex":"0x0393"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000006c","address":2147483758,"addr_hex":"0x8000006e","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483758,"pc_hex":"0x8000006e","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483756,"pc_hex":"0x8000006c","reg_idx":7,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000070","address":2147483760,"addr_hex":"0x80000070","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483760,"pc_hex":"0x80000070","instruction":1043,"inst_hex":"0x0413"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000070","address":2147483762,"addr_hex":"0x80000072","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483762,"pc_hex":"0x80000072","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483760,"pc_hex":"0x80000070","reg_idx":8,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000074","address":2147483764,"addr_hex":"0x80000074","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483764,"pc_hex":"0x80000074","instruction":1171,"inst_hex":"0x0493"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000074","address":2147483766,"addr_hex":"0x80000076","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483766,"pc_hex":"0x80000076","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483764,"pc_hex":"0x80000074","reg_idx":9,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000078","address":2147483768,"addr_hex":"0x80000078","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483768,"pc_hex":"0x80000078","instruction":1299,"inst_hex":"0x0513"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000078","address":2147483770,"addr_hex":"0x8000007a","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483770,"pc_hex":"0x8000007a","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483768,"pc_hex":"0x80000078","reg_idx":10,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000007c","address":2147483772,"addr_hex":"0x8000007c","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483772,"pc_hex":"0x8000007c","instruction":1427,"inst_hex":"0x0593"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000007c","address":2147483774,"addr_hex":"0x8000007e","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483774,"pc_hex":"0x8000007e","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483772,"pc_hex":"0x8000007c","reg_idx":11,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000080","address":2147483776,"addr_hex":"0x80000080","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483776,"pc_hex":"0x80000080","instruction":1555,"inst_hex":"0x0613"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000080","address":2147483778,"addr_hex":"0x80000082","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483778,"pc_hex":"0x80000082","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483776,"pc_hex":"0x80000080","reg_idx":12,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000084","address":2147483780,"addr_hex":"0x80000084","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483780,"pc_hex":"0x80000084","instruction":1683,"inst_hex":"0x0693"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000084","address":2147483782,"addr_hex":"0x80000086","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483782,"pc_hex":"0x80000086","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483780,"pc_hex":"0x80000084","reg_idx":13,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000088","address":2147483784,"addr_hex":"0x80000088","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483784,"pc_hex":"0x80000088","instruction":1811,"inst_hex":"0x0713"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000088","address":2147483786,"addr_hex":"0x8000008a","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483786,"pc_hex":"0x8000008a","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483784,"pc_hex":"0x80000088","reg_idx":14,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000008c","address":2147483788,"addr_hex":"0x8000008c","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483788,"pc_hex":"0x8000008c","instruction":1939,"inst_hex":"0x0793"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000008c","address":2147483790,"addr_hex":"0x8000008e","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483790,"pc_hex":"0x8000008e","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483788,"pc_hex":"0x8000008c","reg_idx":15,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000090","address":2147483792,"addr_hex":"0x80000090","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483792,"pc_hex":"0x80000090","instruction":2067,"inst_hex":"0x0813"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000090","address":2147483794,"addr_hex":"0x80000092","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483794,"pc_hex":"0x80000092","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483792,"pc_hex":"0x80000090","reg_idx":16,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000094","address":2147483796,"addr_hex":"0x80000094","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483796,"pc_hex":"0x80000094","instruction":2195,"inst_hex":"0x0893"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000094","address":2147483798,"addr_hex":"0x80000096","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483798,"pc_hex":"0x80000096","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483796,"pc_hex":"0x80000094","reg_idx":17,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000098","address":2147483800,"addr_hex":"0x80000098","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483800,"pc_hex":"0x80000098","instruction":2323,"inst_hex":"0x0913"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000098","address":2147483802,"addr_hex":"0x8000009a","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483802,"pc_hex":"0x8000009a","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483800,"pc_hex":"0x80000098","reg_idx":18,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000009c","address":2147483804,"addr_hex":"0x8000009c","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483804,"pc_hex":"0x8000009c","instruction":2451,"inst_hex":"0x0993"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000009c","address":2147483806,"addr_hex":"0x8000009e","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483806,"pc_hex":"0x8000009e","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483804,"pc_hex":"0x8000009c","reg_idx":19,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000a0","address":2147483808,"addr_hex":"0x800000a0","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483808,"pc_hex":"0x800000a0","instruction":2579,"inst_hex":"0x0a13"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000a0","address":2147483810,"addr_hex":"0x800000a2","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483810,"pc_hex":"0x800000a2","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483808,"pc_hex":"0x800000a0","reg_idx":20,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000a4","address":2147483812,"addr_hex":"0x800000a4","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483812,"pc_hex":"0x800000a4","instruction":2707,"inst_hex":"0x0a93"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000a4","address":2147483814,"addr_hex":"0x800000a6","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483814,"pc_hex":"0x800000a6","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483812,"pc_hex":"0x800000a4","reg_idx":21,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000a8","address":2147483816,"addr_hex":"0x800000a8","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483816,"pc_hex":"0x800000a8","instruction":2835,"inst_hex":"0x0b13"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000a8","address":2147483818,"addr_hex":"0x800000aa","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483818,"pc_hex":"0x800000aa","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483816,"pc_hex":"0x800000a8","reg_idx":22,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000ac","address":2147483820,"addr_hex":"0x800000ac","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483820,"pc_hex":"0x800000ac","instruction":2963,"inst_hex":"0x0b93"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000ac","address":2147483822,"addr_hex":"0x800000ae","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483822,"pc_hex":"0x800000ae","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483820,"pc_hex":"0x800000ac","reg_idx":23,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000b0","address":2147483824,"addr_hex":"0x800000b0","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483824,"pc_hex":"0x800000b0","instruction":3091,"inst_hex":"0x0c13"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000b0","address":2147483826,"addr_hex":"0x800000b2","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483826,"pc_hex":"0x800000b2","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483824,"pc_hex":"0x800000b0","reg_idx":24,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000b4","address":2147483828,"addr_hex":"0x800000b4","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483828,"pc_hex":"0x800000b4","instruction":3219,"inst_hex":"0x0c93"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000b4","address":2147483830,"addr_hex":"0x800000b6","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483830,"pc_hex":"0x800000b6","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483828,"pc_hex":"0x800000b4","reg_idx":25,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000b8","address":2147483832,"addr_hex":"0x800000b8","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483832,"pc_hex":"0x800000b8","instruction":3347,"inst_hex":"0x0d13"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000b8","address":2147483834,"addr_hex":"0x800000ba","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483834,"pc_hex":"0x800000ba","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483832,"pc_hex":"0x800000b8","reg_idx":26,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000bc","address":2147483836,"addr_hex":"0x800000bc","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483836,"pc_hex":"0x800000bc","instruction":3475,"inst_hex":"0x0d93"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000bc","address":2147483838,"addr_hex":"0x800000be","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483838,"pc_hex":"0x800000be","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483836,"pc_hex":"0x800000bc","reg_idx":27,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000c0","address":2147483840,"addr_hex":"0x800000c0","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483840,"pc_hex":"0x800000c0","instruction":3603,"inst_hex":"0x0e13"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000c0","address":2147483842,"addr_hex":"0x800000c2","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483842,"pc_hex":"0x800000c2","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483840,"pc_hex":"0x800000c0","reg_idx":28,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000c4","address":2147483844,"addr_hex":"0x800000c4","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483844,"pc_hex":"0x800000c4","instruction":3731,"inst_hex":"0x0e93"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000c4","address":2147483846,"addr_hex":"0x800000c6","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483846,"pc_hex":"0x800000c6","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483844,"pc_hex":"0x800000c4","reg_idx":29,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000c8","address":2147483848,"addr_hex":"0x800000c8","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483848,"pc_hex":"0x800000c8","instruction":3859,"inst_hex":"0x0f13"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000c8","address":2147483850,"addr_hex":"0x800000ca","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483850,"pc_hex":"0x800000ca","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483848,"pc_hex":"0x800000c8","reg_idx":30,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000cc","address":2147483852,"addr_hex":"0x800000cc","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483852,"pc_hex":"0x800000cc","instruction":3987,"inst_hex":"0x0f93"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000cc","address":2147483854,"addr_hex":"0x800000ce","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483854,"pc_hex":"0x800000ce","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483852,"pc_hex":"0x800000cc","reg_idx":31,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000d0","address":2147483856,"addr_hex":"0x800000d0","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483856,"pc_hex":"0x800000d0","instruction":279,"inst_hex":"0x0117"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000d0","address":2147483858,"addr_hex":"0x800000d2","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483858,"pc_hex":"0x800000d2","instruction":8192,"inst_hex":"0x2000"}
+{"event_type":"register","action":"write","pc":2147483856,"pc_hex":"0x800000d0","reg_idx":2,"data":2684354768,"data_hex":"0xa00000d0"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000d4","address":2147483860,"addr_hex":"0x800000d4","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483860,"pc_hex":"0x800000d4","instruction":275,"inst_hex":"0x0113"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000d4","address":2147483862,"addr_hex":"0x800000d6","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483862,"pc_hex":"0x800000d6","instruction":62209,"inst_hex":"0xf301"}
+{"event_type":"register","action":"write","pc":2147483860,"pc_hex":"0x800000d4","reg_idx":2,"data":2684354560,"data_hex":"0xa0000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000d8","address":2147483864,"addr_hex":"0x800000d8","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483864,"pc_hex":"0x800000d8","instruction":663,"inst_hex":"0x0297"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000d8","address":2147483866,"addr_hex":"0x800000da","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483866,"pc_hex":"0x800000da","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483864,"pc_hex":"0x800000d8","reg_idx":5,"data":2147483864,"data_hex":"0x800000d8"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000dc","address":2147483868,"addr_hex":"0x800000dc","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483868,"pc_hex":"0x800000dc","instruction":33427,"inst_hex":"0x8293"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000dc","address":2147483870,"addr_hex":"0x800000de","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483870,"pc_hex":"0x800000de","instruction":62594,"inst_hex":"0xf482"}
+{"event_type":"register","action":"write","pc":2147483868,"pc_hex":"0x800000dc","reg_idx":5,"data":2147483680,"data_hex":"0x80000020"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000e0","address":2147483872,"addr_hex":"0x800000e0","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483872,"pc_hex":"0x800000e0","instruction":36979,"inst_hex":"0x9073"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000e0","address":2147483874,"addr_hex":"0x800000e2","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483874,"pc_hex":"0x800000e2","instruction":12370,"inst_hex":"0x3052"}
+{"event_type":"csr","action":"write","pc":2147483872,"pc_hex":"0x800000e0","csr_idx":773,"csr_idx_hex":"0x305","csr_name":"mtvec","data":2147483680,"data_hex":"0x80000020"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000e4","address":2147483876,"addr_hex":"0x800000e4","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483876,"pc_hex":"0x800000e4","instruction":239,"inst_hex":"0x00ef"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000e4","address":2147483878,"addr_hex":"0x800000e6","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483878,"pc_hex":"0x800000e6","instruction":128,"inst_hex":"0x0080"}
+{"event_type":"register","action":"write","pc":2147483876,"pc_hex":"0x800000e4","reg_idx":1,"data":2147483880,"data_hex":"0x800000e8"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000ec","address":2147483884,"addr_hex":"0x800000ec","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483884,"pc_hex":"0x800000ec","instruction":275,"inst_hex":"0x0113"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000ec","address":2147483886,"addr_hex":"0x800000ee","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483886,"pc_hex":"0x800000ee","instruction":65025,"inst_hex":"0xfe01"}
+{"event_type":"register","action":"write","pc":2147483884,"pc_hex":"0x800000ec","reg_idx":2,"data":2684354528,"data_hex":"0x9fffffe0"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000f0","address":2147483888,"addr_hex":"0x800000f0","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483888,"pc_hex":"0x800000f0","instruction":11811,"inst_hex":"0x2e23"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000f0","address":2147483890,"addr_hex":"0x800000f2","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483890,"pc_hex":"0x800000f2","instruction":17,"inst_hex":"0x0011"}
+{"event_type":"physical_memory","action":"write","pc":"0x800000f0","address":2684354556,"addr_hex":"0x9ffffffc","data_hex":"800000E8","bytes":4}
+{"event_type":"physical_memory","action":"read","pc":"0x800000f4","address":2147483892,"addr_hex":"0x800000f4","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483892,"pc_hex":"0x800000f4","instruction":11299,"inst_hex":"0x2c23"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000f4","address":2147483894,"addr_hex":"0x800000f6","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483894,"pc_hex":"0x800000f6","instruction":129,"inst_hex":"0x0081"}
+{"event_type":"physical_memory","action":"write","pc":"0x800000f4","address":2684354552,"addr_hex":"0x9ffffff8","data_hex":"00000000","bytes":4}
+{"event_type":"physical_memory","action":"read","pc":"0x800000f8","address":2147483896,"addr_hex":"0x800000f8","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483896,"pc_hex":"0x800000f8","instruction":1043,"inst_hex":"0x0413"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000f8","address":2147483898,"addr_hex":"0x800000fa","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483898,"pc_hex":"0x800000fa","instruction":513,"inst_hex":"0x0201"}
+{"event_type":"register","action":"write","pc":2147483896,"pc_hex":"0x800000f8","reg_idx":8,"data":2684354560,"data_hex":"0xa0000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000fc","address":2147483900,"addr_hex":"0x800000fc","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483900,"pc_hex":"0x800000fc","instruction":1299,"inst_hex":"0x0513"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000fc","address":2147483902,"addr_hex":"0x800000fe","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483902,"pc_hex":"0x800000fe","instruction":16,"inst_hex":"0x0010"}
+{"event_type":"register","action":"write","pc":2147483900,"pc_hex":"0x800000fc","reg_idx":10,"data":1,"data_hex":"0x00000001"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000100","address":2147483904,"addr_hex":"0x80000100","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483904,"pc_hex":"0x80000100","instruction":10787,"inst_hex":"0x2a23"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000100","address":2147483906,"addr_hex":"0x80000102","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483906,"pc_hex":"0x80000102","instruction":65188,"inst_hex":"0xfea4"}
+{"event_type":"physical_memory","action":"write","pc":"0x80000100","address":2684354548,"addr_hex":"0x9ffffff4","data_hex":"00000001","bytes":4}
+{"event_type":"physical_memory","action":"read","pc":"0x80000104","address":2147483908,"addr_hex":"0x80000104","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483908,"pc_hex":"0x80000104","instruction":1299,"inst_hex":"0x0513"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000104","address":2147483910,"addr_hex":"0x80000106","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483910,"pc_hex":"0x80000106","instruction":32,"inst_hex":"0x0020"}
+{"event_type":"register","action":"write","pc":2147483908,"pc_hex":"0x80000104","reg_idx":10,"data":2,"data_hex":"0x00000002"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000108","address":2147483912,"addr_hex":"0x80000108","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483912,"pc_hex":"0x80000108","instruction":10275,"inst_hex":"0x2823"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000108","address":2147483914,"addr_hex":"0x8000010a","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483914,"pc_hex":"0x8000010a","instruction":65188,"inst_hex":"0xfea4"}
+{"event_type":"physical_memory","action":"write","pc":"0x80000108","address":2684354544,"addr_hex":"0x9ffffff0","data_hex":"00000002","bytes":4}
+{"event_type":"physical_memory","action":"read","pc":"0x8000010c","address":2147483916,"addr_hex":"0x8000010c","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483916,"pc_hex":"0x8000010c","instruction":9475,"inst_hex":"0x2503"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000010c","address":2147483918,"addr_hex":"0x8000010e","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483918,"pc_hex":"0x8000010e","instruction":65348,"inst_hex":"0xff44"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000010c","address":2684354548,"addr_hex":"0x9ffffff4","bytes":4}
+{"event_type":"register","action":"write","pc":2147483916,"pc_hex":"0x8000010c","reg_idx":10,"data":1,"data_hex":"0x00000001"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000110","address":2147483920,"addr_hex":"0x80000110","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483920,"pc_hex":"0x80000110","instruction":9603,"inst_hex":"0x2583"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000110","address":2147483922,"addr_hex":"0x80000112","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483922,"pc_hex":"0x80000112","instruction":65284,"inst_hex":"0xff04"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000110","address":2684354544,"addr_hex":"0x9ffffff0","bytes":4}
+{"event_type":"register","action":"write","pc":2147483920,"pc_hex":"0x80000110","reg_idx":11,"data":2,"data_hex":"0x00000002"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000114","address":2147483924,"addr_hex":"0x80000114","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483924,"pc_hex":"0x80000114","instruction":1331,"inst_hex":"0x0533"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000114","address":2147483926,"addr_hex":"0x80000116","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483926,"pc_hex":"0x80000116","instruction":181,"inst_hex":"0x00b5"}
+{"event_type":"register","action":"write","pc":2147483924,"pc_hex":"0x80000114","reg_idx":10,"data":3,"data_hex":"0x00000003"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000118","address":2147483928,"addr_hex":"0x80000118","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483928,"pc_hex":"0x80000118","instruction":9763,"inst_hex":"0x2623"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000118","address":2147483930,"addr_hex":"0x8000011a","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483930,"pc_hex":"0x8000011a","instruction":65188,"inst_hex":"0xfea4"}
+{"event_type":"physical_memory","action":"write","pc":"0x80000118","address":2684354540,"addr_hex":"0x9fffffec","data_hex":"00000003","bytes":4}
+{"event_type":"physical_memory","action":"read","pc":"0x8000011c","address":2147483932,"addr_hex":"0x8000011c","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483932,"pc_hex":"0x8000011c","instruction":8323,"inst_hex":"0x2083"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000011c","address":2147483934,"addr_hex":"0x8000011e","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483934,"pc_hex":"0x8000011e","instruction":449,"inst_hex":"0x01c1"}
+{"event_type":"physical_memory","action":"read","pc":"0x8000011c","address":2684354556,"addr_hex":"0x9ffffffc","bytes":4}
+{"event_type":"register","action":"write","pc":2147483932,"pc_hex":"0x8000011c","reg_idx":1,"data":2147483880,"data_hex":"0x800000e8"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000120","address":2147483936,"addr_hex":"0x80000120","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483936,"pc_hex":"0x80000120","instruction":9219,"inst_hex":"0x2403"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000120","address":2147483938,"addr_hex":"0x80000122","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483938,"pc_hex":"0x80000122","instruction":385,"inst_hex":"0x0181"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000120","address":2684354552,"addr_hex":"0x9ffffff8","bytes":4}
+{"event_type":"register","action":"write","pc":2147483936,"pc_hex":"0x80000120","reg_idx":8,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000124","address":2147483940,"addr_hex":"0x80000124","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483940,"pc_hex":"0x80000124","instruction":275,"inst_hex":"0x0113"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000124","address":2147483942,"addr_hex":"0x80000126","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483942,"pc_hex":"0x80000126","instruction":513,"inst_hex":"0x0201"}
+{"event_type":"register","action":"write","pc":2147483940,"pc_hex":"0x80000124","reg_idx":2,"data":2684354560,"data_hex":"0xa0000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000128","address":2147483944,"addr_hex":"0x80000128","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483944,"pc_hex":"0x80000128","instruction":32871,"inst_hex":"0x8067"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000128","address":2147483946,"addr_hex":"0x8000012a","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483946,"pc_hex":"0x8000012a","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483944,"pc_hex":"0x80000128","reg_idx":0,"data":2147483948,"data_hex":"0x8000012c"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000e8","address":2147483880,"addr_hex":"0x800000e8","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483880,"pc_hex":"0x800000e8","instruction":61679,"inst_hex":"0xf0ef"}
+{"event_type":"physical_memory","action":"read","pc":"0x800000e8","address":2147483882,"addr_hex":"0x800000ea","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483882,"pc_hex":"0x800000ea","instruction":62623,"inst_hex":"0xf49f"}
+{"event_type":"register","action":"write","pc":2147483880,"pc_hex":"0x800000e8","reg_idx":1,"data":2147483884,"data_hex":"0x800000ec"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000030","address":2147483696,"addr_hex":"0x80000030","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483696,"pc_hex":"0x80000030","instruction":1299,"inst_hex":"0x0513"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000030","address":2147483698,"addr_hex":"0x80000032","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483698,"pc_hex":"0x80000032","instruction":0,"inst_hex":"0x0000"}
+{"event_type":"register","action":"write","pc":2147483696,"pc_hex":"0x80000030","reg_idx":10,"data":0,"data_hex":"0x00000000"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000034","address":2147483700,"addr_hex":"0x80000034","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483700,"pc_hex":"0x80000034","instruction":61679,"inst_hex":"0xf0ef"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000034","address":2147483702,"addr_hex":"0x80000036","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483702,"pc_hex":"0x80000036","instruction":65055,"inst_hex":"0xfe1f"}
+{"event_type":"register","action":"write","pc":2147483700,"pc_hex":"0x80000034","reg_idx":1,"data":2147483704,"data_hex":"0x80000038"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000014","address":2147483668,"addr_hex":"0x80000014","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483668,"pc_hex":"0x80000014","instruction":3863,"inst_hex":"0x0f17"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000014","address":2147483670,"addr_hex":"0x80000016","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483670,"pc_hex":"0x80000016","instruction":49152,"inst_hex":"0xc000"}
+{"event_type":"register","action":"write","pc":2147483668,"pc_hex":"0x80000014","reg_idx":30,"data":1073741844,"data_hex":"0x40000014"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000018","address":2147483672,"addr_hex":"0x80000018","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483672,"pc_hex":"0x80000018","instruction":10275,"inst_hex":"0x2823"}
+{"event_type":"physical_memory","action":"read","pc":"0x80000018","address":2147483674,"addr_hex":"0x8000001a","bytes":2}
+{"event_type":"instruction_fetch","pc":2147483674,"pc_hex":"0x8000001a","instruction":65199,"inst_hex":"0xfeaf"}
+{"event_type":"physical_memory","action":"write","pc":"0x80000018","address":1073741828,"addr_hex":"0x40000004","data_hex":"00000000","bytes":4}

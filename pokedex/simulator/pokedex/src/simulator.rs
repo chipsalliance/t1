@@ -29,7 +29,21 @@ pub struct SimulatorParams<'a, 'b> {
 
 impl SimulatorParams<'_, '_> {
     pub fn try_build(self) -> miette::Result<Simulator> {
-        let mut sim = Simulator::new(self.dts_cfg_path, self.max_same_instruction)?;
+        let handle = SimulatorHandle::new();
+        let bus_info = BusInfo::from_device_config(self.dts_cfg_path)?;
+        let state = SimulatorState {
+            is_reset: false,
+            bus_bridge: bus_info.bus_bridge,
+            pc: 0x1000,
+            statistic: Statistic::new(),
+            ic_handle: bus_info.ic_handle,
+            exception: None,
+            last_instruction_fetch_data: 0u16,
+            last_instruction_met_count: 0,
+            max_same_instruction: self.max_same_instruction,
+        };
+
+        let mut sim = Simulator { handle, state };
 
         let entry = sim.load_elf(self.elf_path);
         sim.reset_vector(entry);
@@ -46,6 +60,9 @@ pub(crate) struct SimulatorState {
     exception: Option<SimulationException>,
     ic_handle: ICHandle,
 
+    is_reset: bool,
+
+    last_instruction_fetch_data: u16,
     last_instruction_met_count: u8,
     max_same_instruction: u8,
 }
@@ -59,26 +76,11 @@ pub struct Simulator {
 }
 
 impl Simulator {
-    fn new<P: AsRef<Path>>(dts: P, max_same_instruction: u8) -> miette::Result<Self> {
-        let handle = SimulatorHandle::new();
-        let bus_info = BusInfo::from_device_config(dts)?;
-        let state = SimulatorState {
-            bus_bridge: bus_info.bus_bridge,
-            pc: 0x1000,
-            statistic: Statistic::new(),
-            ic_handle: bus_info.ic_handle,
-            exception: None,
-            last_instruction_met_count: 0,
-            max_same_instruction,
-        };
-
-        Ok(Simulator { handle, state })
-    }
-
     pub fn reset_vector(&mut self, addr: u32) {
         self.handle.reset_states();
         self.handle.reset_vector(addr);
         self.state.pc = addr;
+        self.state.is_reset = true;
 
         event!(Level::DEBUG, "reset vector addr to {:#010x}", addr);
         event!(Level::TRACE, event_type = "reset_vector", new_addr = addr,);
@@ -152,11 +154,36 @@ impl Simulator {
     pub fn take_statistic(&mut self) -> Statistic {
         std::mem::take(&mut self.state.statistic)
     }
+
+    pub fn dump_regs(&self) {
+        const COLUMN_SIZE: u8 = 8;
+
+        for i in 0..4 {
+            for j in 0..COLUMN_SIZE {
+                let index = j + COLUMN_SIZE * i;
+                let reg_val = self.handle.get_register(j + COLUMN_SIZE * i);
+                print!("x{:<2}: {:#010x}  ", index, reg_val)
+            }
+            println!()
+        }
+    }
 }
 
 // callback for ASL generated code
 impl SimulatorState {
     pub fn req_bus_read<const N: usize>(&mut self, addr: u32) -> Result<[u8; N], BusError> {
+        if self.is_reset {
+            event!(
+                Level::TRACE,
+                event_type = "physical_memory",
+                action = "read",
+                pc = format!("{:#010x}", self.pc),
+                address = addr,
+                addr_hex = format!("{:#010x}", addr),
+                bytes = N,
+            );
+        }
+
         let result = self
             .bus_bridge
             .address_space
@@ -174,6 +201,20 @@ impl SimulatorState {
     }
 
     pub fn req_bus_write(&mut self, addr: u32, data: &[u8]) -> Result<(), BusError> {
+        if self.is_reset {
+            let hexable: Vec<u8> = data.iter().rev().copied().collect();
+            event!(
+                Level::TRACE,
+                event_type = "physical_memory",
+                action = "write",
+                pc = format!("{:#010x}", self.pc),
+                address = addr,
+                addr_hex = format!("{:#010x}", addr),
+                data_hex = hex::encode_upper(hexable),
+                bytes = data.len(),
+            );
+        }
+
         let result = self
             .bus_bridge
             .address_space
@@ -190,19 +231,24 @@ impl SimulatorState {
     }
 
     pub(crate) fn inst_fetch(&mut self, pc: u32) -> Option<u16> {
-        let Ok(inst): Result<[u8; 2], _> = self.req_bus_read(pc) else {
-            return None;
+        let inst = match self.req_bus_read(pc) {
+            Ok(inst) => inst,
+            Err(err) => {
+                event!(Level::DEBUG, "fail reading memory at PC: {pc:#010x}: {err}");
+                return None;
+            }
         };
 
         let inst: u16 = u16::from_le_bytes(inst);
         self.statistic.fetch_count += 1;
 
-        if pc == self.pc {
+        if inst == self.last_instruction_fetch_data {
             self.last_instruction_met_count += 1;
         } else {
             self.last_instruction_met_count = 0;
         }
 
+        self.last_instruction_fetch_data = inst;
         if self.last_instruction_met_count > self.max_same_instruction {
             self.exception = Some(SimulationException::InfiniteInstruction);
         }
@@ -210,8 +256,10 @@ impl SimulatorState {
         event!(
             Level::TRACE,
             event_type = "instruction_fetch",
-            data = inst,
-            encoding = format!("{:#010x}", inst)
+            pc = pc,
+            pc_hex = format!("{:#010x}", pc),
+            instruction = inst,
+            inst_hex = format!("{:#06x}", inst)
         );
 
         Some(inst)
@@ -234,8 +282,10 @@ impl SimulatorState {
             event_type = "register",
             action = "write",
             pc = self.pc,
+            pc_hex = format!("{:#010x}", self.pc),
             reg_idx = reg_idx,
             data = value,
+            data_hex = format!("{:#010x}", value)
         );
     }
 
@@ -245,9 +295,12 @@ impl SimulatorState {
             event_type = "csr",
             action = "write",
             pc = self.pc,
+            pc_hex = format!("{:#010x}", self.pc),
             csr_idx = idx,
+            csr_idx_hex = format!("{:#0x}", idx),
             csr_name = name,
             data = value,
+            data_hex = format!("{:#010x}", value)
         );
     }
 
@@ -328,8 +381,8 @@ impl Drop for SimulatorHandle {
 
 #[derive(Debug, knuffel::Decode)]
 enum AddressSpaceDescNode {
-    MMIO(KdlNodeMMIO),
-    SRAM(KdlNodeSRAM),
+    Mmio(KdlNodeMMIO),
+    Sram(KdlNodeSRAM),
 }
 
 #[derive(Debug, knuffel::Decode)]
@@ -383,12 +436,12 @@ impl BusInfo {
         let mut ic_handle = None;
         for node in configuration {
             match node {
-                AddressSpaceDescNode::SRAM(sram) => {
+                AddressSpaceDescNode::Sram(sram) => {
                     let naive_memory = NaiveMemory::new(sram.length as usize);
                     let boxed: Box<dyn Addressable> = Box::new(naive_memory);
                     segments.push(((sram.base..sram.base + sram.length), boxed))
                 }
-                AddressSpaceDescNode::MMIO(mmio_config) => {
+                AddressSpaceDescNode::Mmio(mmio_config) => {
                     let (mmio_decoder, controllers) =
                         MMIOAddrDecoder::try_build_from(mmio_config.mmap)?;
                     ic_handle = Some(controllers);
@@ -458,8 +511,14 @@ impl ICHandle {
         self.0.push(Box::new(ic))
     }
 
-    fn get_enabled_ic(&self) -> Option<&Box<dyn InterruptController>> {
-        self.0.iter().find(|ic| ic.is_enabled())
+    fn get_enabled_ic(&self) -> Option<&dyn InterruptController> {
+        self.0.iter().find_map(|ic| {
+            if ic.is_enabled() {
+                Some(ic.as_ref())
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -563,11 +622,11 @@ impl Addressable for NaiveMemory {
 }
 
 #[derive(Debug, Clone)]
-pub enum MMIO {
+pub enum MmioRegs {
     Exit(ExitController),
 }
 
-impl MMIO {
+impl MmioRegs {
     fn load(&self) -> u32 {
         match self {
             Self::Exit(_) => {
@@ -589,7 +648,7 @@ impl MMIO {
 #[derive(Debug)]
 pub struct MMIOAddrDecoder {
     // offset, type
-    regs: Vec<(u32, MMIO)>,
+    regs: Vec<(u32, MmioRegs)>,
 }
 
 impl MMIOAddrDecoder {
@@ -601,7 +660,7 @@ impl MMIOAddrDecoder {
                 "exit" => {
                     let exit_rc = ExitController::new();
                     ic_handle.add(exit_rc.clone());
-                    regs.push((node.offset, MMIO::Exit(exit_rc)))
+                    regs.push((node.offset, MmioRegs::Exit(exit_rc)))
                 }
                 name => miette::bail!("unsupported MMIO device {name}"),
             }

@@ -1,0 +1,5 @@
+sram "naive" base=0x80000000 length=0x20000000
+
+mmio base=0x40000000 length=0x1000 {
+  mmap "exit" offset=0x4
+}

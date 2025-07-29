@@ -137,6 +137,7 @@ unsafe extern "C" fn FFI_write_GPR_hook_0(reg_idx: u8, data: u32) {
     state.write_register(reg_idx, data);
 }
 
+#[allow(improper_ctypes_definitions)]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn FFI_write_CSR_hook_0(idx: i128, name: *const c_char, data: u32) {
     let state = unsafe { get_state() };
