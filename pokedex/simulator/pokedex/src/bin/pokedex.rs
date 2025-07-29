@@ -26,6 +26,9 @@ struct Args {
 
     #[arg(short = 'o', long, default_value_t = String::from("./pokedex-sim-events.jsonl"))]
     output_log_path: String,
+
+    #[arg(long, default_value_t = 0)]
+    slow_motion_ms: u8,
 }
 
 struct OnlyTrace;
@@ -100,7 +103,13 @@ fn main() {
         if let Err(exception) = step_result {
             match exception {
                 SimulationException::Exited(ret_code) => {
-                    event!(Level::INFO, "simulation exit with exit code {ret_code}");
+                    if ret_code == 0 {
+                        event!(Level::INFO, "simulation exit with exit code {ret_code}");
+                    } else {
+                        event!(Level::ERROR, "simulation exit with exit code {ret_code}");
+                        event!(Level::INFO, "dump simulator register");
+                        sim_handle.dump_regs();
+                    }
                     exit_code = ret_code;
                 }
                 other => {
@@ -108,6 +117,10 @@ fn main() {
                 }
             };
             break;
+        }
+
+        if args.slow_motion_ms > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(args.slow_motion_ms.into()));
         }
     }
 

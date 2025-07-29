@@ -188,7 +188,7 @@ fn diff(spike_log: &SpikeLog, pokedex_log: &PokedexLog, end_pattern: &EndPattern
                 let pc = event.get_pc()?;
 
                 if pc == spike_event.pc {
-                    pokedex_log_cursor = i;
+                    pokedex_log_cursor += i + 1;
                     Some(event)
                 } else {
                     None

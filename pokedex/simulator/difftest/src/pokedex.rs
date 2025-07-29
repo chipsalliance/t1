@@ -2,6 +2,7 @@ use anyhow::Context;
 use serde::Deserialize;
 use std::fmt::Display;
 use std::path::PathBuf;
+use wait_timeout::ChildExt;
 
 pub type PokedexLog = Vec<PokedexEvent>;
 
@@ -21,20 +22,30 @@ pub fn run_process(
             .to_string_lossy()
     );
 
-    let result = std::process::Command::new(&pokedex_exec)
+    let mut child = std::process::Command::new(&pokedex_exec)
         .arg("-vvv")
         .arg("--elf-path")
         .arg(&elf_path)
         .arg("--output-log-path")
         .arg(&event_path)
         .args(args)
-        .output()
+        .spawn()
         .with_context(|| "fail exeuting pokedex")?;
 
-    if !result.status.success() {
+    let Some(status) = child
+        .wait_timeout(std::time::Duration::from_secs(30))
+        .unwrap()
+    else {
+        // child hasn't exited yet
+        child.kill().unwrap();
+        anyhow::bail!("pokedex execution timeout");
+    };
+
+    if !status.success() {
         anyhow::bail!(
-            "fail to execute pokedex with args {args:?} for elf {}",
-            elf_path.to_string_lossy()
+            "fail to execute pokedex with args {args:?} for elf {}: {:?}",
+            elf_path.to_string_lossy(),
+            status.code()
         );
     }
 
@@ -65,7 +76,7 @@ pub enum PokedexEvent {
     #[serde(rename = "physical_memory")]
     PhysicalMemory {
         action: String,
-        bytes: u8,
+        bytes: u32,
         address: u64,
     },
     #[serde(rename = "csr")]
@@ -84,7 +95,7 @@ pub enum PokedexEvent {
         data: u32,
     },
     #[serde(rename = "instruction_fetch")]
-    InstructionFetch { data: u32 },
+    InstructionFetch { instruction: u32 },
     #[serde(rename = "reset_vector")]
     ResetVector { new_addr: u32 },
 }

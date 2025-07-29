@@ -12,7 +12,7 @@ let
   configuration = {
     elf_path_glob = "${all-tests}/**/*.elf";
     spike_args = [
-      "--isa=rv32im_zvl256b_zve32x"
+      "--isa=rv32imc_zvl256b_zve32x_zifencei"
       "--priv=m"
       "--log-commits"
       "-m0x80000000:0x20000000,0x40000000:0x1000"
@@ -52,11 +52,19 @@ runCommand "run-difftest-for-all-cases"
       find . -name '*-pokedex-sim-event.jsonl' -type f -exec cp '{}' "$out/pass/" ';'
       find . -name '*-spike-commits.log' -type f -exec cp '{}' "$out/pass/" ';'
 
-      failedCases=$(jq -r '.context|keys[]' ./result.json)
+      failedCases=( $(jq -r '.context|keys[]' ./result.json) )
       for case in "''${failedCases[@]}"; do
         cp "$case".objdump "$out"
         mv "$out/pass/$(basename $case)-pokedex-sim-event.jsonl" "$out"
         mv "$out/pass/$(basename $case)-spike-commits.log" "$out"
       done
+
+    cat << EOF > $out/print_log
+    #!/usr/bin/env bash
+    arg=\''${1:-}
+    [[ -z \$arg ]] && exit 0
+    ${jq}/bin/jq -r ".context|to_entries[]|select(.key|contains(\"\$arg\"))|.value" $out/result.json
+    EOF
+    chmod +x $out/print_log
     fi
   ''
