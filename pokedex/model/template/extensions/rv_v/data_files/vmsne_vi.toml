@@ -1,0 +1,4 @@
+template = "vmsop_vi"
+
+op_func_cmp = "__op_cmp_ne"
+function_description="compute vd = (vs2 != imm), optionally masked by vm"

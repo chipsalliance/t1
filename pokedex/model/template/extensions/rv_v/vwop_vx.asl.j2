@@ -56,7 +56,7 @@ case sew of
     let src1 = SInt(X[rs1])[7:0];
 
     for idx = 0 to vl - 1 do
-      if vm == '0' && V0_MASK[idx] then
+      if vm != '0' || V0_MASK[idx] then
         let src2 = VRF_8[vs2, idx];
 
         let res = {{ op_func_widen_xx }}(src2, src1);
@@ -70,7 +70,7 @@ case sew of
     let src1 = SInt(X[rs1])[15:0];
 
     for idx = 0 to vl - 1 do
-      if vm =='0' && V0_MASK[idx] then
+      if vm != '0' || V0_MASK[idx] then
         let src2 = VRF_16[vs2, idx];
 
         let res = {{ op_func_widen_xx }}(src2, src1);

@@ -1,0 +1,4 @@
+template = "vmacop_vv"
+
+op_func_mac = "__op_intmac_nmsac"
+function_description="compute vd = -(vs1*vs2)+vd, optionally masked by vm"

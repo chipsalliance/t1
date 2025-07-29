@@ -49,11 +49,11 @@ end
 case sew of
   when 8 => begin
     for idx = 0 to vl - 1 do
-      if vm == '0' && V0_MASK[idx] then
-        let src2 = VRF_8[vs2, idx];
-        let src1 = VRF_8[vs1, idx];
+      if vm != '0' || V0_MASK[idx] then
+        let src2 : bits(8) = VRF_8[vs2, idx];
+        let src1 : bits(8) = VRF_8[vs1, idx];
 
-        let res = {{ op_func }}(src2, src1);
+        let res : bits(8) = {{ op_func }}(src2, src1);
 
         VRF_8[vd, idx] = res;
       end
@@ -62,11 +62,11 @@ case sew of
 
   when 16 => begin
     for idx = 0 to vl - 1 do
-      if vm == '0' && V0_MASK[idx] then
-        let src2 = VRF_16[vs2, idx];
-        let src1 = VRF_16[vs1, idx];
+      if vm != '0' || V0_MASK[idx] then
+        let src2 : bits(16) = VRF_16[vs2, idx];
+        let src1 : bits(16) = VRF_16[vs1, idx];
 
-        let res = {{ op_func }}(src2, src1);
+        let res : bits(16) = {{ op_func }}(src2, src1);
 
         VRF_16[vd, idx] = res;
       end
@@ -75,11 +75,11 @@ case sew of
 
   when 32 => begin
     for idx = 0 to vl - 1 do
-      if vm == '0' && V0_MASK[idx] then
-        let src2 = VRF_32[vs2, idx];
-        let src1 = VRF_32[vs1, idx];
+      if vm != '0' || V0_MASK[idx] then
+        let src2 : bits(32) = VRF_32[vs2, idx];
+        let src1 : bits(32) = VRF_32[vs1, idx];
 
-        let res = {{ op_func }}(src2, src1);
+        let res : bits(32) = {{ op_func }}(src2, src1);
 
         VRF_32[vd, idx] = res;
       end

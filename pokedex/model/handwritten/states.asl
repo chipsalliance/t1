@@ -1,3 +1,5 @@
+constant XLEN : integer = 32;
+
 // Program Counter
 var __PC : bits(32);
 

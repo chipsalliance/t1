@@ -10,6 +10,8 @@
   {% include "extensions/rv_v/vop_vx.asl.j2" %}
 {% elif template == "vop_vi" %}
   {% include "extensions/rv_v/vop_vi.asl.j2" %}
+{% elif template == "vop_vi_uimm" %}
+  {% include "extensions/rv_v/vop_vi_uimm.asl.j2" %}
 {% elif template == "vwop_vv" %}
   {% include "extensions/rv_v/vwop_vv.asl.j2" %}
 {% elif template == "vwop_vx" %}
@@ -18,6 +20,28 @@
   {% include "extensions/rv_v/vwop_wv.asl.j2" %}
 {% elif template == "vwop_wx" %}
   {% include "extensions/rv_v/vwop_wx.asl.j2" %}
+{% elif template == "vnop_wv" %}
+  {% include "extensions/rv_v/vnop_wv.asl.j2" %}
+{% elif template == "vnop_wx" %}
+  {% include "extensions/rv_v/vnop_wx.asl.j2" %}
+{% elif template == "vnop_wi_uimm" %}
+  {% include "extensions/rv_v/vnop_wi_uimm.asl.j2" %}
+{% elif template == "vmop_mm" %}
+  {% include "extensions/rv_v/vmop_mm.asl.j2" %}
+{% elif template == "vmsop_vv" %}
+  {% include "extensions/rv_v/vmsop_vv.asl.j2" %}
+{% elif template == "vmsop_vx" %}
+  {% include "extensions/rv_v/vmsop_vx.asl.j2" %}
+{% elif template == "vmsop_vi" %}
+  {% include "extensions/rv_v/vmsop_vi.asl.j2" %}
+{% elif template == "vmacop_vv" %}
+  {% include "extensions/rv_v/vmacop_vv.asl.j2" %}
+{% elif template == "vmacop_vx" %}
+  {% include "extensions/rv_v/vmacop_vx.asl.j2" %}
+{% elif template == "vwmacop_vv" %}
+  {% include "extensions/rv_v/vwmacop_vv.asl.j2" %}
+{% elif template == "vwmacop_vx" %}
+  {% include "extensions/rv_v/vwmacop_vx.asl.j2" %}
 {% else %}
   {{ explicit_error_template_is_unknown }}
 {% endif %}

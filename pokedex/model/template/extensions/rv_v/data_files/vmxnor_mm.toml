@@ -1,0 +1,4 @@
+template = "vmop_mm"
+
+op_func = "__op_bit_xnor"
+function_description="compute vd = ~(vs2 ^ vs1), mask operation"
