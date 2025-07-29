@@ -6,6 +6,7 @@ package org.chipsalliance.t1.rtl.lane
 import chisel3._
 import chisel3.experimental.hierarchy.{instantiable, public}
 import chisel3.util._
+import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.dwbb.stdlib.queue
 import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 import org.chipsalliance.t1.rtl._
@@ -75,6 +76,12 @@ class GatherRequest1(datapathWidth: Int, groupNumberBits: Int, laneNumberBits: I
 
 class reduceMaskRequest(datapathWidth: Int) extends Bundle {
   val data: UInt = UInt(datapathWidth.W)
+}
+
+class MaskStageToken(parameter: LaneParameter) extends Bundle {
+  val freeCrossWrite:          ValidIO[UInt] = Valid(UInt(parameter.instructionIndexBits.W))
+  val maskStageRequestRelease: Bool          = Output(Bool())
+  val maskStageClear:          Bool          = Output(Bool())
 }
 
 @instantiable
@@ -212,6 +219,12 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val reduceVRFRequest: DecoupledIO[SlotRequestToVFU] = IO(Decoupled(new SlotRequestToVFU(parameter)))
 
   @public
+  val reduceRequestDecode: DecodeBundle = IO(Output(Decoder.bundle(parameter.decoderParam)))
+
+  @public
+  val reduceResponse: ValidIO[VFUResponseToSlot] = IO(Flipped(Valid(new VFUResponseToSlot(parameter))))
+
+  @public
   val reduceMaskRequest: DecoupledIO[reduceMaskRequest] = IO(Decoupled(new reduceMaskRequest(parameter.datapathWidth)))
 
   @public
@@ -219,8 +232,11 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     Flipped(Decoupled(new reduceMaskRequest(parameter.datapathWidth)))
   )
 
+  @public
+  val token: MaskStageToken = IO(new MaskStageToken(parameter))
+
   // todo: sSendResponse -> sendResponse
-  val enqIsMaskRequest: Bool = !enqueue.bits.sSendResponse
+  val enqIsMaskRequest: Bool = !enqueue.bits.sSendResponse && !enqueue.bits.decodeResult(Decoder.maskPipeType)
   // not maskUnit && not send out
   val enqSendToDeq:     Bool =
     !enqueue.bits.decodeResult(Decoder.maskUnit) && enqueue.bits.sSendResponse && !enqueue.bits.decodeResult(
@@ -282,7 +298,8 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val reduceState:        UInt = RegInit(idle)
   val lastRequestDeqFire: Bool = RegInit(false.B)
   val reduceResult:       UInt = RegInit(0.U(parameter.datapathWidth.W))
-  val foldCount:          Bool = RegInit(false.B)
+  val reduceResultSize:   UInt = RegInit(0.U(3.W))
+  val waitFoldRes:        Bool = RegInit(false.B)
   val stateIdle:          Bool = reduceState === idle
   val stateSRequest:      Bool = reduceState === sRequest
   val stateWResponse:     Bool = reduceState === wResponse
@@ -292,6 +309,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val stateSWrite:        Bool = reduceState === sWrite
 
   val firstLane = laneIndex === 0.U
+  val foldFinish: Bool = Wire(Bool())
 
   val maskPipeValid:   Bool      = RegInit(false.B)
   val crossWriteFire2: Vec[Bool] = Wire(Vec(2, Bool()))
@@ -299,16 +317,25 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val crossWriteDeqFire = crossWriteFire4.asUInt | crossWriteFire2.asUInt
 
   val maskPipeEnqIsExtend: Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b0000?")
-  val maskPipeEnqIsGather: Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b0001?")
-  val maskPipeEnqIsReduce: Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b010??")
-  val gather16:            Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b00011")
-  val maskPipeEnqIsSlid:   Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b001??")
+  val maskPipeEnqReduce:   Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b010??")
+
+  val maskPipeIsExtend:   Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop) === BitPat("b0000?")
+  val maskPipeIsGather:   Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop) === BitPat("b0001?")
+  val maskPipeIsReduce:   Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop) === BitPat("b010??")
+  val maskPipeIsGather16: Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop) === BitPat("b00011")
+  val maskPipeIsSlid:     Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop) === BitPat("b001??")
+  val maskPipeIsPop:      Bool = maskPipeReqReg.decodeResult(Decoder.popCount)
 
   val maskPipeDeqFire = maskPipeValid && maskPipeDeqReady
   val maskPipeEnqFire = maskReqQueue.deq.fire
   when(maskPipeDeqFire ^ maskPipeEnqFire) {
     maskPipeValid := maskPipeEnqFire
   }
+
+  val enqSew: UInt =
+    (maskReqQueue.deq.bits.maskPipe.sew1H << maskPipeEnqReq.decodeResult(Decoder.widenReduce)).asUInt(2, 0)
+  val enqByteMask = enqSew(2) ## enqSew(2) ## !enqSew(0) ## true.B
+  val enqBitMask: UInt = FillInterleaved(8, enqByteMask)
 
   maskReqQueue.deq.ready := !maskPipeValid || maskPipeDeqReady
   val opcode1H: UInt = UIntToOH(maskPipeReqReg.decodeResult(Decoder.maskPipeUop))
@@ -319,7 +346,15 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     maskPipeReqReg     := maskPipeEnqReq
     maskPipeMessageReg := maskReqQueue.deq.bits.maskPipe
     lastRequestDeqFire := false.B
-    reduceState        := Mux(firstLane, sRequest, wMaskRequest)
+    waitFoldRes        := false.B
+    when(maskPipeEnqReduce) {
+      when(maskPipeEnqReq.groupCounter === 0.U && firstLane) {
+        reduceResult := maskReqQueue.deq.bits.maskPipe.source1 & enqBitMask
+      }
+      when(!maskPipeEnqReq.sSendResponse) {
+        reduceState := Mux(firstLane, sRequest, wMaskRequest)
+      }
+    }
     when(maskPipeEnqIsExtend) {
       crossWriteState := Mux(maskPipeEnqReq.decodeResult(Decoder.maskPipeUop)(0), 0.U, 12.U)
     }
@@ -442,7 +477,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   freeCrossDataEnq.ready                         := crossLaneWriteQueue.last.enq.ready
   crossLaneWriteQueue.last.deq.ready             := crossWriteDeqRequest.ready
 
-  crossWriteDeqRequest.valid := VecInit(queueDeqValid).asUInt
+  crossWriteDeqRequest.valid := VecInit(queueDeqValid :+ crossLaneWriteQueue.last.deq.valid).asUInt.orR
   val deqRequestSelect: CrossWritePipe =
     Mux1H(queueDeqValid :+ crossLaneWriteQueue.last.deq.valid, crossLaneWriteQueue.map(_.deq.bits))
   crossWriteDeqRequest.bits                  := DontCare
@@ -479,19 +514,19 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val slideRequest0:         DecoupledIO[SlideRequest0] = Wire(Decoupled(new SlideRequest0(parameter)))
   val slideRequestReg0:      ValidIO[SlideRequest0]     = RegInit(0.U.asTypeOf(Valid(new SlideRequest0(parameter))))
   val slideRequestDeqReady0: Bool                       = Wire(Bool())
-  slideRequest0.valid := remainder.orR && executeStageValid && maskPipeEnqIsSlid
+  slideRequest0.valid := remainder.orR && executeStageValid && maskPipeIsSlid
   slideRequest0.ready := !slideRequestReg0.valid || slideRequestDeqReady0
 
   val gatherRequest0:         DecoupledIO[GatherRequest0] = Wire(Decoupled(new GatherRequest0(parameter)))
   val gatherReg0:             ValidIO[GatherRequest0]     = RegInit(0.U.asTypeOf(Valid(new GatherRequest0(parameter))))
   val gatherRequestDeqReady0: Bool                        = Wire(Bool())
-  gatherRequest0.valid := remainder.orR && executeStageValid && maskPipeEnqIsGather
+  gatherRequest0.valid := remainder.orR && executeStageValid && maskPipeIsGather
   gatherRequest0.ready := !gatherReg0.valid || gatherRequestDeqReady0
 
   val executeStageDeqFire: Bool = Mux1H(
     Seq(
-      maskPipeEnqIsSlid   -> slideRequest0.fire,
-      maskPipeEnqIsGather -> gatherRequest0.fire
+      maskPipeIsSlid   -> slideRequest0.fire,
+      maskPipeIsGather -> gatherRequest0.fire
     )
   )
   when(slideRequest0.fire) {
@@ -504,11 +539,11 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     executeIndex := Mux(maskPipeEnqFire, firstIndex, nextIndex)
   }
   when(maskPipeEnqFire || !remainder.orR) {
-    executeStageValid := maskPipeEnqFire && maskPipeEnqIsSlid
+    executeStageValid := maskPipeEnqFire && maskPipeIsSlid
   }
 
   // todo: first gather16
-  val sewSelect:            UInt = Mux(gather16, 2.U(3.W), maskPipeMessageReg.sew1H(2, 0))
+  val sewSelect:            UInt = Mux(maskPipeIsGather16, 2.U(3.W), maskPipeMessageReg.sew1H(2, 0))
   val byteMaskForExecution: UInt = Mux1H(
     sewSelect,
     Seq(
@@ -604,7 +639,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     Seq(dataOffset, accessLane, offset, reallyGrowth, notNeedRead, elementValid)
   }
 
-  val analysisInput: UInt           = Mux(maskPipeEnqIsSlid, slideRequest0.bits.address, gatherReg0.bits.readIndex)
+  val analysisInput: UInt           = Mux(maskPipeIsSlid, slideRequest0.bits.address, gatherReg0.bits.readIndex)
   val checkResult:   Seq[Seq[UInt]] = Seq(0, 1, 2).map { sewInt =>
     indexAnalysis(sewInt)(analysisInput, maskPipeMessageReg.vlmul)
   }
@@ -725,7 +760,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   freeCrossReqDeq.bits.writeOffset  := gatherRequestReg1.bits.writeOffset
   freeCrossReqDeq.bits.mask         := gatherRequestReg1.bits.mask
 
-  when(maskPipeEnqIsGather) {
+  when(maskPipeIsGather) {
     freeCrossDataDeq.valid        := gatherRequestReg1.valid && gatherRequestReg1.bits.skipRead && !sameLane
     freeCrossDataDeq.bits.data    := 0.U
     freeCrossDataDeq.bits.mask    := gatherRequestReg1.bits.mask
@@ -754,13 +789,13 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   gatherRequestDeqReady0 := !gatherRequestReg1.valid || gatherRequest1DeqReady
 
   // enq ready
-  val extendType:    Bool = maskPipeEnqIsExtend
-  val crossDataType: Bool = maskPipeEnqIsGather || maskPipeEnqIsSlid
+  val extendType:    Bool = maskPipeIsExtend
+  val crossDataType: Bool = maskPipeIsGather || maskPipeIsSlid
   maskPipeDeqReady := Mux1H(
     Seq(
-      extendType          -> crossWriteState.andR,
-      crossDataType       -> !remainder.orR,
-      maskPipeEnqIsReduce -> stateIdle
+      extendType       -> crossWriteState.andR,
+      crossDataType    -> !remainder.orR,
+      maskPipeIsReduce -> stateIdle
     )
   )
 
@@ -805,11 +840,26 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   secondDeqReady := Mux(secondPipeSameLane, crossLaneWriteQueue.last.enq.ready, freeCrossDataDeq.ready)
 
   // reduce execution
-  reduceVRFRequest.valid := stateSRequest
+  reduceVRFRequest.valid := stateSRequest || stateFold
+  val lastFoldSource1 = (reduceResult >> ((1.U << reduceResultSize >> 1).asUInt ## 0.U(3.W))).asUInt
+  val source2Select: UInt = Mux(stateFold, lastFoldSource1, maskPipeReqReg.data)
+  val reduceIsPopCount = maskPipeReqReg.decodeResult(Decoder.popCount)
+  val writeEEW: UInt =
+    Mux(reduceIsPopCount, 2.U, OHToUInt(maskPipeMessageReg.sew1H) + maskPipeReqReg.decodeResult(Decoder.widenReduce))
+
+  reduceVRFRequest.bits          := DontCare
+  reduceVRFRequest.bits.src.head := reduceResult
+  reduceVRFRequest.bits.src(1)   := source2Select
+  reduceVRFRequest.bits.opcode   := Mux(reduceIsPopCount, 0.U, maskPipeReqReg.decodeResult(Decoder.uop))
+  reduceVRFRequest.bits.sign     := !maskPipeReqReg.decodeResult(Decoder.unsigned1)
+  reduceVRFRequest.bits.vSew     := writeEEW
+  reduceVRFRequest.bits.tag      := parameter.chainingSize.U
+  // todo: pipe rm for float
+  reduceVRFRequest.bits.roundingMode.foreach(_ := DontCare)
+
+  reduceRequestDecode := maskPipeReqReg.decodeResult
   // todo
-  reduceVRFRequest.bits  := DontCare
-  // todo
-  val reduceVRFResponseFire: Bool = true.B
+  val reduceVRFResponseFire: Bool = reduceResponse.valid
   when(stateSRequest && reduceVRFRequest.ready) {
     reduceState := Mux(
       reduceVRFResponseFire,
@@ -818,41 +868,68 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     )
   }
   when(stateWResponse && reduceVRFResponseFire) {
-    reduceState := sMaskRequest
+    reduceState := Mux(
+      waitFoldRes,
+      Mux(foldFinish, sWrite, fold),
+      sMaskRequest
+    )
+  }
+
+  when(reduceVRFResponseFire) {
+    reduceResult := reduceResponse.bits.data
   }
 
   when(stateSMaskRequest && reduceVRFResponseFire) {
     reduceState := sMaskRequest
   }
 
-  reduceMaskRequest.valid     := stateSRequest
+  reduceMaskRequest.valid     := stateSMaskRequest
   reduceMaskRequest.bits.data := reduceResult
-  when(stateSRequest && reduceMaskRequest.ready) {
+  when(stateSMaskRequest && reduceMaskRequest.ready) {
     reduceState        := Mux(firstLane, wMaskRequest, idle)
     lastRequestDeqFire := true.B
   }
 
-  val needFold:      Bool =
-    (maskPipeMessageReg.sew1H(0) || (maskPipeMessageReg.sew1H(1) &&
-      !maskPipeReqReg.decodeResult(Decoder.widenReduce))) &&
+  val needFold:        Bool =
+    if (parameter.laneScale > 1) true.B
+    else
+      (maskPipeMessageReg.sew1H(0) || (maskPipeMessageReg.sew1H(1) &&
+        !maskPipeReqReg.decodeResult(Decoder.widenReduce))) &&
       !maskPipeReqReg.decodeResult(Decoder.popCount)
-  val lastFoldCount: Bool = maskPipeMessageReg.sew1H(0) && !maskPipeReqReg.decodeResult(Decoder.widenReduce)
+  val sew1HCorrection: UInt =
+    (maskPipeMessageReg.sew1H << maskPipeReqReg.decodeResult(Decoder.widenReduce)).asUInt(2, 0)
+  foldFinish               := ((1.U << reduceResultSize).asUInt & sew1HCorrection).orR
   reduceMaskResponse.ready := stateWMaskRequest
   when(stateWMaskRequest && reduceMaskResponse.fire) {
-    reduceState := Mux(lastRequestDeqFire, Mux(needFold, fold, sWrite), sRequest)
-    foldCount   := lastFoldCount
+    reduceState      := Mux(lastRequestDeqFire, Mux(needFold, fold, sWrite), sRequest)
+    reduceResultSize := log2Ceil(parameter.datapathWidth / 8).U
+    reduceResult     := reduceMaskResponse.bits.data
   }
 
   when(stateFold && reduceVRFRequest.fire) {
-    foldCount := false.B
-    when(!foldCount) {
-      reduceState := sWrite
-    }
+    waitFoldRes      := true.B
+    reduceResultSize := reduceResultSize - 1.U
+    reduceState      := wResponse
   }
 
-  // todo: crossLaneWriteQueue.last.enq.fire | pop write
-  val reduceDeq: Bool = true.B
+  when(maskPipeIsReduce && !maskPipeIsPop) {
+    crossLaneWriteQueue.last.enq.valid             := stateSWrite
+    crossLaneWriteQueue.last.enq.bits.data         := reduceResult
+    crossLaneWriteQueue.last.enq.bits.mask         := sew1HCorrection(2) ## sew1HCorrection(2) ## !sew1HCorrection(0) ## true.B
+    crossLaneWriteQueue.last.enq.bits.groupCounter := 0.U
+  }
+
+  val reduceDeq: Bool = crossLaneWriteQueue.last.enq.ready
   when(stateSWrite && reduceDeq) {
     reduceState := idle
   }
+
+  // for token
+  val maskStageValid:     Bool = maskPipeValid || slideRequestReg1.valid || gatherRequestReg1.valid || !stateIdle ||
+    crossLaneWriteQueue.map(_.deq.valid).reduce(_ || _)
+  val maskStageValidNext: Bool = RegNext(maskStageValid, false.B)
+  token.freeCrossWrite.valid    := crossLaneWriteQueue.last.enq.fire && crossLaneWriteQueue.last.enq.bits.mask.orR
+  token.freeCrossWrite.bits     := maskPipeReqReg.instructionIndex
+  token.maskStageRequestRelease := maskReqQueue.deq.fire
+  token.maskStageClear          := !maskStageValid && maskStageValidNext
 }

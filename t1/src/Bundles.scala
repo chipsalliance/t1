@@ -583,7 +583,7 @@ class SlotRequestToVFU(parameter: LaneParameter) extends Bundle {
   val floatMul:     Option[Bool] = Option.when(parameter.fpuEnable)(Bool())
   // float rounding mode
   val roundingMode: Option[UInt] = Option.when(parameter.fpuEnable)(UInt(3.W))
-  val tag:          UInt         = UInt(log2Ceil(parameter.chainingSize).W)
+  val tag:          UInt         = UInt(log2Ceil(parameter.chainingSize + 1).W)
 }
 
 class VFUResponseToSlot(parameter: LaneParameter) extends Bundle {
@@ -596,7 +596,7 @@ class VFUResponseToSlot(parameter: LaneParameter) extends Bundle {
   val vxsat:          UInt = UInt(4.W)
   // float flag
   val exceptionFlags: UInt = UInt(5.W)
-  val tag:            UInt = UInt(log2Ceil(parameter.chainingSize).W)
+  val tag:            UInt = UInt(log2Ceil(parameter.chainingSize + 1).W)
 }
 
 final class EmptyBundle extends Bundle
