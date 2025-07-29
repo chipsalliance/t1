@@ -77,7 +77,27 @@ object isMaskPipeType {
       "vrgatherei16.vv"
     )
 
-    val allMatched = isExtend ++ isCrossWrite ++ isSlide ++ isGather
+    val isReduce = Seq(
+      "vcpop.m",
+      "vfredmax.vs",
+      "vfredmin.vs",
+      "vfredosum.vs",
+      "vfredusum.vs",
+      "vfwredosum.vs",
+      "vfwredusum.vs",
+      "vredand.vs",
+      "vredmax.vs",
+      "vredmaxu.vs",
+      "vredmin.vs",
+      "vredminu.vs",
+      "vredor.vs",
+      "vredsum.vs",
+      "vredxor.vs",
+      "vwredsum.vs",
+      "vwredsumu.vs"
+    )
+
+    val allMatched = isExtend ++ isCrossWrite ++ isSlide ++ isGather ++ isReduce
 
     allMatched.contains(t1DecodePattern.instruction.name)
   }

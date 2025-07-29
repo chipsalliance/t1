@@ -298,7 +298,9 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   tokenReport.bits.decodeResult     := enqueue.bits.decodeResult
   tokenReport.bits.instructionIndex := enqueue.bits.instructionIndex
   tokenReport.bits.sSendResponse    := stageWire.sSendResponse.getOrElse(true.B)
+  tokenReport.bits.maskPipe         := enqueue.bits.decodeResult(Decoder.maskPipeType)
   tokenReport.bits.mask             := stageWire.maskForMaskInput
+  tokenReport.bits.groupCounter     := stageWire.groupCounter
 
   if (isLastSlot) {
     // add toke

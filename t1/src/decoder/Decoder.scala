@@ -396,8 +396,18 @@ object Decoder {
 
   object maskPipeUop extends T1TopUopField {
     override def genTable(pattern: T1DecodePattern): BitPat = pattern.maskPipeUop.value match {
-      case _: MaskUop0.type => BitPat("b00000")
-      case _: MaskUop1.type => BitPat("b00001")
+      case _: MaskUop0.type  => BitPat("b00000")
+      case _: MaskUop1.type  => BitPat("b00001")
+      case _: MaskUop2.type  => BitPat("b00010")
+      case _: MaskUop3.type  => BitPat("b00011")
+      case _: MaskUop4.type  => BitPat("b00100")
+      case _: MaskUop5.type  => BitPat("b00101")
+      case _: MaskUop6.type  => BitPat("b00110")
+      case _: MaskUop7.type  => BitPat("b00111")
+      case _: MaskUop8.type  => BitPat("b01000")
+      case _: MaskUop9.type  => BitPat("b01001")
+      case _: MaskUop10.type => BitPat("b01010")
+      case _: MaskUop11.type => BitPat("b01011")
       case _ => BitPat.dontCare(chiselType.getWidth)
     }
   }

@@ -612,24 +612,28 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val readBusDequeueGroup: UInt = Wire(UInt(parameter.groupNumberBits.W))
 
   /** enqueue valid for execution unit */
-  val executeEnqueueValid: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
+  val executeEnqueueValid: Vec[Bool] = Wire(Vec(parameter.chainingSize + 1, Bool()))
 
   /** request from slot to vfu. */
-  val requestVec: Vec[SlotRequestToVFU] = Wire(Vec(parameter.chainingSize, new SlotRequestToVFU(parameter)))
+  val requestVec: Vec[SlotRequestToVFU] = Wire(Vec(parameter.chainingSize + 1, new SlotRequestToVFU(parameter)))
 
   /** decode message for [[requestVec]]. */
-  val executeDecodeVec: Vec[DecodeBundle] = Wire(Vec(parameter.chainingSize, Decoder.bundle(parameter.decoderParam)))
+  val executeDecodeVec: Vec[DecodeBundle] = Wire(
+    Vec(parameter.chainingSize + 1, Decoder.bundle(parameter.decoderParam))
+  )
 
   /** decode message for [[responseVec]]. */
-  val responseDecodeVec: Vec[DecodeBundle] = Wire(Vec(parameter.chainingSize, Decoder.bundle(parameter.decoderParam)))
+  val responseDecodeVec: Vec[DecodeBundle] = Wire(
+    Vec(parameter.chainingSize + 1, Decoder.bundle(parameter.decoderParam))
+  )
 
   /** response from vfu to slot. */
   val responseVec: Vec[ValidIO[VFUResponseToSlot]] = Wire(
-    Vec(parameter.chainingSize, Valid(new VFUResponseToSlot(parameter)))
+    Vec(parameter.chainingSize + 1, Valid(new VFUResponseToSlot(parameter)))
   )
 
   /** enqueue fire signal for execution unit */
-  val executeEnqueueFire: Vec[Bool] = Wire(Vec(parameter.chainingSize, Bool()))
+  val executeEnqueueFire: Vec[Bool] = Wire(Vec(parameter.chainingSize + 1, Bool()))
 
   val executeOccupied: Vec[Bool] = Wire(Vec(parameter.vfuInstantiateParameter.genVec.size, Bool()))
   dontTouch(executeOccupied)
@@ -722,9 +726,16 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       mask.pipeForMask.vl            := executionUnit.dequeue.bits.vl.get
       mask.pipeForMask.vlmul         := executionUnit.dequeue.bits.vlmul.get
       mask.laneIndex                 := laneIndex
-      mask.reduceVRFRequest.ready    := true.B
       maskUnitRequest <> mask.maskReq
       maskUnitRequest.bits.maskRequestToLSU <> mask.maskRequestToLSU
+
+      requestVec.last             := mask.reduceVRFRequest.bits
+      executeDecodeVec.last       := mask.reduceRequestDecode
+      responseDecodeVec.last      := mask.reduceRequestDecode
+      executeEnqueueValid.last    := mask.reduceVRFRequest.valid
+      mask.reduceVRFRequest.ready := executeEnqueueFire.last
+      mask.reduceResponse         := responseVec.last
+
       mask.dequeue
     }.getOrElse(stage3EnqWire)
     stage3.enqueue <> stage3EnqSelect
@@ -1289,10 +1300,15 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   instructionFinished                       := vrf.vrfSlotRelease | emptyReport
   writeReadyForLsu                          := vrf.writeReadyForLsu
   vrfReadyToStore                           := vrf.vrfReadyToStore
-  tokenManager.crossWriteReports.zipWithIndex.foreach { case (rpt, rptIndex) =>
+  tokenManager.crossWrite2Reports.zipWithIndex.foreach { case (rpt, rptIndex) =>
     rpt.valid := slots.head.maskStage.get.crossWritePort2Enq(rptIndex).fire
     rpt.bits  := slots.head.maskStage.get.crossWritePort2Enq(rptIndex).bits.instructionIndex
   }
+  tokenManager.crossWrite4Reports.zipWithIndex.foreach { case (rpt, rptIndex) =>
+    rpt.valid := slots.head.maskStage.get.crossWritePort4Enq(rptIndex).fire
+    rpt.bits  := slots.head.maskStage.get.crossWritePort4Enq(rptIndex).bits.instructionIndex
+  }
+  tokenManager.maskStageToken               := slots.head.maskStage.get.token
   // todo: add mask unit write token
   tokenManager.responseReport.valid         := maskUnitRequest.fire
   tokenManager.responseReport.bits          := maskUnitRequest.bits.index
@@ -1331,6 +1347,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   tokenManager.topWriteDeq.bits  := allVrfWriteAfterCheck(parameter.chainingSize).instructionIndex
 
   tokenManager.maskUnitLastReport := lsuLastReport
+  tokenManager.laneIndex          := laneIndex
 
   layer.block(layers.Verification) {
     val probeWire = Wire(new LaneProbe(parameter))
