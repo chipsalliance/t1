@@ -1,0 +1,4 @@
+template = "vmacop_vx"
+
+op_func_mac = "__op_intmac_macc"
+function_description="compute vd = +(rs1*vs2)+vd, optionally masked by vm"
