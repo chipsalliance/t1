@@ -3,6 +3,6 @@ if rs1 == 0 then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, instruction);
 end
 
-PC = PC + X[rs1];
+PC = X[rs1];
 
 return Retired();

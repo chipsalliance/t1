@@ -4,7 +4,7 @@ let rd  : integer{0..31} = UInt(GetRD(instruction));
 
 let src1 : integer = UInt(X[rs1]);
 let imm_ext : integer = UInt(SignExtend(imm, 32));
-if rs1 < imm_ext then
+if src1 < imm_ext then
   // convert integer 1 to 32-bits bit vector
   X[rd] = 1[31:0];
 else
