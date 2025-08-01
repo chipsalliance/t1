@@ -3,26 +3,21 @@
 PROJECT_NAME := pokedex-sim
 
 BUILD_DIR := ./build
-MODEL_DIR := .
 
-CODEGEN_CLI := codegen
+RVOPCODE_CLI := rvopcode
+JINJA_CLI := minijinja-cli
+JINJA_FLAGS := --strict
 ASLI := asli
 ASL2C := asl2c
 PREFIX := $(BUILD_DIR)/simlib
-
-PRJ_SRCS := project.json asl2c.prj $(wildcard $(MODEL_DIR)/handwritten/*.asl)
 
 # RISCV Opcodes
 _RISCV_OPCODES_SRC = ${RISCV_OPCODES_SRC}
 RISCV_OPCODES_SRC ?= $(_RISCV_OPCODES_SRC)
 
-CODEGEN_ASL_SRCS := $(shell find $(MODEL_DIR)/{csr,extensions} -mindepth 2 -name '*.asl')
-
-# Due to multiple codegen phrases, following targets fails to depends on concreate filename.
-# However using directory as dependencies will cause makefile rebuild in each run, so here is
-# a marker file to help makefile cache build result.
-FINISH_MARKER = .stage_finish
-
+PROJECT_SRCS := aslbuild/project.json aslbuild/asl2c.prj
+HANDWRITTEN_SRCS := $(wildcard handwritten/*.asl)
+ENABLED_EXTENSIONS := $(foreach dir,$(wildcard template/extensions/*),$(notdir $(dir)))
 
 all: install
 
@@ -36,50 +31,86 @@ $(PREFIX)/lib $(PREFIX)/include: $(BUILD_DIR)/2-cgen/makefile
 # ---------------------------------------
 # Stage 0: generate ASL for code snippets
 # ---------------------------------------
-$(BUILD_DIR)/0-aslgen/$(FINISH_MARKER): $(CODEGEN_ASL_SRCS) $(RISCV_OPCODES_SRC)
-	mkdir -p $(@D)
-	$(CODEGEN_CLI) \
-		--riscv-opcodes-src-dir $(RISCV_OPCODES_SRC) \
-		--input-model-dir $(MODEL_DIR) \
-		--output-dir $(@D)
-	@touch $@
+STAGE_0 := $(BUILD_DIR)/0-aslgen
+RVV_INSTS := vmax_vv.asl vmax_vx.asl vmin_vv.asl \
+			 vmin_vx.asl vmaxu_vv.asl vmaxu_vx.asl \
+			 vminu_vv.asl vminu_vx.asl
 
+# First copy template sources
+$(STAGE_0): $(shell find template -type f)
+	@rm -rf $@
+	@mkdir -p $@
+	@mkdir -p $@/output
+	@cp -r template $@
+
+# JSON data for instructions
+$(STAGE_0)/rvopcodes.json: $(STAGE_0) $(RISCV_OPCODES_SRC)
+	$(RVOPCODE_CLI) instructions \
+		--output $@ \
+		--riscv-opcodes-src-dir $(RISCV_OPCODES_SRC) \
+		$(addprefix --enable-instruction-sets ,$(ENABLED_EXTENSIONS))
+
+# Generate RVV instructions
+$(STAGE_0)/extensions/rv_v/%.asl: $(STAGE_0)
+	$(JINJA_CLI) $(JINJA_FLAGS) -f toml \
+		-D inst=$* \
+		-o $(STAGE_0)/template/extensions/rv_v/$*.asl \
+		$(STAGE_0)/template/rvv_inst.asl.j2 \
+		$(STAGE_0)/template/extensions/rv_v/$*.toml
+
+# Then generate execute.asl
+$(STAGE_0)/output/execute.asl: $(STAGE_0)/rvopcodes.json $(addprefix $(STAGE_0)/extensions/rv_v/,$(RVV_INSTS))
+	$(JINJA_CLI) $(JINJA_FLAGS) -f json -o $@ \
+		template/instruction_execution.asl.j2 $(STAGE_0)/rvopcodes.json 2> >(head -n 30)
+
+$(STAGE_0)/causes.json: $(STAGE_0) $(RISCV_OPCODES_SRC)
+	$(RVOPCODE_CLI) causes \
+		--output $@ \
+		--riscv-opcodes-src-dir $(RISCV_OPCODES_SRC)
+
+$(STAGE_0)/output/causes.asl: $(STAGE_0)/causes.json
+	$(JINJA_CLI) $(JINJA_FLAGS) -f json -o $@ \
+		$(STAGE_0)/template/causes.asl.j2 $(STAGE_0)/causes.json
+
+$(STAGE_0)/csr_meta.json: $(STAGE_0)
+	$(RVOPCODE_CLI) csr --dir $(STAGE_0)/template/csr --output $@
+
+$(STAGE_0)/output/csr_op.asl: $(STAGE_0)/csr_meta.json
+	$(JINJA_CLI) $(JINJA_FLAGS) -f json -o $@ \
+		template/csr_operation.asl.j2 $(STAGE_0)/csr_meta.json
 
 # -------------------------------------------
 # Stage 1: group all ASL file into one folder
 # -------------------------------------------
-$(BUILD_DIR)/1-project/$(FINISH_MARKER): $(BUILD_DIR)/0-aslgen/$(FINISH_MARKER) $(PRJ_SRCS)
-	mkdir -p $(@D)
+CODEGEN_SRCS := execute.asl causes.asl csr_op.asl
+STAGE_1 := $(BUILD_DIR)/1-project
+$(STAGE_1): $(PROJECT_SRCS) $(HANDWRITTEN_SRCS) $(addprefix $(STAGE_0)/output/,$(CODEGEN_SRCS))
+	mkdir -p $@
 	# Copy project related source to rvcore
-	cp $(PRJ_SRCS) $(@D)/
-	# Copy stage 0 generated file to rvcore
-	cp $(wildcard $(<D)/*.asl) $(@D)/
-	@touch $@
+	cp $^ $@/
 
 .PHONY: project
-project: $(BUILD_DIR)/1-project/$(FINISH_MARKER)
-
+project: $(BUILD_DIR)/1-project
 
 # -------------------
 # Stage 2: generate C
 # -------------------
-$(BUILD_DIR)/2-cgen/makefile: $(BUILD_DIR)/1-project/$(FINISH_MARKER) $(MODEL_DIR)/libpokedex.makefile
+$(BUILD_DIR)/2-cgen/makefile: $(STAGE_1) aslbuild/libpokedex.makefile
 	mkdir -p $(@D)/dumps
-	sed -i 's|@CGEN_OUTPUT@|$(@D)|g' $(BUILD_DIR)/1-project/asl2c.prj
+	sed -i 's|@CGEN_OUTPUT@|$(@D)|g' $(STAGE_1)/asl2c.prj
 	$(ASLI) \
 		--nobanner --batchmode \
-		--configuration=$(<D)/project.json \
-		--project=$(<D)/asl2c.prj \
+		--configuration=$(STAGE_1)/project.json \
+		--project=$(STAGE_1)/asl2c.prj \
 		--check-exception-markers \
 		--check-call-markers \
 		--check-constraints \
 		--runtime-checks \
-		$(wildcard $(<D)/*.asl)
-	cp -T $(MODEL_DIR)/libpokedex.makefile $(@D)/makefile
+		$(wildcard $(STAGE_1)/*.asl)
+	cp -T aslbuild/libpokedex.makefile $@
 
 .PHONY: asl2c
 asl2c: $(BUILD_DIR)/2-cgen/makefile
-
 
 # -----
 # Chore
