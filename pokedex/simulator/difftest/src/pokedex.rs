@@ -1,68 +1,14 @@
-use anyhow::Context;
 use serde::Deserialize;
 use std::fmt::Display;
-use std::path::PathBuf;
-use wait_timeout::ChildExt;
 
-pub type PokedexLog = Vec<PokedexEvent>;
+pub type PokedexLog = Vec<PokedexEventKind>;
 
-pub fn run_process(
-    args: &[String],
-    elf_path: impl AsRef<std::ffi::OsStr>,
-) -> anyhow::Result<PokedexLog> {
-    let pokedex_exec = which::which("pokedex").with_context(|| "pokedex exec not found")?;
-
-    let elf_path = PathBuf::from(&elf_path);
-
-    let event_path = format!(
-        "./{}-pokedex-sim-event.jsonl",
-        elf_path
-            .file_name()
-            .expect("elf have no filename")
-            .to_string_lossy()
-    );
-
-    let mut child = std::process::Command::new(&pokedex_exec)
-        .arg("-vvv")
-        .arg("--elf-path")
-        .arg(&elf_path)
-        .arg("--output-log-path")
-        .arg(&event_path)
-        .args(args)
-        .spawn()
-        .with_context(|| "fail exeuting pokedex")?;
-
-    let Some(status) = child
-        .wait_timeout(std::time::Duration::from_secs(30))
-        .unwrap()
-    else {
-        // child hasn't exited yet
-        child.kill().unwrap();
-        anyhow::bail!("pokedex execution timeout");
-    };
-
-    if !status.success() {
-        anyhow::bail!(
-            "fail to execute pokedex with args {args:?} for elf {}: {:?}",
-            elf_path.to_string_lossy(),
-            status.code()
-        );
-    }
-
-    let trace_event =
-        std::fs::read(&event_path).with_context(|| format!("fail reading {event_path}"))?;
-
-    let pokedex_log = get_pokedex_events(&trace_event);
-
-    Ok(pokedex_log)
-}
-
-fn get_pokedex_events(raw: impl AsRef<[u8]>) -> PokedexLog {
+pub fn parse_from(raw: impl AsRef<[u8]>) -> PokedexLog {
     String::from_utf8_lossy(raw.as_ref())
         .lines()
         .enumerate()
         .map(|(line_number, line_str)| {
-            serde_json::from_str::<PokedexEvent>(line_str).unwrap_or_else(|err| {
+            serde_json::from_str::<PokedexEventKind>(line_str).unwrap_or_else(|err| {
                 panic!("fail parsing pokedex log at line {line_number}: {err}")
             })
         })
@@ -72,7 +18,7 @@ fn get_pokedex_events(raw: impl AsRef<[u8]>) -> PokedexLog {
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(tag = "event_type")]
-pub enum PokedexEvent {
+pub enum PokedexEventKind {
     #[serde(rename = "physical_memory")]
     PhysicalMemory {
         action: String,
@@ -100,7 +46,7 @@ pub enum PokedexEvent {
     ResetVector { new_addr: u32 },
 }
 
-impl Display for PokedexEvent {
+impl Display for PokedexEventKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Register {
@@ -117,7 +63,7 @@ impl Display for PokedexEvent {
     }
 }
 
-impl PokedexEvent {
+impl PokedexEventKind {
     pub fn get_reset_vector(&self) -> Option<u32> {
         match self {
             Self::ResetVector { new_addr } => Some(*new_addr),
@@ -140,7 +86,7 @@ fn test_parsing_pokedex_log() {
     d.push("assets/pokedex-sim-event.jsonl.example");
     let sample_log = std::fs::read(d).unwrap();
     assert!(!sample_log.is_empty());
-    let log = get_pokedex_events(sample_log);
+    let log = parse_from(sample_log);
     assert!(!log.is_empty());
     dbg!(log);
 }
