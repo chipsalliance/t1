@@ -10,9 +10,6 @@ tracing-subscriber = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-anyhow = { workspace = true }
-glob = "0.3.2"
-# Rust standard process library have unexpected behavior of finding exeuctable in PATH.
-which = "7.0.3"
+knuffel = { workspace = true }
+miette = { workspace = true }
 indoc = "2"
-wait-timeout = "0.2.1"
