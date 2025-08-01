@@ -14,12 +14,12 @@ object deps {
   val rvdecoderdb = ivy"me.jiuyang::rvdecoderdb:0.0.0+0-no-vcs-SNAPSHOT"
 }
 
-trait CodeGen extends ScalaModule with ScalafmtModule {
+trait RVOpcode extends ScalaModule with ScalafmtModule {
   def scalaVersion  = T(deps.scala)
   def scalacOptions = Seq("-new-syntax", "-deprecation")
 }
 
-object `package` extends RootModule with CodeGen {
+object `package` extends RootModule with RVOpcode {
   override def ivyDeps = T(
     super.ivyDeps() ++ Seq(
       deps.rvdecoderdb,

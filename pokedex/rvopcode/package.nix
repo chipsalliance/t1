@@ -17,7 +17,7 @@ let
   ivyCache = ivy-gather ./mill-lock.nix;
 in
 stdenv.mkDerivation (finalAttr: rec {
-  name = "pokedex-codegen-cli-jar";
+  name = "pokedex-rvopcode-cli-jar";
 
   src =
     with lib.fileset;
@@ -83,14 +83,14 @@ stdenv.mkDerivation (finalAttr: rec {
 
     mkdir -p $out/share/java
 
-    mv out/assembly.dest/out.jar $out/share/java/codegen.jar
+    mv out/assembly.dest/out.jar $out/share/java/rvopcode.jar
 
     mkdir -p $out/bin
-    makeWrapper ${mill.jre}/bin/java $out/bin/codegen \
-      --add-flags "-jar $out/share/java/codegen.jar"
+    makeWrapper ${mill.jre}/bin/java $out/bin/rvopcode \
+      --add-flags "-jar $out/share/java/rvopcode.jar"
 
     runHook postInstall
   '';
 
-  meta.mainProgram = "codegen";
+  meta.mainProgram = "rvopcode";
 })
