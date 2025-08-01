@@ -1,55 +1,5 @@
 use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
-use std::path::PathBuf;
-
-use anyhow::Context;
-
-pub fn run_process(
-    args: &[String],
-    elf_path: impl AsRef<std::ffi::OsStr>,
-) -> anyhow::Result<SpikeLog> {
-    let spike_exec = which::which("spike").with_context(|| "spike exec not found")?;
-
-    let result = std::process::Command::new(&spike_exec)
-        .args(args)
-        .arg(&elf_path)
-        .output()
-        .with_context(|| "fail exeuting spike")?;
-
-    if !result.status.success() {
-        println!("{}", String::from_utf8_lossy(&result.stderr));
-        anyhow::bail!(
-            "fail to execute spike with args {} for elf {}",
-            args.join(" "),
-            elf_path.as_ref().to_str().unwrap()
-        );
-    }
-
-    let elf_path = PathBuf::from(&elf_path);
-    let spike_log_path = format!(
-        "./{}-spike-commits.log",
-        elf_path.file_name().unwrap().to_string_lossy()
-    );
-    std::fs::write(spike_log_path, &result.stderr)
-        .with_context(|| "fail storing spike commit log")?;
-    let stdout = String::from_utf8_lossy(&result.stderr);
-    let spike_log_ast = parse_spike_log(stdout);
-
-    Ok(spike_log_ast)
-}
-
-fn parse_spike_log(log: impl AsRef<str>) -> SpikeLog {
-    log.as_ref()
-        .lines()
-        .enumerate()
-        .map(|(line_number, line)| match SpikeLogSyntax::parse(line) {
-            Err(err) => {
-                panic!("fail parsing line at line {line_number}: {err}. Original line: '{line}'")
-            }
-            Ok(ast) => ast,
-        })
-        .collect()
-}
 
 #[derive(Debug, PartialEq)]
 pub struct SpikeLog(Vec<SpikeLogSyntax>);
@@ -74,6 +24,21 @@ impl DerefMut for SpikeLog {
 }
 
 impl SpikeLog {
+    pub fn parse_from(log: impl AsRef<str>) -> SpikeLog {
+        log.as_ref()
+            .lines()
+            .enumerate()
+            .map(|(line_number, line)| match SpikeLogSyntax::parse(line) {
+                Err(err) => {
+                    panic!(
+                        "fail parsing line at line {line_number}: {err}. Original line: '{line}'"
+                    )
+                }
+                Ok(ast) => ast,
+            })
+            .collect()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -559,7 +524,7 @@ fn test_parsing_spike_log_ast() {
     let sample_log = std::fs::read(d).unwrap();
     assert!(!sample_log.is_empty());
     let raw = String::from_utf8_lossy(&sample_log);
-    let ast = parse_spike_log(&raw);
+    let ast = SpikeLog::parse_from(&raw);
     assert!(!ast.is_empty());
 
     let expect = SpikeLog(vec![
