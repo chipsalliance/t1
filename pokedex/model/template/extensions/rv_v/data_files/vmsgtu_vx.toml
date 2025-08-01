@@ -1,0 +1,4 @@
+template = "vmsop_vx"
+
+op_func_cmp = "__op_cmp_gt_u"
+function_description="compute vd = (vs2 u> rs1), optionally masked by vm"
