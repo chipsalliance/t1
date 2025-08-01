@@ -7,7 +7,7 @@
 lib.makeScope newScope (scope: {
   inherit riscv-opcodes-src;
 
-  codegen-cli = scope.callPackage ./codegen/package.nix {
+  rvopcode-cli = scope.callPackage ./rvopcode/package.nix {
     inherit ivy-rvdecoderdb;
   };
 
