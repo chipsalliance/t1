@@ -32,9 +32,7 @@ $(PREFIX)/lib $(PREFIX)/include: $(BUILD_DIR)/2-cgen/makefile
 # Stage 0: generate ASL for code snippets
 # ---------------------------------------
 STAGE_0 := $(BUILD_DIR)/0-aslgen
-RVV_INSTS := vmax_vv.asl vmax_vx.asl vmin_vv.asl \
-			 vmin_vx.asl vmaxu_vv.asl vmaxu_vx.asl \
-			 vminu_vv.asl vminu_vx.asl
+RVV_INSTS := $(basename $(notdir $(wildcard template/extensions/rv_v/data_files/*.toml)))
 
 # First copy template sources
 $(STAGE_0): $(shell find template -type f)
@@ -56,12 +54,12 @@ $(STAGE_0)/extensions/rv_v/%.asl: $(STAGE_0)
 		-D inst=$* \
 		-o $(STAGE_0)/template/extensions/rv_v/$*.asl \
 		$(STAGE_0)/template/rvv_inst.asl.j2 \
-		$(STAGE_0)/template/extensions/rv_v/$*.toml
+		$(STAGE_0)/template/extensions/rv_v/data_files/$*.toml
 
 # Then generate execute.asl
-$(STAGE_0)/output/execute.asl: $(STAGE_0)/rvopcodes.json $(addprefix $(STAGE_0)/extensions/rv_v/,$(RVV_INSTS))
+$(STAGE_0)/output/execute.asl: $(STAGE_0)/rvopcodes.json $(addprefix $(STAGE_0)/extensions/rv_v/,$(addsuffix .asl,$(RVV_INSTS)))
 	$(JINJA_CLI) $(JINJA_FLAGS) -f json -o $@ \
-		template/instruction_execution.asl.j2 $(STAGE_0)/rvopcodes.json 2> >(head -n 30)
+		$(STAGE_0)/template/instruction_execution.asl.j2 $(STAGE_0)/rvopcodes.json 2> >(head -n 30)
 
 $(STAGE_0)/causes.json: $(STAGE_0) $(RISCV_OPCODES_SRC)
 	$(RVOPCODE_CLI) causes \
