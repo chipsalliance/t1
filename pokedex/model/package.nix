@@ -1,7 +1,7 @@
 {
   lib,
   stdenv,
-  codegen-cli,
+  rvopcode-cli,
   riscv-opcodes-src,
   asl-interpreter,
   minijinja,
@@ -11,7 +11,7 @@ stdenv.mkDerivation {
   src = lib.cleanSource ./.;
 
   nativeBuildInputs = [
-    codegen-cli
+    rvopcode-cli
     asl-interpreter
     minijinja
   ];
