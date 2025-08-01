@@ -524,7 +524,7 @@ fn test_parsing_spike_log_ast() {
     let sample_log = std::fs::read(d).unwrap();
     assert!(!sample_log.is_empty());
     let raw = String::from_utf8_lossy(&sample_log);
-    let ast = parse_spike_log(&raw);
+    let ast = SpikeLog::parse_from(&raw);
     assert!(!ast.is_empty());
 
     let expect = SpikeLog(vec![

@@ -86,7 +86,7 @@ fn test_parsing_pokedex_log() {
     d.push("assets/pokedex-sim-event.jsonl.example");
     let sample_log = std::fs::read(d).unwrap();
     assert!(!sample_log.is_empty());
-    let log = get_pokedex_events(sample_log);
+    let log = parse_from(sample_log);
     assert!(!log.is_empty());
     dbg!(log);
 }

@@ -80,12 +80,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.98"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
-
-[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -96,6 +90,24 @@ name = "base64"
 version = "0.21.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
+
+[[package]]
+name = "batchrun"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "glob",
+ "indoc",
+ "knuffel",
+ "miette",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
+ "tracing",
+ "tracing-subscriber",
+ "wait-timeout",
+ "which",
+]
 
 [[package]]
 name = "bindgen"
@@ -208,17 +220,15 @@ checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 name = "difftest"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "clap",
- "glob",
  "indoc",
+ "knuffel",
+ "miette",
  "serde",
  "serde_json",
  "thiserror 2.0.12",
  "tracing",
  "tracing-subscriber",
- "wait-timeout",
- "which",
 ]
 
 [[package]]
