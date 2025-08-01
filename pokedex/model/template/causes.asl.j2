@@ -1,0 +1,17 @@
+{#- Require structure like:
+
+```json
+{
+  causes: [
+    { name: "illegal instruction", addr: 0x2 }
+  ]
+}
+```
+
+#}
+{%- for c in causes %}
+{%- set cname = c.name | replace(" ", "_") | upper() %}
+
+let CAUSE_{{ cname }}: integer = {{ c.addr }};
+
+{%- endfor %}

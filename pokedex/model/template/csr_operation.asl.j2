@@ -1,0 +1,74 @@
+{#- Require structure input like:
+
+```json
+{
+  "csr_metadata": [
+    {
+      "name": "csrname",
+      "filename": "csrname_301.asl",
+      "hex_addr": "0x301",
+      "bin_addr": "001100000001",
+    }
+  ]
+}
+```
+
+This file will include following path:
+
+    ./csr/read/{{ filename }}.asl
+    ./csr/write/{{ filename }}.asl
+
+#}
+
+// ------------
+// CSR Handlers
+// ------------
+{%- for data in csr_metadata %}
+{%- set fn_name = data.name | upper() %}
+
+func Read_{{ fn_name }}() => Result
+begin
+    {% include "csr/read/" + data.filename %}
+end
+
+func Write_{{ fn_name }}(value : bits(32)) => Result
+begin
+    FFI_write_CSR_hook({{ data.hex_addr }}, "{{ data.name }}", value);
+
+    {% include "csr/write/" + data.filename %}
+end
+
+{%- endfor %}
+
+// --------------
+// CSR Dispatcher
+// --------------
+func ReadCSR(csr : bits(12)) => Result
+begin
+    case csr of
+        {%- for data in csr_metadata %}
+
+        when '{{ data.bin_addr }}' =>
+            return Read_{{ data.name | upper() }}();
+
+        {%- endfor %}
+
+        otherwise =>
+            return Exception(CAUSE_ILLEGAL_INSTRUCTION, ZeroExtend(csr, 32));
+    end
+end
+
+func WriteCSR(csr : bits(12), value : bits(32)) => Result
+begin
+    case csr of
+        {%- for data in csr_metadata %}
+
+        when '{{ data.bin_addr }}' =>
+            return Write_{{ data.name | upper() }}(value);
+
+        {%- endfor %}
+
+        otherwise =>
+            return Exception(CAUSE_ILLEGAL_INSTRUCTION, ZeroExtend(csr, 32));
+    end
+end
