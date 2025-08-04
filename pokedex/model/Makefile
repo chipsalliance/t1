@@ -35,33 +35,33 @@ STAGE_0 := $(BUILD_DIR)/0-aslgen
 RVV_INSTS := $(basename $(notdir $(wildcard template/extensions/rv_v/data_files/*.toml)))
 
 # First copy template sources
-$(STAGE_0): $(shell find template -type f)
-	@rm -rf $@
-	@mkdir -p $@
-	@mkdir -p $@/output
-	@cp -r template $@
+$(STAGE_0)/template: $(shell find template -type f)
+	rm -rf $(@D)
+	mkdir -p $(@D)
+	mkdir -p $(@D)/output
+	cp -r template $(@D)/
 
 # JSON data for instructions
-$(STAGE_0)/rvopcodes.json: $(STAGE_0) $(RISCV_OPCODES_SRC)
+$(STAGE_0)/rvopcodes.json: $(STAGE_0)/template $(RISCV_OPCODES_SRC)
 	$(RVOPCODE_CLI) instructions \
 		--output $@ \
 		--riscv-opcodes-src-dir $(RISCV_OPCODES_SRC) \
 		$(addprefix --enable-instruction-sets ,$(ENABLED_EXTENSIONS))
 
 # Generate RVV instructions
-$(STAGE_0)/extensions/rv_v/%.asl: $(STAGE_0)
+$(STAGE_0)/template/extensions/rv_v/%.asl: $(STAGE_0)/template/rvv_inst.asl.j2 $(STAGE_0)/template/extensions/rv_v/data_files/%.toml
 	$(JINJA_CLI) $(JINJA_FLAGS) -f toml \
 		-D inst=$* \
-		-o $(STAGE_0)/template/extensions/rv_v/$*.asl \
+		-o $@ \
 		$(STAGE_0)/template/rvv_inst.asl.j2 \
 		$(STAGE_0)/template/extensions/rv_v/data_files/$*.toml
 
 # Then generate execute.asl
-$(STAGE_0)/output/execute.asl: $(STAGE_0)/rvopcodes.json $(addprefix $(STAGE_0)/extensions/rv_v/,$(addsuffix .asl,$(RVV_INSTS)))
+$(STAGE_0)/output/execute.asl: $(STAGE_0)/rvopcodes.json $(addprefix $(STAGE_0)/template/extensions/rv_v/,$(addsuffix .asl,$(RVV_INSTS)))
 	$(JINJA_CLI) $(JINJA_FLAGS) -f json -o $@ \
 		$(STAGE_0)/template/instruction_execution.asl.j2 $(STAGE_0)/rvopcodes.json 2> >(head -n 30)
 
-$(STAGE_0)/causes.json: $(STAGE_0) $(RISCV_OPCODES_SRC)
+$(STAGE_0)/causes.json: $(STAGE_0)/template $(RISCV_OPCODES_SRC)
 	$(RVOPCODE_CLI) causes \
 		--output $@ \
 		--riscv-opcodes-src-dir $(RISCV_OPCODES_SRC)
