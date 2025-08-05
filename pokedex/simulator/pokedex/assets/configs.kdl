@@ -1,0 +1,39 @@
+// Exit when same instruction occurs 50 times
+max-same-instruction 50
+
+// Wait 0ms after a instruction executed
+slow-motion-ms 0
+
+// Dump register when any of the PC met
+dump {
+  // Comment following note to disable dump functionality
+  on
+
+  at-pc 0x800000FC 0x80000250 0x80000100
+}
+
+// SRAM configuration. We have no multiple sram support for now
+sram {
+  base 0x80000000
+  length 0x20000000
+}
+
+// node with MMIO type, it should occur once so it doesn't need separated naming
+mmio {
+  // MMIO segment based on 0x40000000, have 4KB length
+  base 0x40000000
+  length 0x1000
+
+  // MMIO mapping node definition:
+  //
+  // Memory map node defined with `mmap` node, each node must have argument and offset property.
+  // For example:
+  //
+  // ```kdl
+  // mmap "name" offset=0x1
+  // ```
+
+
+  // MMIO node exit, offset 0x4, denotes the emulator to exit
+  mmap "exit" offset=0x4
+}

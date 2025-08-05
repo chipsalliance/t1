@@ -1,4 +1,3 @@
-use miette::{Context, IntoDiagnostic};
 use std::fmt::Debug;
 use std::io::Read;
 use std::marker::PhantomData;
@@ -21,16 +20,14 @@ pub enum SimulationException {
     Exited(i32),
 }
 
-pub struct SimulatorParams<'a, 'b> {
-    pub max_same_instruction: u8,
-    pub dts_cfg_path: &'a str,
-    pub elf_path: &'b str,
+pub struct SimulatorParams<'a> {
+    pub max_same_instruction: u32,
+    pub elf_path: &'a str,
 }
 
-impl SimulatorParams<'_, '_> {
-    pub fn try_build(self) -> miette::Result<Simulator> {
+impl SimulatorParams<'_> {
+    pub fn into_simulator(self, bus_info: BusInfo) -> Simulator {
         let handle = SimulatorHandle::new();
-        let bus_info = BusInfo::from_device_config(self.dts_cfg_path)?;
         let state = SimulatorState {
             is_reset: false,
             bus_bridge: bus_info.bus_bridge,
@@ -48,7 +45,7 @@ impl SimulatorParams<'_, '_> {
         let entry = sim.load_elf(self.elf_path);
         sim.reset_vector(entry);
 
-        Ok(sim)
+        sim
     }
 }
 
@@ -63,8 +60,8 @@ pub(crate) struct SimulatorState {
     is_reset: bool,
 
     last_instruction_fetch_data: u16,
-    last_instruction_met_count: u8,
-    max_same_instruction: u8,
+    last_instruction_met_count: u32,
+    max_same_instruction: u32,
 }
 
 pub struct Simulator {
@@ -155,17 +152,15 @@ impl Simulator {
         std::mem::take(&mut self.state.statistic)
     }
 
-    pub fn dump_regs(&self) {
-        const COLUMN_SIZE: u8 = 8;
+    pub fn current_pc(&self) -> u32 {
+        self.state.pc
+    }
 
-        for i in 0..4 {
-            for j in 0..COLUMN_SIZE {
-                let index = j + COLUMN_SIZE * i;
-                let reg_val = self.handle.get_register(j + COLUMN_SIZE * i);
-                print!("x{:<2}: {:#010x}  ", index, reg_val)
-            }
-            println!()
-        }
+    pub fn dump_regs(&self) -> Vec<u32> {
+        (0..32)
+            .into_iter()
+            .map(|i| self.handle.get_register(i))
+            .collect()
     }
 }
 
@@ -379,77 +374,50 @@ impl Drop for SimulatorHandle {
     }
 }
 
-#[derive(Debug, knuffel::Decode)]
-enum AddressSpaceDescNode {
-    Mmio(KdlNodeMMIO),
-    Sram(KdlNodeSRAM),
-}
-
-#[derive(Debug, knuffel::Decode)]
-struct KdlNodeSRAM {
-    #[allow(dead_code)]
-    #[knuffel(argument)]
-    name: String,
-    #[knuffel(property)]
-    base: u32,
-    #[knuffel(property)]
-    length: u32,
-}
-
-#[derive(Debug, knuffel::Decode)]
-struct KdlNodeMMIO {
-    #[knuffel(property)]
-    base: u32,
-    #[knuffel(property)]
-    length: u32,
-    #[knuffel(children)]
-    mmap: Vec<KdlNodeMMIOMapping>,
-}
-
-#[derive(Debug, knuffel::Decode)]
-struct KdlNodeMMIOMapping {
-    #[knuffel(argument)]
-    name: String,
-    #[knuffel(property)]
-    offset: u32,
+#[derive(Debug)]
+pub enum AddressSpaceDescNode {
+    Mmio {
+        base: u32,
+        length: u32,
+        mmap: Vec<(String, u32)>,
+    },
+    Sram {
+        #[allow(dead_code)]
+        name: String,
+        base: u32,
+        length: u32,
+    },
 }
 
 pub struct BusBridge {
     address_space: Vec<(Range<u32>, Box<dyn Addressable>)>,
 }
 
-struct BusInfo {
+pub struct BusInfo {
     bus_bridge: BusBridge,
     ic_handle: ICHandle,
 }
 
 impl BusInfo {
-    pub fn from_device_config<P: AsRef<Path>>(p: P) -> miette::Result<Self> {
-        let content = std::fs::read_to_string(&p)
-            .into_diagnostic()
-            .wrap_err_with(|| format!("fail read path: {}", p.as_ref().display()))?;
-
-        let filepath = p.as_ref().to_string_lossy();
-        let configuration: Vec<AddressSpaceDescNode> = knuffel::parse(&filepath, &content)?;
-
+    pub fn try_from_config(configuration: &[AddressSpaceDescNode]) -> miette::Result<Self> {
         let mut segments = Vec::new();
         let mut ic_handle = None;
         for node in configuration {
             match node {
-                AddressSpaceDescNode::Sram(sram) => {
-                    let naive_memory = NaiveMemory::new(sram.length as usize);
+                AddressSpaceDescNode::Sram {
+                    name: _,
+                    base,
+                    length,
+                } => {
+                    let naive_memory = NaiveMemory::new(*length as usize);
                     let boxed: Box<dyn Addressable> = Box::new(naive_memory);
-                    segments.push(((sram.base..sram.base + sram.length), boxed))
+                    segments.push(((*base..(base + length)), boxed))
                 }
-                AddressSpaceDescNode::Mmio(mmio_config) => {
-                    let (mmio_decoder, controllers) =
-                        MMIOAddrDecoder::try_build_from(mmio_config.mmap)?;
+                AddressSpaceDescNode::Mmio { base, length, mmap } => {
+                    let (mmio_decoder, controllers) = MMIOAddrDecoder::try_build_from(mmap)?;
                     ic_handle = Some(controllers);
                     let boxed: Box<dyn Addressable> = Box::new(mmio_decoder);
-                    segments.push((
-                        (mmio_config.base..mmio_config.base + mmio_config.length),
-                        boxed,
-                    ))
+                    segments.push(((*base..base + length), boxed))
                 }
             }
         }
@@ -481,12 +449,6 @@ impl BusInfo {
             },
         })
     }
-}
-
-#[test]
-fn test_address_space() -> miette::Result<()> {
-    let _ = BusInfo::from_device_config("./assets/devices.kdl")?;
-    Ok(())
 }
 
 pub enum InterruptType {
@@ -652,15 +614,15 @@ pub struct MMIOAddrDecoder {
 }
 
 impl MMIOAddrDecoder {
-    fn try_build_from(config: Vec<KdlNodeMMIOMapping>) -> Result<(Self, ICHandle), miette::Error> {
+    fn try_build_from(config: &[(String, u32)]) -> Result<(Self, ICHandle), miette::Error> {
         let mut regs = Vec::new();
         let mut ic_handle = ICHandle::new();
-        for node in config {
-            match node.name.as_str() {
+        for (name, offset) in config {
+            match name.as_str() {
                 "exit" => {
                     let exit_rc = ExitController::new();
                     ic_handle.add(exit_rc.clone());
-                    regs.push((node.offset, MmioRegs::Exit(exit_rc)))
+                    regs.push((*offset, MmioRegs::Exit(exit_rc)))
                 }
                 name => miette::bail!("unsupported MMIO device {name}"),
             }
