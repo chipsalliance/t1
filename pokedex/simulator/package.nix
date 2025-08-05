@@ -5,6 +5,7 @@
   sim-lib,
   rust-analyzer,
   clippy,
+  python3,
 }:
 rustPlatform.buildRustPackage (finalAttr: {
   name = "pokedex-simulator";
@@ -14,6 +15,7 @@ rustPlatform.buildRustPackage (finalAttr: {
   buildInputs = [
     rustPlatform.bindgenHook
     sim-lib
+    python3
   ];
 
   env = {
@@ -33,6 +35,10 @@ rustPlatform.buildRustPackage (finalAttr: {
   cargoLock = {
     lockFile = ./Cargo.lock;
   };
+
+  postInstall = ''
+    mv ./batchrun/batchrun.py $out/bin/batchrun
+  '';
 
   meta.mainProgram = "pokedex";
 })
