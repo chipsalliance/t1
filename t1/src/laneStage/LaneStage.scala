@@ -12,6 +12,7 @@ import org.chipsalliance.t1.rtl.decoder.Decoder
 
 class LaneState(parameter: LaneParameter) extends Bundle {
   val vSew1H:       UInt         = UInt(3.W)
+  val vSew:         UInt         = UInt(2.W)
   val loadStore:    Bool         = Bool()
   val laneIndex:    UInt         = UInt(parameter.laneNumberBits.W)
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)

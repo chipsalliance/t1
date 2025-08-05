@@ -10,7 +10,7 @@ import chisel3.ltl._
 import chisel3.ltl.Sequence._
 import chisel3.probe.{define, Probe, ProbeValue}
 import chisel3.properties.{AnyClassType, ClassType, Path, Property}
-import chisel3.util._
+import chisel3.util.{BitPat, _}
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.t1.rtl.decoder.{Decoder, DecoderParam}
 import org.chipsalliance.t1.rtl.lane._
@@ -201,6 +201,9 @@ case class LaneParameter(
   // lane + lsu + top + mask unit
   val idWidth: Int = log2Ceil(laneNumber + lsuSize + 1 + 1)
 
+  // dLen as Byte
+  val dByte: Int = laneNumber * datapathWidth / 8
+
   /** Parameter for [[VRF]] */
   def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, portFactor, vrfRamType)
 }
@@ -334,13 +337,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   @public
   val maskInput: UInt = IO(Input(UInt(parameter.maskGroupWidth.W)))
 
-  /** select which mask group. */
   @public
-  val maskSelect: UInt = IO(Output(UInt(parameter.maskGroupSizeBits.W)))
-
-  /** The sew of instruction which is requesting for mask. */
-  @public
-  val maskSelectSew: UInt = IO(Output(UInt(2.W)))
+  val askMask: MaskRequest = IO(Output(new MaskRequest(parameter.maskGroupSizeBits)))
 
   /** from [[T1.lsu]] to [[Lane.vrf]], indicate it's the load store is finished, used for chaining. because of load
     * store index EEW, is complicated for lane to calculate whether LSU is finished. let LSU directly tell each lane it
@@ -365,7 +363,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
         new FreeWriteBusData(
           parameter.datapathWidth,
           parameter.groupNumberBits,
-          parameter.laneNumberBits
+          parameter.laneNumberBits,
+          parameter.instructionIndexBits
         )
       )
     )
@@ -378,7 +377,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
           new FreeWriteBusData(
             parameter.datapathWidth,
             parameter.groupNumberBits,
-            parameter.laneNumberBits
+            parameter.laneNumberBits,
+            parameter.instructionIndexBits
           )
         )
       )
@@ -481,6 +481,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     val dataValid:     Bool = Bool()
     val waiteResponse: Bool = Bool()
     val controlValid:  Bool = Bool()
+
+    // for slide mask
+    val slide: Bool = Bool()
   }
 
   val maskControlRelease: Vec[ValidIO[UInt]] =
@@ -502,6 +505,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       state.index        := laneRequest.bits.instructionIndex
       state.sew          := laneRequest.bits.csrInterface.vSew
       state.controlValid := true.B
+      state.slide        := laneRequest.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b001??")
     }
 
     when(state.controlValid) {
@@ -742,6 +746,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
     // slot state
     laneState.vSew1H                   := vSew1H
+    laneState.vSew                     := record.laneRequest.csrInterface.vSew
     laneState.loadStore                := record.laneRequest.loadStore
     laneState.laneIndex                := laneIndex
     laneState.decodeResult             := record.laneRequest.decodeResult
@@ -1056,9 +1061,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   }
 
   {
-    maskSelect         := Mux1H(maskControlReqSelect, maskControlVec.map(_.group))
-    maskSelectSew      := Mux1H(maskControlReqSelect, maskControlVec.map(_.sew))
-    maskControlDataDeq := slotMaskRequestVec.zipWithIndex.map { case (req, index) =>
+    askMask.maskSelect    := Mux1H(maskControlReqSelect, maskControlVec.map(_.group))
+    askMask.maskSelectSew := Mux1H(maskControlReqSelect, maskControlVec.map(_.sew))
+    askMask.slide         := Mux1H(maskControlReqSelect, maskControlVec.map(_.slide))
+    maskControlDataDeq    := slotMaskRequestVec.zipWithIndex.map { case (req, index) =>
       val slotIndex      = slotControl(index).laneRequest.instructionIndex
       val hitMaskControl = VecInit(maskControlVec.map(c => c.index === slotIndex && c.controlValid)).asUInt
       val dataValid      = Mux1H(hitMaskControl, maskControlVec.map(_.dataValid))
@@ -1135,6 +1141,25 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val isEndLane:                     Bool = laneIndex === lastLaneIndex
   val lastGroupForLane:              UInt = lastGroupForInstruction - lanePositionLargerThanEndLane
 
+  val requestIsSlideDown: Bool = laneRequest.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0010?")
+  val requestIsSlide1:    Bool = laneRequest.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b001?0")
+  val slideSize:          UInt = Mux(requestIsSlide1, 1.U, laneRequest.bits.readFromScalar)
+  // for slide down
+  // a: slide sown size
+  // b: dLen element size
+  // a % b + vl
+  val slideExecuteSizeVec = Seq(1, 2, 4).map { eByte =>
+    val dSize         = parameter.dByte / eByte
+    val dSizeLg       = log2Ceil(dSize)
+    val slideSizeTail = slideSize & Fill(dSizeLg, true.B)
+    val slideElement  = slideSizeTail + laneRequest.bits.csrInterface.vl
+    (slideElement >> dSizeLg).asUInt - !changeUIntSize(slideElement, dSizeLg).orR
+  }
+  val slideExecuteSize    = Mux1H(
+    requestVSew1H(2, 0),
+    slideExecuteSizeVec
+  )
+
   // last group for mask logic type
   /** xxx xxx xxxxx head body tail
     */
@@ -1162,7 +1187,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   entranceControl.lastGroupForInstruction := Mux(
     laneRequest.bits.decodeResult(Decoder.maskLogic),
     lastGroupCountForMaskLogic,
-    lastGroupForLane
+    Mux(requestIsSlideDown, slideExecuteSize, lastGroupForLane)
   )
 
   entranceControl.isLastLaneForInstruction := Mux(
@@ -1239,6 +1264,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.onlyRead               := laneRequest.bits.decodeResult(Decoder.popCount)
   // for mask unit
   vrf.instructionWriteReport.bits.slow                   := laneRequest.bits.decodeResult(Decoder.special)
+  vrf.instructionWriteReport.bits.oooWrite               := laneRequest.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b001??")
   vrf.instructionWriteReport.bits.ls                     := laneRequest.bits.loadStore
   vrf.instructionWriteReport.bits.st                     := laneRequest.bits.store
   vrf.instructionWriteReport.bits.crossWrite             := laneRequest.bits.decodeResult(Decoder.crossWrite)

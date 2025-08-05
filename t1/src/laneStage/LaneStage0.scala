@@ -19,6 +19,7 @@ class LaneStage0Enqueue(parameter: LaneParameter) extends Bundle {
 
   // pipe all state
   val vSew1H:       UInt         = UInt(3.W)
+  val vSew:         UInt         = UInt(2.W)
   val loadStore:    Bool         = Bool()
   val laneIndex:    UInt         = UInt(parameter.laneNumberBits.W)
   val decodeResult: DecodeBundle = Decoder.bundle(parameter.decoderParam)
@@ -124,6 +125,28 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   @public
   val maskPipeRelease: Option[MaskExchangeRelease] = Option.when(isLastSlot)(IO(Input(new MaskExchangeRelease)))
 
+  val slideBase:           UInt              = Option
+    .when(isLastSlot) {
+      val base: UInt = Wire(UInt(parameter.groupNumberBits.W))
+
+      // 001 xy => slide  x?up:down   y?s:1           [4,7]
+      val slideDown:      Bool = !enqueue.bits.decodeResult(Decoder.maskPipeUop)(1)
+      val source1IsScala: Bool = enqueue.bits.decodeResult(Decoder.maskPipeUop)(0)
+      val slideSize:      UInt = Mux(
+        source1IsScala,
+        Mux(
+          enqueue.bits.decodeResult(Decoder.itype),
+          enqueue.bits.readFromScalar(4, 0),
+          enqueue.bits.readFromScalar
+        ),
+        1.U
+      )
+      val baseGroup = ((slideSize << enqueue.bits.vSew) >> log2Ceil(parameter.dByte)).asUInt
+      // You need to skip reading only when you slide down
+      base := Mux(slideDown, baseGroup, 0.U)
+      base
+    }
+    .getOrElse(0.U)
   val stageWire:           LaneStage0Dequeue = Wire(new LaneStage0Dequeue(parameter, isLastSlot))
   // 这一组如果全被masked了也不压进流水
   val notMaskedAllElement: Bool              = Mux1H(
@@ -223,7 +246,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   val needCorrect:       Bool =
     isTheLastGroup &&
       enqueue.bits.isLastLaneForInstruction &&
-      vlNeedCorrect && !enqueue.bits.decodeResult(Decoder.maskLogic)
+      vlNeedCorrect && !enqueue.bits.decodeResult(Decoder.maskLogic) && !enqueue.bits.decodeResult(Decoder.slid)
   val maskCorrect:       UInt = Mux(needCorrect, correctMask, -1.S(parameter.dataPathByteWidth.W).asUInt)
   val crossReadOnlyMask: UInt = Fill(parameter.dataPathByteWidth, !updateLaneState.outOfExecutionRange)
 
@@ -242,7 +265,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
     Mux1H(enqueue.bits.vSew1H, filterVec.map(_._2))
   )
 
-  stageWire.groupCounter := dataGroupIndex
+  stageWire.groupCounter := dataGroupIndex + slideBase
 
   /** next mask group */
   updateLaneState.maskGroupCount := enqueue.bits.maskGroupCount + maskGroupWillUpdate
@@ -268,7 +291,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
       )
   }
 
-  stageWire.readFromScalar := Fill(
+  val source1Fill: UInt = Fill(
     parameter.datapathWidth / parameter.eLen,
     Mux1H(
       enqueue.bits.vSew1H,
@@ -279,9 +302,10 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
       )
     )
   )
+  stageWire.readFromScalar := Mux(enqueue.bits.decodeResult(Decoder.slid), enqueue.bits.readFromScalar, source1Fill)
 
   stageWire.bordersForMaskLogic :=
-    stageWire.groupCounter === enqueue.bits.lastGroupForInstruction &&
+    dataGroupIndex === enqueue.bits.lastGroupForInstruction &&
       enqueue.bits.isLastLaneForInstruction
   // for mask pipe stage
   stageWire.secondPipe.foreach(_ := false.B)
