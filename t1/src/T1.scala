@@ -738,7 +738,7 @@ class T1(val parameter: T1Parameter)
   // lane 只读不执行的指令
   val readOnlyInstruction: Bool = decodeResult(Decoder.readOnly)
   // 只进mask unit的指令
-  val maskUnitInstruction: Bool = (decodeResult(Decoder.slid) || decodeResult(Decoder.mv))
+  val maskUnitInstruction: Bool = decodeResult(Decoder.mv)
   val skipLastFromLane:    Bool = maskUnitInstruction || readOnlyInstruction || isZvma
   val instructionValid:    Bool = requestReg.bits.issue.vl > requestReg.bits.issue.vstart
 
@@ -902,9 +902,8 @@ class T1(val parameter: T1Parameter)
     q.bits.last := maskUnit.io.lastReport
   }
   sequencerIF.io.maskRequest.zipWithIndex.foreach { case (req, index) =>
-    maskUnit.io.laneMaskSelect(index)    := req.bits.maskSelect
-    maskUnit.io.laneMaskSewSelect(index) := req.bits.maskSelectSew
-    req.ready                            := true.B
+    maskUnit.io.askMaskVec(index) := req.bits
+    req.ready                     := true.B
   }
   maskUnit.io.readResult.zip(sequencerIF.io.readVrfAck).foreach { case (sink, source) =>
     sink.valid   := source.valid
@@ -1067,9 +1066,8 @@ class T1(val parameter: T1Parameter)
     lane.writeFromMask              := laneIF.io.writeFromMask
 
     // todo: add valid in lane
-    laneIF.io.maskRequest.valid              := true.B
-    laneIF.io.maskRequest.bits.maskSelect    := lane.maskSelect
-    laneIF.io.maskRequest.bits.maskSelectSew := lane.maskSelectSew
+    laneIF.io.maskRequest.valid := true.B
+    laneIF.io.maskRequest.bits  := lane.askMask
 
     // todo: handle valid
     laneIF.io.readVrfAck.valid := Pipe(
@@ -1190,6 +1188,12 @@ class T1(val parameter: T1Parameter)
   maskUnit.io.instReq.bits.vs2              := requestRegDequeue.bits.instruction(24, 20)
   maskUnit.io.instReq.bits.vd               := requestRegDequeue.bits.instruction(11, 7)
   maskUnit.io.instReq.bits.vl               := requestReg.bits.issue.vl
+  // slide update v0 offset
+  maskUnit.io.slideReq.valid                := requestRegDequeue.fire && (requestReg.bits.decodeResult(Decoder.maskPipeUop) === BitPat(
+    "b001??"
+  ))
+  maskUnit.io.slideReq.bits.scalar          := requestReg.bits.decodeResult(Decoder.maskPipeUop)(0)
+  maskUnit.io.slideReq.bits.up              := requestReg.bits.decodeResult(Decoder.maskPipeUop)(1)
   // gather read
   maskUnit.io.gatherRead                    := gatherNeedRead
   maskUnit.io.gatherData.ready              := requestRegDequeue.fire
