@@ -1,0 +1,16 @@
+{
+  "elf_path_glob": "/path/to/**/*.elf",
+  "mmio_end_addr": "0x40000004",
+  "spike": {
+    "timeout": 30,
+    "args": [
+      "--isa=rv32imc_zvl256b_zve32x_zifencei",
+      "--priv=m",
+      "--log-commits"
+    ]
+  },
+  "pokedex": {
+    "timeout": 30,
+    "args": ["--config-path", "/path/to/pokdex.kdl"]
+  }
+}

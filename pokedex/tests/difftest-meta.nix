@@ -9,27 +9,28 @@
   global-pokedex-config,
 }:
 let
-  configuration = {
+  difftestConfig = builtins.toJSON {
     elf_path_glob = "${all-tests}/**/*.elf";
-    spike_args = [
-      "--isa=rv32imc_zvl256b_zve32x_zifencei"
-      "--priv=m"
-      "--log-commits"
-      "-m0x80000000:0x20000000,0x40000000:0x1000"
-    ];
-    pokedex_args = [
-      "--dts-cfg-path"
-      "${global-pokedex-config}"
-      "--max-same-instruction"
-      "20"
-    ];
-    end_pattern = {
-      action = "write";
-      memory_address = "0x40000004";
-      data = "0x0";
+    spike = {
+      timeout = 30;
+      args = [
+        "--isa=rv32imc_zvl256b_zve32x_zifencei"
+        "--priv=m"
+        "--log-commits"
+        "-m0x80000000:0x20000000,0x40000000:0x1000"
+      ];
     };
+    pokedex = {
+      timeout = 30;
+      args = [
+        "--config-path"
+        "${global-pokedex-config}"
+      ];
+    };
+    mmio_end_addr = "0x40000004";
   };
-  configFile = writeText "difftest.json" (builtins.toJSON configuration);
+
+  configFile = writeText "difftest.json" difftestConfig;
 in
 runCommand "run-difftest-for-all-cases"
   {
@@ -39,32 +40,23 @@ runCommand "run-difftest-for-all-cases"
       jq
       dtc
     ];
+
+    passthru.test-config = configFile;
   }
   ''
-    mkdir -p "$out"
+    mkdir -p "$out/pass"
 
-    if difftest --result-path ./result.json --config-path '${configFile}'; then
-      cp ./result.json "$out"
-    else
-      cp ./result.json "$out"
+    pushd "$out/pass" > /dev/null
 
-      mkdir -p "$out/pass"
-      find . -name '*-pokedex-sim-event.jsonl' -type f -exec cp '{}' "$out/pass/" ';'
-      find . -name '*-spike-commits.log' -type f -exec cp '{}' "$out/pass/" ';'
-
-      failedCases=( $(jq -r '.context|keys[]' ./result.json) )
+    if ! batchrun -c '${configFile}'; then
+      failCases=( $(jq -r '.[]' ./batch-run-result.json) )
       for case in "''${failedCases[@]}"; do
         cp "$case".objdump "$out"
-        mv "$out/pass/$(basename $case)-pokedex-sim-event.jsonl" "$out"
-        mv "$out/pass/$(basename $case)-spike-commits.log" "$out"
+        mv "$(basename $case)-pokedex-trace-log.jsonl" "$out"
+        mv "$(basename $case)-spike-commits.log" "$out"
+        mv "$(basename $case)-difftest-result.json" "$out"
       done
-
-    cat << EOF > $out/print_log
-    #!/usr/bin/env bash
-    arg=\''${1:-}
-    [[ -z \$arg ]] && exit 0
-    ${jq}/bin/jq -r ".context|to_entries[]|select(.key|contains(\"\$arg\"))|.value" $out/result.json
-    EOF
-    chmod +x $out/print_log
     fi
+
+    popd > /dev/null
   ''
