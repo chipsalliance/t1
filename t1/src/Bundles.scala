@@ -389,6 +389,7 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val onlyRead:    Bool          = Bool()
   // 慢指令 mask unit
   val slow:        Bool          = Bool()
+  val oooWrite:    Bool          = Bool()
   // which element will access(write or store read)
   // true: No access or access has been completed
   val elementMask: UInt          = UInt(param.elementSize.W)
@@ -679,6 +680,11 @@ class MaskUnitInstReq(parameter: T1Parameter) extends Bundle {
   val vl:               UInt         = UInt(parameter.laneParam.vlMaxBits.W)
 }
 
+class SlideRequest(parameter: T1Parameter) extends Bundle {
+  val scalar: Bool = Bool()
+  val up:     Bool = Bool()
+}
+
 class MaskUnitExeReq(eLen: Int, datapathWidth: Int, instructionIndexBits: Int, fpuEnable: Boolean) extends Bundle {
   // source1, read vs
   val source1:          UInt         = UInt(datapathWidth.W)
@@ -835,6 +841,8 @@ class MaskRequest(maskGroupSizeBits: Int) extends Bundle {
 
   /** The sew of instruction which is requesting for mask. */
   val maskSelectSew: UInt = UInt(2.W)
+
+  val slide: Bool = Bool()
 }
 
 class LaneResponse(chaining1HBits: Int) extends Bundle {
@@ -854,18 +862,21 @@ class LaneVirtualChannel(dataWidth: Int, opcodeWidth: Int, idWidth: Int) extends
   val last: Bool = Bool()
 }
 
-class FreeWriteBusData(datapathWidth: Int, groupNumberBits: Int, laneNumberBits: Int) extends Bundle {
+class FreeWriteBusData(datapathWidth: Int, groupNumberBits: Int, laneNumberBits: Int, instructionIndexBits: Int)
+    extends Bundle {
 
   /** data field of the bus. */
   val data: UInt = UInt(datapathWidth.W)
 
   /** used for instruction with mask. */
-  val mask: UInt = UInt((datapathWidth / 2 / 8).W)
+  val mask: UInt = UInt((datapathWidth / 8).W)
 
   /** define the order of the data to dequeue from ring. */
   val counter: UInt = UInt(groupNumberBits.W)
 
   val sink: UInt = UInt(laneNumberBits.W)
+
+  val instructionIndex: UInt = UInt(instructionIndexBits.W)
 }
 
 class FreeWriteBusRequest(datapathWidth: Int, groupNumberBits: Int, laneNumberBits: Int) extends Bundle {
@@ -876,7 +887,7 @@ class FreeWriteBusRequest(datapathWidth: Int, groupNumberBits: Int, laneNumberBi
   val writeSink:    UInt = UInt(laneNumberBits.W)
   val writeCounter: UInt = UInt(groupNumberBits.W)
   val writeOffset:  UInt = UInt(log2Ceil(datapathWidth / 8).W)
-  val mask:         UInt = UInt((datapathWidth / 2 / 8).W)
+  val mask:         UInt = UInt((datapathWidth / 8).W)
 }
 
 class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
@@ -1079,7 +1090,8 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
         new FreeWriteBusData(
           parameter.datapathWidth,
           parameter.groupNumberBits,
-          parameter.laneNumberBits
+          parameter.laneNumberBits,
+          parameter.instructionIndexBits
         )
       )
     )
@@ -1089,7 +1101,8 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
       new FreeWriteBusData(
         parameter.datapathWidth,
         parameter.groupNumberBits,
-        parameter.laneNumberBits
+        parameter.laneNumberBits,
+        parameter.instructionIndexBits
       )
     )
 

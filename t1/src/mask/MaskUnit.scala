@@ -39,10 +39,11 @@ import org.chipsalliance.t1.rtl.decoder.Decoder
 // 11 11 1 -> maskdestination
 
 class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
-  val clock:             Clock                             = Input(Clock())
-  val reset:             Reset                             = Input(Reset())
-  val instReq:           ValidIO[MaskUnitInstReq]          = Flipped(Valid(new MaskUnitInstReq(parameter)))
-  val exeReq:            Vec[DecoupledIO[MaskUnitExeReq]]  = Flipped(
+  val clock:         Clock                             = Input(Clock())
+  val reset:         Reset                             = Input(Reset())
+  val instReq:       ValidIO[MaskUnitInstReq]          = Flipped(Valid(new MaskUnitInstReq(parameter)))
+  val slideReq:      ValidIO[SlideRequest]             = Flipped(Valid(new SlideRequest(parameter)))
+  val exeReq:        Vec[DecoupledIO[MaskUnitExeReq]]  = Flipped(
     Vec(
       parameter.laneNumber,
       Decoupled(
@@ -50,7 +51,7 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
       )
     )
   )
-  val exeResp:           Vec[DecoupledIO[VRFWriteRequest]] = Vec(
+  val exeResp:       Vec[DecoupledIO[VRFWriteRequest]] = Vec(
     parameter.laneNumber,
     Decoupled(
       new VRFWriteRequest(
@@ -61,9 +62,9 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
       )
     )
   )
-  val writeRelease:      Vec[Bool]                         = Vec(parameter.laneNumber, Input(Bool()))
-  val tokenIO:           Vec[LaneTokenBundle]              = Flipped(Vec(parameter.laneNumber, new LaneTokenBundle))
-  val readChannel:       Vec[DecoupledIO[VRFReadRequest]]  = Vec(
+  val writeRelease:  Vec[Bool]                         = Vec(parameter.laneNumber, Input(Bool()))
+  val tokenIO:       Vec[LaneTokenBundle]              = Flipped(Vec(parameter.laneNumber, new LaneTokenBundle))
+  val readChannel:   Vec[DecoupledIO[VRFReadRequest]]  = Vec(
     parameter.laneNumber,
     Decoupled(
       new VRFReadRequest(
@@ -73,19 +74,20 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
       )
     )
   )
-  val readResult:        Vec[ValidIO[UInt]]                = Flipped(Vec(parameter.laneNumber, Valid(UInt(parameter.datapathWidth.W))))
-  val writeRD:           ValidIO[UInt]                     = Valid(UInt(parameter.datapathWidth.W))
-  val lastReport:        UInt                              = Output(UInt(parameter.chaining1HBits.W))
-  val laneMaskInput:     Vec[UInt]                         = Output(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
-  val laneMaskSelect:    Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(parameter.laneParam.maskGroupSizeBits.W)))
-  val laneMaskSewSelect: Vec[UInt]                         = Input(Vec(parameter.laneNumber, UInt(2.W)))
-  val v0UpdateVec:       Vec[ValidIO[V0Update]]            = Flipped(
+  val readResult:    Vec[ValidIO[UInt]]                = Flipped(Vec(parameter.laneNumber, Valid(UInt(parameter.datapathWidth.W))))
+  val writeRD:       ValidIO[UInt]                     = Valid(UInt(parameter.datapathWidth.W))
+  val lastReport:    UInt                              = Output(UInt(parameter.chaining1HBits.W))
+  val laneMaskInput: Vec[UInt]                         = Output(Vec(parameter.laneNumber, UInt(parameter.datapathWidth.W)))
+  val askMaskVec:    Vec[MaskRequest]                  = Input(
+    Vec(parameter.laneNumber, new MaskRequest(parameter.laneParam.maskGroupSizeBits))
+  )
+  val v0UpdateVec:   Vec[ValidIO[V0Update]]            = Flipped(
     Vec(parameter.laneNumber, Valid(new V0Update(parameter.laneParam.datapathWidth, parameter.laneParam.vrfOffsetBits)))
   )
-  val writeRDData:       UInt                              = Output(UInt(parameter.xLen.W))
-  val gatherData:        DecoupledIO[UInt]                 = Decoupled(UInt(parameter.xLen.W))
-  val gatherRead:        Bool                              = Input(Bool())
-  val om:                Property[ClassType]               = Output(Property[AnyClassType]())
+  val writeRDData:   UInt                              = Output(UInt(parameter.xLen.W))
+  val gatherData:    DecoupledIO[UInt]                 = Decoupled(UInt(parameter.xLen.W))
+  val gatherRead:    Bool                              = Input(Bool())
+  val om:            Property[ClassType]               = Output(Property[AnyClassType]())
 }
 
 @instantiable
@@ -118,21 +120,20 @@ class MaskUnit(val parameter: T1Parameter)
   /** Method that should point to the user-defined Reset */
   override protected def implicitReset: Reset = io.reset
 
-  val instReq           = io.instReq
-  val exeReq            = io.exeReq
-  val exeResp           = io.exeResp
-  val tokenIO           = io.tokenIO
-  val readChannel       = io.readChannel
-  val readResult        = io.readResult
-  val writeRD           = io.writeRD
-  val lastReport        = io.lastReport
-  val laneMaskInput     = io.laneMaskInput
-  val laneMaskSelect    = io.laneMaskSelect
-  val laneMaskSewSelect = io.laneMaskSewSelect
-  val v0UpdateVec       = io.v0UpdateVec
-  val writeRDData       = io.writeRDData
-  val gatherData        = io.gatherData
-  val gatherRead        = io.gatherRead
+  val instReq       = io.instReq
+  val exeReq        = io.exeReq
+  val exeResp       = io.exeResp
+  val tokenIO       = io.tokenIO
+  val readChannel   = io.readChannel
+  val readResult    = io.readResult
+  val writeRD       = io.writeRD
+  val lastReport    = io.lastReport
+  val laneMaskInput = io.laneMaskInput
+  val askMaskVec    = io.askMaskVec
+  val v0UpdateVec   = io.v0UpdateVec
+  val writeRDData   = io.writeRDData
+  val gatherData    = io.gatherData
+  val gatherRead    = io.gatherRead
 
   // todo: handle
   io.tokenIO.foreach { tk =>
@@ -158,6 +159,26 @@ class MaskUnit(val parameter: T1Parameter)
     VecInit(Seq.fill(parameter.vLen / parameter.datapathWidth)(0.U(parameter.datapathWidth.W)))
   )
 
+  val slideSize:     UInt = Mux(io.slideReq.bits.scalar, instReq.bits.readFromScala, 1.U)
+  val dByte:         Int  = parameter.laneNumber * parameter.datapathWidth / 8
+  val shifterUpSize: UInt = Mux1H(
+    UIntToOH(instReq.bits.sew),
+    Seq(
+      changeUIntSize(slideSize, log2Ceil(dByte)),
+      changeUIntSize(slideSize, log2Ceil(dByte) - 1),
+      changeUIntSize(slideSize, log2Ceil(dByte) - 2)
+    )
+  )
+  // todo: parameter.vLen + param.dByte ???
+  val slideUpV0:     UInt = changeUIntSize((v0.asUInt >> slideSize).asUInt, parameter.vLen)
+  val slideDownV0Shift = (v0.asUInt << shifterUpSize).asUInt
+  val slideDownV0: UInt = changeUIntSize(slideDownV0Shift, parameter.vLen)
+  val slideV0Enq:  UInt = Mux(io.slideReq.bits.up, slideUpV0, slideDownV0)
+  val slideV0Reg:  UInt = RegEnable(slideV0Enq, 0.U.asTypeOf(slideV0Enq), io.slideReq.valid)
+  val slideV0Overlap = (slideDownV0Shift >> parameter.vLen).asUInt
+  val slideV0OverReg = RegEnable(slideV0Overlap, 0.U(dByte.W), io.slideReq.valid)
+  val slideV0: Vec[UInt] = cutUInt(slideV0Reg, parameter.datapathWidth)
+
   // write v0(mask)
   v0.zipWithIndex.foreach { case (data, index) =>
     // 属于哪个lane
@@ -175,7 +196,7 @@ class MaskUnit(val parameter: T1Parameter)
   // mask update & select
   // lane
   // TODO: uarch doc for the regroup
-  val regroupV0: Seq[UInt] = Seq(4, 2, 1).map { singleSize =>
+  val regroupV0:      Seq[UInt] = Seq(4, 2, 1).map { singleSize =>
     val groupSize = singleSize * (parameter.datapathWidth / parameter.eLen)
     VecInit(
       cutUInt(v0.asUInt, groupSize)
@@ -185,10 +206,37 @@ class MaskUnit(val parameter: T1Parameter)
         .map(seq => VecInit(seq).asUInt)
     ).asUInt
   }
+  val regroupSlideV0: Seq[UInt] = Seq(4, 2, 1).map { singleSize =>
+    val groupSize = singleSize * (parameter.datapathWidth / parameter.eLen)
+    VecInit(
+      cutUInt(slideV0.asUInt, groupSize)
+        .grouped(parameter.laneNumber)
+        .toSeq
+        .transpose
+        .map(seq => VecInit(seq).asUInt)
+    ).asUInt
+  }
   laneMaskInput.zipWithIndex.foreach { case (input, index) =>
-    val v0ForThisLane: Seq[UInt] = regroupV0.map(rv => cutUInt(rv, parameter.vLen / parameter.laneNumber)(index))
-    val v0SelectBySew = Mux1H(UIntToOH(laneMaskSewSelect(index))(2, 0), v0ForThisLane)
-    input := cutUInt(v0SelectBySew, parameter.datapathWidth)(laneMaskSelect(index))
+    val res: Seq[UInt] = Seq(regroupV0, regroupSlideV0).map { regroup =>
+      val v0ForThisLane: Seq[UInt] = regroup.map(rv => cutUInt(rv, parameter.vLen / parameter.laneNumber)(index))
+      val v0SelectBySew = Mux1H(UIntToOH(askMaskVec(index).maskSelectSew)(2, 0), v0ForThisLane)
+      val overlapSelect = Mux1H(
+        UIntToOH(askMaskVec(index).maskSelectSew)(2, 0),
+        Seq(4, 2, 1).map { singleSize =>
+          val groupSize = singleSize * (parameter.datapathWidth / parameter.eLen)
+          cutUInt(slideV0OverReg, groupSize)(index)
+        }
+      )
+      val overlap       =
+        ((parameter.vLen / parameter.datapathWidth / parameter.laneNumber).U & askMaskVec(index).maskSelect).orR
+      Mux(
+        overlap,
+        overlapSelect,
+        cutUInt(v0SelectBySew, parameter.datapathWidth)(askMaskVec(index).maskSelect)
+      )
+    }
+
+    input := Mux(askMaskVec(index).slide, res.last, res.head)
   }
 
   val maskedWrite: BitLevelMaskWrite = Module(new BitLevelMaskWrite(parameter))

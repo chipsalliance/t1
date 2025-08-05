@@ -118,6 +118,8 @@ case class LaneIFParameter(
   val idWidth:     Int = log2Ceil(laneNumber + lsuSize + 1 + 1)
   // todo
   val opcodeWidth: Int = log2Ceil(9)
+  // dLen as Byte
+  val dByte:       Int = laneNumber * datapathWidth / 8
 }
 
 class LaneInterface(val parameter: LaneIFParameter)
