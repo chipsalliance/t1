@@ -157,10 +157,7 @@ impl Simulator {
     }
 
     pub fn dump_regs(&self) -> Vec<u32> {
-        (0..32)
-            .into_iter()
-            .map(|i| self.handle.get_register(i))
-            .collect()
+        (0..32).map(|i| self.handle.get_register(i)).collect()
     }
 }
 

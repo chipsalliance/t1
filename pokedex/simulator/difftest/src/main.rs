@@ -41,7 +41,7 @@ fn main() -> miette::Result<()> {
 
         crate::pokedex::parse_from(&raw_str)
     };
-    let end_mmio_address = u32::from_str_radix(&arg.mmio_address.trim_start_matches("0x"), 16)
+    let end_mmio_address = u32::from_str_radix(arg.mmio_address.trim_start_matches("0x"), 16)
         .into_diagnostic()
         .with_context(|| format!("parsing {} to uint32_t", arg.mmio_address))?;
 
@@ -103,18 +103,14 @@ impl DiffTest {
             .unwrap_or_else(|| {
                 unreachable!("reset_vector event not found");
             });
-        let test_end_pc = self
-            .spike_log
-            .has_memory_write_commits()
-            .into_iter()
-            .find_map(|log| {
-                let (write_address, _) = log.commits.get_mem_write().unwrap();
-                if write_address == self.end_mmio_address {
-                    Some(log.pc)
-                } else {
-                    None
-                }
-            });
+        let test_end_pc = self.spike_log.has_memory_write_commits().find_map(|log| {
+            let (write_address, _) = log.commits.get_mem_write().unwrap();
+            if write_address == self.end_mmio_address {
+                Some(log.pc)
+            } else {
+                None
+            }
+        });
         let Some(end_pc) = test_end_pc else {
             return DiffMeta::failed("Can't find any end pattern from spike log");
         };
@@ -168,14 +164,10 @@ impl DiffTest {
                 reg_idx, data, pc, ..
             } = search_result
             {
-                let match_event =
-                    spike_event
-                        .get_register_write_commits()
-                        .into_iter()
-                        .find(|event| {
-                            let (idx, value) = event.get_register().unwrap();
-                            idx == *reg_idx && value == *data
-                        });
+                let match_event = spike_event.get_register_write_commits().find(|event| {
+                    let (idx, value) = event.get_register().unwrap();
+                    idx == *reg_idx && value == *data
+                });
 
                 if match_event.is_none() {
                     return DiffMeta::failed(indoc::formatdoc! {"
@@ -197,7 +189,7 @@ impl DiffTest {
                 is_retired = true;
             };
 
-            if let PokedexEventKind::CSR {
+            if let PokedexEventKind::Csr {
                 action,
                 pc,
                 csr_idx,
@@ -205,13 +197,10 @@ impl DiffTest {
                 data,
             } = search_result
             {
-                let match_event = spike_event
-                    .get_csr_write_commits()
-                    .into_iter()
-                    .find(|event| {
-                        let (index, _, value) = event.get_csr().unwrap();
-                        index == *csr_idx && value == *data
-                    });
+                let match_event = spike_event.get_csr_write_commits().find(|event| {
+                    let (index, _, value) = event.get_csr().unwrap();
+                    index == *csr_idx && value == *data
+                });
 
                 if match_event.is_none() {
                     return DiffMeta::failed(indoc::formatdoc! {"
