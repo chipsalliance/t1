@@ -26,7 +26,7 @@ pub enum PokedexEventKind {
         address: u64,
     },
     #[serde(rename = "csr")]
-    CSR {
+    Csr {
         action: String,
         pc: u32,
         csr_idx: u32,
@@ -73,7 +73,7 @@ impl PokedexEventKind {
 
     pub fn get_pc(&self) -> Option<u32> {
         match self {
-            Self::CSR { pc, .. } => Some(*pc),
+            Self::Csr { pc, .. } => Some(*pc),
             Self::Register { pc, .. } => Some(*pc),
             _ => None,
         }

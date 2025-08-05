@@ -10,23 +10,15 @@ impl FromIterator<SpikeLogSyntax> for SpikeLog {
     }
 }
 
-impl Deref for SpikeLog {
-    type Target = Vec<SpikeLogSyntax>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for SpikeLog {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+impl SpikeLog {
+    pub fn iter(&self) -> std::slice::Iter<'_, SpikeLogSyntax> {
+        self.0.iter()
     }
 }
 
 impl SpikeLog {
-    pub fn parse_from(log: impl AsRef<str>) -> SpikeLog {
-        log.as_ref()
-            .lines()
+    pub fn parse_from(log: &str) -> SpikeLog {
+        log.lines()
             .enumerate()
             .map(|(line_number, line)| match SpikeLogSyntax::parse(line) {
                 Err(err) => {
@@ -45,20 +37,16 @@ impl SpikeLog {
 
     // TODO: future usage
     #[allow(dead_code)]
-    pub fn has_register_commits(&self) -> Vec<&SpikeLogSyntax> {
-        self.0
-            .iter()
-            .filter(|log| {
-                !log.commits.is_empty() && log.commits.iter().any(|c| c.is_register_write_commit())
-            })
-            .collect()
+    pub fn has_register_commits(&self) -> impl Iterator<Item = &'_ SpikeLogSyntax> {
+        self.0.iter().filter(|log| {
+            !log.commits.is_empty() && log.commits.iter().any(|c| c.is_register_write_commit())
+        })
     }
 
-    pub fn has_memory_write_commits(&self) -> Vec<&SpikeLogSyntax> {
+    pub fn has_memory_write_commits(&self) -> impl Iterator<Item = &'_ SpikeLogSyntax> {
         self.0
             .iter()
             .filter(|log| !log.commits.is_empty() && log.commits.iter().any(|c| c.is_mem_write()))
-            .collect()
     }
 }
 
@@ -69,7 +57,7 @@ pub enum LoadStoreType {
         index: u8,
         value: u32,
     },
-    CSR {
+    Csr {
         index: u32,
         name: String,
         value: u32,
@@ -93,7 +81,7 @@ impl Display for LoadStoreType {
                 write!(f, "write memory {address:#010x} with {value:#010x}")
             }
             Self::MemoryRead { address } => write!(f, "read memory {address:#010x}"),
-            Self::CSR { index, name, value } => {
+            Self::Csr { index, name, value } => {
                 write!(f, "write CSR {index:#010x}({name}) with {value}")
             }
         }
@@ -102,10 +90,7 @@ impl Display for LoadStoreType {
 
 impl LoadStoreType {
     pub fn is_register_write_commit(&self) -> bool {
-        match self {
-            Self::Register { .. } => true,
-            _ => false,
-        }
+        matches!(self, Self::Register { .. })
     }
 
     pub fn get_register(&self) -> Option<(u8, u32)> {
@@ -116,24 +101,18 @@ impl LoadStoreType {
     }
 
     pub fn is_csr_commit(&self) -> bool {
-        match self {
-            Self::CSR { .. } => true,
-            _ => false,
-        }
+        matches!(self, Self::Csr { .. })
     }
 
     pub fn get_csr(&self) -> Option<(u32, String, u32)> {
         match self {
-            Self::CSR { index, name, value } => Some((*index, name.to_string(), *value)),
+            Self::Csr { index, name, value } => Some((*index, name.to_string(), *value)),
             _ => None,
         }
     }
 
     pub fn is_mem_write(&self) -> bool {
-        match self {
-            Self::MemoryWrite { .. } => true,
-            _ => false,
-        }
+        matches!(self, Self::MemoryWrite { .. })
     }
 
     pub fn get_mem_write(&self) -> Option<(u32, u32)> {
@@ -208,18 +187,14 @@ impl Display for SpikeLogSyntax {
 }
 
 impl SpikeLogSyntax {
-    pub fn get_register_write_commits(&self) -> Vec<&LoadStoreType> {
+    pub fn get_register_write_commits(&self) -> impl Iterator<Item = &LoadStoreType> {
         self.commits
             .iter()
             .filter(|event| event.is_register_write_commit())
-            .collect()
     }
 
-    pub fn get_csr_write_commits(&self) -> Vec<&LoadStoreType> {
-        self.commits
-            .iter()
-            .filter(|event| event.is_csr_commit())
-            .collect()
+    pub fn get_csr_write_commits(&self) -> impl Iterator<Item = &LoadStoreType> {
+        self.commits.iter().filter(|event| event.is_csr_commit())
     }
 
     pub fn has_reg_write_commit(&self) -> bool {
@@ -504,7 +479,7 @@ impl SpikeLogSyntax {
                             };
                             ctx.state
                                 .commits
-                                .push(LoadStoreType::CSR { index, name, value });
+                                .push(LoadStoreType::Csr { index, name, value });
 
                             ctx
                         }
@@ -533,7 +508,7 @@ fn test_parsing_spike_log_ast() {
             privilege: 3,
             pc: 0x800000ac,
             instruction: 0x30529073,
-            commits: LoadStoreCommits(vec![LoadStoreType::CSR {
+            commits: LoadStoreCommits(vec![LoadStoreType::Csr {
                 index: 0x305,
                 name: "mtvec".to_string(),
                 value: 0x8000000c,

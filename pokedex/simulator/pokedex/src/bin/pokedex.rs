@@ -158,7 +158,7 @@ fn main() -> miette::Result<()> {
 
     let config: PokedexConfig = knuffel::parse(&args.config_path, config_content.as_str())?;
 
-    let bus_info = BusInfo::try_from_config(&vec![
+    let bus_info = BusInfo::try_from_config(&[
         AddressSpaceDescNode::Sram {
             name: "single-naive-memory".to_string(),
             base: config.sram.base,
@@ -188,13 +188,11 @@ fn main() -> miette::Result<()> {
 
         if config.dump.on
             && !config.dump.off
-            && config.dump.at_pc.is_some()
             && config
                 .dump
                 .at_pc
                 .as_ref()
-                .unwrap()
-                .contains(&sim_handle.current_pc())
+                .is_some_and(|pc| pc.contains(&sim_handle.current_pc()))
         {
             pretty_print_regs(sim_handle.current_pc(), &sim_handle.dump_regs());
         }
