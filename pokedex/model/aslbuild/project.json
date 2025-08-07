@@ -1,6 +1,6 @@
 {
   "imports": [
-    "FFI_instruction_fetch",
+    "FFI_instruction_fetch_half",
     "FFI_emulator_do_fence",
     "FFI_read_physical_memory_8bits",
     "FFI_read_physical_memory_16bits",
@@ -9,10 +9,16 @@
     "FFI_write_physical_memory_16bits",
     "FFI_write_physical_memory_32bits",
     "FFI_write_GPR_hook",
+    "FFI_write_CSR_hook",
     "FFI_ecall",
     "FFI_ebreak",
     "FFI_print_bits_hex",
-    "FFI_print_str"
+    "FFI_print_str",
+    "FFI_load_reserved",
+    "FFI_store_conditional",
+    "FFI_machine_external_interrupt_pending",
+    "FFI_machine_time_interrupt_pending",
+    "FFI_amo"
   ],
 
   "exports": ["ASL_Step", "ASL_Reset"],

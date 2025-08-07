@@ -186,6 +186,69 @@ unsafe extern "C" fn FFI_machine_time_interrupt_pending_0() -> u32 {
     0
 }
 
+#[unsafe(no_mangle)]
+unsafe extern "C" fn FFI_load_reserved_0(addr: u32) -> model::FFI_ReadResult_N_32 {
+    let state = unsafe { get_state() };
+    if let Some(data) = state.load_reserved(addr) {
+        model::FFI_ReadResult_N_32 {
+            success: true,
+            data: u32::from_le_bytes(data),
+        }
+    } else {
+        model::FFI_ReadResult_N_32 {
+            success: false,
+            data: 0,
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+unsafe extern "C" fn FFI_store_conditional_0(addr: u32, data: u32) -> bool {
+    let state = unsafe { get_state() };
+
+    state.store_conditional(addr, &data.to_le_bytes())
+}
+
+#[unsafe(no_mangle)]
+unsafe extern "C" fn FFI_amo_0(
+    amo_op_type: model::AmoOperationType,
+    addr: u32,
+    src2: u32,
+    is_aq: bool,
+    is_rl: bool,
+) -> model::FFI_ReadResult_N_32 {
+    let state = unsafe { get_state() };
+
+    let op: fn(u32, u32) -> u32 = match amo_op_type {
+        model::AmoOperationType_AMO_SWAP => |_: u32, new: u32| -> u32 { new },
+        model::AmoOperationType_AMO_ADD => |old: u32, new: u32| -> u32 { old + new },
+        model::AmoOperationType_AMO_AND => |old: u32, new: u32| -> u32 { old & new },
+        model::AmoOperationType_AMO_OR => |old: u32, new: u32| -> u32 { old | new },
+        model::AmoOperationType_AMO_XOR => |old: u32, new: u32| -> u32 { old ^ new },
+        model::AmoOperationType_AMO_MAX => {
+            |old: u32, new: u32| -> u32 { i32::max(old as i32, new as i32) as u32 }
+        }
+        model::AmoOperationType_AMO_MIN => {
+            |old: u32, new: u32| -> u32 { i32::min(old as i32, new as i32) as u32 }
+        }
+        model::AmoOperationType_AMO_MAXU => u32::max,
+        model::AmoOperationType_AMO_MINU => u32::min,
+        _ => unreachable!("Invalid AMO operation {amo_op_type} met"),
+    };
+
+    if let Some(old) = state.amo_exec(op, addr, src2, is_aq, is_rl) {
+        model::FFI_ReadResult_N_32 {
+            success: true,
+            data: old,
+        }
+    } else {
+        model::FFI_ReadResult_N_32 {
+            success: false,
+            data: 0,
+        }
+    }
+}
+
 static mut CALLBACK_STATE: *mut SimulatorState = std::ptr::null_mut();
 
 // It should only be called within ASL callback,

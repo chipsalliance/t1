@@ -2,7 +2,7 @@
   lib,
   rustPlatform,
   asl-interpreter,
-  sim-lib,
+  model,
   rust-analyzer,
   clippy,
   python3,
@@ -14,15 +14,15 @@ rustPlatform.buildRustPackage (finalAttr: {
 
   buildInputs = [
     rustPlatform.bindgenHook
-    sim-lib
+    model
     python3
   ];
 
   env = {
     ASL_LIB_DIR = "${asl-interpreter}/lib";
     ASL_INC_DIR = "${asl-interpreter}/include";
-    POKEDEX_LIB_DIR = "${sim-lib}/lib";
-    POKEDEX_INC_DIR = "${sim-lib}/include";
+    POKEDEX_LIB_DIR = "${model}/lib";
+    POKEDEX_INC_DIR = "${model}/include";
   };
 
   passthru.shell = finalAttr.overrideAttrs (old: {

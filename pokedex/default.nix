@@ -11,7 +11,7 @@ lib.makeScope newScope (scope: {
     inherit ivy-rvdecoderdb;
   };
 
-  sim-lib = scope.callPackage ./model/package.nix { };
+  model = scope.callPackage ./model/package.nix { };
 
   simulator = scope.callPackage ./simulator/package.nix { };
 

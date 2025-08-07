@@ -1,6 +1,6 @@
 .PHONY: all install clean
 
-PROJECT_NAME := pokedex-sim
+PROJECT_NAME := pokedex_model
 
 BUILD_DIR := ./build
 
@@ -9,7 +9,7 @@ JINJA_CLI := minijinja-cli
 JINJA_FLAGS := --strict
 ASLI := asli
 ASL2C := asl2c
-PREFIX := $(BUILD_DIR)/simlib
+PREFIX := $(BUILD_DIR)/$(PROJECT_NAME)
 
 # RISCV Opcodes
 _RISCV_OPCODES_SRC = ${RISCV_OPCODES_SRC}
@@ -25,7 +25,7 @@ install: $(PREFIX)/lib $(PREFIX)/include
 
 $(PREFIX)/lib $(PREFIX)/include: $(BUILD_DIR)/2-cgen/makefile
 	mkdir -p $(PREFIX)
-	cd $(<D) && $(MAKE) CFLAGS="$(shell $(ASLI) --print-c-flags)" TARGET=libpokedex_sim.a PREFIX=build
+	cd $(<D) && $(MAKE) CFLAGS="$(shell $(ASLI) --print-c-flags)" TARGET=lib$(PROJECT_NAME).a PREFIX=build
 	cp -r $(<D)/build/* $(PREFIX)/
 
 # ---------------------------------------
