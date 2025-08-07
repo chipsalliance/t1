@@ -1,1 +1,6 @@
+FFI_print_str("===============================");
+FFI_print_str("unimplemented instruction met: ");
+FFI_print_bits_hex(instruction);
+FFI_print_str("===============================");
+
 return Exception(CAUSE_ILLEGAL_INSTRUCTION, instruction);
