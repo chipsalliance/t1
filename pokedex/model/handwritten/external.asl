@@ -27,3 +27,27 @@ func FFI_ebreak();
 // interrupt
 func FFI_machine_external_interrupt_pending() => bit;
 func FFI_machine_time_interrupt_pending() => bit;
+
+// Atomic
+func FFI_load_reserved(addr : bits(32)) => FFI_ReadResult(32);
+func FFI_store_conditional(addr : bits(32), data : bits(32)) => boolean;
+
+enumeration AmoOperationType {
+  AMO_SWAP,
+  AMO_ADD,
+  AMO_AND,
+  AMO_OR,
+  AMO_XOR,
+  AMO_MAX,
+  AMO_MIN,
+  AMO_MAXU,
+  AMO_MINU
+};
+
+func FFI_amo(
+  operation : AmoOperationType,
+  src1 : bits(32),
+  src2 : bits(32),
+  is_acquire : boolean,
+  is_release : boolean
+) => FFI_ReadResult(32);

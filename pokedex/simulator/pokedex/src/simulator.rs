@@ -31,6 +31,7 @@ impl SimulatorParams<'_> {
         let state = SimulatorState {
             is_reset: false,
             bus_bridge: bus_info.bus_bridge,
+            addr_reservation: None,
             pc: 0x1000,
             statistic: Statistic::new(),
             ic_handle: bus_info.ic_handle,
@@ -47,21 +48,6 @@ impl SimulatorParams<'_> {
 
         sim
     }
-}
-
-// simulator states not in ASL side
-pub(crate) struct SimulatorState {
-    bus_bridge: BusBridge,
-    pc: u32,
-    statistic: Statistic,
-    exception: Option<SimulationException>,
-    ic_handle: ICHandle,
-
-    is_reset: bool,
-
-    last_instruction_fetch_data: u16,
-    last_instruction_met_count: u32,
-    max_same_instruction: u32,
 }
 
 pub struct Simulator {
@@ -161,6 +147,23 @@ impl Simulator {
     }
 }
 
+// simulator states not in ASL side
+pub(crate) struct SimulatorState {
+    bus_bridge: BusBridge,
+    addr_reservation: Option<u32>,
+
+    pc: u32,
+    statistic: Statistic,
+    exception: Option<SimulationException>,
+    ic_handle: ICHandle,
+
+    is_reset: bool,
+
+    last_instruction_fetch_data: u16,
+    last_instruction_met_count: u32,
+    max_same_instruction: u32,
+}
+
 // callback for ASL generated code
 impl SimulatorState {
     pub fn req_bus_read<const N: usize>(&mut self, addr: u32) -> Result<[u8; N], BusError> {
@@ -206,6 +209,8 @@ impl SimulatorState {
                 bytes = data.len(),
             );
         }
+
+        self.yield_reservation(addr);
 
         let result = self
             .bus_bridge
@@ -315,6 +320,51 @@ impl SimulatorState {
     #[allow(dead_code)]
     pub(crate) fn write_pending_interrupt(&self) -> u32 {
         0
+    }
+
+    pub(crate) fn load_reserved(&mut self, addr: u32) -> Option<[u8; 4]> {
+        self.addr_reservation = None;
+        let data: [u8; 4] = self
+            .req_bus_read(addr)
+            .inspect_err(|e| event!(Level::DEBUG, "LR {addr:#010X} error: {e}"))
+            .ok()?;
+        self.addr_reservation = Some(addr);
+        Some(data)
+    }
+
+    pub(crate) fn store_conditional(&mut self, addr: u32, data: &[u8; 4]) -> bool {
+        if self.yield_reservation(addr) {
+            self.req_bus_write(addr, data)
+                .inspect_err(|e| event!(Level::DEBUG, "SC {addr:#010X} error: {e}"))
+                .is_ok()
+        } else {
+            false
+        }
+    }
+
+    pub(crate) fn yield_reservation(&mut self, addr: u32) -> bool {
+        let reservation = self.addr_reservation.take();
+        reservation == Some(addr)
+    }
+
+    pub(crate) fn amo_exec(
+        &mut self,
+        op: impl FnOnce(u32, u32) -> u32,
+        addr: u32,
+        src2: u32,
+        _is_aq: bool,
+        _is_rl: bool,
+    ) -> Option<u32> {
+        let old: [u8; 4] = self
+            .req_bus_read(addr)
+            .inspect_err(|e| event!(Level::DEBUG, "AMO read {addr:#010X} error: {e}"))
+            .ok()?;
+        let old = u32::from_le_bytes(old);
+        let new = op(old, src2);
+        self.req_bus_write(addr, &new.to_le_bytes())
+            .inspect_err(|e| event!(Level::DEBUG, "AMO write {addr:#010X} error: {e}"))
+            .ok()?;
+        Some(old)
     }
 }
 

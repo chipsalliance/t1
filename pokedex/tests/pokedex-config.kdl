@@ -4,6 +4,8 @@ slow-motion-ms 0
 
 dump {
   off
+
+  at-pc 0x80000142
 }
 
 sram {

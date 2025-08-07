@@ -185,3 +185,13 @@ func GetCA_RS2(inst : bits(16)) => bits(3)
 begin
   return inst[4:2];
 end
+
+func IsRelease(inst : bits(32)) => boolean
+begin
+  return inst[25] == '1';
+end
+
+func IsAcquire(inst : bits(32)) => boolean
+begin
+  return inst[26] == '1';
+end

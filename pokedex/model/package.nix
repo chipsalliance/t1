@@ -7,7 +7,7 @@
   minijinja,
 }:
 stdenv.mkDerivation {
-  name = "pokedex-simlib";
+  name = "pokedex-model";
   src = lib.cleanSource ./.;
 
   nativeBuildInputs = [

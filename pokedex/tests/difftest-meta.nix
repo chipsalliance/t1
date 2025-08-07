@@ -14,10 +14,12 @@ let
     spike = {
       timeout = 30;
       args = [
-        "--isa=rv32imc_zvl256b_zve32x_zifencei"
+        "--isa=rv32imac_zvl256b_zve32x_zifencei"
         "--priv=m"
         "--log-commits"
         "-m0x80000000:0x20000000,0x40000000:0x1000"
+        "-p1"
+        "--hartids=0"
       ];
     };
     pokedex = {

@@ -7,7 +7,7 @@ fn main() {
         "cargo::rustc-link-search=native={}",
         env::var("POKEDEX_LIB_DIR").expect("POKEDEX_LIB_DIR should be set")
     );
-    println!("cargo:rustc-link-lib=static=pokedex_sim");
+    println!("cargo:rustc-link-lib=static=pokedex_model");
     println!("cargo::rerun-if-env-changed=POKEDEX_LIB_DIR");
 
     // link libASL.a
