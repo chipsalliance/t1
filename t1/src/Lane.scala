@@ -776,6 +776,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     stage0.enqueue.bits.maskIndex        := maskIndexVec(index)
     stage0.enqueue.bits.maskForMaskGroup := record.mask.bits
     stage0.enqueue.bits.maskGroupCount   := maskGroupCountVec(index)
+    stage0.enqueue.bits.maskE0           := record.laneRequest.maskE0 || !record.laneRequest.mask
     // todo: confirm
     stage0.enqueue.bits.elements.foreach { case (k, d) =>
       laneState.elements.get(k).foreach(stateData => d := stateData)
@@ -890,6 +891,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     }
     stage2.enqueue.bits.groupCounter        := stage1.dequeue.bits.groupCounter
     stage2.enqueue.bits.mask                := stage1.dequeue.bits.mask
+    stage2.enqueue.bits.maskE0              := stage1.dequeue.bits.maskE0
     stage2.enqueue.bits.maskForFilter       := stage1.dequeue.bits.maskForFilter
     stage2.enqueue.bits.src                 := stage1.dequeue.bits.src
     stage2.enqueue.bits.sSendResponse.zip(stage1.dequeue.bits.sSendResponse).foreach { case (sink, source) =>
@@ -940,6 +942,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     stage3EnqWire.bits.instructionIndex := stage2.dequeue.bits.instructionIndex
     stage3EnqWire.bits.loadStore        := stage2.dequeue.bits.loadStore
     stage3EnqWire.bits.vd               := stage2.dequeue.bits.vd
+    stage3EnqWire.bits.maskE0           := stage2.dequeue.bits.maskE0
     stage3EnqWire.bits.ffoByOtherLanes  := false.B
     stage3EnqWire.bits.groupCounter     := stage2.dequeue.bits.groupCounter
     stage3EnqWire.bits.mask             := stage2.dequeue.bits.mask

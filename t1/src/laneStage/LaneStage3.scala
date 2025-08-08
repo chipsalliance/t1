@@ -43,6 +43,7 @@ class LaneStage3Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
       parameter.eLen
     )
   )
+  val maskE0:            Bool                      = Bool()
 }
 
 @instantiable

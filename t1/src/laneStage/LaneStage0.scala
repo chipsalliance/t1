@@ -48,6 +48,7 @@ class LaneStage0Enqueue(parameter: LaneParameter) extends Bundle {
   val skipRead:         Bool = Bool()
   // vm will skip element?
   val skipEnable:       Bool = Bool()
+  val maskE0:           Bool = Bool()
 }
 
 class LaneStage0StateUpdate(parameter: LaneParameter) extends Bundle {
@@ -92,6 +93,7 @@ class LaneStage0Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
       parameter.eLen
     )
   )
+  val maskE0:            Bool                      = Bool()
 }
 
 /** 这一级由 lane slot 里的 maskIndex maskGroupCount 来计算对应的 data group counter 同时也会维护指令的结束与mask的更新
