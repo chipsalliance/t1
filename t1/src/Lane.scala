@@ -421,6 +421,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     Flipped(Decoupled(new reduceMaskRequest(parameter.datapathWidth)))
   )
 
+  @public
+  val writeCountForToken: DecoupledIO[UInt] = IO(
+    Flipped(Decoupled(UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W)))
+  )
+
   // TODO: remove
   dontTouch(writeBusPort2)
   val csrInterface: CSRInterface = laneRequest.bits.csrInterface
@@ -1374,6 +1379,12 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   tokenManager.maskUnitLastReport := lsuLastReport
   tokenManager.laneIndex          := laneIndex
+
+  tokenManager.issueSlide.valid := laneRequest.fire && laneRequest.bits.decodeResult(Decoder.maskPipeUop) === BitPat(
+    "b001??"
+  )
+  tokenManager.issueSlide.bits  := laneRequest.bits.instructionIndex
+  tokenManager.writeCountForToken <> writeCountForToken
 
   layer.block(layers.Verification) {
     val probeWire = Wire(new LaneProbe(parameter))

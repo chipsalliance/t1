@@ -175,6 +175,10 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
   val maskUnitReport: Vec[DecoupledIO[LastReportBundle]] =
     Vec(parameter.laneNumber, Flipped(Decoupled(new LastReportBundle(parameter.chaining1HBits))))
 
+  // opcode 6
+  val writeCount: Vec[DecoupledIO[UInt]] =
+    Vec(parameter.laneNumber, Flipped(Decoupled(UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W))))
+
   // interface => sequencer
   // opcode 0
   val maskRequest = Vec(parameter.laneNumber, Decoupled(new MaskRequest(parameter.maskGroupSizeBits)))
@@ -207,7 +211,7 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
     )
   )
   val outputVirtualChannelVec: Vec[Vec[DecoupledIO[LaneVirtualChannel]]] = Vec(
-    5,
+    6,
     Vec(
       parameter.laneNumber,
       Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth))
@@ -240,8 +244,8 @@ class SequencerInterface(val parameter: SequencerIFParameter)
   protected def implicitReset = io.reset
 
   val physicalChannelFromSequencer =
-    Seq(io.laneRequest, io.vrfReadRequest, io.maskRequestAck, io.vrfWriteRequest, io.maskUnitReport)
-  val opcodeFromSequencer: Seq[Int] = Seq(0, 1, 2, 4, 5)
+    Seq(io.laneRequest, io.vrfReadRequest, io.maskRequestAck, io.vrfWriteRequest, io.maskUnitReport, io.writeCount)
+  val opcodeFromSequencer: Seq[Int] = Seq(0, 1, 2, 4, 5, 6)
 
   physicalChannelFromSequencer.zipWithIndex.foreach { case (pcVec, index) =>
     val outputVCVec: Vec[DecoupledIO[LaneVirtualChannel]] = io.outputVirtualChannelVec(index)
