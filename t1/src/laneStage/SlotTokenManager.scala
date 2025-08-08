@@ -20,6 +20,14 @@ class EnqReportBundle(parameter: LaneParameter) extends Bundle {
   val groupCounter:     UInt         = UInt(parameter.groupNumberBits.W)
 }
 
+class SlideWriteState(parameter: LaneParameter) extends Bundle {
+  val pendingSlideWrite: Bool = Bool()
+  val slideIndex:        UInt = UInt(parameter.instructionIndexBits.W)
+  val getCountReport:    Bool = Bool()
+  val needSlideWrite:    UInt = UInt(log2Ceil(parameter.vLen).W)
+  val finishSlideWrite:  UInt = UInt(log2Ceil(parameter.vLen).W)
+}
+
 /** For each slot, it has 4 stages:
   * {{{
   * stage0.enq             <-> [[enqReports]]         <-> slot token start
@@ -73,6 +81,9 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   }
 
   @public
+  val issueSlide: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+
+  @public
   val crossWrite2Reports: Vec[ValidIO[UInt]] = IO(Vec(2, Flipped(Valid(UInt(parameter.instructionIndexBits.W)))))
 
   @public
@@ -115,6 +126,11 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
 
   @public
   val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
+
+  @public
+  val writeCountForToken: DecoupledIO[UInt] = IO(
+    Flipped(Decoupled(UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W)))
+  )
 
   def tokenUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt): UInt = {
     tokenData.zipWithIndex.foreach { case (t, i) =>
@@ -183,6 +199,30 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
       // for mask stage
       val pendingMaskStage = Wire(UInt(parameter.chaining1HBits.W))
       if (true) {
+        val slideWriteState = RegInit(0.U.asTypeOf(new SlideWriteState(parameter)))
+        when(issueSlide.valid) {
+          slideWriteState                   := 0.U.asTypeOf(slideWriteState)
+          slideWriteState.pendingSlideWrite := true.B
+          slideWriteState.slideIndex        := issueSlide.bits
+        }
+
+        writeCountForToken.ready := slideWriteState.pendingSlideWrite
+        when(writeCountForToken.valid) {
+          slideWriteState.getCountReport := true.B
+          slideWriteState.needSlideWrite := writeCountForToken.bits
+        }
+
+        when(writePipeDeqReport.fire && slideWriteState.slideIndex === writePipeDeqReport.bits) {
+          slideWriteState.finishSlideWrite := slideWriteState.finishSlideWrite + 1.U
+        }
+
+        val slideWriteClear = slideWriteState.pendingSlideWrite && slideWriteState.getCountReport &&
+          (slideWriteState.finishSlideWrite === slideWriteState.needSlideWrite)
+
+        when(slideWriteClear) {
+          slideWriteState.pendingSlideWrite := false.B
+        }
+
         val maskStageTokenReg = RegInit(0.U(tokenWith.W))
         val maskStageIndex    = RegInit(0.U(parameter.instructionIndexBits.W))
         val waitForStageClear = RegInit(false.B)
@@ -199,7 +239,11 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
         when(maskStageTokenReg === 0.U && maskStageToken.maskStageClear) {
           waitForStageClear := false.B
         }
-        pendingMaskStage := maskAnd(waitForStageClear, indexToOH(maskStageIndex, parameter.chainingSize)).asUInt
+        pendingMaskStage := maskAnd(waitForStageClear, indexToOH(maskStageIndex, parameter.chainingSize)).asUInt |
+          maskAnd(
+            slideWriteState.pendingSlideWrite,
+            indexToOH(slideWriteState.slideIndex, parameter.chainingSize)
+          ).asUInt
       }
 
       // cross write update

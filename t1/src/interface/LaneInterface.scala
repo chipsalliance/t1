@@ -168,7 +168,8 @@ class LaneInterface(val parameter: LaneIFParameter)
     io.maskRequestAck,
     io.lsuReport,
     io.vrfWriteRequest,
-    io.maskUnitReport
+    io.maskUnitReport,
+    io.writeCount
   )
 
   physicalChannelFromLane.zipWithIndex.foreach { case (req, index) =>

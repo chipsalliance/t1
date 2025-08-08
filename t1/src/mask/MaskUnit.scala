@@ -87,7 +87,10 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
   val writeRDData:   UInt                              = Output(UInt(parameter.xLen.W))
   val gatherData:    DecoupledIO[UInt]                 = Decoupled(UInt(parameter.xLen.W))
   val gatherRead:    Bool                              = Input(Bool())
-  val om:            Property[ClassType]               = Output(Property[AnyClassType]())
+
+  val writeCountVec: Vec[ValidIO[UInt]]  =
+    Vec(parameter.laneNumber, Valid(UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W)))
+  val om:            Property[ClassType] = Output(Property[AnyClassType]())
 }
 
 @instantiable
@@ -178,6 +181,35 @@ class MaskUnit(val parameter: T1Parameter)
   val slideV0Overlap = (slideDownV0Shift >> parameter.vLen).asUInt
   val slideV0OverReg = RegEnable(slideV0Overlap, 0.U(dByte.W), io.slideReq.valid)
   val slideV0: Vec[UInt] = cutUInt(slideV0Reg, parameter.datapathWidth)
+
+  // Calculate the write of slide
+  // 1. Normal type, Directly determined by vl & v0, Include slide1 slide down
+  // 1. slide up, slide up, Directly determined by vl & v0 & slideSize
+  val baseV0:                UInt      = Mux(instReq.bits.maskType, v0.asUInt, -1.S(parameter.vLen.W).asUInt)
+  val vlCorrection:          UInt      = (scanRightOr(UIntToOH(instReq.bits.vl)) >> 1).asUInt
+  val shifterValidSize:      UInt      = changeUIntSize(instReq.bits.readFromScala, parameter.laneParam.vlMaxBits)
+  val shifterSizeOverlap:    Bool      = (instReq.bits.readFromScala >> parameter.laneParam.vlMaxBits).asUInt.orR
+  val upCorrection:          UInt      = Mux(
+    io.slideReq.bits.scalar && io.slideReq.bits.up,
+    scanLeftOr(UIntToOH(shifterValidSize)) & Fill(parameter.vLen, !shifterSizeOverlap),
+    -1.S(parameter.vLen.W).asUInt
+  )
+  val writeMaskForSlide:     UInt      = changeUIntSize(baseV0 & vlCorrection & upCorrection, parameter.vLen)
+  val writeCountForSlide:    Vec[UInt] = VecInit(Seq(4, 2, 1).map { singleSize =>
+    val groupSize = singleSize * (parameter.datapathWidth / parameter.eLen)
+    cutUInt(writeMaskForSlide, groupSize)
+      .grouped(parameter.laneNumber)
+      .toSeq
+      .transpose
+      .map(seq => PopCount(VecInit(seq).asUInt))
+  }.transpose.map(a => Mux1H(UIntToOH(instReq.bits.sew)(2, 0), a)))
+  val writeCountForSlideReg: Vec[UInt] =
+    RegEnable(writeCountForSlide, 0.U.asTypeOf(writeCountForSlide), io.slideReq.valid)
+  val writeCountReport:      Bool      = RegNext(io.slideReq.valid, false.B)
+  io.writeCountVec.zipWithIndex.foreach { case (req, index) =>
+    req.valid := writeCountReport
+    req.bits  := writeCountForSlideReg(index)
+  }
 
   // write v0(mask)
   v0.zipWithIndex.foreach { case (data, index) =>

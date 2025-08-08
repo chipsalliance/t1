@@ -932,6 +932,9 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   // opcode 5
   val maskUnitReport: DecoupledIO[LastReportBundle] = Decoupled(new LastReportBundle(parameter.chaining1HBits))
 
+  // opcode 6
+  val writeCount: DecoupledIO[UInt] = Decoupled(UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W))
+
   // lane output => interface input
   // opcode 0
   val maskRequest: DecoupledIO[MaskRequest] = Flipped(Decoupled(new MaskRequest(parameter.maskGroupSizeBits)))
@@ -961,7 +964,7 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   val lsuWriteAck: DecoupledIO[UInt] = Flipped(Decoupled(UInt(parameter.instructionIndexBits.W)))
 
   val inputVirtualChannelVec: Vec[DecoupledIO[LaneVirtualChannel]] = Vec(
-    6,
+    7,
     Flipped(
       Decoupled(
         new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth)
