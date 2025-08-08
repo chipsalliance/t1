@@ -23,6 +23,7 @@ class LaneStage2Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val decodeResult:        DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val instructionIndex:    UInt         = UInt(parameter.instructionIndexBits.W)
   val loadStore:           Bool         = Bool()
+  val maskE0:              Bool         = Bool()
 
   /** vd or rd */
   val vd:       UInt         = UInt(5.W)
@@ -61,6 +62,7 @@ class LaneStage2Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 
   // pipe for mask pipe
   val readFromScalar: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+  val maskE0:         Bool         = Bool()
 
   // pipe for mask stage
   val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
@@ -133,6 +135,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
   executionQueue.enq.bits.instructionIndex := enqueue.bits.instructionIndex
   executionQueue.enq.bits.loadStore        := enqueue.bits.loadStore
   executionQueue.enq.bits.vd               := enqueue.bits.vd
+  executionQueue.enq.bits.maskE0           := enqueue.bits.maskE0
   executionQueue.enq.bits.vSew1H           := enqueue.bits.vSew1H
   executionQueue.enq.valid                 := enqueue.valid
   enqueue.ready                            := executionQueue.enq.ready
@@ -140,6 +143,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
   executionQueue.deq.ready                 := dequeue.ready
 
   dequeue.bits.readFromScalar.foreach(_ := executionQueue.deq.bits.readFromScalar.get)
+  dequeue.bits.maskE0           := executionQueue.deq.bits.maskE0
   dequeue.bits.pipeData.foreach(_ := executionQueue.deq.bits.pipeData.get)
   dequeue.bits.groupCounter     := executionQueue.deq.bits.groupCounter
   dequeue.bits.mask             := executionQueue.deq.bits.mask

@@ -293,6 +293,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val maskPipeReqReg:     LaneStage3Enqueue = RegInit(0.U.asTypeOf(maskPipeEnqReq))
   val maskPipeMessageReg: PipeForMaskUnit   = RegInit(0.U.asTypeOf(new PipeForMaskUnit(parameter)))
   val rxGroupIndex:       UInt              = RegInit(0.U(parameter.groupNumberBits.W))
+  val slide0Replenish = RegInit(false.B)
 
   // reduce state machine
   // If there is no lane expansion or fd, only the first lane will have fold & sWrite,
@@ -331,6 +332,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
 
   val maskPipeEnqIsExtend: Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b0000?")
   val maskPipeEnqReduce:   Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b010??")
+  val enqSlide1Up:         Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b00110")
 
   val maskPipeIsExtend:   Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop) === BitPat("b0000?")
   val maskPipeIsGather:   Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop) === BitPat("b0001?")
@@ -353,7 +355,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   maskReqQueue.deq.ready := !maskPipeValid || maskPipeDeqReady
   val opcode1H: UInt = UIntToOH(maskPipeReqReg.decodeResult(Decoder.maskPipeUop))
   // todo
-  val lastRequest = true.B
+  val firstFroup = maskPipeEnqReq.groupCounter === 0.U
   // update register
   when(maskPipeEnqFire) {
     maskPipeReqReg      := maskPipeEnqReq
@@ -362,7 +364,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     lastRequestDeqFire  := false.B
     waitFoldRes         := false.B
     when(maskPipeEnqReduce) {
-      when(maskPipeEnqReq.groupCounter === 0.U && firstLane) {
+      when(firstFroup && firstLane) {
         reduceResult := maskReqQueue.deq.bits.maskPipe.source1 & enqBitMask
       }
       when(!maskPipeEnqReq.sSendResponse) {
@@ -374,6 +376,9 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     }
     when(maskPipeEnqReq.instructionIndex =/= maskPipeReqReg.instructionIndex) {
       rxGroupIndex := 0.U
+    }
+    when(enqSlide1Up && firstFroup && firstLane && maskPipeEnqReq.maskE0) {
+      slide0Replenish := true.B
     }
   }
   when(crossWriteDeqFire.orR) {
@@ -727,6 +732,16 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   slideRequest1.mask         := mask << dataOffset
   slideRequest1.sink         := accessLane
   slideRequest1.groupCounter := reallyGrowth ## offset
+
+  when(slide0Replenish && !freeCrossDataEnq.valid) {
+    crossLaneWriteQueue.last.enq.valid             := true.B
+    crossLaneWriteQueue.last.enq.bits.data         := maskPipeMessageReg.readFromScala
+    crossLaneWriteQueue.last.enq.bits.mask         := mask
+    crossLaneWriteQueue.last.enq.bits.groupCounter := 0.U
+    when(crossLaneWriteQueue.last.enq.ready) {
+      slide0Replenish := false.B
+    }
+  }
 
   freeCrossDataDeq.valid        := slideRequestReg1.valid
   freeCrossDataDeq.bits.data    := slideRequestReg1.bits.data

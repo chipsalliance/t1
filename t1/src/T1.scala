@@ -1025,6 +1025,7 @@ class T1(val parameter: T1Parameter)
     val writeCounter: UInt = (requestReg.bits.writeByte >> rowWith).asUInt +
       (requestReg.bits.writeByte(rowWith - 1, 0) > ((parameter.datapathWidth / 8) * index).U)
     request.bits.writeCount := writeCounter
+    request.bits.maskE0     := maskUnit.io.maskE0
   }
 
   laneVec.zipWithIndex.foreach { case (lane, index) =>

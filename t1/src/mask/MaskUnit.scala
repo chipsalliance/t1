@@ -88,9 +88,11 @@ class MaskUnitInterface(parameter: T1Parameter) extends Bundle {
   val gatherData:    DecoupledIO[UInt]                 = Decoupled(UInt(parameter.xLen.W))
   val gatherRead:    Bool                              = Input(Bool())
 
-  val writeCountVec: Vec[ValidIO[UInt]]  =
+  val writeCountVec: Vec[ValidIO[UInt]] =
     Vec(parameter.laneNumber, Valid(UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W)))
-  val om:            Property[ClassType] = Output(Property[AnyClassType]())
+
+  val maskE0 = Output(Bool())
+  val om: Property[ClassType] = Output(Property[AnyClassType]())
 }
 
 @instantiable
@@ -210,6 +212,7 @@ class MaskUnit(val parameter: T1Parameter)
     req.valid := writeCountReport
     req.bits  := writeCountForSlideReg(index)
   }
+  io.maskE0 := v0(0)(0)
 
   // write v0(mask)
   v0.zipWithIndex.foreach { case (data, index) =>
