@@ -203,7 +203,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   @public
   val writeCheck: Vec[LSUWriteCheck] = IO(
     Vec(
-      parameter.chainingSize + 3,
+      parameter.chainingSize + 1,
       Input(
         new LSUWriteCheck(
           parameter.regNumBits,
@@ -215,7 +215,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   )
 
   @public
-  val writeAllow: Vec[Bool] = IO(Vec(parameter.chainingSize + 3, Output(Bool())))
+  val writeAllow: Vec[Bool] = IO(Vec(parameter.chainingSize + 1, Output(Bool())))
 
   /** when instruction is fired, record it in the VRF for chaining. */
   @public
@@ -534,7 +534,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
         writePort.map(p =>
           p.fire && p.bits.instructionIndex === record.bits.instIndex &&
             // Only index load will split the datapath into separate parts.
-            p.bits.mask(parameter.datapathWidth / 8 - 1)
+            p.bits.mask(parameter.datapathWidth / 8 - 1) && !record.bits.oooWrite
         )
       val writeUpdate1HVec:    Seq[UInt] = writeOH.zip(writeUpdateValidVec).map { case (oh, v) => Mux(v, oh, 0.U) }
       // elementMask update by read of store instruction

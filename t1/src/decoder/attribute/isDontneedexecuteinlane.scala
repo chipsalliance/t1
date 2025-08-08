@@ -17,6 +17,14 @@ object isDontneedexecuteinlane {
 
   def y(t1DecodePattern: T1DecodePattern): Boolean = {
     val allMatched = Seq(
+      "vfslide1down.vf",
+      "vfslide1up.vf",
+      "vslide1down.vx",
+      "vslide1up.vx",
+      "vslidedown.vi",
+      "vslidedown.vx",
+      "vslideup.vi",
+      "vslideup.vx",
       "vcompress.vm",
       "viota.m",
       "vl1re16.v",
@@ -138,5 +146,5 @@ object isDontneedexecuteinlane {
 
 case class isDontneedexecuteinlane(value: TriState) extends BooleanDecodeAttribute {
   override val description: String =
-    "Lane doesn't need VFU to execute the instruction. datapath will directly goes to VRF.     "
+    "It is no longer executed in the execution unit, but it may pass through the pipe (expected to pass through the pipe in the future)"
 }

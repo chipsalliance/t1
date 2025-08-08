@@ -117,6 +117,8 @@ case class SequencerIFParameter(
   val idWidth:     Int = log2Ceil(laneNumber + lsuSize + 1 + 1)
   // todo
   val opcodeWidth: Int = log2Ceil(9)
+  // dLen as Byte
+  val dByte:       Int = laneNumber * datapathWidth / 8
 }
 
 class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
@@ -154,7 +156,7 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
   val maskRequestAck: Vec[DecoupledIO[MaskRequestAck]] =
     Vec(parameter.laneNumber, Flipped(Decoupled(new MaskRequestAck(parameter.maskGroupWidth))))
 
-  // opcode 6
+  // opcode 4
   val vrfWriteRequest: Vec[DecoupledIO[VRFWriteRequest]] = Vec(
     parameter.laneNumber,
     Flipped(
@@ -169,9 +171,13 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
     )
   )
 
-  // opcode 7
+  // opcode 5
   val maskUnitReport: Vec[DecoupledIO[LastReportBundle]] =
     Vec(parameter.laneNumber, Flipped(Decoupled(new LastReportBundle(parameter.chaining1HBits))))
+
+  // opcode 6
+  val writeCount: Vec[DecoupledIO[UInt]] =
+    Vec(parameter.laneNumber, Flipped(Decoupled(UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W))))
 
   // interface => sequencer
   // opcode 0
@@ -180,7 +186,7 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
   // opcode 1
   val readVrfAck = Vec(parameter.laneNumber, Decoupled(UInt(parameter.datapathWidth.W)))
 
-  // opcode 3
+  // opcode 2
   val maskUnitRequest = Vec(
     parameter.laneNumber,
     Decoupled(
@@ -188,13 +194,13 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
     )
   )
 
-  // opcode 5
+  // opcode 3
   val v0Update = Vec(parameter.laneNumber, Decoupled(new V0Update(parameter.datapathWidth, parameter.vrfOffsetBits)))
 
-  // opcode 6
+  // opcode 4
   val laneResponse = Vec(parameter.laneNumber, Decoupled(new LaneResponse(parameter.chaining1HBits)))
 
-  // opcode 7
+  // opcode 5
   val maskWriteRelease = Vec(parameter.laneNumber, Decoupled(new EmptyBundle()))
 
   val inputVirtualChannelVec:  Vec[Vec[DecoupledIO[LaneVirtualChannel]]] = Vec(
@@ -205,7 +211,7 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
     )
   )
   val outputVirtualChannelVec: Vec[Vec[DecoupledIO[LaneVirtualChannel]]] = Vec(
-    5,
+    6,
     Vec(
       parameter.laneNumber,
       Decoupled(new LaneVirtualChannel(parameter.dataWidth, parameter.opcodeWidth, parameter.idWidth))
@@ -219,7 +225,7 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
     Decoupled(new LSURequestInterface(parameter.eLen, parameter.chainingSize, parameter.vlMaxBits))
   )
 
-  // opcode 5
+  // opcode 3
   val lsuReportToTop: DecoupledIO[LastReportBundle] = Decoupled(new LastReportBundle(parameter.chaining1HBits))
 
   val topInputVC:  Vec[DecoupledIO[LaneVirtualChannel]] =
@@ -238,8 +244,8 @@ class SequencerInterface(val parameter: SequencerIFParameter)
   protected def implicitReset = io.reset
 
   val physicalChannelFromSequencer =
-    Seq(io.laneRequest, io.vrfReadRequest, io.maskRequestAck, io.vrfWriteRequest, io.maskUnitReport)
-  val opcodeFromSequencer: Seq[Int] = Seq(0, 1, 2, 6, 7)
+    Seq(io.laneRequest, io.vrfReadRequest, io.maskRequestAck, io.vrfWriteRequest, io.maskUnitReport, io.writeCount)
+  val opcodeFromSequencer: Seq[Int] = Seq(0, 1, 2, 4, 5, 6)
 
   physicalChannelFromSequencer.zipWithIndex.foreach { case (pcVec, index) =>
     val outputVCVec: Vec[DecoupledIO[LaneVirtualChannel]] = io.outputVirtualChannelVec(index)
@@ -259,7 +265,7 @@ class SequencerInterface(val parameter: SequencerIFParameter)
 
   val physicalChannelToSequencer =
     Seq(io.maskRequest, io.readVrfAck, io.maskUnitRequest, io.v0Update, io.laneResponse, io.maskWriteRelease)
-  val opcodeToSequencer: Seq[Int] = Seq(0, 1, 3, 5, 6, 7)
+  val opcodeToSequencer: Seq[Int] = Seq(0, 1, 2, 3, 4, 5)
   physicalChannelToSequencer.zipWithIndex.foreach { case (pcVec, index) =>
     val inputVCVec: Vec[DecoupledIO[LaneVirtualChannel]] = io.inputVirtualChannelVec(index)
     val opcode:     Int                                  = opcodeToSequencer(index)
@@ -293,7 +299,7 @@ class SequencerInterface(val parameter: SequencerIFParameter)
   }
 
   val topFromLSU       = Seq(io.lsuReportToTop)
-  val opcodeTopFromLSU = Seq(5)
+  val opcodeTopFromLSU = Seq(3)
   topFromLSU.zipWithIndex.foreach { case (pc, index) =>
     val vc = io.topInputVC(index)
     val opcode: Int = opcodeTopFromLSU(index)
