@@ -526,7 +526,7 @@ class T1(val parameter: T1Parameter)
 
   // top -> lane
   val VCTopToLane = sequencerIF.io.outputVirtualChannelVec
-  val opcodeVCTopToLane: Seq[Int] = Seq(0, 1, 2, 4, 5)
+  val opcodeVCTopToLane: Seq[Int] = Seq(0, 1, 2, 4, 5, 6)
   // lsu -> lane
   val VCLSUToLane       = lsuIF.io.outputVirtualChannelVec
   val opcodeVCLSUToLane = Seq(1, 3, 4)
@@ -901,6 +901,10 @@ class T1(val parameter: T1Parameter)
     q.valid     := maskUnit.io.lastReport.orR
     q.bits.last := maskUnit.io.lastReport
   }
+  sequencerIF.io.writeCount.zipWithIndex.foreach { case (q, i) =>
+    q.valid := maskUnit.io.writeCountVec(i).valid
+    q.bits  := maskUnit.io.writeCountVec(i).bits
+  }
   sequencerIF.io.maskRequest.zipWithIndex.foreach { case (req, index) =>
     maskUnit.io.askMaskVec(index) := req.bits
     req.ready                     := true.B
@@ -1056,6 +1060,8 @@ class T1(val parameter: T1Parameter)
     laneIF.io.maskUnitReport.ready := true.B
     lane.lsuLastReport             := maskAnd(laneIF.io.lsuReport.valid, laneIF.io.lsuReport.bits.last).asUInt |
       maskAnd(laneIF.io.maskUnitReport.valid, laneIF.io.maskUnitReport.bits.last).asUInt
+
+    lane.writeCountForToken <> laneIF.io.writeCount
 
     lane.vrfWriteChannel.valid <> laneIF.io.vrfWriteRequest.valid
     // todo: Is there any way to remove the x brought by queue?
