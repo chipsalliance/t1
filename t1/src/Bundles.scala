@@ -518,6 +518,7 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
 
   // pipe for mask pipe
   val readFromScalar: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+  val maskE0:         Bool         = Bool()
 
   // pipe for mask stage
   val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
@@ -799,6 +800,8 @@ class LaneRequest(
   val csrInterface: CSRInterface = new CSRInterface(vlMaxBits)
 
   val writeCount: UInt = UInt((vlMaxBits - log2Ceil(laneNumber) - log2Ceil(dataPathByteWidth)).W)
+
+  val maskE0: Bool = Bool()
 
   // vmacc 的vd需要跨lane读 TODO: move to [[V]]
   def ma: Bool =
