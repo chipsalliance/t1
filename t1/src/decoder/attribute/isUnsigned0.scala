@@ -146,7 +146,15 @@ object isUnsigned0 {
       "vror.vi",
       "vwsll.vv",
       "vwsll.vx",
-      "vwsll.vi"
+      "vwsll.vi",
+      "vfslide1down.vf",
+      "vfslide1up.vf",
+      "vslide1down.vx",
+      "vslide1up.vx",
+      "vslidedown.vi",
+      "vslidedown.vx",
+      "vslideup.vi",
+      "vslideup.vx"
     )
     allMatched.contains(t1DecodePattern.instruction.name)
   }

@@ -143,9 +143,10 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
         ),
         1.U
       )
+      val lagerThanVL:    Bool = (slideSize >> parameter.vlMaxBits).asUInt.orR
       val baseGroup = ((slideSize << enqueue.bits.vSew) >> log2Ceil(parameter.dByte)).asUInt
       // You need to skip reading only when you slide down
-      base := Mux(slideDown, baseGroup, 0.U)
+      base := Mux(slideDown && !lagerThanVL, baseGroup, 0.U)
       base
     }
     .getOrElse(0.U)

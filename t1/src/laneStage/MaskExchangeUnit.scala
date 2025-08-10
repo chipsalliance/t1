@@ -594,15 +594,25 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     )
   }
 
+  val slideSizeNegative = !maskPipeReqReg.decodeResult(Decoder.itype) && maskPipeMessageReg.readFromScala(
+    parameter.eLen - 1
+  ) && maskPipeReqReg.groupCounter.andR
+  val elementHead       = Fill(parameter.eLen, slideSizeNegative)
   val elementIndex: UInt = Mux1H(
     sewSelect,
     Seq(
-      maskPipeReqReg.groupCounter ## laneIndex ## executeIndex,
-      maskPipeReqReg.groupCounter ## laneIndex ## executeIndex(log2Ceil(parameter.dataPathByteWidth) - 2, 0),
+      elementHead ## maskPipeReqReg.groupCounter ## laneIndex ## executeIndex,
+      elementHead ## maskPipeReqReg.groupCounter ## laneIndex ## executeIndex(
+        log2Ceil(parameter.dataPathByteWidth) - 2,
+        0
+      ),
       if (log2Ceil(parameter.dataPathByteWidth) > 2)
-        maskPipeReqReg.groupCounter ## laneIndex ## executeIndex(log2Ceil(parameter.dataPathByteWidth) - 3, 0)
+        elementHead ## maskPipeReqReg.groupCounter ## laneIndex ## executeIndex(
+          log2Ceil(parameter.dataPathByteWidth) - 3,
+          0
+        )
       else
-        maskPipeReqReg.groupCounter ## laneIndex
+        elementHead ## maskPipeReqReg.groupCounter ## laneIndex
     )
   )
   val source2:      UInt = CollapseOperand(maskPipeMessageReg.source2)
@@ -619,20 +629,23 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     ),
     1.U
   )
+  val lagerThanVL:      Bool = (source1Select >> parameter.vlMaxBits).asUInt.orR
   val baseSelect:       UInt = elementIndex
-  val source1Direction: UInt = Mux(sub, (~source1Select).asUInt, source1Select)
+  val source1Direction: UInt = Mux(
+    sub,
+    Mux(lagerThanVL, 0.U, (~source1Select).asUInt),
+    source1Select
+  )
 
   val slideUp: Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop) === BitPat("b0011?")
   val slide1:  Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop) === BitPat("b001?0")
 
-  slideRequest0.bits.address     := baseSelect + source1Direction + sub
+  slideRequest0.bits.address     := baseSelect + source1Direction + (sub && !lagerThanVL)
   slideRequest0.bits.readAddress := baseSelect
   slideRequest0.bits.data        := source2
 
   gatherRequest0.bits.executeIndex := elementIndex
   gatherRequest0.bits.readIndex    := source1
-
-  val lagerThanVL: Bool = (source1Select >> parameter.vlMaxBits).asUInt.orR
 
   def indexAnalysis(sewInt: Int)(elementIndex: UInt, vlmul: UInt, baseValid: Bool, readIndex: UInt): Seq[UInt] = {
     val intLMULInput: UInt = (1.U << vlmul(1, 0)).asUInt
