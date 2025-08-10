@@ -173,7 +173,7 @@ class MaskUnit(val parameter: T1Parameter)
       changeUIntSize(slideSize, log2Ceil(dByte) - 1),
       changeUIntSize(slideSize, log2Ceil(dByte) - 2)
     )
-  )
+  ) & Fill(log2Ceil(dByte), !(slideSize >> parameter.laneParam.vlMaxBits).asUInt.orR)
   // todo: parameter.vLen + param.dByte ???
   val slideUpV0:     UInt = changeUIntSize((v0.asUInt >> slideSize).asUInt, parameter.vLen)
   val slideDownV0Shift = (v0.asUInt << shifterUpSize).asUInt
