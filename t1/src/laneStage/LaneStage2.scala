@@ -61,8 +61,9 @@ class LaneStage2Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val vSew1H:           UInt         = UInt(3.W)
 
   // pipe for mask pipe
-  val readFromScalar: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
-  val maskE0:         Bool         = Bool()
+  val readFromScalar: Option[UInt]         = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+  val maskE0:         Bool                 = Bool()
+  val csr:            Option[CSRInterface] = Option.when(isLastSlot)(new CSRInterface(parameter.vlMaxBits))
 
   // pipe for mask stage
   val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
@@ -136,6 +137,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
   executionQueue.enq.bits.loadStore        := enqueue.bits.loadStore
   executionQueue.enq.bits.vd               := enqueue.bits.vd
   executionQueue.enq.bits.maskE0           := enqueue.bits.maskE0
+  executionQueue.enq.bits.csr.foreach(_ := enqueue.bits.csr)
   executionQueue.enq.bits.vSew1H           := enqueue.bits.vSew1H
   executionQueue.enq.valid                 := enqueue.valid
   enqueue.ready                            := executionQueue.enq.ready
@@ -143,6 +145,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
   executionQueue.deq.ready                 := dequeue.ready
 
   dequeue.bits.readFromScalar.foreach(_ := executionQueue.deq.bits.readFromScalar.get)
+  dequeue.bits.csr.foreach(_ := executionQueue.deq.bits.csr.get)
   dequeue.bits.maskE0           := executionQueue.deq.bits.maskE0
   dequeue.bits.pipeData.foreach(_ := executionQueue.deq.bits.pipeData.get)
   dequeue.bits.groupCounter     := executionQueue.deq.bits.groupCounter

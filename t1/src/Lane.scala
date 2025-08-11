@@ -730,6 +730,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       mask.enqueue <> stage3EnqWire
       mask.pipeForMask.sew1H         := stage2.dequeue.bits.vSew1H
       mask.pipeForMask.readFromScala := stage2.dequeue.bits.readFromScalar.get
+      mask.pipeForMask.csr           := stage2.dequeue.bits.csr.get
       mask.pipeForMask.source1       := executionUnit.dequeue.bits.source1.get
       mask.pipeForMask.source2       := executionUnit.dequeue.bits.source2.get
       mask.pipeForMask.vl            := executionUnit.dequeue.bits.vl.get
