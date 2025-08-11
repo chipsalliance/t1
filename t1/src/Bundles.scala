@@ -517,8 +517,9 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
   val vSew1H:           UInt         = UInt(3.W)
 
   // pipe for mask pipe
-  val readFromScalar: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
-  val maskE0:         Bool         = Bool()
+  val readFromScalar: Option[UInt]         = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+  val maskE0:         Bool                 = Bool()
+  val csr:            Option[CSRInterface] = Option.when(isLastSlot)(new CSRInterface(parameter.vlMaxBits))
 
   // pipe for mask stage
   val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())

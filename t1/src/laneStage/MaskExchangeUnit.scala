@@ -13,12 +13,13 @@ import org.chipsalliance.t1.rtl._
 import org.chipsalliance.t1.rtl.decoder.Decoder
 
 class PipeForMaskUnit(parameter: LaneParameter) extends Bundle {
-  val sew1H:         UInt = UInt(3.W)
-  val source1:       UInt = UInt(parameter.datapathWidth.W)
-  val source2:       UInt = UInt(parameter.datapathWidth.W)
-  val readFromScala: UInt = UInt(parameter.eLen.W)
-  val vl:            UInt = UInt(parameter.vlMaxBits.W)
-  val vlmul:         UInt = UInt(3.W)
+  val sew1H:         UInt         = UInt(3.W)
+  val source1:       UInt         = UInt(parameter.datapathWidth.W)
+  val source2:       UInt         = UInt(parameter.datapathWidth.W)
+  val readFromScala: UInt         = UInt(parameter.eLen.W)
+  val vl:            UInt         = UInt(parameter.vlMaxBits.W)
+  val vlmul:         UInt         = UInt(3.W)
+  val csr:           CSRInterface = new CSRInterface(parameter.vlMaxBits)
 }
 
 class MaskExchangeRelease extends Bundle {
@@ -921,12 +922,22 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   reduceVRFRequest.bits          := DontCare
   reduceVRFRequest.bits.src.head := reduceResult
   reduceVRFRequest.bits.src(1)   := source2Select
+  reduceVRFRequest.bits.src.last := -1.S(parameter.datapathWidth.W).asUInt
   reduceVRFRequest.bits.opcode   := Mux(reduceIsPopCount, 0.U, maskPipeReqReg.decodeResult(Decoder.uop))
-  reduceVRFRequest.bits.sign     := !maskPipeReqReg.decodeResult(Decoder.unsigned1)
   reduceVRFRequest.bits.vSew     := writeEEW
   reduceVRFRequest.bits.tag      := parameter.chainingSize.U
-  // todo: pipe rm for float
-  reduceVRFRequest.bits.roundingMode.foreach(_ := DontCare)
+  reduceVRFRequest.bits.sign0    := !maskPipeReqReg.decodeResult(Decoder.unsigned0)
+  reduceVRFRequest.bits.sign     := !maskPipeReqReg.decodeResult(Decoder.unsigned1)
+  reduceVRFRequest.bits.reverse  := maskPipeReqReg.decodeResult(Decoder.reverse)
+  reduceVRFRequest.bits.average  := maskPipeReqReg.decodeResult(Decoder.average)
+  reduceVRFRequest.bits.saturate := maskPipeReqReg.decodeResult(Decoder.saturate)
+  reduceVRFRequest.bits.vxrm     := maskPipeMessageReg.csr.vxrm
+  reduceVRFRequest.bits.complete := false.B
+  reduceVRFRequest.bits.unitSelet.foreach(_ := maskPipeReqReg.decodeResult(Decoder.fpExecutionType))
+  reduceVRFRequest.bits.floatMul.foreach(_ := maskPipeReqReg.decodeResult(Decoder.floatMul))
+
+  // from float csr
+  reduceVRFRequest.bits.roundingMode.foreach(_ := maskPipeMessageReg.csr.frm)
 
   reduceRequestDecode := maskPipeReqReg.decodeResult
   // todo
