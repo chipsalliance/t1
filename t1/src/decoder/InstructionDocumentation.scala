@@ -460,6 +460,34 @@ case class InstructionDocumentation(instruction: Instruction, param: DecoderPara
     case "vtzero.t"          => "TODO!"
     case "p2mm.f.f"          => "TODO!"
     case "vtdiscard"         => "TODO!"
+
+    // rv_zvkg
+    case "vghsh.vv"          => "TODO!"
+    case "vgmul.vv"          => "TODO!"
+    // rv_zvkned
+    case "vaesdf.vv"         => "TODO!"
+    case "vaesdf.vs"         => "TODO!"
+    case "vaesdm.vv"         => "TODO!"
+    case "vaesdm.vs"         => "TODO!"
+    case "vaesef.vv"         => "TODO!"
+    case "vaesef.vs"         => "TODO!"
+    case "vaesem.vv"         => "TODO!"
+    case "vaesem.vs"         => "TODO!"
+    case "vaesz.vs"          => "TODO!"
+    case "vaeskf1.vi"        => "TODO!"
+    case "vaeskf2.vi"        => "TODO!"
+    // rv_zvknha
+    case "vsha2ms.vv"        => "TODO!"
+    case "vsha2ch.vv"        => "TODO!"
+    case "vsha2cl.vv"        => "TODO!"
+    // rv_zvksed
+    case "vsm4k.vi"          => "TODO!"
+    case "vsm4r.vv"          => "TODO!"
+    case "vsm4r.vs"          => "TODO!"
+    // rv_zvksh
+    case "vsm3c.vi"          => "TODO!"
+    case "vsm3me.vv"         => "TODO!"
+   
     case _                   => "TODO"
   }
 }
