@@ -43,6 +43,7 @@ in
   ntt_256 = build_ntt "ntt_256" ./ntt.c ./ntt_main.c "ntt_256" "";
   ntt_512 = build_ntt "ntt_512" ./ntt.c ./ntt_main.c "ntt_512" "";
   ntt_1024 = build_ntt "ntt_1024" ./ntt.c ./ntt_main.c "ntt_1024" "";
+  ntt_2048 = build_ntt "ntt_2048" ./ntt.c ./ntt_main.c "ntt_2048" "";
   ntt_4096 = build_ntt "ntt_4096" ./ntt.c ./ntt_main.c "ntt_4096" "";
 
   ntt_mem_64 = build_ntt "ntt_mem_64" ./ntt_mem.c ./ntt_main.c "ntt_64" "-DUSE_SCALAR";
@@ -50,5 +51,6 @@ in
   ntt_mem_256 = build_ntt "ntt_mem_256" ./ntt_mem.c ./ntt_main.c "ntt_256" "-DUSE_SCALAR";
   ntt_mem_512 = build_ntt "ntt_mem_512" ./ntt_mem.c ./ntt_main.c "ntt_512" "-DUSE_SCALAR";
   ntt_mem_1024 = build_ntt "ntt_mem_1024" ./ntt_mem.c ./ntt_main.c "ntt_1024" "-DUSE_SCALAR";
+  ntt_mem_2048 = build_ntt "ntt_mem_2048" ./ntt_mem.c ./ntt_main.c "ntt_2048" "-DUSE_SCALAR";
   ntt_mem_4096 = build_ntt "ntt_mem_4096" ./ntt_mem.c ./ntt_main.c "ntt_4096" "-DUSE_SCALAR";
 }

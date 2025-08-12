@@ -2,6 +2,7 @@ import sys
 import json
 import random
 
+
 def main(n):
     json_name = "ntt_" + str(n) + ".json"
     with open(json_name, "r") as json_in:
@@ -17,10 +18,14 @@ def main(n):
         "#define macroOut " + ",".join(str(e) for e in json_data["output"]) + "\n"
     )
     header_str += (
-        "#define macroScalarTW " + ",".join(str(e) for e in json_data["scalar_tw"]) + "\n"
+        "#define macroScalarTW "
+        + ",".join(str(e) for e in json_data["scalar_tw"])
+        + "\n"
     )
     header_str += (
-        "#define macroVectorTW " + ",".join(str(e) for e in json_data["vector_tw"]) + "\n"
+        "#define macroVectorTW "
+        + ",".join(str(e) for e in json_data["vector_tw"])
+        + "\n"
     )
 
     header_file = "ntt_" + str(n) + ".h"
@@ -42,6 +47,8 @@ if __name__ == "__main__":
         main(512)
     elif sys.argv[1] in ("ntt_1024"):
         main(1024)
+    elif sys.argv[1] in ("ntt_2048"):
+        main(2048)
     elif sys.argv[1] in ("ntt_4096"):
         main(4096)
     else:

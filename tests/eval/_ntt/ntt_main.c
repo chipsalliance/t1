@@ -30,6 +30,11 @@
   #include "ntt_1024.h"
 #endif
 
+#ifdef ntt_2048
+  // requires VLEN >= 4096
+  #include "ntt_2048.h"
+#endif
+
 #ifdef ntt_4096
   #include "ntt_4096.h"
 #endif
