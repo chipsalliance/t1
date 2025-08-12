@@ -20,12 +20,11 @@ class EnqReportBundle(parameter: LaneParameter) extends Bundle {
   val groupCounter:     UInt         = UInt(parameter.groupNumberBits.W)
 }
 
-class SlideWriteState(parameter: LaneParameter) extends Bundle {
-  val pendingSlideWrite: Bool = Bool()
-  val slideIndex:        UInt = UInt(parameter.instructionIndexBits.W)
-  val getCountReport:    Bool = Bool()
-  val needSlideWrite:    UInt = UInt(log2Ceil(parameter.vLen).W)
-  val finishSlideWrite:  UInt = UInt(log2Ceil(parameter.vLen).W)
+class MaskStageWriteState(parameter: LaneParameter) extends Bundle {
+  val pendingMaskStageWrite: Bool = Bool()
+  val getCountReport:        Bool = Bool()
+  val needWrite:             UInt = UInt(log2Ceil(parameter.vLen).W)
+  val finishWrite:           UInt = UInt(log2Ceil(parameter.vLen).W)
 }
 
 /** For each slot, it has 4 stages:
@@ -81,7 +80,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   }
 
   @public
-  val issueSlide: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+  val instNeedWaitWrite: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
 
   @public
   val crossWrite2Reports: Vec[ValidIO[UInt]] = IO(Vec(2, Flipped(Valid(UInt(parameter.instructionIndexBits.W)))))
@@ -128,8 +127,8 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
 
   @public
-  val writeCountForToken: DecoupledIO[UInt] = IO(
-    Flipped(Decoupled(UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W)))
+  val writeCountForToken: DecoupledIO[WriteCountReport] = IO(
+    Flipped(Decoupled(new WriteCountReport(parameter.vLen, parameter.laneNumber, parameter.instructionIndexBits)))
   )
 
   def tokenUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt): UInt = {
@@ -197,67 +196,64 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
       val crossWriteTokenMSB: Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
 
       // for mask stage
-      val pendingMaskStage = Wire(UInt(parameter.chaining1HBits.W))
-      if (true) {
-        val slideWriteState = RegInit(0.U.asTypeOf(new SlideWriteState(parameter)))
-        when(issueSlide.valid) {
-          slideWriteState                   := 0.U.asTypeOf(slideWriteState)
-          slideWriteState.pendingSlideWrite := true.B
-          slideWriteState.slideIndex        := issueSlide.bits
-        }
+      val countReportReady = Wire(Vec(parameter.chaining1HBits, Bool()))
+      writeCountForToken.ready := countReportReady.asUInt.orR
+      val pendingMaskPipe: UInt = Seq
+        .tabulate(parameter.chaining1HBits) { instIndex =>
+          val writeCountState = RegInit(0.U.asTypeOf(new MaskStageWriteState(parameter)))
+          val indexU          = instIndex.U
+          when(instNeedWaitWrite.valid && instNeedWaitWrite.bits === indexU) {
+            writeCountState                       := 0.U.asTypeOf(writeCountState)
+            writeCountState.pendingMaskStageWrite := true.B
+          }
+          val reportHit       = writeCountForToken.bits.instructionIndex === indexU
+          countReportReady(instIndex) := writeCountState.pendingMaskStageWrite &&
+            reportHit
 
-        writeCountForToken.ready := slideWriteState.pendingSlideWrite
-        when(writeCountForToken.valid) {
-          slideWriteState.getCountReport := true.B
-          slideWriteState.needSlideWrite := writeCountForToken.bits
-        }
+          when(writeCountForToken.valid && reportHit) {
+            writeCountState.getCountReport := true.B
+            writeCountState.needWrite      := writeCountForToken.bits.count
+          }
 
-        when(writePipeDeqReport.fire && slideWriteState.slideIndex === writePipeDeqReport.bits) {
-          slideWriteState.finishSlideWrite := slideWriteState.finishSlideWrite + 1.U
-        }
+          val writeHit = writePipeDeqReport.bits === indexU
+          when(writePipeDeqReport.fire && writeHit) {
+            writeCountState.finishWrite := writeCountState.finishWrite + 1.U
+          }
 
-        val slideWriteClear = slideWriteState.pendingSlideWrite && slideWriteState.getCountReport &&
-          (slideWriteState.finishSlideWrite === slideWriteState.needSlideWrite)
+          val slideWriteClear = writeCountState.pendingMaskStageWrite && writeCountState.getCountReport &&
+            (writeCountState.finishWrite === writeCountState.needWrite)
 
-        when(slideWriteClear) {
-          slideWriteState.pendingSlideWrite := false.B
-        }
-
-        val maskStageTokenReg = RegInit(0.U(tokenWith.W))
-        val maskStageIndex    = RegInit(0.U(parameter.instructionIndexBits.W))
-        val waitForStageClear = RegInit(false.B)
-        val maskStageEnq      = enqReport.valid && enqReport.bits.decodeResult(Decoder.maskPipeType)
-        val maskStageDeq      = maskStageToken.maskStageRequestRelease
-        val change            = Mux(maskStageEnq, 1.U(tokenWith.W), -1.S(tokenWith.W).asUInt)
-        when(maskStageEnq ^ maskStageDeq) {
-          maskStageTokenReg := maskStageTokenReg + change
-        }
-        when(maskStageEnq) {
-          maskStageIndex    := enqReport.bits.instructionIndex
-          waitForStageClear := true.B
-        }
-        when(maskStageTokenReg === 0.U && maskStageToken.maskStageClear) {
-          waitForStageClear := false.B
-        }
-        pendingMaskStage := maskAnd(waitForStageClear, indexToOH(maskStageIndex, parameter.chainingSize)).asUInt |
-          maskAnd(
-            slideWriteState.pendingSlideWrite,
-            indexToOH(slideWriteState.slideIndex, parameter.chainingSize)
+          when(slideWriteClear) {
+            writeCountState.pendingMaskStageWrite := false.B
+          }
+          val pendingMaskWrite  = maskAnd(
+            writeCountState.pendingMaskStageWrite,
+            1.U << instIndex
           ).asUInt
-      }
-
-      // cross write update
-      val crossWriteDoEnq: UInt =
-        maskAnd(enqReport.valid && enqReport.bits.decodeResult(Decoder.crossWrite), enqOH).asUInt
-
-      val crossWriteDeqLSB =
-        maskAnd(crossWrite2Reports.head.valid, indexToOH(crossWrite2Reports.head.bits, parameter.chainingSize)).asUInt
-
-      val crossWriteDeqMSB =
-        maskAnd(crossWrite2Reports.last.valid, indexToOH(crossWrite2Reports.last.bits, parameter.chainingSize)).asUInt
-
-      val pendingCrossWriteLSB = tokenUpdate(crossWriteTokenLSB, crossWriteDoEnq, crossWriteDeqLSB)
-      val pendingCrossWriteMSB = tokenUpdate(crossWriteTokenMSB, crossWriteDoEnq, crossWriteDeqMSB)
+          val maskStageTokenReg = RegInit(0.U(tokenWith.W))
+          val waitForStageClear = RegInit(false.B)
+          val maskStageEnq      = enqReport.valid && enqReport.bits.decodeResult(
+            Decoder.maskPipeType
+          ) && enqReport.bits.instructionIndex === indexU
+          val maskStageDeq      =
+            maskStageToken.maskStageRequestRelease.valid && maskStageToken.maskStageRequestRelease.bits === indexU
+          val change            = Mux(maskStageEnq, 1.U(tokenWith.W), -1.S(tokenWith.W).asUInt)
+          when(maskStageEnq ^ maskStageDeq) {
+            maskStageTokenReg := maskStageTokenReg + change
+          }
+          when(maskStageEnq) {
+            waitForStageClear := true.B
+          }
+          when(maskStageTokenReg === 0.U && maskStageToken.maskStageClear) {
+            waitForStageClear := false.B
+          }
+          maskAnd(
+            waitForStageClear,
+            1.U << instIndex
+          ).asUInt |
+            pendingMaskWrite
+        }
+        .reduce(_ | _)
 
       // response & feedback update
       val responseDoEnq: UInt =
@@ -281,7 +277,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
       val pendingResponse  = tokenUpdate(responseToken, responseDoEnq, responseDoDeq)
       // todo: Precise feedback
       val pendingFeedback  = feedbackUpdate(feedbackToken, responseDoEnq, feedbackDoDeq, maskUnitLastReport)
-      pendingSlotWrite | pendingCrossWriteLSB | pendingCrossWriteMSB | pendingResponse | pendingFeedback | pendingMaskStage
+      pendingSlotWrite | pendingResponse | pendingFeedback | pendingMaskPipe
     } else {
       val pendingSlotWrite = tokenUpdate(writeToken, writeDoEnq, writeDoDeq)
       pendingSlotWrite

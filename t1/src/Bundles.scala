@@ -682,9 +682,8 @@ class MaskUnitInstReq(parameter: T1Parameter) extends Bundle {
   val vl:               UInt         = UInt(parameter.laneParam.vlMaxBits.W)
 }
 
-class SlideRequest(parameter: T1Parameter) extends Bundle {
-  val scalar: Bool = Bool()
-  val up:     Bool = Bool()
+class maskPipeRequest(parameter: T1Parameter) extends Bundle {
+  val uop: UInt = UInt(5.W)
 }
 
 class MaskUnitExeReq(eLen: Int, datapathWidth: Int, instructionIndexBits: Int, fpuEnable: Boolean) extends Bundle {
@@ -829,7 +828,7 @@ class WriteBusData(datapathWidth: Int, instructionIndexBits: Int, groupNumberBit
   val data: UInt = UInt(datapathWidth.W)
 
   /** used for instruction with mask. */
-  val mask: UInt = UInt((datapathWidth / 2 / 8).W)
+  val mask: UInt = UInt((datapathWidth / 8).W)
 
   /** which instruction is the source of this transaction. */
   val instructionIndex: UInt = UInt(instructionIndexBits.W)
@@ -937,7 +936,9 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   val maskUnitReport: DecoupledIO[LastReportBundle] = Decoupled(new LastReportBundle(parameter.chaining1HBits))
 
   // opcode 6
-  val writeCount: DecoupledIO[UInt] = Decoupled(UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W))
+  val writeCount: DecoupledIO[WriteCountReport] = Decoupled(
+    new WriteCountReport(parameter.vLen, parameter.laneNumber, parameter.instructionIndexBits)
+  )
 
   // lane output => interface input
   // opcode 0
@@ -1175,4 +1176,9 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
 class LSURequestInterface(dataWidth: Int, chainingSize: Int, vlWidth: Int) extends Bundle {
   val request      = new LSURequest(dataWidth, chainingSize)
   val csrInterface = new CSRInterface(vlWidth)
+}
+
+class WriteCountReport(vLen: Int, laneNumber: Int, instSize: Int) extends Bundle {
+  val count:            UInt = UInt(log2Ceil(vLen / laneNumber).W)
+  val instructionIndex: UInt = UInt(instSize.W)
 }
