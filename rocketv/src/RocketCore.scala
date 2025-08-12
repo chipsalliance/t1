@@ -1434,13 +1434,7 @@ class Rocket(val parameter: RocketParameter)
         csr.io.csrStall || csr.io.singleStep && (exRegValid || memRegValid || wbRegValid) ||
         idCsrEn && csr.io.decode(0).fpCsr && !io.fpu.map(_.fcsr_rdy).getOrElse(false.B) || io.traceStall ||
         !clockEnable ||
-        Option
-          .when(usingFPU)(
-            (idDecodeOutput(parameter.decoderParameter.fp) || idDecodeOutput(
-              parameter.decoderParameter.vectorReadFRs1
-            )) && idStallFpu
-          )
-          .getOrElse(false.B) ||
+        Option.when(usingFPU)(idDecodeOutput(parameter.decoderParameter.fp) && idStallFpu).getOrElse(false.B) ||
         idDecodeOutput(parameter.decoderParameter.mem) && dcacheBlocked || // reduce activity during D$ misses
         Option
           .when(usingMulDiv)(
@@ -1534,11 +1528,7 @@ class Rocket(val parameter: RocketParameter)
     io.fpu.foreach { fpu =>
       fpuDecoder.get.io.instruction := idInstruction
       fpu.dec                       := fpuDecoder.get.io.output
-      fpu.valid                     := !ctrlKilled && (
-        idDecodeOutput(parameter.decoderParameter.fp) ||
-          // vector read frs1
-          (fpu.dec.ren1 && idDecodeOutput(parameter.decoderParameter.vector))
-      )
+      fpu.valid                     := !ctrlKilled && idDecodeOutput(parameter.decoderParameter.fp)
       fpu.killx                     := ctrlKillx
       fpu.killm                     := killmCommon
       fpu.inst                      := idInstruction
