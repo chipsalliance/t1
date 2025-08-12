@@ -27,3 +27,7 @@ func FFI_ebreak();
 // interrupt
 func FFI_machine_external_interrupt_pending() => bit;
 func FFI_machine_time_interrupt_pending() => bit;
+
+// Atomic
+func FFI_reserve_addr(addr : bits(32), bytes : integer);
+func FFI_is_addr_range_reserved(addr : bits(32), bytes : integer);
