@@ -394,6 +394,10 @@ object Decoder {
     override def getTriState(pattern: T1DecodePattern): TriState = pattern.isMaskPip.value
   }
 
+  object writeCount extends BoolField {
+    override def getTriState(pattern: T1DecodePattern): TriState = pattern.isWriteCount.value
+  }
+
   object maskPipeUop extends T1TopUopField {
     override def genTable(pattern: T1DecodePattern): BitPat = pattern.maskPipeUop.value match {
       case _: MaskUop0.type  => BitPat("b00000")
@@ -462,6 +466,7 @@ object Decoder {
     popCount, // top uop add, red, uop popCount
     topUop,
     maskPipeUop,
+    writeCount,
     specialSlot
   ) ++ {
     if (param.fpuEnable)

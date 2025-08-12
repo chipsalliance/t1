@@ -176,8 +176,11 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
     Vec(parameter.laneNumber, Flipped(Decoupled(new LastReportBundle(parameter.chaining1HBits))))
 
   // opcode 6
-  val writeCount: Vec[DecoupledIO[UInt]] =
-    Vec(parameter.laneNumber, Flipped(Decoupled(UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W))))
+  val writeCount: Vec[DecoupledIO[WriteCountReport]] =
+    Vec(
+      parameter.laneNumber,
+      Flipped(Decoupled(new WriteCountReport(parameter.vLen, parameter.laneNumber, parameter.instructionIndexBits)))
+    )
 
   // interface => sequencer
   // opcode 0

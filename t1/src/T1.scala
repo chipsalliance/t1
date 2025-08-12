@@ -1195,12 +1195,9 @@ class T1(val parameter: T1Parameter)
   maskUnit.io.instReq.bits.vs2              := requestRegDequeue.bits.instruction(24, 20)
   maskUnit.io.instReq.bits.vd               := requestRegDequeue.bits.instruction(11, 7)
   maskUnit.io.instReq.bits.vl               := requestReg.bits.issue.vl
-  // slide update v0 offset
-  maskUnit.io.slideReq.valid                := requestRegDequeue.fire && (requestReg.bits.decodeResult(Decoder.maskPipeUop) === BitPat(
-    "b001??"
-  ))
-  maskUnit.io.slideReq.bits.scalar          := requestReg.bits.decodeResult(Decoder.maskPipeUop)(0)
-  maskUnit.io.slideReq.bits.up              := requestReg.bits.decodeResult(Decoder.maskPipeUop)(1)
+  // for mask stage type, shifter v0 / get write count
+  maskUnit.io.maskPipeReq.valid             := requestRegDequeue.fire && requestReg.bits.decodeResult(Decoder.writeCount)
+  maskUnit.io.maskPipeReq.bits.uop          := requestReg.bits.decodeResult(Decoder.maskPipeUop)
   // gather read
   maskUnit.io.gatherRead                    := gatherNeedRead
   maskUnit.io.gatherData.ready              := requestRegDequeue.fire
