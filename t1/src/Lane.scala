@@ -422,8 +422,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   )
 
   @public
-  val writeCountForToken: DecoupledIO[UInt] = IO(
-    Flipped(Decoupled(UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W)))
+  val writeCountForToken: DecoupledIO[WriteCountReport] = IO(
+    Flipped(Decoupled(new WriteCountReport(parameter.vLen, parameter.laneNumber, parameter.instructionIndexBits)))
   )
 
   // TODO: remove
@@ -1344,6 +1344,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     rpt.bits  := slots.head.maskStage.get.crossWritePort4Enq(rptIndex).bits.instructionIndex
   }
   tokenManager.maskStageToken               := slots.head.maskStage.get.token
+  slots.head.maskStage.get.instructionValid := tokenManager.instructionValid
   // todo: add mask unit write token
   tokenManager.responseReport.valid         := maskUnitRequest.fire
   tokenManager.responseReport.bits          := maskUnitRequest.bits.index
@@ -1384,10 +1385,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   tokenManager.maskUnitLastReport := lsuLastReport
   tokenManager.laneIndex          := laneIndex
 
-  tokenManager.issueSlide.valid := laneRequest.fire && laneRequest.bits.decodeResult(Decoder.maskPipeUop) === BitPat(
-    "b001??"
-  )
-  tokenManager.issueSlide.bits  := laneRequest.bits.instructionIndex
+  tokenManager.instNeedWaitWrite.valid := laneRequest.fire && laneRequest.bits.decodeResult(Decoder.writeCount)
+  tokenManager.instNeedWaitWrite.bits  := laneRequest.bits.instructionIndex
   tokenManager.writeCountForToken <> writeCountForToken
 
   layer.block(layers.Verification) {

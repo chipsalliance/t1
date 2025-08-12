@@ -82,7 +82,7 @@ class reduceMaskRequest(datapathWidth: Int) extends Bundle {
 
 class MaskStageToken(parameter: LaneParameter) extends Bundle {
   val freeCrossWrite:          ValidIO[UInt] = Valid(UInt(parameter.instructionIndexBits.W))
-  val maskStageRequestRelease: Bool          = Output(Bool())
+  val maskStageRequestRelease: ValidIO[UInt] = Valid(UInt(parameter.instructionIndexBits.W))
   val maskStageClear:          Bool          = Output(Bool())
 }
 
@@ -239,6 +239,9 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   @public
   val token: MaskStageToken = IO(new MaskStageToken(parameter))
 
+  @public
+  val instructionValid: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
+
   // todo: sSendResponse -> sendResponse
   val enqIsMaskRequest: Bool = !enqueue.bits.sSendResponse && !enqueue.bits.decodeResult(Decoder.maskPipeType)
   // not maskUnit && not send out
@@ -353,7 +356,8 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val enqByteMask = enqSew(2) ## enqSew(2) ## !enqSew(0) ## true.B
   val enqBitMask: UInt = FillInterleaved(8, enqByteMask)
 
-  maskReqQueue.deq.ready := !maskPipeValid || maskPipeDeqReady
+  val maskStageNoConflict: Bool = Wire(Bool())
+  maskReqQueue.deq.ready := (!maskPipeValid || maskPipeDeqReady) && maskStageNoConflict
   val opcode1H: UInt = UIntToOH(maskPipeReqReg.decodeResult(Decoder.maskPipeUop))
   // todo
   val firstFroup = maskPipeEnqReq.groupCounter === 0.U
@@ -387,7 +391,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   }
 
   val extendData2:     UInt      = Mux(
-    maskPipeMessageReg.sew1H(2),
+    maskPipeMessageReg.sew1H(1),
     VecInit(
       cutUInt(maskPipeReqReg.data, 16).map(d =>
         changeUIntSizeWidthSign(d, 32, !maskPipeReqReg.decodeResult(Decoder.unsigned1))
@@ -404,10 +408,15 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     cutUIntBySize(extendData2, 2),
     maskPipeReqReg.crossWriteData
   )
+  val sewForCross2 = (maskPipeMessageReg.sew1H << 1)(2, 0)
+  val maskExtend2  = Mux1H(
+    sewForCross2,
+    Seq(1, 2, 4).map(s => FillInterleaved(s, maskPipeReqReg.mask))
+  )
   // VRF cross write
   crossWritePort2Deq.zipWithIndex.foreach { case (port, index) =>
     port.valid                 := maskPipeValid && !crossWriteState(index) && opcode1H(0)
-    port.bits.mask             := cutUIntBySize(maskPipeReqReg.mask, 2)(index)
+    port.bits.mask             := cutUInt(maskExtend2, parameter.datapathWidth / 8)(index)
     port.bits.data             := crossWriteData2(index)
     port.bits.counter          := maskPipeReqReg.groupCounter
     port.bits.instructionIndex := maskPipeReqReg.instructionIndex
@@ -419,10 +428,15 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
       changeUIntSizeWidthSign(d, 32, !maskPipeReqReg.decodeResult(Decoder.unsigned1))
     )
   ).asUInt
+  val sewForCross4 = (maskPipeMessageReg.sew1H << 2)(2, 0)
+  val maskExtend4  = Mux1H(
+    sewForCross4,
+    Seq(1, 2, 4).map(s => FillInterleaved(s, maskPipeReqReg.mask))
+  )
   // VRF cross write
   crossWritePort4Deq.zipWithIndex.foreach { case (port, index) =>
     port.valid                 := maskPipeValid && !crossWriteState(index) && opcode1H(1)
-    port.bits.mask             := cutUIntBySize(maskPipeReqReg.mask, 4)(index)
+    port.bits.mask             := cutUInt(maskExtend4, parameter.datapathWidth / 8)(index)
     port.bits.data             := cutUIntBySize(extendData4, 4)(index)
     port.bits.counter          := maskPipeReqReg.groupCounter
     port.bits.instructionIndex := maskPipeReqReg.instructionIndex
@@ -446,21 +460,19 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val queueDeqValid: Seq[Bool] = Seq.tabulate(4) { portIndex =>
     val queue: QueueIO[CrossWritePipe] = crossLaneWriteQueue(portIndex)
     val indexGrowth = Wire(chiselTypeOf(maskPipeReqReg.groupCounter))
-    val maskSelect  = Wire(chiselTypeOf(queue.enq.bits.mask))
     val enqRequest  = if (portIndex < 2) {
-      queue.enq.valid                     := crossWritePort2Enq(portIndex).valid || crossWritePort4Enq(portIndex).valid
+      val indexMatch2 = crossWritePort2Enq(portIndex).bits.instructionIndex === maskPipeReqReg.instructionIndex
+      val indexMatch4 = crossWritePort4Enq(portIndex).bits.instructionIndex === maskPipeReqReg.instructionIndex
+      queue.enq.valid                     := (crossWritePort2Enq(portIndex).valid && indexMatch2) || (indexMatch4 && crossWritePort4Enq(
+        portIndex
+      ).valid)
       assert(!(crossWritePort2Enq(portIndex).valid && crossWritePort4Enq(portIndex).valid))
-      crossWritePort2Enq(portIndex).ready := queue.enq.ready
-      crossWritePort4Enq(portIndex).ready := queue.enq.ready
+      crossWritePort2Enq(portIndex).ready := queue.enq.ready && indexMatch2
+      crossWritePort4Enq(portIndex).ready := queue.enq.ready && indexMatch4
       indexGrowth                         := Mux(
         crossWritePort2Enq(portIndex).valid,
         changeUIntSize(crossWritePort2Enq(portIndex).bits.counter ## portIndex.U(1.W), indexGrowth.getWidth),
         changeUIntSize(crossWritePort4Enq(portIndex).bits.counter ## portIndex.U(2.W), indexGrowth.getWidth)
-      )
-      maskSelect                          := Mux(
-        crossWritePort2Enq(portIndex).valid,
-        FillInterleaved(2, crossWritePort2Enq(portIndex).bits.mask),
-        FillInterleaved(4, crossWritePort4Enq(portIndex).bits.mask)
       )
       Mux(
         crossWritePort2Enq(portIndex).valid,
@@ -468,22 +480,18 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
         crossWritePort4Enq(portIndex).bits
       )
     } else {
-      queue.enq.valid                     := crossWritePort4Enq(portIndex).valid
-      crossWritePort4Enq(portIndex).ready := queue.enq.ready
+      val indexMatch4 = crossWritePort4Enq(portIndex).bits.instructionIndex === maskPipeReqReg.instructionIndex
+      queue.enq.valid                     := indexMatch4 && crossWritePort4Enq(portIndex).valid
+      crossWritePort4Enq(portIndex).ready := indexMatch4 && queue.enq.ready
       indexGrowth                         := changeUIntSize(
         crossWritePort4Enq(portIndex).bits.counter ## portIndex.U(2.W),
         indexGrowth.getWidth
       )
-      maskSelect                          := FillInterleaved(4, crossWritePort4Enq(portIndex).bits.mask)
       crossWritePort4Enq(portIndex).bits
     }
     queue.enq.bits.data := enqRequest.data
-    queue.enq.bits.mask         := maskSelect
+    queue.enq.bits.mask         := enqRequest.mask
     queue.enq.bits.groupCounter := indexGrowth
-    assert(
-      !queue.enq.fire || enqRequest.instructionIndex === maskPipeReqReg.instructionIndex,
-      "Only one mask instruction can be executed at a time"
-    )
 
     val groupMatch = queue.deq.bits.groupCounter === rxGroupIndex
     queue.deq.ready := crossWriteDeqRequest.ready && groupMatch
@@ -1012,8 +1020,21 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val maskStageValid:     Bool = maskPipeValid || slideRequestReg1.valid || gatherRequestReg1.valid || !stateIdle ||
     crossLaneWriteQueue.map(_.deq.valid).reduce(_ || _)
   val maskStageValidNext: Bool = RegNext(maskStageValid, false.B)
-  token.freeCrossWrite.valid    := crossLaneWriteQueue.last.enq.fire && crossLaneWriteQueue.last.enq.bits.mask.orR
-  token.freeCrossWrite.bits     := maskPipeReqReg.instructionIndex
-  token.maskStageRequestRelease := maskReqQueue.deq.fire
-  token.maskStageClear          := !maskStageValid && maskStageValidNext
+  token.freeCrossWrite.valid          := crossLaneWriteQueue.last.enq.fire && crossLaneWriteQueue.last.enq.bits.mask.orR
+  token.freeCrossWrite.bits           := maskPipeReqReg.instructionIndex
+  token.maskStageRequestRelease.valid := maskReqQueue.deq.fire
+  token.maskStageRequestRelease.bits  := maskReqQueue.deq.bits.req.instructionIndex
+  token.maskStageClear                := !maskStageValid && maskStageValidNext
+  val validCheck: Bool = {
+    val maskPipeValid   = RegInit(false.B)
+    when(maskPipeEnqFire) {
+      maskPipeValid := true.B
+    }
+    val tokenValidCheck = ohCheck(instructionValid, maskPipeReqReg.instructionIndex, parameter.chainingSize)
+    when(maskPipeValid && !tokenValidCheck) {
+      maskPipeValid := false.B
+    }
+    maskPipeValid
+  }
+  maskStageNoConflict := !validCheck || maskReqQueue.deq.bits.req.instructionIndex === maskPipeReqReg.instructionIndex
 }
