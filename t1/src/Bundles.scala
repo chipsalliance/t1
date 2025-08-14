@@ -523,6 +523,7 @@ class LaneExecuteStage(parameter: LaneParameter)(isLastSlot: Boolean) extends Bu
 
   // pipe for mask stage
   val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val emptyPipe:         Option[Bool]              = Option.when(isLastSlot)(Bool())
   val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
     new PipeForSecondPipe(
       parameter.datapathWidth,

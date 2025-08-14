@@ -40,6 +40,7 @@ class LaneStage1Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 
   // pipe for mask stage
   val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val emptyPipe:         Option[Bool]              = Option.when(isLastSlot)(Bool())
   val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
     new PipeForSecondPipe(
       parameter.datapathWidth,
@@ -85,6 +86,7 @@ class LaneStage1Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 
   // pipe for mask stage
   val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val emptyPipe:         Option[Bool]              = Option.when(isLastSlot)(Bool())
   val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
     new PipeForSecondPipe(
       parameter.datapathWidth,
@@ -415,6 +417,7 @@ class LaneStage1(parameter: LaneParameter, isLastSlot: Boolean) extends Module {
   dequeue.bits.bordersForMaskLogic := pipeQueue.deq.bits.bordersForMaskLogic
   dequeue.bits.readFromScalar.foreach(_ := pipeQueue.deq.bits.readFromScalar)
   dequeue.bits.secondPipe.foreach(_ := pipeQueue.deq.bits.secondPipe.get)
+  dequeue.bits.emptyPipe.foreach(_ := pipeQueue.deq.bits.emptyPipe.get)
   dequeue.bits.pipeForSecondPipe.foreach(_ := pipeQueue.deq.bits.pipeForSecondPipe.get)
 
   dequeue.bits.maskForFilter :=

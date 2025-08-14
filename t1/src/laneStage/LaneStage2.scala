@@ -37,6 +37,7 @@ class LaneStage2Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 
   // pipe for mask stage
   val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val emptyPipe:         Option[Bool]              = Option.when(isLastSlot)(Bool())
   val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
     new PipeForSecondPipe(
       parameter.datapathWidth,
@@ -67,6 +68,7 @@ class LaneStage2Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 
   // pipe for mask stage
   val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val emptyPipe:         Option[Bool]              = Option.when(isLastSlot)(Bool())
   val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
     new PipeForSecondPipe(
       parameter.datapathWidth,
@@ -121,6 +123,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
   executionQueue.enq.bits.sSendResponse.foreach { d => d := enqueue.bits.sSendResponse.get }
   executionQueue.enq.bits.readFromScalar.foreach { d => d := enqueue.bits.readFromScalar.get }
   executionQueue.enq.bits.secondPipe.foreach { d => d := enqueue.bits.secondPipe.get }
+  executionQueue.enq.bits.emptyPipe.foreach { d => d := enqueue.bits.emptyPipe.get }
   executionQueue.enq.bits.pipeForSecondPipe.foreach { d => d := enqueue.bits.pipeForSecondPipe.get }
   executionQueue.enq.bits.groupCounter := enqueue.bits.groupCounter
   executionQueue.enq.bits.mask             := Mux1H(
@@ -157,6 +160,7 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
   dequeue.bits.vSew1H           := executionQueue.deq.bits.vSew1H
   dequeue.bits.sSendResponse.foreach(_ := executionQueue.deq.bits.sSendResponse.get)
   dequeue.bits.secondPipe.foreach(_ := executionQueue.deq.bits.secondPipe.get)
+  dequeue.bits.emptyPipe.foreach(_ := executionQueue.deq.bits.emptyPipe.get)
   dequeue.bits.pipeForSecondPipe.foreach(_ := executionQueue.deq.bits.pipeForSecondPipe.get)
   stageValid                    := executionQueue.deq.valid
 }

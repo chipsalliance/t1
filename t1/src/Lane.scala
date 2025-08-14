@@ -877,9 +877,11 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       maskStage.get.reduceMaskResponse <> reduceMaskResponse
 
       stage1.enqueue.bits.secondPipe.get        := stage0.dequeue.bits.secondPipe.get
+      stage1.enqueue.bits.emptyPipe.get         := stage0.dequeue.bits.emptyPipe.get
       stage1.enqueue.bits.pipeForSecondPipe.get := stage0.dequeue.bits.pipeForSecondPipe.get
 
       stage2.enqueue.bits.secondPipe.get        := stage1.dequeue.bits.secondPipe.get
+      stage2.enqueue.bits.emptyPipe.get         := stage1.dequeue.bits.emptyPipe.get
       stage2.enqueue.bits.pipeForSecondPipe.get := stage1.dequeue.bits.pipeForSecondPipe.get
     }
 
@@ -955,6 +957,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       }
       // for mask pipe
       stage3EnqWire.bits.secondPipe.get        := stage2.dequeue.bits.secondPipe.get
+      stage3EnqWire.bits.emptyPipe.get         := stage2.dequeue.bits.emptyPipe.get
       stage3EnqWire.bits.pipeForSecondPipe.get := stage2.dequeue.bits.pipeForSecondPipe.get
     }
     stage3EnqWire.bits.data             := executionUnit.dequeue.bits.data
