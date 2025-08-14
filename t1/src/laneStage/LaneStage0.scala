@@ -85,6 +85,7 @@ class LaneStage0Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
 
   // pipe for mask stage
   val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val emptyPipe:         Option[Bool]              = Option.when(isLastSlot)(Bool())
   val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
     new PipeForSecondPipe(
       parameter.datapathWidth,
@@ -165,11 +166,12 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
       Decoder.gather
     ) ||
     enqueue.bits.decodeResult(Decoder.crossRead) || enqueue.bits.decodeResult(Decoder.crossWrite)
+  val normalDeqValid = (!updateLaneState.outOfExecutionRange || enqueue.bits.additionalRW) && notMaskedAllElement
+  val emptyValid:   Bool              = Wire(Bool())
   // 超出范围的一组不压到流水里面去
-  val enqFire:             Bool              =
-    enqueue.fire && (!updateLaneState.outOfExecutionRange || enqueue.bits.additionalRW) && notMaskedAllElement
-  val stageDataReg:        LaneStage0Dequeue = RegEnable(stageWire, 0.U.asTypeOf(stageWire), enqFire)
-  val filterVec:           Seq[(Bool, UInt)] = Seq(0, 1, 2).map { filterSew =>
+  val enqFire:      Bool              = enqueue.fire && (normalDeqValid || emptyValid)
+  val stageDataReg: LaneStage0Dequeue = RegEnable(stageWire, 0.U.asTypeOf(stageWire), enqFire)
+  val filterVec:    Seq[(Bool, UInt)] = Seq(0, 1, 2).map { filterSew =>
     // The lower 'dataGroupIndexSize' bits represent the offsets in the data group
     val dataGroupIndexSize: Int = log2Ceil(parameter.datapathWidth / 8) - filterSew
     // each group has '2 ** dataGroupIndexSize' elements
@@ -312,6 +314,8 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
       enqueue.bits.isLastLaneForInstruction
   // for mask pipe stage
   stageWire.secondPipe.foreach(_ := false.B)
+  stageWire.emptyPipe.foreach(_ := emptyValid)
+  emptyValid                    := !normalDeqValid && stageWire.groupCounter === 0.U && enqueue.bits.decodeResult(Decoder.maskPipeType)
   stageWire.pipeForSecondPipe.foreach(_ := DontCare)
 
   when(enqFire ^ (dequeue.fire && !bypassDeqValid)) {

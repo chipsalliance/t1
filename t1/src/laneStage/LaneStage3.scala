@@ -35,6 +35,7 @@ class LaneStage3Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val vd: UInt = UInt(5.W)
 
   val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val emptyPipe:         Option[Bool]              = Option.when(isLastSlot)(Bool())
   val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
     new PipeForSecondPipe(
       parameter.datapathWidth,
