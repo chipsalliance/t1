@@ -347,8 +347,9 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
 
   val maskPipeDeqFire = maskPipeValid && maskPipeDeqReady
   val maskPipeEnqFire = maskReqQueue.deq.fire
-  when(maskPipeDeqFire ^ maskPipeEnqFire) {
-    maskPipeValid := maskPipeEnqFire
+  val normalEnqFire   = maskPipeEnqFire && !maskReqQueue.deq.bits.req.emptyPipe.get
+  when(maskPipeDeqFire ^ normalEnqFire) {
+    maskPipeValid := normalEnqFire
   }
 
   val enqSew: UInt =
@@ -363,7 +364,12 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val firstFroup = maskPipeEnqReq.groupCounter === 0.U
   // update register
   when(maskPipeEnqFire) {
-    maskPipeReqReg      := maskPipeEnqReq
+    maskPipeReqReg := maskPipeEnqReq
+    when(maskPipeEnqReq.instructionIndex =/= maskPipeReqReg.instructionIndex) {
+      rxGroupIndex := 0.U
+    }
+  }
+  when(normalEnqFire) {
     maskPipeReqReg.mask := enqMask
     maskPipeMessageReg  := maskReqQueue.deq.bits.maskPipe
     lastRequestDeqFire  := false.B
@@ -378,9 +384,6 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     }
     when(maskPipeEnqIsExtend) {
       crossWriteState := Mux(maskPipeEnqReq.decodeResult(Decoder.maskPipeUop)(0), 0.U, 12.U)
-    }
-    when(maskPipeEnqReq.instructionIndex =/= maskPipeReqReg.instructionIndex) {
-      rxGroupIndex := 0.U
     }
     when(enqSlide1Up && firstFroup && firstLane && maskPipeEnqReq.maskE0) {
       slide0Replenish := true.B
@@ -1027,7 +1030,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   token.maskStageClear                := !maskStageValid && maskStageValidNext
   val validCheck: Bool = {
     val maskPipeValid   = RegInit(false.B)
-    when(maskPipeEnqFire) {
+    when(normalEnqFire) {
       maskPipeValid := true.B
     }
     val tokenValidCheck = ohCheck(instructionValid, maskPipeReqReg.instructionIndex, parameter.chainingSize)
