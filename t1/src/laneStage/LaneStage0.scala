@@ -132,6 +132,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
     .when(isLastSlot) {
       val base: UInt = Wire(UInt(parameter.groupNumberBits.W))
 
+      val isSlide = enqueue.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b001??")
       // 001 xy => slide  x?up:down   y?s:1           [4,7]
       val slideDown:      Bool = !enqueue.bits.decodeResult(Decoder.maskPipeUop)(1)
       val source1IsScala: Bool = enqueue.bits.decodeResult(Decoder.maskPipeUop)(0)
@@ -147,7 +148,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
       val lagerThanVL:    Bool = (slideSize >> parameter.vlMaxBits).asUInt.orR
       val baseGroup = ((slideSize << enqueue.bits.vSew) >> log2Ceil(parameter.dByte)).asUInt
       // You need to skip reading only when you slide down
-      base := Mux(slideDown && !lagerThanVL, baseGroup, 0.U)
+      base := Mux(isSlide && slideDown && !lagerThanVL, baseGroup, 0.U)
       base
     }
     .getOrElse(0.U)
