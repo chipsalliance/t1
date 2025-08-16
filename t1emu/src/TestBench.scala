@@ -232,8 +232,6 @@ class TestBench(val parameter: T1Parameter)
       // vrf write from lane
       laneProbes.flatMap(laneProbe =>
         laneProbe.slots.map(slot => slot.writeTag === tag.U && slot.writeQueueEnq && slot.writeMask.orR)
-      ) ++ laneProbes.flatMap(laneProbe =>
-        laneProbe.crossWriteProbe.map(cp => cp.bits.writeTag === tag.U && cp.valid && cp.bits.writeMask.orR)
       ) ++
         // vrf write from lsu
         lsuProbe.slots.map(slot => slot.dataInstruction === tag.U && slot.writeValid && slot.dataMask.orR) ++

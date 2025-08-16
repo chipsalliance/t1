@@ -15,7 +15,16 @@ class EnqReportBundle(parameter: LaneParameter) extends Bundle {
   val decodeResult:     DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
   val sSendResponse:    Bool         = Bool()
+  val maskPipe:         Bool         = Bool()
   val mask:             UInt         = UInt(4.W)
+  val groupCounter:     UInt         = UInt(parameter.groupNumberBits.W)
+}
+
+class MaskStageWriteState(parameter: LaneParameter) extends Bundle {
+  val pendingMaskStageWrite: Bool = Bool()
+  val getCountReport:        Bool = Bool()
+  val needWrite:             UInt = UInt(log2Ceil(parameter.vLen).W)
+  val finishWrite:           UInt = UInt(log2Ceil(parameter.vLen).W)
 }
 
 /** For each slot, it has 4 stages:
@@ -52,7 +61,7 @@ class EnqReportBundle(parameter: LaneParameter) extends Bundle {
   * VrfWritePipe:
   *   - vrfWrite + cross write rx + lsu write + Sequencer write -> allVrfWrite
   *   - do {waw, war} check for allVrfWrite, go to allVrfWriteAfterCheck
-  *   - allVrfWriteAfterCheck -> [[slotWriteReport]] -> [[crossWriteReports]]: cross lane write
+  *   - allVrfWriteAfterCheck -> [[slotWriteReport]] -> [[crossWrite2Reports]]: cross lane write
   *   - allVrfWriteAfterCheck -> Arbiter -> [[writePipeEnqReport]] -> write pipe token acquire
   *   - VRF write
   *     - queueBeforeMaskWrite
@@ -71,7 +80,16 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   }
 
   @public
-  val crossWriteReports: Vec[ValidIO[UInt]] = IO(Vec(2, Flipped(Valid(UInt(parameter.instructionIndexBits.W)))))
+  val instNeedWaitWrite: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+
+  @public
+  val crossWrite2Reports: Vec[ValidIO[UInt]] = IO(Vec(2, Flipped(Valid(UInt(parameter.instructionIndexBits.W)))))
+
+  @public
+  val crossWrite4Reports: Vec[ValidIO[UInt]] = IO(Vec(4, Flipped(Valid(UInt(parameter.instructionIndexBits.W)))))
+
+  @public
+  val maskStageToken = IO(Flipped(new MaskStageToken(parameter)))
 
   @public
   val responseReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
@@ -105,12 +123,32 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   @public
   val maskUnitLastReport: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
 
+  @public
+  val laneIndex: UInt = IO(Input(UInt(parameter.laneNumberBits.W)))
+
+  @public
+  val writeCountForToken: DecoupledIO[WriteCountReport] = IO(
+    Flipped(Decoupled(new WriteCountReport(parameter.vLen, parameter.laneNumber, parameter.instructionIndexBits)))
+  )
+
   def tokenUpdate(tokenData: Seq[UInt], enqWire: UInt, deqWire: UInt): UInt = {
     tokenData.zipWithIndex.foreach { case (t, i) =>
       val e      = enqWire(i)
       val d      = deqWire(i)
       val change = Mux(e, 1.U(tokenWith.W), -1.S(tokenWith.W).asUInt)
       when(e ^ d) {
+        t := t + change
+      }
+    }
+    VecInit(tokenData.map(_ =/= 0.U)).asUInt
+  }
+
+  def tokenUpdate(tokenData: Seq[UInt], enqWire: Seq[UInt], deqWire: UInt): UInt = {
+    tokenData.zipWithIndex.foreach { case (t, i) =>
+      val e      = PopCount(VecInit(enqWire.map(d => d(i))).asUInt)
+      val d      = deqWire(i)
+      val change = changeUIntSize(e, tokenWith) - changeUIntSize(d.asUInt, tokenWith)
+      when(e.orR || d) {
         t := t + change
       }
     }
@@ -141,7 +179,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
     val writeDoEnq: UInt =
       maskAnd(
         enqReport.valid && !enqReport.bits.decodeResult(Decoder.sWrite) &&
-          !enqReport.bits.decodeResult(Decoder.maskUnit),
+          !enqReport.bits.decodeResult(Decoder.maskUnit) && !enqReport.bits.decodeResult(Decoder.maskPipeType),
         enqOH
       ).asUInt
 
@@ -151,32 +189,73 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
         indexToOH(slotWriteReport(slotIndex).bits, parameter.chainingSize)
       ).asUInt
 
-    val writeEnqSelect: UInt = Wire(UInt(parameter.chaining1HBits.W))
-
-    val pendingSlotWrite = tokenUpdate(writeToken, writeEnqSelect, writeDoDeq)
-
     if (slotIndex == 0) {
-      val responseToken:      Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
-      val feedbackToken:      Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
-      val crossWriteTokenLSB: Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
-      val crossWriteTokenMSB: Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
+      val responseToken: Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
+      val feedbackToken: Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
 
-      // cross write update
-      val crossWriteDoEnq: UInt =
-        maskAnd(enqReport.valid && enqReport.bits.decodeResult(Decoder.crossWrite), enqOH).asUInt
+      // for mask stage
+      val countReportReady = Wire(Vec(parameter.chaining1HBits, Bool()))
+      writeCountForToken.ready := countReportReady.asUInt.orR
+      val pendingMaskPipe: UInt = Seq
+        .tabulate(parameter.chaining1HBits) { instIndex =>
+          val writeCountState = RegInit(0.U.asTypeOf(new MaskStageWriteState(parameter)))
+          val indexU          = instIndex.U
+          when(instNeedWaitWrite.valid && instNeedWaitWrite.bits === indexU) {
+            writeCountState                       := 0.U.asTypeOf(writeCountState)
+            writeCountState.pendingMaskStageWrite := true.B
+          }
+          val reportHit       = writeCountForToken.bits.instructionIndex === indexU
+          countReportReady(instIndex) := writeCountState.pendingMaskStageWrite &&
+            reportHit
 
-      val crossWriteDeqLSB =
-        maskAnd(crossWriteReports.head.valid, indexToOH(crossWriteReports.head.bits, parameter.chainingSize)).asUInt
+          when(writeCountForToken.valid && reportHit) {
+            writeCountState.getCountReport := true.B
+            writeCountState.needWrite      := writeCountForToken.bits.count
+          }
 
-      val crossWriteDeqMSB =
-        maskAnd(crossWriteReports.last.valid, indexToOH(crossWriteReports.last.bits, parameter.chainingSize)).asUInt
+          val writeHit = writePipeDeqReport.bits === indexU
+          when(writePipeDeqReport.fire && writeHit) {
+            writeCountState.finishWrite := writeCountState.finishWrite + 1.U
+          }
 
-      val pendingCrossWriteLSB = tokenUpdate(crossWriteTokenLSB, crossWriteDoEnq, crossWriteDeqLSB)
-      val pendingCrossWriteMSB = tokenUpdate(crossWriteTokenMSB, crossWriteDoEnq, crossWriteDeqMSB)
+          val slideWriteClear = writeCountState.pendingMaskStageWrite && writeCountState.getCountReport &&
+            (writeCountState.finishWrite === writeCountState.needWrite)
+
+          when(slideWriteClear) {
+            writeCountState.pendingMaskStageWrite := false.B
+          }
+          val pendingMaskWrite  = maskAnd(
+            writeCountState.pendingMaskStageWrite,
+            1.U << instIndex
+          ).asUInt
+          val maskStageTokenReg = RegInit(0.U(tokenWith.W))
+          val waitForStageClear = RegInit(false.B)
+          val maskStageEnq      = enqReport.valid && enqReport.bits.decodeResult(
+            Decoder.maskPipeType
+          ) && enqReport.bits.instructionIndex === indexU
+          val maskStageDeq      =
+            maskStageToken.maskStageRequestRelease.valid && maskStageToken.maskStageRequestRelease.bits === indexU
+          val change            = Mux(maskStageEnq, 1.U(tokenWith.W), -1.S(tokenWith.W).asUInt)
+          when(maskStageEnq ^ maskStageDeq) {
+            maskStageTokenReg := maskStageTokenReg + change
+          }
+          when(maskStageEnq) {
+            waitForStageClear := true.B
+          }
+          when(maskStageTokenReg === 0.U && maskStageToken.maskStageClear) {
+            waitForStageClear := false.B
+          }
+          maskAnd(
+            waitForStageClear,
+            1.U << instIndex
+          ).asUInt |
+            pendingMaskWrite
+        }
+        .reduce(_ | _)
 
       // response & feedback update
       val responseDoEnq: UInt =
-        maskAnd(enqReport.valid && !enqReport.bits.sSendResponse, enqOH).asUInt
+        maskAnd(enqReport.valid && !enqReport.bits.sSendResponse && !enqReport.bits.maskPipe, enqOH).asUInt
 
       val responseDoDeq: UInt =
         maskAnd(responseReport.valid, indexToOH(responseReport.bits, parameter.chainingSize)).asUInt
@@ -184,14 +263,21 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
       val feedbackDoDeq: UInt =
         maskAnd(responseFeedbackReport.valid, indexToOH(responseFeedbackReport.bits, parameter.chainingSize)).asUInt
 
-      writeEnqSelect := writeDoEnq
-
-      val pendingResponse = tokenUpdate(responseToken, responseDoEnq, responseDoDeq)
+      val slot0WriteEnq    =
+        crossWrite2Reports.map(req => maskAnd(req.valid, indexToOH(req.bits, parameter.chainingSize)).asUInt) ++
+          crossWrite4Reports.map(req => maskAnd(req.valid, indexToOH(req.bits, parameter.chainingSize)).asUInt) :+
+          maskAnd(
+            maskStageToken.freeCrossWrite.valid,
+            indexToOH(maskStageToken.freeCrossWrite.bits, parameter.chainingSize)
+          ).asUInt :+
+          writeDoEnq
+      val pendingSlotWrite = tokenUpdate(writeToken, slot0WriteEnq, writeDoDeq)
+      val pendingResponse  = tokenUpdate(responseToken, responseDoEnq, responseDoDeq)
       // todo: Precise feedback
-      val pendingFeedback = feedbackUpdate(feedbackToken, responseDoEnq, feedbackDoDeq, maskUnitLastReport)
-      pendingSlotWrite | pendingCrossWriteLSB | pendingCrossWriteMSB | pendingResponse | pendingFeedback
+      val pendingFeedback  = feedbackUpdate(feedbackToken, responseDoEnq, feedbackDoDeq, maskUnitLastReport)
+      pendingSlotWrite | pendingResponse | pendingFeedback | pendingMaskPipe
     } else {
-      writeEnqSelect := writeDoEnq
+      val pendingSlotWrite = tokenUpdate(writeToken, writeDoEnq, writeDoDeq)
       pendingSlotWrite
     }
   }.reduce(_ | _)

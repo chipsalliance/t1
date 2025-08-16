@@ -23,6 +23,7 @@ class LaneStage2Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val decodeResult:        DecodeBundle = Decoder.bundle(parameter.decoderParam)
   val instructionIndex:    UInt         = UInt(parameter.instructionIndexBits.W)
   val loadStore:           Bool         = Bool()
+  val maskE0:              Bool         = Bool()
 
   /** vd or rd */
   val vd:       UInt         = UInt(5.W)
@@ -30,6 +31,21 @@ class LaneStage2Enqueue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val csr:      CSRInterface = new CSRInterface(parameter.vlMaxBits)
   val vSew1H:   UInt         = UInt(3.W)
   val maskType: Bool         = Bool()
+
+  // pipe for mask pipe
+  val readFromScalar: Option[UInt] = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+
+  // pipe for mask stage
+  val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val emptyPipe:         Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
+    new PipeForSecondPipe(
+      parameter.datapathWidth,
+      parameter.groupNumberBits,
+      parameter.laneNumberBits,
+      parameter.eLen
+    )
+  )
 }
 
 class LaneStage2Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends Bundle {
@@ -43,6 +59,24 @@ class LaneStage2Dequeue(parameter: LaneParameter, isLastSlot: Boolean) extends B
   val instructionIndex: UInt         = UInt(parameter.instructionIndexBits.W)
   val loadStore:        Bool         = Bool()
   val vd:               UInt         = UInt(5.W)
+  val vSew1H:           UInt         = UInt(3.W)
+
+  // pipe for mask pipe
+  val readFromScalar: Option[UInt]         = Option.when(isLastSlot)(UInt(parameter.datapathWidth.W))
+  val maskE0:         Bool                 = Bool()
+  val csr:            Option[CSRInterface] = Option.when(isLastSlot)(new CSRInterface(parameter.vlMaxBits))
+
+  // pipe for mask stage
+  val secondPipe:        Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val emptyPipe:         Option[Bool]              = Option.when(isLastSlot)(Bool())
+  val pipeForSecondPipe: Option[PipeForSecondPipe] = Option.when(isLastSlot)(
+    new PipeForSecondPipe(
+      parameter.datapathWidth,
+      parameter.groupNumberBits,
+      parameter.laneNumberBits,
+      parameter.eLen
+    )
+  )
 }
 
 // s2 执行
@@ -87,6 +121,10 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
     )
   }
   executionQueue.enq.bits.sSendResponse.foreach { d => d := enqueue.bits.sSendResponse.get }
+  executionQueue.enq.bits.readFromScalar.foreach { d => d := enqueue.bits.readFromScalar.get }
+  executionQueue.enq.bits.secondPipe.foreach { d => d := enqueue.bits.secondPipe.get }
+  executionQueue.enq.bits.emptyPipe.foreach { d => d := enqueue.bits.emptyPipe.get }
+  executionQueue.enq.bits.pipeForSecondPipe.foreach { d => d := enqueue.bits.pipeForSecondPipe.get }
   executionQueue.enq.bits.groupCounter := enqueue.bits.groupCounter
   executionQueue.enq.bits.mask             := Mux1H(
     enqueue.bits.vSew1H,
@@ -101,11 +139,17 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
   executionQueue.enq.bits.instructionIndex := enqueue.bits.instructionIndex
   executionQueue.enq.bits.loadStore        := enqueue.bits.loadStore
   executionQueue.enq.bits.vd               := enqueue.bits.vd
+  executionQueue.enq.bits.maskE0           := enqueue.bits.maskE0
+  executionQueue.enq.bits.csr.foreach(_ := enqueue.bits.csr)
+  executionQueue.enq.bits.vSew1H           := enqueue.bits.vSew1H
   executionQueue.enq.valid                 := enqueue.valid
   enqueue.ready                            := executionQueue.enq.ready
   dequeue.valid                            := executionQueue.deq.valid
   executionQueue.deq.ready                 := dequeue.ready
 
+  dequeue.bits.readFromScalar.foreach(_ := executionQueue.deq.bits.readFromScalar.get)
+  dequeue.bits.csr.foreach(_ := executionQueue.deq.bits.csr.get)
+  dequeue.bits.maskE0           := executionQueue.deq.bits.maskE0
   dequeue.bits.pipeData.foreach(_ := executionQueue.deq.bits.pipeData.get)
   dequeue.bits.groupCounter     := executionQueue.deq.bits.groupCounter
   dequeue.bits.mask             := executionQueue.deq.bits.mask
@@ -113,6 +157,10 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
   dequeue.bits.instructionIndex := executionQueue.deq.bits.instructionIndex
   dequeue.bits.loadStore        := executionQueue.deq.bits.loadStore
   dequeue.bits.vd               := executionQueue.deq.bits.vd
+  dequeue.bits.vSew1H           := executionQueue.deq.bits.vSew1H
   dequeue.bits.sSendResponse.foreach(_ := executionQueue.deq.bits.sSendResponse.get)
+  dequeue.bits.secondPipe.foreach(_ := executionQueue.deq.bits.secondPipe.get)
+  dequeue.bits.emptyPipe.foreach(_ := executionQueue.deq.bits.emptyPipe.get)
+  dequeue.bits.pipeForSecondPipe.foreach(_ := executionQueue.deq.bits.pipeForSecondPipe.get)
   stageValid                    := executionQueue.deq.valid
 }

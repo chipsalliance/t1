@@ -19,8 +19,6 @@ object isReadonly {
     val allMatched = Seq(
       "vcompress.vm",
       "viota.m",
-      "vrgather.vv",
-      "vrgatherei16.vv",
       "vsext.vf2",
       "vsext.vf4",
       "vsext.vf8",

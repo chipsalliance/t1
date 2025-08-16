@@ -59,6 +59,7 @@ class Distributor[T <: SlotRequestToVFU, B <: VFUResponseToSlot](enqueue: T, deq
   // current one hot depends on execute index
   val currentOHForExecuteGroup: UInt = UIntToOH(executeIndex)
   // Remaining to be requested
+  // todo: Whether to process sew=16 mask=0xff?
   val remainder:                UInt = requestReg.bits.executeMask & (~scanRightOr(currentOHForExecuteGroup)).asUInt
   // Finds the first unfiltered execution.
   val nextIndex:                UInt = OHToUInt(ffo(remainder))
