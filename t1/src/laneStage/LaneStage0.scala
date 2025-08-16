@@ -163,9 +163,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
     )
   ) || enqueue.bits.maskNotMaskedElement ||
     enqueue.bits.decodeResult(Decoder.maskDestination) || enqueue.bits.decodeResult(Decoder.red) ||
-    enqueue.bits.decodeResult(Decoder.readOnly) || enqueue.bits.loadStore || enqueue.bits.decodeResult(
-      Decoder.gather
-    ) ||
+    enqueue.bits.decodeResult(Decoder.readOnly) || enqueue.bits.loadStore ||
     enqueue.bits.decodeResult(Decoder.crossRead) || enqueue.bits.decodeResult(Decoder.crossWrite)
   val normalDeqValid = (!updateLaneState.outOfExecutionRange || enqueue.bits.additionalRW) && notMaskedAllElement
   val emptyValid:   Bool              = Wire(Bool())
@@ -339,12 +337,12 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
 
   if (isLastSlot) {
     // add toke
-    val pipeDeqFire          = dequeue.fire && !bypassDeqValid
+    val pipeDeqFire          = dequeue.fire && !bypassDeqValid && dequeue.bits.decodeResult(Decoder.maskPipeType)
     val pipeDeqRelease       = maskPipeRelease.get.maskPipe
     val pipeDeqTokenAllocate = pipeToken(parameter.maskRequestQueueSize)(pipeDeqFire, pipeDeqRelease)
 
     val bypassDeqFire       = dequeue.fire && bypassDeqValid
-    val bypassDeqRelease    = maskPipeRelease.get.maskPipe
+    val bypassDeqRelease    = maskPipeRelease.get.secondPipe
     val bypassTokenAllocate = pipeToken(parameter.secondQueueSize)(bypassDeqFire, bypassDeqRelease)
 
     bypassDeqValid            := bypassTokenAllocate && freeCrossReqEnq.get.valid
@@ -355,18 +353,11 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
       deqWire.pipeForSecondPipe.get.writeSink    := freeCrossReqEnq.get.bits.writeSink
       deqWire.pipeForSecondPipe.get.writeCounter := freeCrossReqEnq.get.bits.writeCounter
       deqWire.pipeForSecondPipe.get.writeOffset  := freeCrossReqEnq.get.bits.writeOffset
-      deqWire.pipeForSecondPipe.get.mask         := freeCrossReqEnq.get.bits.mask
       deqWire.groupCounter                       := freeCrossReqEnq.get.bits.readCounter
       // second pipe for gather need read vs2.
       deqWire.decodeResult(Decoder.vtype)        := true.B
     }
 
-    val slotWaitGatherRelease = RegInit(false.B)
-    val gatherRelease         = WireDefault(true.B)
-    when(enqFire && enqueue.bits.decodeResult(Decoder.gather) || gatherRelease) {
-      slotWaitGatherRelease := !gatherRelease
-    }
-
-    stageDeqAllocate := !slotWaitGatherRelease || (!bypassDeqValid && pipeDeqTokenAllocate)
+    stageDeqAllocate := (!bypassDeqValid && pipeDeqTokenAllocate)
   }
 }

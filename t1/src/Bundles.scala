@@ -69,9 +69,6 @@ class InstructionState extends Bundle {
   /** used for mask unit, schedule mask unit to execute. */
   val wMaskUnitLast: Bool = Bool()
 
-  /** wait for vrf write finish. */
-  val sSlotRelease: Bool = Bool()
-
   /** used for instruction commit, schedule [[T1]] to commit. */
   val sCommit: Bool = Bool()
 }
@@ -891,7 +888,6 @@ class FreeWriteBusRequest(datapathWidth: Int, groupNumberBits: Int, laneNumberBi
   val writeSink:    UInt = UInt(laneNumberBits.W)
   val writeCounter: UInt = UInt(groupNumberBits.W)
   val writeOffset:  UInt = UInt(log2Ceil(datapathWidth / 8).W)
-  val mask:         UInt = UInt((datapathWidth / 8).W)
 }
 
 class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
