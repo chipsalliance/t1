@@ -835,14 +835,12 @@ class T1(val parameter: T1Parameter)
       control.state.wLast             := false.B
       control.state.sCommit           := false.B
       control.state.wMaskUnitLast     := !requestReg.bits.decodeResult(Decoder.maskUnit)
-      control.state.sSlotRelease      := !(requestReg.bits.decodeResult(Decoder.gather) && requestReg.bits.decodeResult(
-        Decoder.vtype
-      ))
-      control.vxsat                   := false.B
+
+      control.vxsat  := false.B
       // two different initial states for endTag:
       // for load/store instruction, use the last bit to indicate whether it is the last instruction
       // for other instructions, use MSB to indicate whether it is the last instruction
-      control.endTag                  := VecInit(Seq.fill(parameter.laneNumber)(skipLastFromLane) :+ !isLoadStoreType)
+      control.endTag := VecInit(Seq.fill(parameter.laneNumber)(skipLastFromLane) :+ !isLoadStoreType)
     }
       // state machine starts here
       .otherwise {
@@ -1259,8 +1257,6 @@ class T1(val parameter: T1Parameter)
       inst.state.wMaskUnitLast &&
       // lane|lsu finish
       inst.state.wLast &&
-      // mask unit write finish
-      inst.state.sSlotRelease &&
       // Ensure that only one cycle is committed
       !inst.state.sCommit &&
       // Ensuring commit order

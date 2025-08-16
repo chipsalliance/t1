@@ -168,6 +168,7 @@ class MaskUnit(val parameter: T1Parameter)
   )
 
   val slide            = io.maskPipeReq.bits.uop === BitPat("b001??")
+  val gather           = io.maskPipeReq.bits.uop === BitPat("b0001?")
   val extend           = io.maskPipeReq.bits.uop === BitPat("b0000?")
   val slideScalar      = io.maskPipeReq.bits.uop(0)
   val slideUp          = io.maskPipeReq.bits.uop(1)
@@ -200,7 +201,7 @@ class MaskUnit(val parameter: T1Parameter)
   val shifterValidSize:     UInt      = changeUIntSize(instReq.bits.readFromScala, parameter.laneParam.vlMaxBits)
   val shifterSizeOverlap:   Bool      = (instReq.bits.readFromScala >> parameter.laneParam.vlMaxBits).asUInt.orR
   val upCorrection:         UInt      = Mux(
-    slideScalar && slideUp,
+    slideScalar && slideUp && slide,
     scanLeftOr(UIntToOH(shifterValidSize)) & Fill(parameter.vLen, !shifterSizeOverlap),
     -1.S(parameter.vLen.W).asUInt
   )
@@ -224,7 +225,7 @@ class MaskUnit(val parameter: T1Parameter)
       .map(seq => PopCount(VecInit(seq.map(_.orR)).asUInt))
   }.transpose.map(a => Mux1H(sew1HForExtend, a)))
   val typeVec = Seq(
-    slide,
+    slide || gather,
     extend
   )
   val countVec      = Seq(

@@ -190,10 +190,8 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
       ).asUInt
 
     if (slotIndex == 0) {
-      val responseToken:      Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
-      val feedbackToken:      Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
-      val crossWriteTokenLSB: Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
-      val crossWriteTokenMSB: Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
+      val responseToken: Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
+      val feedbackToken: Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
 
       // for mask stage
       val countReportReady = Wire(Vec(parameter.chaining1HBits, Bool()))

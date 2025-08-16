@@ -1276,7 +1276,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.onlyRead               := laneRequest.bits.decodeResult(Decoder.popCount)
   // for mask unit
   vrf.instructionWriteReport.bits.slow                   := laneRequest.bits.decodeResult(Decoder.special)
-  vrf.instructionWriteReport.bits.oooWrite               := laneRequest.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b001??")
+  vrf.instructionWriteReport.bits.oooWrite               :=
+    laneRequest.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b001??") ||
+      laneRequest.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0001?")
   vrf.instructionWriteReport.bits.ls                     := laneRequest.bits.loadStore
   vrf.instructionWriteReport.bits.st                     := laneRequest.bits.store
   vrf.instructionWriteReport.bits.crossWrite             := laneRequest.bits.decodeResult(Decoder.crossWrite)
