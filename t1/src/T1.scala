@@ -964,7 +964,7 @@ class T1(val parameter: T1Parameter)
     Mux(
       decodeResult(Decoder.nr) || decodeResult(Decoder.maskLogic),
       2.U,
-      Mux(gather16, 1.U, Mux(decodeResult(Decoder.extend), extendDataEEW, T1Issue.vsew(requestReg.bits.issue)))
+      Mux(decodeResult(Decoder.extend), extendDataEEW, T1Issue.vsew(requestReg.bits.issue))
     )
   )
 

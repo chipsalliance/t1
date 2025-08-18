@@ -128,6 +128,8 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   @public
   val maskPipeRelease: Option[MaskExchangeRelease] = Option.when(isLastSlot)(IO(Input(new MaskExchangeRelease)))
 
+  val sourceSew1HSelect = Mux(enqueue.bits.decodeResult(Decoder.gather16), 2.U(3.W), enqueue.bits.vSew1H(2, 0))
+
   val slideBase:           UInt              = Option
     .when(isLastSlot) {
       val base: UInt = Wire(UInt(parameter.groupNumberBits.W))
@@ -155,7 +157,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   val stageWire:           LaneStage0Dequeue = Wire(new LaneStage0Dequeue(parameter, isLastSlot))
   // 这一组如果全被masked了也不压进流水
   val notMaskedAllElement: Bool              = Mux1H(
-    enqueue.bits.vSew1H,
+    sourceSew1HSelect,
     Seq(
       stageWire.maskForMaskInput.orR,
       cutUIntBySize(stageWire.maskForMaskInput, 2).head.orR,
@@ -197,7 +199,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   }
 
   /** is there any data left in this group? */
-  val nextOrR: Bool = Mux1H(enqueue.bits.vSew1H, filterVec.map(_._1))
+  val nextOrR: Bool = Mux1H(sourceSew1HSelect, filterVec.map(_._1))
 
   // mask is exhausted
   updateLaneState.maskExhausted := !nextOrR
@@ -206,7 +208,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   val maskGroupWillUpdate: Bool = enqueue.bits.decodeResult(Decoder.maskLogic) || updateLaneState.maskExhausted
 
   /** Encoding of different element lengths: 1, 8, 16, 32 */
-  val elementLengthOH = Mux(enqueue.bits.decodeResult(Decoder.maskLogic), 1.U, enqueue.bits.vSew1H(2, 0) ## false.B)
+  val elementLengthOH = Mux(enqueue.bits.decodeResult(Decoder.maskLogic), 1.U, sourceSew1HSelect(2, 0) ## false.B)
 
   /** Which group of data will be accessed */
   val dataGroupIndex: UInt = Mux1H(
@@ -229,7 +231,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
 
   // Correct the mask on the boundary line
   val vlNeedCorrect:     Bool = Mux1H(
-    enqueue.bits.vSew1H(2, 0),
+    sourceSew1HSelect,
     Seq(
       enqueue.bits.csr.vl(parameter.dataPathByteBits - 1, 0).orR,
       enqueue.bits.csr.vl(parameter.dataPathByteBits - 2, 0).orR,
@@ -237,7 +239,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
     )
   )
   val correctMask:       UInt = Mux1H(
-    enqueue.bits.vSew1H(2, 0),
+    sourceSew1HSelect,
     Seq(
       (scanRightOr(UIntToOH(enqueue.bits.csr.vl(parameter.dataPathByteBits - 1, 0))) >> 1).asUInt,
       (scanRightOr(UIntToOH(enqueue.bits.csr.vl(parameter.dataPathByteBits - 2, 0))) >> 1).asUInt,
@@ -266,7 +268,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   updateLaneState.maskIndex := Mux(
     enqueue.bits.decodeResult(Decoder.maskLogic),
     0.U,
-    Mux1H(enqueue.bits.vSew1H, filterVec.map(_._2))
+    Mux1H(sourceSew1HSelect, filterVec.map(_._2))
   )
 
   stageWire.groupCounter := dataGroupIndex + slideBase
