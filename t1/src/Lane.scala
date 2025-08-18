@@ -508,7 +508,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     when(maskControlEnq(index)) {
       state              := 0.U.asTypeOf(state)
       state.index        := laneRequest.bits.instructionIndex
-      state.sew          := laneRequest.bits.csrInterface.vSew
+      state.sew          := Mux(laneRequest.bits.decodeResult(Decoder.gather16), 1.U, laneRequest.bits.csrInterface.vSew)
       state.controlValid := true.B
       state.slide        := laneRequest.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b001??")
     }
@@ -1122,7 +1122,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // calculate last group
   val lastElementIndex: UInt = (csrInterface.vl - csrInterface.vl.orR)(parameter.vlMaxBits - 2, 0)
-  val requestVSew1H:    UInt = UIntToOH(csrInterface.vSew)
+  val sourceEEW:        UInt = Mux(laneRequest.bits.decodeResult(Decoder.gather16), 1.U, csrInterface.vSew)
+  val requestVSew1H:    UInt = UIntToOH(sourceEEW)
 
   val dataPathScaleBit: Int = log2Ceil(parameter.datapathWidth / parameter.eLen)
 

@@ -126,8 +126,9 @@ class LaneStage2(parameter: LaneParameter, isLastSlot: Boolean)
   executionQueue.enq.bits.emptyPipe.foreach { d => d := enqueue.bits.emptyPipe.get }
   executionQueue.enq.bits.pipeForSecondPipe.foreach { d => d := enqueue.bits.pipeForSecondPipe.get }
   executionQueue.enq.bits.groupCounter := enqueue.bits.groupCounter
+  val sew1HSelect = Mux(enqueue.bits.decodeResult(Decoder.gather16), 2.U, enqueue.bits.vSew1H)
   executionQueue.enq.bits.mask             := Mux1H(
-    enqueue.bits.vSew1H,
+    sew1HSelect,
     Seq(
       enqueue.bits.maskForFilter,
       FillInterleaved(2, cutUIntBySize(enqueue.bits.maskForFilter, 2).head),

@@ -333,9 +333,11 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val crossWriteFire4: Vec[Bool] = Wire(Vec(4, Bool()))
   val crossWriteDeqFire = crossWriteFire4.asUInt | crossWriteFire2.asUInt
 
+  val enqIsGather16: Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b00011")
+  val enqSewSelect = Mux(enqIsGather16, 2.U(3.W), maskReqQueue.deq.bits.maskPipe.sew1H(2, 0))
   // todo
   val enqMask: UInt = Mux1H(
-    maskReqQueue.deq.bits.maskPipe.sew1H,
+    enqSewSelect,
     Seq(
       maskPipeEnqReq.mask,
       VecInit(cutUInt(maskPipeEnqReq.mask, 2).map(_.orR)).asUInt,
@@ -608,9 +610,9 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   }
 
   // todo: first gather16
-  val sewSelect:            UInt = Mux(maskPipeIsGather16, 2.U(3.W), maskPipeMessageReg.sew1H(2, 0))
+  val sew1HSelect:          UInt = Mux(maskPipeIsGather16, 2.U(3.W), maskPipeMessageReg.sew1H(2, 0))
   val byteMaskForExecution: UInt = Mux1H(
-    sewSelect,
+    sew1HSelect,
     Seq(
       currentOHForExecuteGroup,
       FillInterleaved(2, cutUIntBySize(currentOHForExecuteGroup, 2).head),
@@ -628,7 +630,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     val collapse1 = Seq.tabulate(dw / 16)(i => dataMasked(16 * i + 15, 16 * i)).reduce(_ | _)
     val collapse2 = Seq.tabulate(dw / 32)(i => dataMasked(32 * i + 31, 32 * i)).reduce(_ | _)
     Mux1H(
-      sewSelect,
+      sew1HSelect,
       Seq(
         Fill(25, sign && collapse0(7)) ## collapse0,
         Fill(17, sign && collapse1(15)) ## collapse1,
@@ -642,7 +644,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   ) && maskPipeReqReg.groupCounter.andR
   val elementHead       = Fill(parameter.eLen, slideSizeNegative)
   val elementIndex: UInt = Mux1H(
-    sewSelect,
+    sew1HSelect,
     Seq(
       elementHead ## maskPipeReqReg.groupCounter ## laneIndex ## executeIndex,
       elementHead ## maskPipeReqReg.groupCounter ## laneIndex ## executeIndex(
