@@ -802,6 +802,10 @@ class T1(val parameter: T1Parameter)
   val gatherLastReportVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chaining1HBits.W)))
   val gatherLastReport:    UInt      = gatherLastReportVec.reduce(_ | _)
 
+  val popCountResult: UInt = RegInit(0.U(parameter.laneParam.vlMaxBits.W))
+  val validPopCount       = Wire(Bool())
+  val finalPopCountResult = maskAnd(validPopCount, popCountResult)
+
   /** state machine register for each instruction. */
   val slots: Seq[InstructionControl] = Seq.tabulate(parameter.chainingSize) { index =>
     /** the control register in the slot. */
@@ -833,6 +837,7 @@ class T1(val parameter: T1Parameter)
       control.record.isLoadStore      := isLoadStoreType
       control.record.maskType         := maskType
       control.record.gather           := requestReg.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0001?")
+      control.record.pop              := requestReg.bits.decodeResult(Decoder.popCount)
       // control signals
       control.state.idle              := false.B
       control.state.wLast             := false.B
@@ -873,13 +878,19 @@ class T1(val parameter: T1Parameter)
     if (index == (parameter.chainingSize - 1)) {
       val writeRD = RegInit(false.B)
       val float: Option[Bool] = Option.when(parameter.fpuEnable)(RegInit(false.B))
-      val vd = RegInit(0.U(5.W))
-      when(instructionToSlotOH(index)) {
-        writeRD := decodeResult(Decoder.targetRd)
-        float.foreach(_ := decodeResult(Decoder.float))
-        vd      := requestRegDequeue.bits.instruction(11, 7)
+      val vd        = RegInit(0.U(5.W))
+      val validInst = RegInit(false.B)
+      validPopCount               := validInst
+      when(instructionFinished.map(_(index)).head && control.record.pop) {
+        popCountResult := sequencerIF.io.laneResponse.head.bits.popCount
       }
-      io.retire.rd.valid := lastSlotCommit && writeRD
+      when(instructionToSlotOH(index)) {
+        writeRD   := decodeResult(Decoder.targetRd)
+        float.foreach(_ := decodeResult(Decoder.float))
+        vd        := requestRegDequeue.bits.instruction(11, 7)
+        validInst := requestRegDequeue.bits.vl.orR
+      }
+      io.retire.rd.valid          := lastSlotCommit && writeRD
       io.retire.rd.bits.rdAddress := vd
       if (parameter.fpuEnable) {
         io.retire.rd.bits.isFp := float.getOrElse(false.B)
@@ -1098,6 +1109,7 @@ class T1(val parameter: T1Parameter)
     laneIF.io.laneResponse.valid                    := true.B
     laneIF.io.laneResponse.bits.vxsatReport         := lane.vxsatReport
     laneIF.io.laneResponse.bits.instructionFinished := lane.instructionFinished
+    laneIF.io.laneResponse.bits.popCount            := lane.popCount
 
     laneIF.io.maskWriteRelease.valid := lane.vrfWriteChannel.fire && lane.writeFromMask
     laneIF.io.lsuWriteAck.valid      := lane.vrfWriteChannel.fire && !lane.writeFromMask
@@ -1269,8 +1281,11 @@ class T1(val parameter: T1Parameter)
       // Ensuring commit order
       inst.record.instructionIndex === responseCounter
     })
+    val commitIsPop = (VecInit(slots.map { inst =>
+      inst.record.pop
+    }).asUInt & slotCommit.asUInt).orR
     retire                   := slotCommit.asUInt.orR
-    io.retire.rd.bits.rdData := maskUnit.io.writeRDData
+    io.retire.rd.bits.rdData := Mux(commitIsPop, finalPopCountResult, maskUnit.io.writeRDData)
     // TODO: csr retire.
     io.retire.csr.bits.vxsat := (slotCommit.asUInt & VecInit(slots.map(_.vxsat)).asUInt).orR
     io.retire.csr.bits.fflag := DontCare

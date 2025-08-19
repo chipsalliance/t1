@@ -328,6 +328,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val instructionFinished: UInt = IO(Output(UInt(parameter.chaining1HBits.W)))
   @public
   val vxsatReport:         UInt = IO(Output(UInt(parameter.chaining1HBits.W)))
+  @public
+  val popCount:            UInt = IO(Output(UInt(parameter.vlMaxBits.W)))
 
   /** V0 update in the lane should also update [[T1.v0]] */
   @public
@@ -1352,6 +1354,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   }
   tokenManager.maskStageToken               := slots.head.maskStage.get.token
   slots.head.maskStage.get.instructionValid := tokenManager.instructionValid
+  popCount                                  := slots.head.maskStage.get.reduceResultOut
+
   // todo: add mask unit write token
   tokenManager.responseReport.valid         := maskUnitRequest.fire
   tokenManager.responseReport.bits          := maskUnitRequest.bits.index

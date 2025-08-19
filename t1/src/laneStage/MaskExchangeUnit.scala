@@ -243,6 +243,9 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   @public
   val instructionValid: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
 
+  @public
+  val reduceResultOut: UInt = IO(Output(UInt(parameter.vlMaxBits.W)))
+
   // todo: sSendResponse -> sendResponse
   val enqIsMaskRequest: Bool = !enqueue.bits.sSendResponse && !enqueue.bits.decodeResult(Decoder.maskPipeType)
   // not maskUnit && not send out
@@ -311,6 +314,8 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val finish  = RegInit(false.B)
   val reduceResultSize: UInt = RegInit(0.U(3.W))
 
+  reduceResultOut := reduceResult
+
   val stateIdle:         Bool = reduceState === idle         // 0
   val stateSRequest:     Bool = reduceState === sRequest     // 1
   val stateWResponse:    Bool = reduceState === wResponse    // 2
@@ -351,6 +356,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   val enqSlide1Up:         Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b00110")
   val enqIsSlide:          Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b001??")
   val enqIsGather:         Bool = maskPipeEnqReq.decodeResult(Decoder.maskPipeUop) === BitPat("b0001?")
+  val enqIsPop:            Bool = maskPipeEnqReq.decodeResult(Decoder.popCount)
 
   val maskPipeIsExtend:   Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop) === BitPat("b0000?")
   val maskPipeIsGather:   Bool = maskPipeReqReg.decodeResult(Decoder.maskPipeUop) === BitPat("b0001?")
@@ -400,7 +406,10 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     reduceResultSize    := log2Ceil(parameter.datapathWidth / 8).U
     when(maskPipeEnqReduce) {
       when(firstFroup && firstLane) {
-        reduceResult := maskReqQueue.deq.bits.maskPipe.source1 & enqBitMask
+        reduceResult := maskAnd(
+          !enqIsPop,
+          maskReqQueue.deq.bits.maskPipe.source1 & enqBitMask
+        )
       }
       when(reduceStart) {
         reduceState := Mux(firstLane, sRequest, wMaskRequest)
@@ -983,7 +992,9 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
   // from float csr
   reduceVRFRequest.bits.roundingMode.foreach(_ := maskPipeMessageReg.csr.frm)
 
-  reduceRequestDecode := maskPipeReqReg.decodeResult
+  reduceRequestDecode                := maskPipeReqReg.decodeResult
+  reduceRequestDecode(Decoder.other) := false.B
+  reduceRequestDecode(Decoder.adder) := maskPipeReqReg.decodeResult(Decoder.adder) || maskPipeIsPop
   // todo
   val reduceVRFResponseFire: Bool = reduceResponse.valid
   when(stateSRequest && reduceVRFRequest.ready) {
@@ -1032,7 +1043,11 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     reduceMaskResponse.valid && reduceMaskResponse.bits.finish && !laneIndex.andR,
     false.B
   )
-  reduceMaskRequest.valid        := stateSMaskRequest || stateSWrite || finishReport
+  val idleReport:   Bool = RegNext(
+    reduceMaskResponse.fire && stateIdle && laneIndex.orR,
+    false.B
+  )
+  reduceMaskRequest.valid        := stateSMaskRequest || stateSWrite || finishReport || idleReport
   reduceMaskRequest.bits.data    := reduceResult
   reduceMaskRequest.bits.hitLast := hitLast
   reduceMaskRequest.bits.finish  := finish || stateSWrite || finishReport
@@ -1071,8 +1086,10 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
         Mux(firstLane, Mux(foldFinish, sWrite, fold), sRequest)
       )
     reduceResultSize := log2Ceil(parameter.datapathWidth / 8).U
-    reduceResult     := reduceMaskResponse.bits.data
-    hitLast          := willHitLast
+  }
+  when(reduceMaskResponse.fire) {
+    reduceResult := reduceMaskResponse.bits.data
+    hitLast      := willHitLast
   }
 
   when(stateWaitNew) {
