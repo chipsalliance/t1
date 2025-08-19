@@ -170,7 +170,10 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
     enqueue.bits.decodeResult(Decoder.maskDestination) || enqueue.bits.decodeResult(Decoder.red) ||
     enqueue.bits.decodeResult(Decoder.readOnly) || enqueue.bits.loadStore ||
     enqueue.bits.decodeResult(Decoder.crossRead) || enqueue.bits.decodeResult(Decoder.crossWrite)
-  val normalDeqValid = (!updateLaneState.outOfExecutionRange || enqueue.bits.additionalRW) && notMaskedAllElement
+  val firstSlideDownGroup: Bool              = (enqueue.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0010?")) &&
+    (stageWire.groupCounter === 0.U)
+  val normalDeqValid =
+    (!updateLaneState.outOfExecutionRange || enqueue.bits.additionalRW || firstSlideDownGroup) && notMaskedAllElement
   val emptyValid:   Bool              = Wire(Bool())
   // 超出范围的一组不压到流水里面去
   val enqFire:      Bool              = enqueue.fire && (normalDeqValid || emptyValid)
@@ -257,7 +260,8 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
       enqueue.bits.isLastLaneForInstruction &&
       vlNeedCorrect && !enqueue.bits.decodeResult(Decoder.maskLogic) && !enqueue.bits.decodeResult(Decoder.slid)
   val maskCorrect:       UInt = Mux(needCorrect, correctMask, -1.S(parameter.dataPathByteWidth.W).asUInt)
-  val crossReadOnlyMask: UInt = Fill(parameter.dataPathByteWidth, !updateLaneState.outOfExecutionRange)
+  val crossReadOnlyMask: UInt =
+    Fill(parameter.dataPathByteWidth, !updateLaneState.outOfExecutionRange || firstSlideDownGroup)
 
   stageWire.maskForMaskInput       :=
     Mux(
@@ -370,7 +374,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
       gatherIndex,
       parameter.chainingSize
     )
-    val gatherEnq           = enqueue.fire && enqueue.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0001?")
+    val gatherEnq           = enqFire && enqueue.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0001?")
     when(gatherEnq || lastReportHitGather) {
       stateGather := gatherEnq
       gatherIndex := enqueue.bits.instructionIndex

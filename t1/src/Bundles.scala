@@ -53,6 +53,7 @@ class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
   val maskType: Bool = Bool()
 
   val gather: Bool = Bool()
+  val pop:    Bool = Bool()
 }
 
 /** context for state machine: w: passive, s: initiative assert: don't need execute or is executed. deassert: need
@@ -848,9 +849,10 @@ class MaskRequest(maskGroupSizeBits: Int) extends Bundle {
   val slide: Bool = Bool()
 }
 
-class LaneResponse(chaining1HBits: Int) extends Bundle {
+class LaneResponse(chaining1HBits: Int, vlMaxBits: Int) extends Bundle {
   val instructionFinished: UInt = UInt(chaining1HBits.W)
   val vxsatReport:         UInt = UInt(chaining1HBits.W)
+  val popCount:            UInt = UInt(vlMaxBits.W)
 }
 
 class LaneVirtualChannel(dataWidth: Int, opcodeWidth: Int, idWidth: Int) extends Bundle {
@@ -959,7 +961,9 @@ class LaneInterfaceIO(parameter: LaneIFParameter) extends Bundle {
   )
 
   // opcode 4
-  val laneResponse: DecoupledIO[LaneResponse] = Flipped(Decoupled(new LaneResponse(parameter.chaining1HBits)))
+  val laneResponse: DecoupledIO[LaneResponse] = Flipped(
+    Decoupled(new LaneResponse(parameter.chaining1HBits, parameter.vlMaxBits))
+  )
 
   // opcode 5
   val maskWriteRelease: DecoupledIO[EmptyBundle] = Flipped(Decoupled(new EmptyBundle()))
