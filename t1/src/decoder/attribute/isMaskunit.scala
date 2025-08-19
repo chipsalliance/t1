@@ -74,7 +74,7 @@ object isMaskunit {
     val popCount        = Seq(
       "vcpop.m"
     )
-    val isFFO = Seq(
+    val isFFO           = Seq(
       "vfirst.m",
       "vmsbf.m",
       "vmsif.m",

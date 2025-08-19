@@ -798,7 +798,9 @@ class T1(val parameter: T1Parameter)
     parameter.instructionIndexBits
   )
 
-  val gatherNeedRead: Bool = requestRegDequeue.valid && decodeResult(Decoder.gather) && !decodeResult(Decoder.vtype)
+  val gatherNeedRead:      Bool      = requestRegDequeue.valid && decodeResult(Decoder.gather) && !decodeResult(Decoder.vtype)
+  val gatherLastReportVec: Vec[UInt] = Wire(Vec(parameter.chainingSize, UInt(parameter.chaining1HBits.W)))
+  val gatherLastReport:    UInt      = gatherLastReportVec.reduce(_ | _)
 
   /** state machine register for each instruction. */
   val slots: Seq[InstructionControl] = Seq.tabulate(parameter.chainingSize) { index =>
@@ -830,6 +832,7 @@ class T1(val parameter: T1Parameter)
       // TODO: remove
       control.record.isLoadStore      := isLoadStoreType
       control.record.maskType         := maskType
+      control.record.gather           := requestReg.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0001?")
       // control signals
       control.state.idle              := false.B
       control.state.wLast             := false.B
@@ -884,6 +887,10 @@ class T1(val parameter: T1Parameter)
         io.retire.rd.bits.isFp := false.B
       }
     }
+    gatherLastReportVec(index) := maskAnd(
+      laneAndLSUFinish && v0WriteFinish && !control.state.wLast && control.record.gather,
+      indexToOH(control.record.instructionIndex, parameter.chainingSize)
+    )
     control
   }
 
@@ -896,8 +903,8 @@ class T1(val parameter: T1Parameter)
   }
   sequencerIF.io.vrfWriteRequest.zip(maskUnit.io.exeResp).foreach { case (sink, source) => sink <> source }
   sequencerIF.io.maskUnitReport.foreach { q =>
-    q.valid     := maskUnit.io.lastReport.orR
-    q.bits.last := maskUnit.io.lastReport
+    q.valid     := maskUnit.io.lastReport.orR || gatherLastReport.orR
+    q.bits.last := maskUnit.io.lastReport | gatherLastReport
   }
   sequencerIF.io.writeCount.zipWithIndex.foreach { case (q, i) =>
     q.valid := maskUnit.io.writeCountVec(i).valid
