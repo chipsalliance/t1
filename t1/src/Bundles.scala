@@ -51,6 +51,8 @@ class InstructionRecord(instructionIndexWidth: Int) extends Bundle {
   /** whether instruction is mask type instruction. Need to stall instructions which will write v0.
     */
   val maskType: Bool = Bool()
+
+  val gather: Bool = Bool()
 }
 
 /** context for state machine: w: passive, s: initiative assert: don't need execute or is executed. deassert: need
