@@ -71,16 +71,13 @@ object isMaskunit {
       "vmsne.vx",
       "vmsof.m"
     )
-    val popCount        = Seq(
-      "vcpop.m"
-    )
     val isFFO           = Seq(
       "vfirst.m",
       "vmsbf.m",
       "vmsif.m",
       "vmsof.m"
     )
-    val allMatched      = mvType ++ compress ++ maskDestination ++ popCount ++ isFFO
+    val allMatched      = mvType ++ compress ++ maskDestination ++ isFFO
     allMatched.contains(t1DecodePattern.instruction.name)
   }
   def n(t1DecodePattern: T1DecodePattern): Boolean = {

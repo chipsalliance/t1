@@ -201,7 +201,8 @@ class SequencerInterfaceIO(parameter: SequencerIFParameter) extends Bundle {
   val v0Update = Vec(parameter.laneNumber, Decoupled(new V0Update(parameter.datapathWidth, parameter.vrfOffsetBits)))
 
   // opcode 4
-  val laneResponse = Vec(parameter.laneNumber, Decoupled(new LaneResponse(parameter.chaining1HBits)))
+  val laneResponse =
+    Vec(parameter.laneNumber, Decoupled(new LaneResponse(parameter.chaining1HBits, parameter.vlMaxBits)))
 
   // opcode 5
   val maskWriteRelease = Vec(parameter.laneNumber, Decoupled(new EmptyBundle()))
