@@ -872,6 +872,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       freeCrossReqDeq <> maskStage.get.freeCrossReqDeq
       stage0.freeCrossReqEnq.get <> freeCrossReqEnq
       stage0.maskPipeRelease.get <> maskStage.get.maskPipeRelease
+      stage0.lsuLastReport.get <> lsuLastReport
 
       reduceMaskRequest <> maskStage.get.reduceMaskRequest
       maskStage.get.reduceMaskResponse <> reduceMaskResponse
