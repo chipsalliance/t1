@@ -43,6 +43,7 @@ endpackage
 
 module VerbatimModule #(
   parameter integer T1_DLEN,
+  parameter integer T1_LANE_WIDTH,
   parameter integer T1_VLEN,
   parameter string T1_SPIKE_ISA
 )(
@@ -109,6 +110,7 @@ module VerbatimModule #(
   import "DPI-C" context function void t1_cosim_init(
     string elf_file,
     int dlen,
+    int lane_width,
     int vlen,
     string spike_isa,
     string ds3_cfg,
@@ -137,7 +139,7 @@ module VerbatimModule #(
 
     if (elf_file.len() == 0) $fatal(1, "+t1_elf_file must be set");
 
-    t1_cosim_init(elf_file, T1_DLEN, T1_VLEN, T1_SPIKE_ISA, dramsim3_cfg, dramsim3_path);
+    t1_cosim_init(elf_file, T1_DLEN, T1_LANE_WIDTH, T1_VLEN, T1_SPIKE_ISA, dramsim3_cfg, dramsim3_path);
     t1_cosim_set_timeout(dpi_timeout);
 
     __circt_lib_logging::log_open();

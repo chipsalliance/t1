@@ -45,7 +45,7 @@ public:
 
 class Spike {
 public:
-  Spike(const char *set, const char *lvl, size_t lane_number);
+  Spike(const char *set, const char *lvl, size_t lane_width, size_t lane_number);
   processor_t *get_proc() { return &proc; }
 
 private:

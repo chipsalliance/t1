@@ -35,6 +35,10 @@ pub struct SimCheckerArgs {
   #[arg(long)]
   pub dlen_override: Option<u32>,
 
+  /// Override LANE WIDTH (debug only)
+  #[arg(long)]
+  pub lane_width_override: Option<u32>,
+
   /// Override ISA (debug only)
   #[arg(long)]
   pub isa_override: Option<String>,
@@ -50,6 +54,7 @@ struct SimResult {
   flavor: String,
   meta_vlen: u32,
   meta_dlen: u32,
+  meta_lane_width: u32,
   meta_isa: String,
   meta_elf_file: Option<PathBuf>,
   success: bool,
@@ -70,6 +75,7 @@ fn main() -> anyhow::Result<()> {
 
   let vlen = args.vlen_override.unwrap_or(sim_result.meta_vlen);
   let dlen = args.dlen_override.unwrap_or(sim_result.meta_dlen);
+  let lane_width = args.lane_width_override.unwrap_or(sim_result.meta_lane_width);
   let isa = args.isa_override.as_ref().unwrap_or(&sim_result.meta_isa);
   let elf_file = if let Some(elf_file) = &args.elf_file {
     elf_file
@@ -84,6 +90,7 @@ fn main() -> anyhow::Result<()> {
     rtl_event_file: Some(args.rtl_event_file.clone()),
     vlen,
     dlen,
+    lane_width,
     set: isa.clone(),
   };
 

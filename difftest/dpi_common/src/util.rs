@@ -5,6 +5,7 @@ use std::path::Path;
 pub struct MetaConfig {
   pub vlen: u32,
   pub dlen: u32,
+  pub lane_width: u32,
   pub isa: String,
   pub elf_file: Option<String>,
 
@@ -32,6 +33,7 @@ pub fn write_perf_json(flavor: &str, cycle: u64, success: bool, meta: &MetaConfi
   content += &format!("    \"flavor\": \"{}\",\n", flavor.escape_default());
   content += &format!("    \"meta_vlen\": {},\n", meta.vlen);
   content += &format!("    \"meta_dlen\": {},\n", meta.dlen);
+  content += &format!("    \"meta_lane_width\": {},\n", meta.lane_width);
   content += &format!("    \"meta_isa\": \"{}\",\n", meta.isa.escape_default());
   if let Some(elf_file) = &meta.elf_file {
     // we record it for offline use,
