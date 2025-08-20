@@ -33,10 +33,9 @@ gcc13Stdenv.mkDerivation {
   ];
 
   patches = [
-    ../patches/spike/0001-enforce-lanewise-order-for-unordered-reduce.patch
-    ../patches/spike/0002-disable-NaN-normalization.patch
-    ../patches/spike/0003-relax-vsew-vlmul-ELEN-check.patch
-    ../patches/spike/0004-relax-vlen-limit.patch
+    ../patches/spike/0001-t1-fix-relax-vsew-vlmul-ELEN-check.patch
+    ../patches/spike/0002-t1-fix-relax-vlen-limit.patch
+    ../patches/spike/0003-t1-fix-change-order-of-vfredusum-vs.patch
   ];
 
   installPhase = ''

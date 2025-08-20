@@ -1,0 +1,134 @@
+From 36325bc44576473685d4de1844469b45cd3fdffe Mon Sep 17 00:00:00 2001
+From: Shupei Fan <dymarkfan@outlook.com>
+Date: Wed, 20 Aug 2025 04:33:12 +0000
+Subject: [PATCH 3/3] [t1-fix] change order of vfredusum.vs
+
+---
+ riscv/insns/vfredusum_vs.h | 89 +++++++++++++++++++++++++++++++++-----
+ riscv/vector_unit.h        | 14 ++++++
+ 2 files changed, 93 insertions(+), 10 deletions(-)
+
+diff --git a/riscv/insns/vfredusum_vs.h b/riscv/insns/vfredusum_vs.h
+index bad7308e..4c11b7f5 100644
+--- a/riscv/insns/vfredusum_vs.h
++++ b/riscv/insns/vfredusum_vs.h
+@@ -1,12 +1,81 @@
+ // vfredsum: vd[0] =  sum( vs2[*] , vs1[0] )
+ bool is_propagate = true;
+-VI_VFP_VV_LOOP_REDUCTION
+-({
+-  vd_0 = f16_add(vd_0, vs2);
+-},
+-{
+-  vd_0 = f32_add(vd_0, vs2);
+-},
+-{
+-  vd_0 = f64_add(vd_0, vs2);
+-})
++// VI_VFP_VV_LOOP_REDUCTION
++// ({
++//   vd_0 = f16_add(vd_0, vs2);
++// },
++// {
++//   vd_0 = f32_add(vd_0, vs2);
++// },
++// {
++//   vd_0 = f64_add(vd_0, vs2);
++// })
++
++#define VI_VFP_LOOP_UNORDERED_REDUCTION(width, OPERATOR_FUNC) \
++  float##width##_t vd_0 = P.VU.elt<float##width##_t>(rd_num, 0); \
++  float##width##_t vs1_0 = P.VU.elt<float##width##_t>(rs1_num, 0); \
++  vd_0 = vs1_0; \
++  bool is_active = false; \
++  reg_t elem_num = (P.VU.lane_num * P.VU.lane_width) / width; /* DLEN/sew */ \
++  float##width##_t *lane_sum = 0; \
++  if (vl > 0) { \
++    lane_sum = (float##width##_t*)malloc(elem_num * sizeof(float##width##_t)); \
++    memset(lane_sum, 0, elem_num * sizeof(float##width##_t)); \
++  } \
++  for (reg_t i = P.VU.vstart->read(); i < vl; ++i) { \
++    VI_LOOP_ELEMENT_SKIP(); \
++    float##width##_t vs2 = P.VU.elt<float##width##_t>(rs2_num, i); \
++    is_active = true; \
++    lane_sum[i % elem_num] = OPERATOR_FUNC (lane_sum[i % elem_num], vs2); \
++    set_fp_exceptions; \
++  } \
++  if (is_active) { \
++    reg_t elem_lane_num = P.VU.lane_width / width; \
++    { \
++      lane_sum[0] = OPERATOR_FUNC (vd_0, lane_sum[0]); \
++      set_fp_exceptions; \
++    } \
++    for (reg_t i = 0; i < elem_lane_num; i++) { \
++      for (reg_t j = i + elem_lane_num; j < elem_num; j += elem_lane_num) { \
++        lane_sum[i] = OPERATOR_FUNC (lane_sum[i], lane_sum[j]); \
++        set_fp_exceptions; \
++      } \
++    } \
++    vd_0 = lane_sum[0]; \
++    for (reg_t i = 1; i < elem_lane_num; i++) { \
++      vd_0 = OPERATOR_FUNC (vd_0, lane_sum[i]); \
++      set_fp_exceptions; \
++    } \
++  } \
++  free(lane_sum);
++
++// VI_VFP_LOOP requires an open left brace
++#define FAKE_LEFT_BRACE {
++
++// The following is adapted from VI_VFP_VV_LOOP_REDUCTION
++
++VI_CHECK_REDUCTION(false)
++VI_VFP_COMMON
++switch (P.VU.vsew) {
++  case e16: {
++    VI_VFP_LOOP_UNORDERED_REDUCTION(16, f16_add)
++    FAKE_LEFT_BRACE
++    VI_VFP_LOOP_REDUCTION_END(e16)
++    break;
++  }
++  case e32: {
++    VI_VFP_LOOP_UNORDERED_REDUCTION(32, f32_add)
++    FAKE_LEFT_BRACE
++    VI_VFP_LOOP_REDUCTION_END(e32)
++    break;
++  }
++  case e64: {
++    VI_VFP_LOOP_UNORDERED_REDUCTION(64, f64_add)
++    FAKE_LEFT_BRACE
++    VI_VFP_LOOP_REDUCTION_END(e64)
++    break;
++  }
++  default:
++    require(0);
++    break;
++};
+diff --git a/riscv/vector_unit.h b/riscv/vector_unit.h
+index a057c62f..ead2256b 100644
+--- a/riscv/vector_unit.h
++++ b/riscv/vector_unit.h
+@@ -102,6 +102,20 @@ public:
+   bool vill;
+   bool vstart_alu;
+ 
++  ////////////////////////
++  // BEGIN : add for T1 //
++  ////////////////////////
++
++  // Determine the reduction order of vfredsum.vs
++  //   lane_width = ELEN * lane_scale
++  //   lane_num = DLEN / lane_width
++  reg_t lane_num = 8;
++  reg_t lane_width = 32;
++
++  ////////////////////////
++  // END   : add for T1 //
++  ////////////////////////
++
+   // vector element for various SEW
+   template<class T> T& elt(reg_t vReg, reg_t n, bool is_write = false);
+   // vector element group access, where EG is a std::array<T, N>.
+-- 
+2.43.5
+
