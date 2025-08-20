@@ -37,8 +37,8 @@ Spike::Spike(const char *set, const char *lvl,
   std::cerr << "DEBUG LANE WIDTH:  " << lane_width << std::endl; 
   std::cerr << "DEBUG LANE NUMBER: " << lane_number << std::endl;
 
-  // proc.VU.lane_num = lane_number;
-  // proc.VU.lane_granularity = 32;
+  proc.VU.lane_width = lane_width;
+  proc.VU.lane_num = lane_number;
 
   proc.enable_log_commits();
 }
