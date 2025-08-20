@@ -35,6 +35,9 @@ pub struct OnlineArgs<'a> {
   /// dlen config
   pub dlen: u32,
 
+  /// lanewidth config
+  pub lane_width: u32,
+
   /// vlen config
   pub vlen: u32,
 
@@ -346,6 +349,7 @@ impl Driver {
       meta: MetaConfig {
         vlen: args.vlen,
         dlen: args.dlen,
+        lane_width: args.lane_width,
         isa: args.spike_isa.clone(),
         elf_file: Some(args.elf_file.clone()),
         dramsim3_enabled: true,

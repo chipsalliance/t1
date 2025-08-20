@@ -219,6 +219,7 @@ unsafe extern "C" fn axi_write_indexedAccessPort(
 unsafe extern "C" fn t1_cosim_init(
   elf_file: InStr<'_>,
   dlen: i32,
+  lane_width: i32,
   vlen: i32,
   spike_isa: InStr<'_>,
 ) {
@@ -230,6 +231,7 @@ unsafe extern "C" fn t1_cosim_init(
     elf_file: elf_file.get().to_str().unwrap().into(),
     rtl_event_file: None,
     dlen: dlen as u32,
+    lane_width: lane_width as u32,
     vlen: vlen as u32,
     spike_isa: spike_isa.get().to_str().unwrap().into(),
   };
