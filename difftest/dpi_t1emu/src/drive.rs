@@ -110,6 +110,9 @@ pub(crate) struct OnlineArgs {
   /// dlen config
   pub dlen: u32,
 
+  /// lane width config
+  pub lane_width: u32,
+
   /// ISA config
   pub spike_isa: String,
 }
@@ -147,6 +150,7 @@ impl Driver {
           rtl_event_file: args.rtl_event_file.as_ref().map(From::from),
           vlen: args.vlen,
           dlen: args.dlen,
+          lane_width: args.lane_width,
           set: args.spike_isa.clone(),
         },
         false,
@@ -158,6 +162,7 @@ impl Driver {
       meta: MetaConfig {
         vlen: args.vlen,
         dlen: args.dlen,
+        lane_width: args.lane_width,
         isa: args.spike_isa.clone(),
         elf_file: Some(args.elf_file.clone()),
         dramsim3_enabled: false,

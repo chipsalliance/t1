@@ -40,10 +40,16 @@ type FfiCallback = extern "C" fn(*mut (), u64) -> *mut u8;
 
 impl Spike {
   // we need to have a boxed SpikeCObject, since its pointer will be passed to C to perform FFI call
-  pub fn new(set: &str, lvl: &str, lane_number: usize, mem_size: usize) -> Box<Self> {
+  pub fn new(
+    set: &str,
+    lvl: &str,
+    lane_width: usize,
+    lane_number: usize,
+    mem_size: usize,
+  ) -> Box<Self> {
     let set = CString::new(set).unwrap();
     let lvl = CString::new(lvl).unwrap();
-    let spike = unsafe { spike_new(set.as_ptr(), lvl.as_ptr(), lane_number) };
+    let spike = unsafe { spike_new(set.as_ptr(), lvl.as_ptr(), lane_width, lane_number) };
     let mut self_: Box<Spike> = Box::new(Spike { spike, mem: vec![0; mem_size], size: mem_size });
 
     // TODO: support customized ffi
@@ -243,7 +249,12 @@ impl Drop for State {
 #[link(name = "spike_interfaces")]
 unsafe extern "C" {
   pub fn spike_register_callback(target: *mut (), callback: FfiCallback);
-  fn spike_new(set: *const c_char, lvl: *const c_char, lane_number: usize) -> *mut ();
+  fn spike_new(
+    set: *const c_char,
+    lvl: *const c_char,
+    lane_width: usize,
+    lane_number: usize,
+  ) -> *mut ();
   fn spike_get_proc(spike: *mut ()) -> *mut ();
   fn spike_destruct(spike: *mut ());
   fn proc_disassemble(proc: *mut ()) -> *mut c_char;

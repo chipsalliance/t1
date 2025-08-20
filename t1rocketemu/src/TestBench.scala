@@ -42,9 +42,10 @@ class TestBench(val parameter: T1RocketTileParameter)
   val verbatimModule         = Module(
     new ExtModule(
       Map(
-        "T1_VLEN"      -> parameter.vLen,
-        "T1_DLEN"      -> parameter.dLen,
-        "T1_SPIKE_ISA" -> parameter.t1Parameter.spikeMarch.split("_").filter(!_.startsWith("xsfmm")).mkString("_")
+        "T1_VLEN"       -> parameter.vLen,
+        "T1_DLEN"       -> parameter.dLen,
+        "T1_LANE_WIDTH" -> parameter.laneScale * 32,
+        "T1_SPIKE_ISA"  -> parameter.t1Parameter.spikeMarch.split("_").filter(!_.startsWith("xsfmm")).mkString("_")
       )
     ) {
       override def desiredName = "VerbatimModule"

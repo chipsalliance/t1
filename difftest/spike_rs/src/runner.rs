@@ -60,6 +60,9 @@ pub struct SpikeArgs {
   /// dlen config
   pub dlen: u32,
 
+  /// lane width config
+  pub lane_width: u32,
+
   /// ISA config
   pub set: String,
 }
@@ -67,7 +70,13 @@ pub struct SpikeArgs {
 impl SpikeArgs {
   fn to_spike_c_handler(&self) -> Box<Spike> {
     let lvl = "M";
-    Spike::new(&self.set, lvl, (self.dlen / 32) as usize, MEM_SIZE)
+    Spike::new(
+      &self.set,
+      lvl,
+      self.lane_width as usize,
+      (self.dlen / self.lane_width) as usize,
+      MEM_SIZE,
+    )
   }
 }
 

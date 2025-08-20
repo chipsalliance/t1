@@ -299,6 +299,7 @@ unsafe extern "C" fn axi_pop_R(reset: u8, channel_id: u64, data_width: u64, ret:
 unsafe extern "C" fn t1_cosim_init(
   elf_file: InStr<'_>,
   dlen: i32,
+  lane_width: i32,
   vlen: i32,
   spike_isa: InStr<'_>,
   dramsim3_cfg: InStr<'_>,
@@ -329,6 +330,7 @@ unsafe extern "C" fn t1_cosim_init(
   let args = OnlineArgs {
     elf_file: elf_file.get().to_str().unwrap().into(),
     dlen: dlen as u32,
+    lane_width: lane_width as u32,
     vlen: vlen as u32,
     spike_isa: spike_isa.get().to_str().unwrap().into(),
     dramsim3_cfg_path: Path::new(dramsim3_cfg_str),
