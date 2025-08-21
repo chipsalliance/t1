@@ -707,7 +707,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
       slotActive(index) := slotOccupied(index)
     } else {
       slotActive(index) := slotOccupied(index) && !slotShiftValid(index) &&
-        !(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite) || decodeResult(Decoder.widenReduce)) &&
+        !(decodeResult(Decoder.crossRead) || decodeResult(Decoder.crossWrite) || decodeResult(
+          Decoder.widenReduce
+        ) || decodeResult(Decoder.maskPipeType)) &&
         decodeResult(Decoder.scheduler)
     }
 
@@ -1287,7 +1289,9 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.st                     := laneRequest.bits.store
   vrf.instructionWriteReport.bits.crossWrite             := laneRequest.bits.decodeResult(Decoder.crossWrite)
   vrf.instructionWriteReport.bits.crossRead              := laneRequest.bits.decodeResult(Decoder.crossRead)
-  vrf.instructionWriteReport.bits.gather16               := laneRequest.bits.decodeResult(Decoder.gather16)
+  vrf.instructionWriteReport.bits.unalignedReadVs1       := laneRequest.bits.decodeResult(
+    Decoder.gather16
+  ) || laneRequest.bits.decodeResult(Decoder.compress)
   vrf.instructionWriteReport.bits.gather                 := laneRequest.bits.decodeResult(Decoder.gather) &&
     laneRequest.bits.decodeResult(Decoder.vtype)
   // init state
@@ -1345,11 +1349,15 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   writeReadyForLsu                          := vrf.writeReadyForLsu
   vrfReadyToStore                           := vrf.vrfReadyToStore
   tokenManager.crossWrite2Reports.zipWithIndex.foreach { case (rpt, rptIndex) =>
-    rpt.valid := slots.head.maskStage.get.crossWritePort2Enq(rptIndex).fire
+    rpt.valid := slots.head.maskStage.get
+      .crossWritePort2Enq(rptIndex)
+      .fire && slots.head.maskStage.get.crossWritePort2Enq(rptIndex).bits.mask.orR
     rpt.bits  := slots.head.maskStage.get.crossWritePort2Enq(rptIndex).bits.instructionIndex
   }
   tokenManager.crossWrite4Reports.zipWithIndex.foreach { case (rpt, rptIndex) =>
-    rpt.valid := slots.head.maskStage.get.crossWritePort4Enq(rptIndex).fire
+    rpt.valid := slots.head.maskStage.get
+      .crossWritePort4Enq(rptIndex)
+      .fire && slots.head.maskStage.get.crossWritePort4Enq(rptIndex).bits.mask.orR
     rpt.bits  := slots.head.maskStage.get.crossWritePort4Enq(rptIndex).bits.instructionIndex
   }
   tokenManager.maskStageToken               := slots.head.maskStage.get.token

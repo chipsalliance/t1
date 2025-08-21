@@ -369,30 +369,31 @@ class VRFInstructionState extends Bundle {
 
 class VRFWriteReport(param: VRFParam) extends Bundle {
   // 8 reg/group; which group?
-  val vd:          ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
-  val vs1:         ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
-  val vs2:         UInt          = UInt(param.regNumBits.W)
-  val instIndex:   UInt          = UInt(param.instructionIndexBits.W)
-  val ls:          Bool          = Bool()
-  val st:          Bool          = Bool()
-  val gather:      Bool          = Bool()
-  val gather16:    Bool          = Bool()
+  val vd:               ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
+  val vs1:              ValidIO[UInt] = Valid(UInt(param.regNumBits.W))
+  val vs2:              UInt          = UInt(param.regNumBits.W)
+  val instIndex:        UInt          = UInt(param.instructionIndexBits.W)
+  val ls:               Bool          = Bool()
+  val st:               Bool          = Bool()
+  val gather:           Bool          = Bool()
+  // unaligned read vs1: compress read vs1 as 1bit, gather16 read vs1 as 16bit
+  val unalignedReadVs1: Bool          = Bool()
   // instruction will cross write
-  val crossWrite:  Bool          = Bool()
+  val crossWrite:       Bool          = Bool()
   // instruction will cross read
-  val crossRead:   Bool          = Bool()
+  val crossRead:        Bool          = Bool()
   // index type lsu
-  val indexType:   Bool          = Bool()
+  val indexType:        Bool          = Bool()
   // 乘加
-  val ma:          Bool          = Bool()
+  val ma:               Bool          = Bool()
   // Read everything, but write very little
-  val onlyRead:    Bool          = Bool()
+  val onlyRead:         Bool          = Bool()
   // 慢指令 mask unit
-  val slow:        Bool          = Bool()
-  val oooWrite:    Bool          = Bool()
+  val slow:             Bool          = Bool()
+  val oooWrite:         Bool          = Bool()
   // which element will access(write or store read)
   // true: No access or access has been completed
-  val elementMask: UInt          = UInt(param.elementSize.W)
+  val elementMask:      UInt          = UInt(param.elementSize.W)
   val state = new VRFInstructionState
 }
 

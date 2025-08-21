@@ -326,7 +326,8 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   // todo: why only extend
   emptyValid                    := !normalDeqValid && stageWire.groupCounter === 0.U &&
     enqueue.bits.decodeResult(Decoder.maskPipeType) &&
-    enqueue.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0000?")
+    enqueue.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0000?") &&
+    enqueue.bits.csr.vl.orR
   stageWire.pipeForSecondPipe.foreach(_ := DontCare)
 
   when(enqFire ^ (dequeue.fire && !bypassDeqValid)) {

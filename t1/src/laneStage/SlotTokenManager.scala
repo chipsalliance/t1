@@ -242,7 +242,7 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
           when(maskStageEnq) {
             waitForStageClear := true.B
           }
-          when(maskStageTokenReg === 0.U && maskStageToken.maskStageClear) {
+          when(maskStageTokenReg === 0.U && maskStageToken.maskStageClear(instIndex)) {
             waitForStageClear := false.B
           }
           maskAnd(
