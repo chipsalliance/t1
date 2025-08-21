@@ -1,10 +1,10 @@
 [rookidee]
 cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter small"
 [blastoise]
-cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rp1w --vfuInstantiateParameter small"
+cmdopt = "--dLen 256 --extensions zvl4096b --extensions zve32f --laneScale 2 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rp1w --vfuInstantiateParameter small"
 
 [uxie]
-cmdopt = "--dLen 512 --extensions zvl4096b --extensions zve32f --laneScale 2 --chainingSize 6 --vrfBankSize 4 --vrfRamType p0rp1w --vfuInstantiateParameter small"
+cmdopt = "--dLen 512 --extensions zvl4096b --extensions zve32f --laneScale 2 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rp1w --vfuInstantiateParameter small"
 
 
 [benchmark_dlen128_vlen128]
