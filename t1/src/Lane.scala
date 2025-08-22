@@ -1104,6 +1104,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   val maskLogicCompleted: Bool =
     laneRequest.bits.decodeResult(Decoder.maskLogic) &&
       (laneIndex ## 0.U(parameter.datapathWidthBits.W) >= csrInterface.vl)
+  val sourceEEW:          UInt = Mux(laneRequest.bits.decodeResult(Decoder.gather16), 1.U, csrInterface.vSew)
 
   entranceControl.laneRequest         := laneRequest.bits
   // TODO: in scalar core, raise illegal instruction exception when vstart is nonzero.
@@ -1115,7 +1116,7 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
     // vl is too small, don't need to use this lane.
     (((laneIndex ## 0.U(
       parameter.dataPathByteBits.W
-    )) >> csrInterface.vSew).asUInt >= csrInterface.vl || maskLogicCompleted) &&
+    )) >> sourceEEW).asUInt >= csrInterface.vl || maskLogicCompleted) &&
       // for 'nr' type instructions, they will need another complete signal.
       !(laneRequest.bits.decodeResult(Decoder.nr) || laneRequest.bits.lsWholeReg)
   // indicate if this is the mask type.
@@ -1127,7 +1128,6 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
 
   // calculate last group
   val lastElementIndex: UInt = (csrInterface.vl - csrInterface.vl.orR)(parameter.vlMaxBits - 2, 0)
-  val sourceEEW:        UInt = Mux(laneRequest.bits.decodeResult(Decoder.gather16), 1.U, csrInterface.vSew)
   val requestVSew1H:    UInt = UIntToOH(sourceEEW)
 
   val dataPathScaleBit: Int = log2Ceil(parameter.datapathWidth / parameter.eLen)

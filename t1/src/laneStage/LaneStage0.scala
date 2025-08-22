@@ -170,8 +170,9 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
     enqueue.bits.decodeResult(Decoder.maskDestination) || enqueue.bits.decodeResult(Decoder.red) ||
     enqueue.bits.decodeResult(Decoder.readOnly) || enqueue.bits.loadStore ||
     enqueue.bits.decodeResult(Decoder.crossRead) || enqueue.bits.decodeResult(Decoder.crossWrite)
-  val firstSlideDownGroup: Bool              = (enqueue.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0010?")) &&
-    (stageWire.groupCounter === 0.U)
+  val slideExecuteGroup = Wire(UInt(parameter.groupNumberBits.W))
+  val firstSlideDownGroup: Bool = (enqueue.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0010?")) &&
+    (slideExecuteGroup === 0.U)
   val normalDeqValid =
     (!updateLaneState.outOfExecutionRange || enqueue.bits.additionalRW || firstSlideDownGroup) && notMaskedAllElement
   val emptyValid:   Bool              = Wire(Bool())
@@ -279,6 +280,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   )
 
   stageWire.groupCounter := dataGroupIndex + slideBase
+  slideExecuteGroup      := dataGroupIndex
 
   /** next mask group */
   updateLaneState.maskGroupCount := enqueue.bits.maskGroupCount + maskGroupWillUpdate
@@ -326,7 +328,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   // todo: why only extend
   emptyValid                    := !normalDeqValid && stageWire.groupCounter === 0.U &&
     enqueue.bits.decodeResult(Decoder.maskPipeType) &&
-    enqueue.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b0000?") &&
+    enqueue.bits.decodeResult(Decoder.maskPipeUop) === BitPat("b000??") &&
     enqueue.bits.csr.vl.orR
   stageWire.pipeForSecondPipe.foreach(_ := DontCare)
 
@@ -337,7 +339,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   val deqWire: LaneStage0Dequeue = WireDefault(stageDataReg)
   dequeue.bits := deqWire
 
-  tokenReport.valid                 := enqFire
+  tokenReport.valid                 := enqFire && normalDeqValid
   tokenReport.bits.decodeResult     := enqueue.bits.decodeResult
   tokenReport.bits.instructionIndex := enqueue.bits.instructionIndex
   tokenReport.bits.sSendResponse    := stageWire.sSendResponse.getOrElse(true.B)
