@@ -1133,7 +1133,7 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
 
   val maskStageValidNext: UInt = RegNext(maskStageValid, 0.U.asTypeOf(maskStageValid))
   token.freeCrossWrite.valid          := crossLaneWriteQueue.last.enq.fire && crossLaneWriteQueue.last.enq.bits.mask.orR
-  token.freeCrossWrite.bits           := maskPipeReqReg.instructionIndex
+  token.freeCrossWrite.bits           := crossLaneWriteQueue.last.enq.bits.instructionIndex
   token.maskStageRequestRelease.valid := maskReqQueue.deq.fire
   token.maskStageRequestRelease.bits  := maskReqQueue.deq.bits.req.instructionIndex
   token.maskStageClear                := (~maskStageValid).asUInt & maskStageValidNext
