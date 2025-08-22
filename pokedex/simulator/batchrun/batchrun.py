@@ -4,11 +4,13 @@ import argparse
 import json
 import glob
 import subprocess
+import re
 from typing import cast, TypedDict
 from pathlib import Path
 
-RED_START = "\x1b[31m"
-GREEN_START = "\x1b[32m"
+RED = "\x1b[31m"
+GREEN = "\x1b[32m"
+YELLOW = "\x1b[33m"
 RESET = "\x1b[0m"
 
 
@@ -17,9 +19,15 @@ class ProcessConfig(TypedDict):
     args: list[str]
 
 
+class IgnoreTest(TypedDict):
+    pattern: str
+    reason: str
+
+
 class BatchrunConfig(TypedDict):
     elf_path_glob: str
     mmio_end_addr: str
+    ignore_tests: list[IgnoreTest]
     spike: ProcessConfig
     pokedex: ProcessConfig
 
@@ -29,25 +37,37 @@ class DifftestResult(TypedDict):
     context: str
 
 
+class IgnoreTestExt:
+    def __init__(self, ignore_tests: list[IgnoreTest]) -> None:
+        self._pat = [
+            (re.compile(meta["pattern"]), meta["reason"]) for meta in ignore_tests
+        ]
+
+    def any(self, text: str) -> str | None:
+        for p, reason in self._pat:
+            if p.fullmatch(text) is not None:
+                return reason
+        return None
+
+
 def run_spike(elf: Path, spike: ProcessConfig) -> Path:
-    args = ["spike"] + spike["args"] + [elf]
-    result = subprocess.run(
-        args, stderr=subprocess.PIPE, timeout=spike["timeout"], check=True
-    )
-    spike_log = result.stderr.strip().decode()
     log_path = Path(f"{elf.stem}-spike-commits.log")
-    with open(log_path, "w+") as log_file:
-        log_file.write(spike_log)
+    args = ["spike"] + spike["args"] + [f"--log={log_path}", elf]
+    subprocess.check_call(args, timeout=spike["timeout"])
 
     return log_path
 
 
 def run_pokedex(elf: Path, pokedex: ProcessConfig) -> Path:
     log_path = Path(f"{elf.stem}-pokedex-trace-events.jsonl")
-
     args = ["pokedex", "-vvv", "--output-log-path", log_path] + pokedex["args"] + [elf]
-
-    subprocess.check_call(args, timeout=pokedex["timeout"])
+    output = subprocess.run(args, stdout=subprocess.PIPE, timeout=pokedex["timeout"])
+    if output.returncode != 0:
+        print(f"{elf} run fail")
+        print("-" * 80)
+        print(str(output.stdout, encoding="utf-8"))
+        print("-" * 80)
+        exit(1)
 
     return log_path
 
@@ -89,6 +109,7 @@ if __name__ == "__main__":
         raw_config = f.read()
         config = cast(BatchrunConfig, json.loads(raw_config))
 
+    ignore_match = IgnoreTestExt(config["ignore_tests"])
     context = []
 
     for elf in glob.glob(config["elf_path_glob"], recursive=True):
@@ -102,11 +123,15 @@ if __name__ == "__main__":
         with open(difftest_result, "r") as file:
             result = cast(DifftestResult, json.loads(file.read()))
             if result["is_same"]:
-                print(f"** {GREEN_START}PASS{RESET}   {elf_path.name} **")
+                print(f"** {GREEN}PASS{RESET}   {elf_path.name}")
             else:
-                print(f"** {RED_START}FAIL{RESET}   {elf_path.name} **")
-                print(result["context"])
-                context.append(elf_path)
+                reason = ignore_match.any(elf_path.name)
+                if reason is not None:
+                    print(f"\n** {YELLOW}F-IGNORE{RESET}  {elf_path.name}: {reason}\n")
+                else:
+                    print(f"\n** {RED}FAIL{RESET}   {elf_path.name}\n")
+                    print(result["context"])
+                    context.append(elf_path)
 
     if len(context) != 0:
         print("** batch run fail on some tests **")
