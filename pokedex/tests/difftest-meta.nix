@@ -30,6 +30,13 @@ let
       ];
     };
     mmio_end_addr = "0x40000004";
+    ignore_tests = [
+      {
+        pattern = "^lrsc.elf$";
+        reason = "Spike constantly yield load reservation that is not easy to reproduce on ASL side. \
+          Details: https://github.com/riscv-software-src/riscv-isa-sim/issues/278";
+      }
+    ];
   };
 
   configFile = writeText "difftest.json" difftestConfig;
