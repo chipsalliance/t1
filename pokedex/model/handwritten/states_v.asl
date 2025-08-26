@@ -256,6 +256,18 @@ begin
   end
 end
 
+func invalid_emul(vtype: VTYPE_TYPE, eew: integer{8, 16, 32, 64}) => boolean
+begin
+  // TODO
+  return FALSE;
+end
+
+func get_emul(vtype: VTYPE_TYPE, eew: integer{8, 16, 32, 64}) => VLMUL_TYPE
+begin
+  // TODO
+  return VLMUL_1;
+end
+
 func invalid_vreg(lmul: VLMUL_TYPE, x: VREG_TYPE) => boolean
 begin
   case lmul of
