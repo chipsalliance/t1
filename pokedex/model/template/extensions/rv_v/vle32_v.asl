@@ -16,13 +16,14 @@ if vm == '0' && vd == 0 then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
 end
 
-if invalid_emul(VTYPE, 32) then
+let vreg_align = vreg_eew_alignment(VTYPE, 32);
+
+if vreg_align == 0 then
+  // emul is invalid
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
 end
 
-let emul = get_emul(VTYPE, 32);
-
-if invalid_vreg(emul, vd) then
+if vd MOD vreg_align != 0 then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
 end
 

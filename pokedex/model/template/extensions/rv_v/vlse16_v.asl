@@ -1,10 +1,12 @@
-// vle16.v vd, (rs1), vm
-// load unit stride with EEW=16, optionally masked by vm
+// vlse16.v vd, (rs1), rs2, vm
+// load strided with EEW=16, rs2 is byte stride, optionally masked by vm
 //
 // NOTE: this instruction supports non-zero vstart
+// NOTE: curently we do not handle rs2=x0 specially
 
 let vd: VREG_TYPE = UInt(GetRD(instruction));
 let rs1: XREG_TYPE = UInt(GetRS1(instruction));
+let rs2: XREG_TYPE = UInt(GetRS2(instruction));
 let vm : bit = GetVM(instruction);
 
 if VTYPE.ill then
@@ -35,10 +37,11 @@ if vstart > vl then
 end
 
 let src1 = X[rs1];
+let src2 = X[rs2];
 
 for idx = vstart to vl - 1 do
   if vm != '0' || V0_MASK[idx] then
-    let addr = src1 + idx;
+    let addr = src1 + src2 * idx;
     let (data, result) = ReadMemory(addr, 16);
 
     if !result.is_ok then
