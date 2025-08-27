@@ -29,18 +29,14 @@ record VTYPE_TYPE {
   ma : bit;
   ta : bit;
   sew : integer{8, 16, 32, 64};
-  lmul : VLMUL_TYPE;
+  lmul : integer{-3..3};
 };
 
-enumeration VLMUL_TYPE {
-  VLMUL_1,
-  VLMUL_2,
-  VLMUL_4,
-  VLMUL_8,
-  VLMUL_1_2,
-  VLMUL_1_4,
-  VLMUL_1_8
-};
+type SEW_TYPE of integer{8, 16, 32, 64};
+type LOG2_VLMUL_TYPE of integer{-3..3};
+
+constant LOG2_LMUL_MIN : integer = -3;
+constant LOG2_LMUL_MAX : integer = 3;
 
 type VREG_TYPE of integer{0..31};
 
@@ -103,7 +99,7 @@ constant VTYPE_ILL : VTYPE_TYPE = VTYPE_TYPE {
   ma='0',
   ta='0',
   sew=8,        // '000'
-  lmul=VLMUL_1  // '000'
+  lmul=0        // '000'
 };
 
 func VTYPE_from_bits(value: bits(32)) => VTYPE_TYPE
@@ -121,7 +117,7 @@ begin
   let lmul_bits : bits(3) = value[2:0];
 
   var sew : integer{8, 16, 32, 64};
-  var lmul : VLMUL_TYPE;
+  var log2_lmul : LOG2_VLMUL_TYPE;
 
   // check sew
   case sew_bits of
@@ -134,14 +130,14 @@ begin
 
   // check lmul
   case lmul_bits of
-    when '000' => lmul = VLMUL_1;
-    when '001' => lmul = VLMUL_2;
-    when '010' => lmul = VLMUL_4;
-    when '011' => lmul = VLMUL_8;
+    when '000' => log2_lmul = 0;
+    when '001' => log2_lmul = 1;
+    when '010' => log2_lmul = 2;
+    when '011' => log2_lmul = 3;
     when '100' => return VTYPE_ILL;
-    when '101' => lmul = VLMUL_1_2;
-    when '110' => lmul = VLMUL_1_4;
-    when '111' => lmul = VLMUL_1_8;
+    when '111' => log2_lmul = -1;
+    when '110' => log2_lmul = -2;
+    when '101' => log2_lmul = -3;
   end
 
   return VTYPE_TYPE {
@@ -149,7 +145,7 @@ begin
     ma=ma,
     ta=ta,
     sew=sew,
-    lmul=lmul
+    lmul=log2_lmul
   };
 end
 
@@ -166,6 +162,16 @@ getter VTYPE_BITS => bits(32)
         when 16 => sew_bits = '001';
         when 32 => sew_bits = '010';
         when 64 => sew_bits = '011';
+      end
+
+      case VTYPE.lmul of
+        when 0 => lmul_bits = '000';
+        when 1 => lmul_bits = '001';
+        when 2 => lmul_bits = '010';
+        when 3 => lmul_bits = '011';
+        when -1 => lmul_bits = '111';
+        when -2 => lmul_bits = '110';
+        when -3 => lmul_bits = '101';
       end
 
       return [
@@ -199,119 +205,93 @@ end
 // Utility Functions //
 ///////////////////////
 
-func __log2_sew_lmul(sew: bits(3), lmul: bits(3)) => integer
+func __mul_lmul(x: integer, log2_lmul: LOG2_VLMUL_TYPE) => integer
 begin
-  var log2_sew : integer;
-
-  var log2_lmul : integer;
-
-  return log2_sew - log2_lmul;
+  case log2_lmul of
+    when 0 => return x;
+    when 1 => return x * 2;
+    when 2 => return x * 4;
+    when 3 => return x * 8;
+    when -1 => return x DIV 2;
+    when -2 => return x DIV 4;
+    when -3 => return x DIV 8;
+  end
 end
 
-func __is_sew_valid(sew: bits(3)) => boolean
+func __log2_sew(sew: integer{8, 16, 32, 64}) => integer{3..6}
 begin
   case sew of
-    when '000' => return TRUE;
-    when '001' => return TRUE;
-    when '010' => return TRUE;
-    when '011' => return TRUE;
-    otherwise => return FALSE;
+    when 8 => return 3;
+    when 16 => return 4;
+    when 32 => return 5;
+    when 64 => return 6;
   end
 end
 
-func __decode_sew(sew: bits(3)) => integer
-begin
-  case sew of
-    when '000' => return 8;
-    when '001' => return 16;
-    when '010' => return 32;
-    when '011' => return 64;
-    otherwise => assert FALSE;
-  end
-end
-
-func __mul_lmul(x: integer, lmul: VLMUL_TYPE) => integer
+// compute vreg alignemnt based on lmul
+func vreg_alignment(lmul: LOG2_VLMUL_TYPE) => integer{1, 2, 4, 8}
 begin
   case lmul of
-    when VLMUL_1 => return x;
-    when VLMUL_2 => return x * 2;
-    when VLMUL_4 => return x * 4;
-    when VLMUL_8 => return x * 8;
-    when VLMUL_1_2 => return x DIV 2;
-    when VLMUL_1_4 => return x DIV 4;
-    when VLMUL_1_8 => return x DIV 8;
+    when 0 => return 1;
+    when 1 => return 2;
+    when 2 => return 4;
+    when 3 => return 8;
+    when -1 => return 1;
+    when -2 => return 1;
+    when -3 => return 1;
   end
 end
 
-func __div_lmul(x: integer, lmul: VLMUL_TYPE) => integer
+// compute vreg alignemt when emul=2*lmul, 0 means invalid
+func vreg_double_alignment(lmul: LOG2_VLMUL_TYPE) => integer{0, 1, 2, 4, 8}
 begin
   case lmul of
-    when VLMUL_1 => return x;
-    when VLMUL_2 => return x DIV 2;
-    when VLMUL_4 => return x DIV 4;
-    when VLMUL_8 => return x DIV 8;
-    when VLMUL_1_2 => return x * 2;
-    when VLMUL_1_4 => return x * 4;
-    when VLMUL_1_8 => return x * 8;
+    when 0 => return 2;
+    when 1 => return 4;
+    when 2 => return 8;
+    when 3 => return 0;
+    when -1 => return 1;
+    when -2 => return 1;
+    when -3 => return 1;
   end
 end
 
-func invalid_emul(vtype: VTYPE_TYPE, eew: integer{8, 16, 32, 64}) => boolean
+func vreg_eew_alignment(vtype: VTYPE_TYPE, eew: integer{8, 16, 32, 64}) => integer{0, 1, 2, 4, 8}
 begin
-  // TODO
-  return FALSE;
+  let log2_emul : integer = vtype.lmul + __log2_sew(eew) - __log2_sew(vtype.sew);
+  case log2_emul of
+    when 0 => return 1;
+    when 1 => return 2;
+    when 2 => return 4;
+    when 3 => return 8;
+    when -1 => return 1;
+    when -2 => return 1;
+    when -3 => return 1;
+    otherwise => return 0;
+  end 
 end
 
-func get_emul(vtype: VTYPE_TYPE, eew: integer{8, 16, 32, 64}) => VLMUL_TYPE
+func invalid_vreg(lmul: LOG2_VLMUL_TYPE, x: VREG_TYPE) => boolean
 begin
-  // TODO
-  return VLMUL_1;
-end
-
-func invalid_vreg(lmul: VLMUL_TYPE, x: VREG_TYPE) => boolean
-begin
-  case lmul of
-    when VLMUL_1 => return FALSE;
-    when VLMUL_2 => return x MOD 2 != 0;
-    when VLMUL_4 => return x MOD 4 != 0;
-    when VLMUL_8 => return x MOD 8 != 0;
-    when VLMUL_1_2 => return FALSE;
-    when VLMUL_1_4 => return FALSE;
-    when VLMUL_1_8 => return FALSE;
-  end
-end
-
-func invalid_double_lmul(lmul: VLMUL_TYPE) => boolean
-begin
-  case lmul of
-    when VLMUL_1 => return FALSE;
-    when VLMUL_2 => return FALSE;
-    when VLMUL_4 => return FALSE;
-    when VLMUL_8 => return TRUE;
-    when VLMUL_1_2 => return FALSE;
-    when VLMUL_1_4 => return FALSE;
-    when VLMUL_1_8 => return FALSE;
-  end
+  return x MOD vreg_alignment(lmul) != 0;
 end
 
 // eew(x) = 2 * sew
-func invalid_vreg_2sew(lmul: VLMUL_TYPE, x: VREG_TYPE) => boolean
+func invalid_double_lmul(lmul: LOG2_VLMUL_TYPE) => boolean
 begin
-  case lmul of
-    when VLMUL_1 => return x MOD 2 != 0;
-    when VLMUL_2 => return x MOD 4 != 0;
-    when VLMUL_4 => return x MOD 8 != 0;
-    when VLMUL_8 => assert FALSE;
-    when VLMUL_1_2 => return FALSE;
-    when VLMUL_1_4 => return FALSE;
-    when VLMUL_1_8 => return FALSE;
-  end
+  return vreg_double_alignment(lmul) != 0;
+end
+
+// eew(x) = 2 * sew
+func invalid_vreg_2sew(lmul: LOG2_VLMUL_TYPE, x: VREG_TYPE) => boolean
+begin
+  return x MOD vreg_double_alignment(lmul) != 0;
 end
 
 // eew(vd) = 2*sew, eew(vs) = sew
 // return TRUE iff they have overlap and the overlap is invalid
 // assuming vd/vs already checked by invalid_vreg_2sew/invalid_reg
-func invalid_overlap_dst_src_2_1(lmul: VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
+func invalid_overlap_dst_src_2_1(lmul: LOG2_VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
 begin
   // 1. when lmul < 1:
   //   they have overlap when (vd == vs),
@@ -328,39 +308,39 @@ end
 // eew(vw) = 2 * sew, eew(vn) = sew
 // return TRUE iff they have overlap
 // assuming vw/vn already checked by invalid_vreg_2sew/invalid_reg
-func invalid_overlap_src_2_1(lmul: VLMUL_TYPE, vw: VREG_TYPE, vn: VREG_TYPE) => boolean
+func invalid_overlap_src_2_1(lmul: LOG2_VLMUL_TYPE, vw: VREG_TYPE, vn: VREG_TYPE) => boolean
 begin
   case lmul of
-    when VLMUL_1 => return vw >> 1 == vn >> 1;
-    when VLMUL_2 => return vw >> 2 == vn >> 2;
-    when VLMUL_4 => return vw >> 3 == vn >> 3;
-    when VLMUL_8 => Unreachable();
-    when VLMUL_1_2 => return vw == vn;
-    when VLMUL_1_4 => return vw == vn;
-    when VLMUL_1_8 => return vw == vn;
+    when 0 => return vw >> 1 == vn >> 1;
+    when 1 => return vw >> 2 == vn >> 2;
+    when 2 => return vw >> 3 == vn >> 3;
+    when 3 => Unreachable();
+    when -3 => return vw == vn;
+    when -2 => return vw == vn;
+    when -1 => return vw == vn;
   end
 end
 
 // eew(vm) = 1, eew(vs) = sew
 // return TRUE iff they have overlap
 // assuming vs already checked by invalid_reg
-func invalid_overlap_src_m_1(lmul: VLMUL_TYPE, vm: VREG_TYPE, vs: VREG_TYPE) => boolean
+func invalid_overlap_src_m_1(lmul: LOG2_VLMUL_TYPE, vm: VREG_TYPE, vs: VREG_TYPE) => boolean
 begin
   case lmul of
-    when VLMUL_1 => return vm == vs;
-    when VLMUL_2 => return vm >> 1 == vs >> 1;
-    when VLMUL_4 => return vm >> 2 == vs >> 2;
-    when VLMUL_8 => return vm >> 3 == vs >> 3;
-    when VLMUL_1_2 => return vm == vs;
-    when VLMUL_1_4 => return vm == vs;
-    when VLMUL_1_8 => return vm == vs;
+    when 0 => return vm == vs;
+    when 1 => return vm >> 1 == vs >> 1;
+    when 2 => return vm >> 2 == vs >> 2;
+    when 3 => return vm >> 3 == vs >> 3;
+    when -1 => return vm == vs;
+    when -2 => return vm == vs;
+    when -3 => return vm == vs;
   end
 end
 
 // eew(vd) = sew, eew(vs) = 2*sew
 // return TRUE iff they have overlap and the overlap is invalid
 // assuming vd/vs already checked by invalid_vreg_2sew/invalid_reg
-func invalid_overlap_dst_src_1_2(lmul: VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
+func invalid_overlap_dst_src_1_2(lmul: LOG2_VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
 begin
   // 1. when lmul < 1:
   //   they have overlap when (vd == vs),
@@ -372,20 +352,20 @@ begin
   //     (vd == vs + lmul) is invalid overlap
 
   case lmul of
-    when VLMUL_1 => return vd == vs + 1;
-    when VLMUL_2 => return vd == vs + 2;
-    when VLMUL_4 => return vd == vs + 4;
-    when VLMUL_8 => Unreachable();
-    when VLMUL_1_2 => return FALSE;
-    when VLMUL_1_4 => return FALSE;
-    when VLMUL_1_8 => return FALSE;
+    when 0 => return vd == vs + 1;
+    when 1 => return vd == vs + 2;
+    when 2 => return vd == vs + 4;
+    when 3 => Unreachable();
+    when -1 => return FALSE;
+    when -2 => return FALSE;
+    when -3 => return FALSE;
   end
 end
 
 // eew(vd) = 1, eew(vs) = sew, vd is mask
 // return TRUE iff they have overlap and the overlap is invalid
 // assuming vs already checked by invalid_reg
-func invalid_overlap_dst_src_m_1(lmul: VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
+func invalid_overlap_dst_src_m_1(lmul: LOG2_VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
 begin
   // 1. when lmul < 1:
   //   they have overlap when (vd == vs),
@@ -396,13 +376,13 @@ begin
   //     (vd in vs+1 ..= vs + lmul) is invalid overlap
 
   case lmul of
-    when VLMUL_1 => return FALSE;
-    when VLMUL_2 => return (vd >> 1 == vs >> 1) && (vd != vs);
-    when VLMUL_4 => return (vd >> 2 == vs >> 2) && (vd != vs);
-    when VLMUL_8 => return (vd >> 3 == vs >> 3) && (vd != vs);
-    when VLMUL_1_2 => return FALSE;
-    when VLMUL_1_4 => return FALSE;
-    when VLMUL_1_8 => return FALSE;
+    when 0 => return FALSE;
+    when 1 => return (vd >> 1 == vs >> 1) && (vd != vs);
+    when 2 => return (vd >> 2 == vs >> 2) && (vd != vs);
+    when 3 => return (vd >> 3 == vs >> 3) && (vd != vs);
+    when -1 => return FALSE;
+    when -2 => return FALSE;
+    when -3 => return FALSE;
   end
 end
 
@@ -412,12 +392,4 @@ begin
   assert !vtype.ill;
 
   return __mul_lmul(VLEN DIV vtype.sew, vtype.lmul);
-end
-
-// compute VSEW / VLMUL
-func __compute_sew_div_lmul(vtype: VTYPE_TYPE) => integer
-begin
-  assert !vtype.ill;
-
-  return __div_lmul(vtype.sew, vtype.lmul);
 end

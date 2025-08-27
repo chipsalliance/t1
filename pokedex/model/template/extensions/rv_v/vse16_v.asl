@@ -11,14 +11,14 @@ if VTYPE.ill then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
 end
 
+let vreg_align = vreg_eew_alignment(VTYPE, 16);
 
-if invalid_emul(VTYPE, 16) then
+if vreg_align == 0 then
+  // emul is invalid
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
 end
 
-let emul = get_emul(VTYPE, 16);
-
-if invalid_vreg(emul, vs3) then
+if vs3 MOD vreg_align != 0 then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
 end
 
