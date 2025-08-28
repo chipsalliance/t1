@@ -19,6 +19,8 @@ begin
   end
 end
 
+var FRM : bits(3);
+
 enumeration RM {
   // Round to Nearest, ties to Even
   RM_RNE,
@@ -43,7 +45,7 @@ func RM_from_bits(b : bits(3)) => RM_Result
 begin
   var result = RM_Result {
     mode = RM_RNE,
-    valid = FALSE
+    valid = TRUE
   };
 
   case b of
@@ -52,7 +54,8 @@ begin
     when '010' => result.mode = RM_RDN;
     when '011' => result.mode = RM_RUP;
     when '100' => result.mode = RM_RMM;
-    when '111' => result.mode = RM_DYN;
+    when '111' where FRM != '111' =>
+      return RM_from_bits(FRM);
     otherwise => result.valid = FALSE;
   end
 
@@ -71,22 +74,6 @@ begin
   end
 end
 
-var __frm : RM;
-
-getter FRM => bits(3)
-begin
-  return RM_to_bits(__frm);
-end
-
-setter FRM = value : bits(3)
-begin
-  let result : RM_Result = RM_from_bits(value);
-  // User can only pass non-reserved RM value, any invalid input are consider as impl bug
-  assert result.valid;
-
-  __frm = result.mode;
-end
-
 // invalid operation
 var F_XCPT_NV : boolean;
 // divide by zero
@@ -100,9 +87,7 @@ var F_XCPT_NX : boolean;
 
 func __reset_fcsr()
 begin
-  // Specification doesn't clarify the default rounding mode, RNE is chosen because it is zero.
-  // Software should never assume this is the default rounding mode.
-  __frm = RM_RNE;
+  FRM = '000';
 
   F_XCPT_NV = FALSE;
   F_XCPT_DZ = FALSE;
