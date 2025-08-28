@@ -18,7 +18,7 @@ var __GPR : array[31] of bits(32);
 // Non-software reset should be operated quietly.
 func __ResetGPR()
 begin
-  for i = 0 to 30 do
+  for i = 0 to 31 do
     __GPR[i] = Zeros(32);
   end
 end
@@ -234,6 +234,8 @@ begin
   __ResetGPR();
 
   __ResetVectorState();
+
+  __reset_f_state();
 
   __ResetMTVEC();
   __ResetMTVAL();
