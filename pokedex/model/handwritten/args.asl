@@ -195,3 +195,8 @@ func IsAcquire(inst : bits(32)) => boolean
 begin
   return inst[26] == '1';
 end
+
+func GetRM(inst : bits(32)) => bits(3)
+begin
+  return inst[14:12];
+end
