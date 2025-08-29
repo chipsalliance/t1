@@ -2,7 +2,7 @@
 // eew(vs2) = 1, vs2 is mask
 // write the index of the first one in vs2 (-1 for unfound), write to X[rd], optionally masked by vm
 
-let rd : XREG_TYPE = UInt(GetRD(instruction));
+let rd : xreg_index = UInt(GetRD(instruction));
 let vs2 : VREG_TYPE = UInt(GetRS2(instruction));
 let vm : bit = GetVM(instruction);
 

@@ -6,9 +6,9 @@ if !rm_result.valid then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, instruction);
 end
 
-let op_result : FloatOpResult = f32_add(F[rs1], F[rs2], rm_result.mode);
-set_fflags_from_softfloat(op_result.xcpt);
+let op_result : FloatOpResult = f32_div(F[rs1], F[rs2], rm_result.mode);
 F[rd] = op_result.data;
+set_fflags_from_softfloat(op_result.xcpt);
 
 PC = PC + 4;
 

@@ -232,3 +232,12 @@ func __op_cmp_ge_s(rs1: bits(N), rs2: bits(N)) => boolean
 begin
   return SInt(rs1) >= SInt(rs2);
 end
+
+func bool_to_bits(s : boolean, N : integer) => bits(N)
+begin
+  if s then
+    return 1[N-1:0];
+  else
+    return Zeros(N);
+  end
+end
