@@ -55,3 +55,4 @@ func FFI_amo(
 func ffi_f32_add(rs1 : bits(32), rs2 : bits(32)) => bits(32);
 func ffi_f32_sub(rs1 : bits(32), rs2 : bits(32)) => bits(32);
 func ffi_set_rounding_mode(rm : bits(3));
+func ffi_get_softfloat_exception_flags() => integer;

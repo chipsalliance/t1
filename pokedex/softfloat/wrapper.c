@@ -16,3 +16,7 @@ uint32_t ffi_f32_add_0(uint32_t rs1, uint32_t rs2) {
   float32_t rd = f32_add(s1, s2);
   return rd.v;
 }
+
+uint8_t ffi_get_softfloat_exception_flags() {
+  return softfloat_exceptionFlags;
+}

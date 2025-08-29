@@ -1,5 +1,5 @@
-let rs1 : freg_index = UInt(GetRS1(instruction));
-let rd : freg_index = UInt(GetRD(instruction));
+let rs1 : xreg_index = UInt(GetRS1(instruction));
+let rd : xreg_index = UInt(GetRD(instruction));
 let imm : bits(32) = SignExtend(GetIMM(instruction), 32);
 
 let addr : bits(32) = X[rs1] + imm;

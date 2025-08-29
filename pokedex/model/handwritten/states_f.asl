@@ -85,15 +85,20 @@ var F_XCPT_UF : boolean;
 // inexact
 var F_XCPT_NX : boolean;
 
-func __reset_fcsr()
+func clear_fflags()
 begin
-  FRM = '000';
-
   F_XCPT_NV = FALSE;
   F_XCPT_DZ = FALSE;
   F_XCPT_OF = FALSE;
   F_XCPT_UF = FALSE;
   F_XCPT_NX = FALSE;
+end
+
+func __reset_fcsr()
+begin
+  FRM = '000';
+
+  clear_fflags();
 end
 
 func __reset_f_state()
