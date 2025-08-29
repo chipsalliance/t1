@@ -51,3 +51,8 @@ func FFI_amo(
   is_acquire : boolean,
   is_release : boolean
 ) => FFI_ReadResult(32);
+
+func ffi_f32_add(rs1 : bits(32), rs2 : bits(32)) => bits(32);
+func ffi_f32_sub(rs1 : bits(32), rs2 : bits(32)) => bits(32);
+func ffi_set_rounding_mode(rm : bits(3));
+func ffi_get_softfloat_exception_flags() => integer;
