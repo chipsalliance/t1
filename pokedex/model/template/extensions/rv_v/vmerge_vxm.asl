@@ -4,7 +4,7 @@
 
 let vd : VREG_TYPE = UInt(GetRD(instruction));
 let vs2 : VREG_TYPE = UInt(GetRS2(instruction));
-let rs1 : XREG_TYPE = UInt(GetRS1(instruction));
+let rs1 : xreg_index = UInt(GetRS1(instruction));
 
 if VTYPE.ill then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));

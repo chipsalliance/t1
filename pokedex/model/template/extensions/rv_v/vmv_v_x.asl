@@ -3,7 +3,7 @@
 // compute vd[i] = rs1
 
 let vd : VREG_TYPE = UInt(GetRD(instruction));
-let rs1 : XREG_TYPE = UInt(GetRS1(instruction));
+let rs1 : xreg_index = UInt(GetRS1(instruction));
 
 if VTYPE.ill then
   return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));

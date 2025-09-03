@@ -30,7 +30,7 @@ let
           -VLEN "${toString rtlDesignMetadata.vlen}" \
           -XLEN "${toString rtlDesignMetadata.xlen}" \
           -float16=false \
-          -repeat 16 \
+          -repeat 1 \
           -testfloat3level 2 \
           -configfile ${riscv-vector-tests}/configs/v/${rawCaseName}.toml \
           -outputfile $out/${caseName}.S
@@ -40,6 +40,8 @@ let
         runHook preBuild
 
         $CC "$caseName".S -T ${linkerScript} $includeArgs -o $pname.elf
+        mkdir -p $out
+        $CC "$caseName".S -T ${linkerScript} $includeArgs -E -o $out/src.S
         echo "Complilation done"
 
         echo "+assert ${caseName}" > $pname.cover

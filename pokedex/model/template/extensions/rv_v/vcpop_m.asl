@@ -2,7 +2,7 @@
 // eew(vs2) = 1, vs2 is mask
 // count ones in vs2, write to X[rd], optionally masked by vm
 
-let rd : XREG_TYPE = UInt(GetRD(instruction));
+let rd : xreg_index = UInt(GetRD(instruction));
 let vs2 : VREG_TYPE = UInt(GetRS2(instruction));
 let vm : bit = GetVM(instruction);
 

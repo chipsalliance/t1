@@ -51,3 +51,13 @@ func FFI_amo(
   is_acquire : boolean,
   is_release : boolean
 ) => FFI_ReadResult(32);
+
+func ffi_yield_softfloat_exception_flag() => integer;
+func ffi_f32_add(rs1 : bits(32), rs2 : bits(32), rm: bits(3)) => bits(32);
+func ffi_f32_sub(rs1 : bits(32), rs2 : bits(32), rm: bits(3)) => bits(32);
+func ffi_f32_mul(rs1 : bits(32), rs2 : bits(32), rm: bits(3)) => bits(32);
+func ffi_f32_div(rs1 : bits(32), rs2 : bits(32), rm: bits(3)) => bits(32);
+func ffi_f32_sqrt(src : bits(32), rm: bits(3)) => bits(32);
+func ffi_f32_lt_quiet(s1 : bits(32), s2 : bits(32)) => boolean;
+func ffi_f32_gt_quiet(s1 : bits(32), s2 : bits(32)) => boolean;
+func ffi_f32_eq(s1 : bits(32), s2 : bits(32)) => boolean;
