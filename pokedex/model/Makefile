@@ -25,7 +25,7 @@ install: $(PREFIX)/lib $(PREFIX)/include
 
 $(PREFIX)/lib $(PREFIX)/include: $(BUILD_DIR)/2-cgen/makefile
 	mkdir -p $(PREFIX)
-	cd $(<D) && $(MAKE) CFLAGS="$(shell $(ASLI) --print-c-flags)" TARGET=lib$(PROJECT_NAME).a PREFIX=build
+	cd $(<D) && $(MAKE) CFLAGS="$(shell $(ASLI) --print-c-flags) -O3 ${CFLAGS}" TARGET=lib$(PROJECT_NAME).a PREFIX=build
 	cp -r $(<D)/build/* $(PREFIX)/
 
 # ---------------------------------------
