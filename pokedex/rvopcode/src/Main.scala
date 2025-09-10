@@ -24,7 +24,7 @@ class OpcodeInfo(params: OpcodeInfoParams):
           .filter(inst => !inst.name.endsWith("_rv32"))
       )
 
-    val excluded = Seq("rv32_i", "rv32_c", "rv_c")
+    val excluded = Seq("rv32_i", "rv32_c", "rv_c", "rv32_c_f")
 
     val realInstruction = rvdecoderdb
       .filter(inst =>
@@ -51,11 +51,11 @@ class OpcodeInfo(params: OpcodeInfoParams):
       .map((inst, _) => instToMeta(inst, 32))
 
     val rvcInstruction = params.enabledInstructionSets
-      .filter(Seq("rv_c", "rv32_c").contains(_))
-      .distinctBy(_.endsWith("_c"))
+      .filter(Seq("rv_c", "rv32_c", "rv32_c_f").contains(_))
+      .distinctBy(_ => true)
       .flatMap(_ =>
         rvdecoderdb
-          .filter(inst => Seq("rv_c", "rv32_c").contains(inst.instructionSets.head.name))
+          .filter(inst => Seq("rv_c", "rv32_c", "rv32_c_f").contains(inst.instructionSets.head.name))
           .filter(inst => !inst.name.endsWith("_rv32"))
       )
       .map(inst => (inst, inst.encoding.toCustomBitPat("x", 16)))
