@@ -26,7 +26,7 @@ end
 type XREG_TYPE of integer{0..31};
 
 // Global getter setter functions for register: developers should never use the private __GPR variable
-getter X[i : integer {0..31}] => bits(32)
+getter X[i : XREG_TYPE] => bits(32)
 begin
   if i == 0 then
     return Zeros(32);
@@ -35,7 +35,7 @@ begin
   end
 end
 
-setter X[i : integer {0..31}] = value : bits(32)
+setter X[i : XREG_TYPE] = value : bits(32)
 begin
   if i > 0 then
     __GPR[i - 1] = value;
@@ -234,6 +234,8 @@ begin
   __ResetGPR();
 
   __ResetVectorState();
+
+  __reset_f_state();
 
   __ResetMTVEC();
   __ResetMTVAL();
