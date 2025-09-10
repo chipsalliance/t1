@@ -286,6 +286,19 @@ impl SimulatorState {
         );
     }
 
+    pub(crate) fn write_fp_register(&self, reg_idx: u8, value: u32) {
+        event!(
+            Level::TRACE,
+            event_type = "fp_register",
+            action = "write",
+            pc = self.pc,
+            pc_hex = format!("{:#010x}", self.pc),
+            reg_idx = reg_idx,
+            data = value,
+            data_hex = format!("{:#010x}", value)
+        );
+    }
+
     pub(crate) fn write_csr(&self, idx: u32, name: &str, value: u32) {
         event!(
             Level::TRACE,
@@ -303,6 +316,13 @@ impl SimulatorState {
 
     pub(crate) fn print_string(&self, s: &str) {
         event!(Level::DEBUG, "ASL model: {s}")
+    }
+
+    pub(crate) fn debug_trap_xcpt(&self, cause: i128, tval: u32) {
+        event!(
+            Level::DEBUG,
+            "ASL model trap exception with cause={cause} tval={tval:#010x}"
+        )
     }
 
     pub(crate) fn print_bits_hex(&self, d: u32) {

@@ -1,22 +1,21 @@
 use std::env;
 use std::path::PathBuf;
 
+fn add_lib_dir(dir_env: &str, lib: &str) {
+    println!(
+        "cargo::rustc-link-search=native={}",
+        env::var(dir_env).unwrap_or_else(|_| format!("{dir_env} should be set"))
+    );
+    println!("cargo:rustc-link-lib=static={lib}");
+    println!("cargo::rerun-if-env-changed={dir_env}");
+}
+
 fn main() {
     // link libpokedex_sim.a
-    println!(
-        "cargo::rustc-link-search=native={}",
-        env::var("POKEDEX_LIB_DIR").expect("POKEDEX_LIB_DIR should be set")
-    );
-    println!("cargo:rustc-link-lib=static=pokedex_model");
-    println!("cargo::rerun-if-env-changed=POKEDEX_LIB_DIR");
-
-    // link libASL.a
-    println!(
-        "cargo::rustc-link-search=native={}",
-        env::var("ASL_LIB_DIR").expect("ASL_LIB_DIR should be set")
-    );
-    println!("cargo:rustc-link-lib=static=ASL");
-    println!("cargo::rerun-if-env-changed=ASL_LIB_DIR");
+    add_lib_dir("POKEDEX_LIB_DIR", "pokedex_model");
+    add_lib_dir("ASL_LIB_DIR", "ASL");
+    add_lib_dir("SOFTFLOAT_LIB_DIR", "softfloat");
+    add_lib_dir("SOFTFLOAT_EXT_LIB_DIR", "softfloat_ext");
 
     let pokedex_inc_dir = env::var("POKEDEX_INC_DIR").expect("POKEDEX_INC_DIR should be set");
     let asl_inc_dir = env::var("ASL_INC_DIR").expect("ASL_INC_DIR should be set");
