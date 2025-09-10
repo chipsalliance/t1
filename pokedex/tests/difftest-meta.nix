@@ -14,7 +14,7 @@ let
     spike = {
       timeout = 30;
       args = [
-        "--isa=rv32imac_zvl256b_zve32x_zifencei"
+        "--isa=rv32imafc_zvl256b_zve32x_zifencei"
         "--priv=m"
         "--log-commits"
         "-m0x80000000:0x20000000,0x40000000:0x1000"
@@ -58,6 +58,11 @@ runCommand "run-difftest-for-all-cases"
     pushd "$out/pass" > /dev/null
 
     if ! batchrun -c '${configFile}'; then
+      if [[ ! -f ./batch-run-result.json ]]; then
+        echo "Implementation Bugs, exiting" >&2
+        exit 1
+      fi
+
       failCases=( $(jq -r '.[]' ./batch-run-result.json) )
       for case in "''${failedCases[@]}"; do
         cp "$case".objdump "$out"
