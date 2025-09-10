@@ -35,14 +35,6 @@ impl SpikeLog {
         self.0.is_empty()
     }
 
-    // TODO: future usage
-    #[allow(dead_code)]
-    pub fn has_register_commits(&self) -> impl Iterator<Item = &'_ SpikeLogSyntax> {
-        self.0.iter().filter(|log| {
-            !log.commits.is_empty() && log.commits.iter().any(|c| c.is_register_write_commit())
-        })
-    }
-
     pub fn has_memory_write_commits(&self) -> impl Iterator<Item = &'_ SpikeLogSyntax> {
         self.0
             .iter()
@@ -53,7 +45,11 @@ impl SpikeLog {
 /// Describe all load store behavior occurs at Spike side
 #[derive(Debug, PartialEq)]
 pub enum LoadStoreType {
-    Register {
+    XReg {
+        index: u8,
+        value: u32,
+    },
+    FReg {
         index: u8,
         value: u32,
     },
@@ -74,8 +70,11 @@ pub enum LoadStoreType {
 impl Display for LoadStoreType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Register { index, value } => {
-                write!(f, "write register x{index} with {value:#010x}")
+            Self::XReg { index, value } => {
+                write!(f, "write integer register x{index} with {value:#010x}")
+            }
+            Self::FReg { index, value } => {
+                write!(f, "write float point register x{index} with {value:#010x}")
             }
             Self::MemoryWrite { address, value } => {
                 write!(f, "write memory {address:#010x} with {value:#010x}")
@@ -89,28 +88,6 @@ impl Display for LoadStoreType {
 }
 
 impl LoadStoreType {
-    pub fn is_register_write_commit(&self) -> bool {
-        matches!(self, Self::Register { .. })
-    }
-
-    pub fn get_register(&self) -> Option<(u8, u32)> {
-        match self {
-            Self::Register { index, value } => Some((*index, *value)),
-            _ => None,
-        }
-    }
-
-    pub fn is_csr_commit(&self) -> bool {
-        matches!(self, Self::Csr { .. })
-    }
-
-    pub fn get_csr(&self) -> Option<(u32, String, u32)> {
-        match self {
-            Self::Csr { index, name, value } => Some((*index, name.to_string(), *value)),
-            _ => None,
-        }
-    }
-
     pub fn is_mem_write(&self) -> bool {
         matches!(self, Self::MemoryWrite { .. })
     }
@@ -131,10 +108,16 @@ impl LoadStoreCommits {
         self.0.iter().find_map(|commit| commit.get_mem_write())
     }
 
-    pub fn has_reg_write_commit(&self) -> bool {
-        self.0
-            .iter()
-            .any(|commit| commit.is_register_write_commit())
+    pub fn have_state_changed(&self) -> bool {
+        self.0.iter().any(|commit| {
+            !matches!(
+                commit,
+                // Mem and CSR is platform related and hard to replay
+                LoadStoreType::MemoryRead { .. }
+                    | LoadStoreType::MemoryWrite { .. }
+                    | LoadStoreType::Csr { .. }
+            )
+        })
     }
 }
 
@@ -183,22 +166,6 @@ impl Display for SpikeLogSyntax {
             commits:
             {}
         ", display_commit}
-    }
-}
-
-impl SpikeLogSyntax {
-    pub fn get_register_write_commits(&self) -> impl Iterator<Item = &LoadStoreType> {
-        self.commits
-            .iter()
-            .filter(|event| event.is_register_write_commit())
-    }
-
-    pub fn get_csr_write_commits(&self) -> impl Iterator<Item = &LoadStoreType> {
-        self.commits.iter().filter(|event| event.is_csr_commit())
-    }
-
-    pub fn has_reg_write_commit(&self) -> bool {
-        self.commits.has_reg_write_commit()
     }
 }
 
@@ -353,7 +320,7 @@ impl SpikeLogSyntax {
                         ParseCursor::RegParseBegin if elem != "mem" && !elem.starts_with("0x") => {
                             let prefix = elem.chars().next().unwrap();
                             match prefix {
-                                'x' => ctx.cursor = ParseCursor::RegParseName(elem),
+                                'x' | 'f' => ctx.cursor = ParseCursor::RegParseName(elem),
                                 'c' => ctx.cursor = ParseCursor::CsrParseName(elem),
                                 _ => {
                                     ctx.cursor = to_error(
@@ -380,6 +347,11 @@ impl SpikeLogSyntax {
                                 return ctx;
                             };
 
+                            let reg_typ = reg_name
+                                .chars()
+                                .nth(0)
+                                .expect("register should have prefix");
+
                             let Ok(reg_idx): Result<u8, _> = reg_name[1..].parse() else {
                                 ctx.cursor = to_error(
                                     "register index",
@@ -392,10 +364,19 @@ impl SpikeLogSyntax {
                             match u32::from_str_radix(elem.trim_start_matches("0x"), 16) {
                                 Ok(reg_val) => {
                                     ctx.cursor = ParseCursor::RegParseBegin;
-                                    ctx.state.commits.push(LoadStoreType::Register {
-                                        index: reg_idx,
-                                        value: reg_val,
-                                    });
+                                    let load_store_ty = match reg_typ {
+                                        'x' => LoadStoreType::XReg {
+                                            index: reg_idx,
+                                            value: reg_val,
+                                        },
+                                        'f' => LoadStoreType::FReg {
+                                            index: reg_idx,
+                                            value: reg_val,
+                                        },
+                                        _ => unreachable!("unhandle register type met"),
+                                    };
+
+                                    ctx.state.commits.push(load_store_ty);
                                     ctx
                                 }
                                 Err(err) => {
@@ -519,7 +500,7 @@ fn test_parsing_spike_log_ast() {
             privilege: 3,
             pc: 4096,
             instruction: 663,
-            commits: LoadStoreCommits(vec![LoadStoreType::Register {
+            commits: LoadStoreCommits(vec![LoadStoreType::XReg {
                 index: 5,
                 value: 4096,
             }]),
@@ -529,7 +510,7 @@ fn test_parsing_spike_log_ast() {
             privilege: 3,
             pc: 4100,
             instruction: 33719699,
-            commits: LoadStoreCommits(vec![LoadStoreType::Register {
+            commits: LoadStoreCommits(vec![LoadStoreType::XReg {
                 index: 11,
                 value: 4128,
             }]),
@@ -540,7 +521,7 @@ fn test_parsing_spike_log_ast() {
             pc: 4108,
             instruction: 25342595,
             commits: LoadStoreCommits(vec![
-                LoadStoreType::Register {
+                LoadStoreType::XReg {
                     index: 5,
                     value: 2147483700,
                 },
@@ -563,6 +544,21 @@ fn test_parsing_spike_log_ast() {
                 address: 2684354552,
                 value: 2147483840,
             }]),
+        },
+        SpikeLogSyntax {
+            core: 0,
+            privilege: 3,
+            pc: 2147483896,
+            instruction: 24840,
+            commits: LoadStoreCommits(vec![
+                LoadStoreType::FReg {
+                    index: 10,
+                    value: 1075838976,
+                },
+                LoadStoreType::MemoryRead {
+                    address: 2147484336,
+                },
+            ]),
         },
     ]);
     assert_eq!(ast, expect);

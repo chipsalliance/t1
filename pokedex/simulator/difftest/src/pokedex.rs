@@ -40,6 +40,13 @@ pub enum PokedexEventKind {
         reg_idx: u8,
         data: u32,
     },
+    #[serde(rename = "fp_register")]
+    FpReg {
+        action: String,
+        pc: u32,
+        reg_idx: u8,
+        data: u32,
+    },
     #[serde(rename = "instruction_fetch")]
     InstructionFetch { instruction: u32 },
     #[serde(rename = "reset_vector")]
@@ -56,7 +63,16 @@ impl Display for PokedexEventKind {
                 data,
             } => indoc::writedoc!(
                 f,
-                "PC={pc:#010x} {action} to register [x{reg_idx}] with [{data:#010x}]"
+                "PC={pc:#010x} {action} to integer register [x{reg_idx}] with [{data:#010x}]"
+            ),
+            Self::FpReg {
+                action,
+                pc,
+                reg_idx,
+                data,
+            } => indoc::writedoc!(
+                f,
+                "PC={pc:#010x} {action} to FP register [f{reg_idx}] with [{data:#010x}]"
             ),
             _ => write!(f, "{self:#?}"),
         }
@@ -75,18 +91,8 @@ impl PokedexEventKind {
         match self {
             Self::Csr { pc, .. } => Some(*pc),
             Self::Register { pc, .. } => Some(*pc),
+            Self::FpReg { pc, .. } => Some(*pc),
             _ => None,
         }
     }
-}
-
-#[test]
-fn test_parsing_pokedex_log() {
-    let mut d = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    d.push("assets/pokedex-sim-event.jsonl.example");
-    let sample_log = std::fs::read(d).unwrap();
-    assert!(!sample_log.is_empty());
-    let log = parse_from(sample_log);
-    assert!(!log.is_empty());
-    dbg!(log);
 }

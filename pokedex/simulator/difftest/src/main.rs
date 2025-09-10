@@ -129,7 +129,7 @@ impl DiffTest {
             }
 
             // ignore memory read write only commits
-            if !spike_event.has_reg_write_commit() {
+            if !spike_event.commits.have_state_changed() {
                 continue;
             }
 
@@ -164,29 +164,30 @@ impl DiffTest {
                 reg_idx, data, pc, ..
             } = search_result
             {
-                let match_event = spike_event.get_register_write_commits().find(|event| {
-                    let (idx, value) = event.get_register().unwrap();
-                    idx == *reg_idx && value == *data
+                is_retired = spike_event.commits.iter().any(|event| {
+                    if let spike::LoadStoreType::XReg { index, value } = event {
+                        index == reg_idx && value == data
+                    } else {
+                        false
+                    }
                 });
 
-                if match_event.is_none() {
+                if !is_retired {
                     return DiffMeta::failed(indoc::formatdoc! {"
-                At PC={pc:#010x} simulator write {data:#010x} to register x{reg_idx},
-                but this action is mismatch at spike side.
+                        At PC={pc:#010x} simulator write {data:#010x} to register x{reg_idx},
+                        but this action is mismatch at spike side.
 
-                ------------
-                |Event Dump|
-                ------------
+                        ------------
+                        |Event Dump|
+                        ------------
 
-                We get simulator:
-                {search_result}
+                        We get simulator:
+                        {search_result}
 
-                But have spike:
-                {spike_event}
-            "});
+                        But have spike:
+                        {spike_event}
+                    "});
                 }
-
-                is_retired = true;
             };
 
             if let PokedexEventKind::Csr {
@@ -197,29 +198,68 @@ impl DiffTest {
                 data,
             } = search_result
             {
-                let match_event = spike_event.get_csr_write_commits().find(|event| {
-                    let (index, _, value) = event.get_csr().unwrap();
-                    index == *csr_idx && value == *data
+                is_retired = spike_event.commits.iter().any(|event| {
+                    if let spike::LoadStoreType::Csr {
+                        index,
+                        name: _,
+                        value,
+                    } = event
+                    {
+                        index == csr_idx && value == data
+                    } else {
+                        false
+                    }
                 });
 
-                if match_event.is_none() {
+                if !is_retired {
                     return DiffMeta::failed(indoc::formatdoc! {"
-                At PC={pc:#010x} simulator {action} {data:#010x} to CSR {csr_name},
-                but this action is mismatch at spike side.
+                        At PC={pc:#010x} simulator {action} {data:#010x} to CSR {csr_name},
+                        but this action is mismatch at spike side.
 
-                ------------
-                |Event Dump|
-                ------------
+                        ------------
+                        |Event Dump|
+                        ------------
 
-                We get simulator:
-                {search_result}
+                        We get simulator:
+                        {search_result}
 
-                But have spike:
-                {spike_event}
-            "});
+                        But have spike:
+                        {spike_event}
+                    "});
                 }
+            }
 
-                is_retired = true;
+            if let PokedexEventKind::FpReg {
+                action,
+                pc,
+                reg_idx,
+                data,
+            } = search_result
+            {
+                is_retired = spike_event.commits.iter().any(|event| {
+                    if let spike::LoadStoreType::FReg { index, value } = event {
+                        index == reg_idx && value == data
+                    } else {
+                        false
+                    }
+                });
+
+                if !is_retired {
+                    return DiffMeta::failed(indoc::formatdoc! {"
+                        At PC={pc:#010x} simulator {action} {data:#010x} to FP register f{reg_idx},
+                        but this action is mismatch at spike side.
+
+                        ------------
+                        |Event Dump|
+                        ------------
+
+                        We get simulator:
+                        {search_result}
+
+                        But have spike:
+                        {spike_event}
+                    "});
+                }
             }
 
             if !is_retired {
