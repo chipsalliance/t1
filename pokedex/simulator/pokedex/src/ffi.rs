@@ -165,6 +165,12 @@ unsafe extern "C" fn FFI_print_bits_hex_0(data: u32) {
 }
 
 #[unsafe(no_mangle)]
+unsafe extern "C" fn ffi_debug_trap_xcpt_0(cause: i128, tval: u32) {
+    let state = unsafe { get_state() };
+    state.debug_trap_xcpt(cause, tval);
+}
+
+#[unsafe(no_mangle)]
 unsafe extern "C" fn FFI_ebreak_0() {
     let state = unsafe { get_state() };
     state.handle_ebreak();
@@ -247,6 +253,12 @@ unsafe extern "C" fn FFI_amo_0(
             data: 0,
         }
     }
+}
+
+#[unsafe(no_mangle)]
+unsafe extern "C" fn ffi_write_fpr_hook_0(reg_idx: u8, data: u32) {
+    let state = unsafe { get_state() };
+    state.write_fp_register(reg_idx, data);
 }
 
 static mut CALLBACK_STATE: *mut SimulatorState = std::ptr::null_mut();

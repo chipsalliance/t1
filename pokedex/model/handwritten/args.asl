@@ -8,6 +8,11 @@ begin
   return inst[24:20];
 end
 
+func GetRS3(inst : bits(32)) => bits(5)
+begin
+  return inst[31:27];
+end
+
 func GetRD{N : integer{16, 32}}(inst : bits(N)) => bits(5)
 begin
   return inst[11:7];
@@ -194,4 +199,9 @@ end
 func IsAcquire(inst : bits(32)) => boolean
 begin
   return inst[26] == '1';
+end
+
+func GetRM(inst : bits(32)) => bits(3)
+begin
+  return inst[14:12];
 end

@@ -15,5 +15,8 @@ lib.makeScope newScope (scope: {
 
   simulator = scope.callPackage ./simulator/package.nix { };
 
+  softfloat = scope.callPackage ./softfloat/softfloat.nix { };
+  softfloat-ext = scope.callPackage ./softfloat/package.nix { };
+
   tests = scope.callPackage ./tests { };
 })

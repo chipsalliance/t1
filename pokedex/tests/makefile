@@ -3,7 +3,7 @@ RISCV_PREFIX := riscv32-linux-gnu-
 CC ?= $(RISCV_PREFIX)gcc
 OBJDUMP ?= $(RISCV_PREFIX)objdump
 
-COMMON_CFLAGS := -march=rv32imac -mabi=ilp32 -O0 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -fno-PIC
+COMMON_CFLAGS := -march=rv32imafc -mabi=ilp32f -O0 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -fno-PIC
 OBJDUMP_FLAGS := --disassemble-all --disassemble-zeroes --section=.text --section=.text.startup --section=.text.init --section=.data
 
 BUILD := build
@@ -57,7 +57,7 @@ $(BUILD)/smoke_v/%.elf:: smoke_v/%.S $(UTILS)
 # -------------------------------------------------------------------------------------------------
 RISCV_TESTS_SRC ?=
 RISCV_TESTS_ENV := riscv-tests-env
-RISCV_TESTS_ISA := rv32ui rv32um rv32uc rv32ua
+RISCV_TESTS_ISA := rv32ui rv32um rv32uc rv32ua rv32uf
 RISCV_TESTS_ISA_SRCS := $(foreach dir,$(RISCV_TESTS_ISA),$(wildcard $(RISCV_TESTS_SRC)/isa/$(dir)/*.S))
 RISCV_TESTS_BUILD_TARGETS := $(patsubst $(RISCV_TESTS_SRC)/%.S,%.elf,$(RISCV_TESTS_ISA_SRCS))
 $(BUILD)/riscv_tests/isa/%.elf: $(RISCV_TESTS_SRC)/isa/%.S $(RISCV_TESTS_ENV)/riscv_test.h

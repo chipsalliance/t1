@@ -47,7 +47,7 @@ end
 func DecodeAndExecute(instruction : bits(32)) => Result
 begin
     case instruction of
-        {%- for inst in (instructions | rejectattr("instruction_set", "in", ["rv_c", "rv32_c"])) %}
+        {%- for inst in (instructions | rejectattr("instruction_set", "in", ["rv_c", "rv32_c", "rv32_c_f"])) %}
         {%- set inst_name = inst.name | replace(".", "_") | upper() %}
 
         when '{{ inst.bit_pattern }}' =>
@@ -62,7 +62,7 @@ end
 func DecodeAndExecute_CEXT(instruction : bits(16)) => Result
 begin
     case instruction of
-        {%- for inst in (instructions | selectattr("instruction_set", "in", ["rv_c", "rv32_c"])) %}
+        {%- for inst in (instructions | selectattr("instruction_set", "in", ["rv_c", "rv32_c", "rv32_c_f"])) %}
         {%- set inst_name = inst.name | replace(".", "_") | upper() %}
 
         when '{{ inst.bit_pattern }}' =>

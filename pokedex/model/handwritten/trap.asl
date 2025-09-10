@@ -17,6 +17,8 @@ begin
   MTVAL = trap_value;
 
   PC = [ MTVEC_BASE, '00' ];
+
+  ffi_debug_trap_xcpt(cause, trap_value);
 end
 
 // we only support limited machien mode interrupt now
