@@ -118,7 +118,9 @@ let
 
       emuKind = "vcs";
       driverWithArgs =
-        [ (lib.getExe self) ]
+        [
+          (lib.getExe self)
+        ]
         ++ vcsRtLinkArgs
         ++ [
           "-exitstatus"
