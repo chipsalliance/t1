@@ -77,7 +77,7 @@ let
           mv out/${moduleName}/assembly.dest/out.jar $out/share/java/${moduleName}.jar
           # Align datetime
           export SOURCE_DATE_EPOCH=1669810380
-          add-determinism $out/share/java/${moduleName}.jar
+          add-det $out/share/java/${moduleName}.jar
           makeWrapper ${mill.jre}/bin/java $out/bin/${outName} \
             --add-flags "-jar $out/share/java/${moduleName}.jar"
 

@@ -122,7 +122,7 @@ let
       # Align datetime
       export SOURCE_DATE_EPOCH=1669810380
       add-determinism-q() {
-        add-determinism $@ >/dev/null
+        add-det $@ >/dev/null
       }
       add-determinism-q out/elaborator/assembly.dest/out.jar
       add-determinism-q out/omreader/assembly.dest/out.jar
