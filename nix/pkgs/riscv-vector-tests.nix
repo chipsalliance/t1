@@ -5,13 +5,9 @@ buildGoModule rec {
   src = fetchFromGitHub {
     owner = "chipsalliance";
     repo = pname;
-    rev = "116c90851e1bae067f8b11b51bdee858e8dacafa";
-    hash = "sha256-mjFPGgaceZtqPVkHQ2/1Brv6LS6UxWEi5uTyHMq3WS8=";
+    rev = "1a1aa4d4eab9c8372b2f4c2f9f1b906859c0df44";
+    hash = "sha256-S2tJFgAWnKs9gRNT2ui04PHIzCbLzBahDCDjOtIad/s=";
   };
-
-  patches = [
-    ../patches/riscv-vector-tests/00-remove-vlen-check.patch
-  ];
 
   doCheck = false;
 
