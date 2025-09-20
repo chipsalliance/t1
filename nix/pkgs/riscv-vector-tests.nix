@@ -5,8 +5,8 @@ buildGoModule rec {
   src = fetchFromGitHub {
     owner = "chipsalliance";
     repo = pname;
-    rev = "116c90851e1bae067f8b11b51bdee858e8dacafa";
-    hash = "sha256-mjFPGgaceZtqPVkHQ2/1Brv6LS6UxWEi5uTyHMq3WS8=";
+    rev = "d88736d08d7aead7bd3cddc09f64bd5050c7b9e8";
+    hash = "sha256-9aAVR6EV/9uXwE0G8XGKIatPx44php3DHJULXGDpZX0=";
   };
 
   patches = [
