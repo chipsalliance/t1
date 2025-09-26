@@ -57,6 +57,9 @@ lockedPkgs.buildFHSEnv {
       PATH="$PATH:$_oldVcsEnvPath"
     }
     export -f preHook
+
+    export TMPDIR=/tmp
+    cd $(mktemp -d -t 'snps-env-XXXXX')
   '';
   targetPkgs = (
     ps: with ps; [
