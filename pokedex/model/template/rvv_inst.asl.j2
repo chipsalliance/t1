@@ -42,6 +42,14 @@
   {% include "extensions/rv_v/vwmacop_vv.asl.j2" %}
 {% elif template == "vwmacop_vx" %}
   {% include "extensions/rv_v/vwmacop_vx.asl.j2" %}
+{% elif template == "vle_v" %}
+  {% include "extensions/rv_v/vle_v.asl.j2" %}
+{% elif template == "vlse_v" %}
+  {% include "extensions/rv_v/vlse_v.asl.j2" %}
+{% elif template == "vse_v" %}
+  {% include "extensions/rv_v/vse_v.asl.j2" %}
+{% elif template == "vsse_v" %}
+  {% include "extensions/rv_v/vsse_v.asl.j2" %}
 {% else %}
   {{ explicit_error_template_is_unknown }}
 {% endif %}
