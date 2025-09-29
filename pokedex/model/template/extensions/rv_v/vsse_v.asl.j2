@@ -1,0 +1,89 @@
+{% set inst_dot = inst | replace('_', '.') %}
+// auto-generated from template vse_v.asl.j2
+// PARAMS:
+//   inst = {{ inst }}
+//   eew = {{ eew }}
+//
+// vsse{{eew}}.v vs3, (rs1), rs2, vm
+// store strided with EEW=16, rs2 is byte stride, optionally masked by vm
+//
+// vssseg<NF>e{{eew}}.v vd, (rs1), vm
+// store strided segments with EEW=16, rs2 is byte stride, optionally masked by vm
+//
+// NOTE: this instruction supports non-zero vstart
+// NOTE: curently we do not handle rs2=x0 specially
+
+let vs3: VREG_TYPE = UInt(GetRD(instruction));
+let rs1: XREG_TYPE = UInt(GetRS1(instruction));
+let rs2: XREG_TYPE = UInt(GetRS2(instruction));
+let vm : bit = GetVM(instruction);
+let nf : integer{0..7} = UInt(GetNF(instruction));
+
+if VTYPE.ill then
+  return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
+end
+
+let vreg_align = vreg_eew_alignment(VTYPE, {{eew}});
+
+if vreg_align == 0 then
+  // emul is invalid
+  return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
+end
+
+if vreg_align * (nf + 1) > 8 then
+  return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
+end
+
+if vs3 MOD vreg_align != 0 then
+  return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
+end
+
+let vl = VL;
+let vstart = UInt(VSTART);
+
+if vstart > vl then
+  return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
+end
+
+let src1 = X[rs1];
+let src2 = X[rs2];
+
+if nf == 0 then
+  // vsse{{eew}}.v vd, (rs1), rs2, vm
+  for idx = vstart to vl - 1 do
+    if vm != '0' || V0_MASK[idx] then
+      let addr = src1 + src2 * idx;
+      let data : bits({{eew}}) = VRF_{{eew}}[vs3, idx];
+      let result = WriteMemory(addr, data);
+
+      if !result.is_ok then
+        VSTART = idx[LOG2_VLEN-1:0];
+        return result;
+      end
+    end
+  end
+else
+  // vssseg<NF>e{{eew}}.v vd, (rs1), rs2, vm
+  for idx = vstart to vl - 1 do
+    if vm != '0' || V0_MASK[idx] then
+      let addr_start = src1 + src2 * idx;
+      for j = 0 to nf do
+        let vs3_j = (vs3 + j * vreg_align) as integer{0..31};
+        let addr = addr_start + ({{eew}} DIV 8) * j;
+        let data : bits({{eew}}) = VRF_{{eew}}[vs3_j, idx];
+        let result = WriteMemory(addr, data);
+
+        if !result.is_ok then
+          VSTART = idx[LOG2_VLEN-1:0];
+          return result;
+        end
+      end
+    end
+  end
+end
+
+ClearVSTART();
+
+PC = PC + 4;
+
+return Retired();
