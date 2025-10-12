@@ -1,9 +1,10 @@
 RISCV_PREFIX := riscv32-linux-gnu-
 
+VLEN ?=
 CC ?= $(RISCV_PREFIX)gcc
 OBJDUMP ?= $(RISCV_PREFIX)objdump
 
-COMMON_CFLAGS := -march=rv32imafc -mabi=ilp32f -O0 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -fno-PIC
+COMMON_CFLAGS := -march=rv32imafc_zvl256b_zve32x -mabi=ilp32f -O0 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -fno-PIC
 OBJDUMP_FLAGS := --disassemble-all --disassemble-zeroes --section=.text --section=.text.startup --section=.text.init --section=.data
 
 BUILD := build
@@ -67,14 +68,39 @@ $(BUILD)/riscv_tests/isa/%.elf: $(RISCV_TESTS_SRC)/isa/%.S $(RISCV_TESTS_ENV)/ri
 		$< -o $@
 	$(OBJDUMP) $(OBJDUMP_FLAGS) -d $@ > $@.objdump
 
+# -------------------------------------------------------------------------------------------------
+# RISCV VECTOR TESTS: https://github.com/chipsalliance/riscv-vector-tests
+# -------------------------------------------------------------------------------------------------
+CODEGEN_INSTALL_DIR ?=
+CODEGEN_CONFIG_DIR := $(CODEGEN_INSTALL_DIR)/configs
+CODEGEN_SINGLE := $(CODEGEN_INSTALL_DIR)/bin/single
+CODEGEN_TARGETS_DEFINE := ./riscv-vector-tests/case_list.txt
+CODEGEN_TARGETS := $(shell grep -v "^#" $(CODEGEN_TARGETS_DEFINE) | xargs | sed 's/\./_/g')
+CODEGEN_ELFS := $(addsuffix .elf,$(CODEGEN_TARGETS))
+
+$(BUILD)/riscv_vector_tests/%.S:
+	@mkdir -p $(@D)
+	$(CODEGEN_SINGLE) \
+		-VLEN $(VLEN) -XLEN 32 -float16=false -repeat 16 -testfloat3level 2 \
+		-configfile $(CODEGEN_CONFIG_DIR)/v/$(shell printf $* | sed 's/_/\./g').toml \
+		-outputfile "$@"
+
+$(BUILD)/riscv_vector_tests/%.elf: $(BUILD)/riscv_vector_tests/%.S
+	@mkdir -p $(@D)
+	$(CC) $(COMMON_CFLAGS) \
+		-T utils/script.ld -I $(RISCV_TESTS_ENV) -I $(RISCV_TESTS_SRC)/isa/macros/scalar \
+		$< -o $@
+	$(OBJDUMP) $(OBJDUMP_FLAGS) -d $@ > $@.objdump
+
 
 .PHONY: smoke smoke_v riscv_tests
 smoke: $(addprefix $(BUILD)/,$(SMOKE_TARGETS))
 smoke_v: $(addprefix $(BUILD)/,$(SMOKE_V_TARGETS))
 riscv_tests: $(addprefix $(BUILD)/riscv_tests/,$(RISCV_TESTS_BUILD_TARGETS))
+riscv_vector_tests: $(addprefix $(BUILD)/riscv_vector_tests/,$(CODEGEN_ELFS))
 
 .PHONY: build
-build: smoke smoke_v riscv_tests
+build: smoke smoke_v riscv_tests riscv_vector_tests
 
 .PHONY: clean
 clean:
