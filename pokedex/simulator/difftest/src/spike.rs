@@ -2,25 +2,25 @@ use std::fmt::Display;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, PartialEq)]
-pub struct SpikeLog(Vec<SpikeLogSyntax>);
+pub struct SpikeLogs(Vec<SpikeInsnCommit>);
 
-impl FromIterator<SpikeLogSyntax> for SpikeLog {
-    fn from_iter<T: IntoIterator<Item = SpikeLogSyntax>>(iter: T) -> Self {
+impl FromIterator<SpikeInsnCommit> for SpikeLogs {
+    fn from_iter<T: IntoIterator<Item = SpikeInsnCommit>>(iter: T) -> Self {
         Self(Vec::from_iter(iter))
     }
 }
 
-impl SpikeLog {
-    pub fn iter(&self) -> std::slice::Iter<'_, SpikeLogSyntax> {
+impl SpikeLogs {
+    pub fn iter(&self) -> std::slice::Iter<'_, SpikeInsnCommit> {
         self.0.iter()
     }
 }
 
-impl SpikeLog {
-    pub fn parse_from(log: &str) -> SpikeLog {
+impl SpikeLogs {
+    pub fn parse_from(log: &str) -> SpikeLogs {
         log.lines()
             .enumerate()
-            .map(|(line_number, line)| match SpikeLogSyntax::parse(line) {
+            .map(|(line_number, line)| match SpikeInsnCommit::parse(line) {
                 Err(err) => {
                     panic!(
                         "fail parsing line at line {line_number}: {err}. Original line: '{line}'"
@@ -35,16 +35,16 @@ impl SpikeLog {
         self.0.is_empty()
     }
 
-    pub fn has_memory_write_commits(&self) -> impl Iterator<Item = &'_ SpikeLogSyntax> {
+    pub fn has_memory_write_commits(&self) -> impl Iterator<Item = &'_ SpikeInsnCommit> {
         self.0
             .iter()
-            .filter(|log| !log.commits.is_empty() && log.commits.iter().any(|c| c.is_mem_write()))
+            .filter(|log| !log.events.is_empty() && log.events.iter().any(|c| c.is_mem_write()))
     }
 }
 
 /// Describe all load store behavior occurs at Spike side
 #[derive(Debug, PartialEq)]
-pub enum LoadStoreType {
+pub enum ChangedState {
     XReg {
         index: u8,
         value: u32,
@@ -67,7 +67,7 @@ pub enum LoadStoreType {
     },
 }
 
-impl Display for LoadStoreType {
+impl Display for ChangedState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::XReg { index, value } => {
@@ -87,7 +87,7 @@ impl Display for LoadStoreType {
     }
 }
 
-impl LoadStoreType {
+impl ChangedState {
     pub fn is_mem_write(&self) -> bool {
         matches!(self, Self::MemoryWrite { .. })
     }
@@ -101,9 +101,9 @@ impl LoadStoreType {
 }
 
 #[derive(Debug, Default, PartialEq)]
-pub struct LoadStoreCommits(Vec<LoadStoreType>);
+pub struct StateCommits(Vec<ChangedState>);
 
-impl LoadStoreCommits {
+impl StateCommits {
     pub fn get_mem_write(&self) -> Option<(u32, u32)> {
         self.0.iter().find_map(|commit| commit.get_mem_write())
     }
@@ -113,48 +113,48 @@ impl LoadStoreCommits {
             !matches!(
                 commit,
                 // Mem and CSR is platform related and hard to replay
-                LoadStoreType::MemoryRead { .. }
-                    | LoadStoreType::MemoryWrite { .. }
-                    | LoadStoreType::Csr { .. }
+                ChangedState::MemoryRead { .. }
+                    | ChangedState::MemoryWrite { .. }
+                    | ChangedState::Csr { .. }
             )
         })
     }
 }
 
-impl Deref for LoadStoreCommits {
-    type Target = Vec<LoadStoreType>;
+impl Deref for StateCommits {
+    type Target = Vec<ChangedState>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl DerefMut for LoadStoreCommits {
+impl DerefMut for StateCommits {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
 #[derive(Debug, Default, PartialEq)]
-pub struct SpikeLogSyntax {
+pub struct SpikeInsnCommit {
     pub core: u8,
     pub privilege: u8,
     pub pc: u32,
     pub instruction: u32,
-    pub commits: LoadStoreCommits,
+    pub events: StateCommits,
 }
 
-impl Display for SpikeLogSyntax {
+impl Display for SpikeInsnCommit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let SpikeLogSyntax {
+        let SpikeInsnCommit {
             core,
             privilege,
             pc,
             instruction,
-            commits,
+            events,
         } = self;
 
-        let display_commit = commits.iter().fold(String::new(), |display, event| {
+        let display_commit = events.iter().fold(String::new(), |display, event| {
             format!("{display}* {event}\n")
         });
 
@@ -184,14 +184,14 @@ enum ParseCursor<'a> {
 
 struct ParseContext<'a> {
     cursor: ParseCursor<'a>,
-    state: SpikeLogSyntax,
+    commit: SpikeInsnCommit,
 }
 
 impl Default for ParseContext<'_> {
     fn default() -> Self {
         Self {
             cursor: ParseCursor::Core,
-            state: SpikeLogSyntax::default(),
+            commit: SpikeInsnCommit::default(),
         }
     }
 }
@@ -201,15 +201,15 @@ impl ParseContext<'_> {
         Self::default()
     }
 
-    fn try_parse(self) -> Result<SpikeLogSyntax, String> {
+    fn try_parse(self) -> Result<SpikeInsnCommit, String> {
         match self.cursor {
             ParseCursor::Error(err) => Err(err),
-            _ => Ok(self.state),
+            _ => Ok(self.commit),
         }
     }
 }
 
-impl SpikeLogSyntax {
+impl SpikeInsnCommit {
     fn parse<'a>(line: &'a str) -> Result<Self, String> {
         fn to_error<'a>(expect: &str, actual: &str, err: impl Display) -> ParseCursor<'a> {
             ParseCursor::Error(format!("expect {expect}, get '{actual}': {err}"))
@@ -242,7 +242,7 @@ impl SpikeLogSyntax {
 
                             match (elem[0..elem.len() - 1]).parse::<u8>() {
                                 Ok(v) => {
-                                    ctx.state.core = v;
+                                    ctx.commit.core = v;
                                     ctx.cursor = ParseCursor::Priv;
                                     ctx
                                 }
@@ -254,7 +254,7 @@ impl SpikeLogSyntax {
                         }
                         ParseCursor::Priv => match elem.parse::<u8>() {
                             Ok(priv_id) => {
-                                ctx.state.privilege = priv_id;
+                                ctx.commit.privilege = priv_id;
                                 ctx.cursor = ParseCursor::Pc;
                                 ctx
                             }
@@ -272,7 +272,7 @@ impl SpikeLogSyntax {
 
                             match u32::from_str_radix(elem.trim_start_matches("0x"), 16) {
                                 Ok(pc) => {
-                                    ctx.state.pc = pc;
+                                    ctx.commit.pc = pc;
                                     ctx.cursor = ParseCursor::Insn;
                                     ctx
                                 }
@@ -304,7 +304,7 @@ impl SpikeLogSyntax {
 
                             match u32::from_str_radix(&elem[3..elem.len() - 1], 16) {
                                 Ok(insn) => {
-                                    ctx.state.instruction = insn;
+                                    ctx.commit.instruction = insn;
                                     ctx.cursor = ParseCursor::RegParseBegin;
                                     ctx
                                 }
@@ -365,18 +365,18 @@ impl SpikeLogSyntax {
                                 Ok(reg_val) => {
                                     ctx.cursor = ParseCursor::RegParseBegin;
                                     let load_store_ty = match reg_typ {
-                                        'x' => LoadStoreType::XReg {
+                                        'x' => ChangedState::XReg {
                                             index: reg_idx,
                                             value: reg_val,
                                         },
-                                        'f' => LoadStoreType::FReg {
+                                        'f' => ChangedState::FReg {
                                             index: reg_idx,
                                             value: reg_val,
                                         },
                                         _ => unreachable!("unhandle register type met"),
                                     };
 
-                                    ctx.state.commits.push(load_store_ty);
+                                    ctx.commit.events.push(load_store_ty);
                                     ctx
                                 }
                                 Err(err) => {
@@ -401,9 +401,9 @@ impl SpikeLogSyntax {
                                     ctx.cursor = ParseCursor::MemParseRead(address);
                                     let is_line_end = index == total_segments - 1;
                                     if is_line_end {
-                                        ctx.state
-                                            .commits
-                                            .push(LoadStoreType::MemoryRead { address });
+                                        ctx.commit
+                                            .events
+                                            .push(ChangedState::MemoryRead { address });
                                     }
                                     ctx
                                 }
@@ -417,7 +417,7 @@ impl SpikeLogSyntax {
                             match u32::from_str_radix(elem.trim_start_matches("0x"), 16) {
                                 Ok(write_val) => {
                                     ctx.cursor = ParseCursor::RegParseBegin;
-                                    ctx.state.commits.push(LoadStoreType::MemoryWrite {
+                                    ctx.commit.events.push(ChangedState::MemoryWrite {
                                         address,
                                         value: write_val,
                                     });
@@ -432,9 +432,7 @@ impl SpikeLogSyntax {
                         }
                         ParseCursor::MemParseRead(address) => {
                             ctx.cursor = ParseCursor::RegParseBegin;
-                            ctx.state
-                                .commits
-                                .push(LoadStoreType::MemoryRead { address });
+                            ctx.commit.events.push(ChangedState::MemoryRead { address });
                             ctx
                         }
                         ParseCursor::CsrParseName(csr) => {
@@ -458,9 +456,9 @@ impl SpikeLogSyntax {
                                     to_error("csr value", elem, "csr value is not valid digit");
                                 return ctx;
                             };
-                            ctx.state
-                                .commits
-                                .push(LoadStoreType::Csr { index, name, value });
+                            ctx.commit
+                                .events
+                                .push(ChangedState::Csr { index, name, value });
 
                             ctx
                         }
@@ -480,82 +478,82 @@ fn test_parsing_spike_log_ast() {
     let sample_log = std::fs::read(d).unwrap();
     assert!(!sample_log.is_empty());
     let raw = String::from_utf8_lossy(&sample_log);
-    let ast = SpikeLog::parse_from(&raw);
+    let ast = SpikeLogs::parse_from(&raw);
     assert!(!ast.is_empty());
 
-    let expect = SpikeLog(vec![
-        SpikeLogSyntax {
+    let expect = SpikeLogs(vec![
+        SpikeInsnCommit {
             core: 0,
             privilege: 3,
             pc: 0x800000ac,
             instruction: 0x30529073,
-            commits: LoadStoreCommits(vec![LoadStoreType::Csr {
+            events: StateCommits(vec![ChangedState::Csr {
                 index: 0x305,
                 name: "mtvec".to_string(),
                 value: 0x8000000c,
             }]),
         },
-        SpikeLogSyntax {
+        SpikeInsnCommit {
             core: 0,
             privilege: 3,
             pc: 4096,
             instruction: 663,
-            commits: LoadStoreCommits(vec![LoadStoreType::XReg {
+            events: StateCommits(vec![ChangedState::XReg {
                 index: 5,
                 value: 4096,
             }]),
         },
-        SpikeLogSyntax {
+        SpikeInsnCommit {
             core: 0,
             privilege: 3,
             pc: 4100,
             instruction: 33719699,
-            commits: LoadStoreCommits(vec![LoadStoreType::XReg {
+            events: StateCommits(vec![ChangedState::XReg {
                 index: 11,
                 value: 4128,
             }]),
         },
-        SpikeLogSyntax {
+        SpikeInsnCommit {
             core: 0,
             privilege: 3,
             pc: 4108,
             instruction: 25342595,
-            commits: LoadStoreCommits(vec![
-                LoadStoreType::XReg {
+            events: StateCommits(vec![
+                ChangedState::XReg {
                     index: 5,
                     value: 2147483700,
                 },
-                LoadStoreType::MemoryRead { address: 4120 },
+                ChangedState::MemoryRead { address: 4120 },
             ]),
         },
-        SpikeLogSyntax {
+        SpikeInsnCommit {
             core: 0,
             privilege: 3,
             pc: 4112,
             instruction: 163943,
-            commits: LoadStoreCommits(Vec::new()),
+            events: StateCommits(Vec::new()),
         },
-        SpikeLogSyntax {
+        SpikeInsnCommit {
             core: 0,
             privilege: 3,
             pc: 2147483860,
             instruction: 1129507,
-            commits: LoadStoreCommits(vec![LoadStoreType::MemoryWrite {
+            events: StateCommits(vec![ChangedState::MemoryWrite {
                 address: 2684354552,
                 value: 2147483840,
             }]),
         },
-        SpikeLogSyntax {
+        SpikeInsnCommit {
             core: 0,
             privilege: 3,
             pc: 2147483896,
             instruction: 24840,
-            commits: LoadStoreCommits(vec![
-                LoadStoreType::FReg {
+            events: StateCommits(vec![
+                ChangedState::FReg {
                     index: 10,
                     value: 1075838976,
                 },
-                LoadStoreType::MemoryRead {
+                ChangedState::MemoryRead {
                     address: 2147484336,
                 },
             ]),
