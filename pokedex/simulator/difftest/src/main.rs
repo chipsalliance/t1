@@ -3,10 +3,11 @@ use miette::{Context, IntoDiagnostic};
 use serde::Serialize;
 
 use crate::pokedex::{PokedexEventKind, PokedexLog};
-use crate::spike::SpikeLog;
+use crate::spike::SpikeLogs;
 
 mod pokedex;
 mod spike;
+mod spike_parser;
 
 #[derive(clap::Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -32,7 +33,7 @@ fn main() -> miette::Result<()> {
         let raw_str = std::fs::read_to_string(arg.spike_log_path.as_str())
             .into_diagnostic()
             .with_context(|| format!("reading spike log {}", arg.spike_log_path))?;
-        SpikeLog::parse_from(&raw_str)
+        SpikeLogs::parse_from(&raw_str)
     };
     let pokedex_log = {
         let raw_str = std::fs::read(arg.pokedex_log_path.as_str())
@@ -81,7 +82,7 @@ impl DiffMeta {
 }
 
 struct DiffTest {
-    spike_log: SpikeLog,
+    spike_log: SpikeLogs,
     pokedex_log: PokedexLog,
     end_mmio_address: u32,
 }
@@ -104,7 +105,7 @@ impl DiffTest {
                 unreachable!("reset_vector event not found");
             });
         let test_end_pc = self.spike_log.has_memory_write_commits().find_map(|log| {
-            let (write_address, _) = log.commits.get_mem_write().unwrap();
+            let (write_address, _) = log.events.get_mem_write().unwrap();
             if write_address == self.end_mmio_address {
                 Some(log.pc)
             } else {
@@ -129,7 +130,7 @@ impl DiffTest {
             }
 
             // ignore memory read write only commits
-            if !spike_event.commits.have_state_changed() {
+            if !spike_event.events.have_state_changed() {
                 continue;
             }
 
@@ -164,8 +165,8 @@ impl DiffTest {
                 reg_idx, data, pc, ..
             } = search_result
             {
-                is_retired = spike_event.commits.iter().any(|event| {
-                    if let spike::LoadStoreType::XReg { index, value } = event {
+                is_retired = spike_event.events.iter().any(|event| {
+                    if let spike::ChangedState::XReg { index, value } = event {
                         index == reg_idx && value == data
                     } else {
                         false
@@ -198,8 +199,8 @@ impl DiffTest {
                 data,
             } = search_result
             {
-                is_retired = spike_event.commits.iter().any(|event| {
-                    if let spike::LoadStoreType::Csr {
+                is_retired = spike_event.events.iter().any(|event| {
+                    if let spike::ChangedState::Csr {
                         index,
                         name: _,
                         value,
@@ -236,8 +237,8 @@ impl DiffTest {
                 data,
             } = search_result
             {
-                is_retired = spike_event.commits.iter().any(|event| {
-                    if let spike::LoadStoreType::FReg { index, value } = event {
+                is_retired = spike_event.events.iter().any(|event| {
+                    if let spike::ChangedState::FReg { index, value } = event {
                         index == reg_idx && value == data
                     } else {
                         false
