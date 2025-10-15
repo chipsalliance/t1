@@ -102,10 +102,10 @@ case class LaneParameter(
   portFactor:                       Int,
   maskRequestLatency:               Int,
   vrfRamType:                       RamType,
+  vrfWritePort:                     Int,
   decoderParam:                     DecoderParam,
   vfuInstantiateParameter:          VFUInstantiateParameter)
     extends SerializableModuleParameter {
-  val vrfWritePort:      Int      = 2
   val maskWriteAllocate: Seq[Int] = Seq(0)
 
   val laneScale: Int = datapathWidth / eLen
