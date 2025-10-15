@@ -83,6 +83,7 @@ object T1RocketTile extends SerializableModuleElaborator {
     @arg(name = "chainingSize") chainingSize:                       Int,
     @arg(name = "vrfBankSize") vrfBankSize:                         Int,
     @arg(name = "vrfRamType") vrfRamType:                           RamType,
+    @arg(name = "vrfWritePort") vrfWritePort:                       Int,
     @arg(name = "vfuInstantiateParameter") vfuInstantiateParameter: String,
     @arg(name = "matrixAluRowSize") matrixAluRowSize:               Option[Int],
     @arg(name = "matrixAluColSize") matrixAluColSize: Option[Int]) {
@@ -110,6 +111,7 @@ object T1RocketTile extends SerializableModuleElaborator {
         chainingSize:    Int,
         vrfBankSize:     Int,
         vrfRamType:      RamType,
+        vrfWritePort,
         VFUInstantiateParameter.parse(
           vLen = vLen,
           dLen = dLen,
