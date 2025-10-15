@@ -132,6 +132,7 @@ case class T1Parameter(
   chainingSize:            Int,
   vrfBankSize:             Int,
   vrfRamType:              RamType,
+  vrfWritePort:            Int,
   // TODO: simplify it. this is user-level API.
   vfuInstantiateParameter: VFUInstantiateParameter,
   matrixAluRowSize:        Option[Int],
@@ -349,6 +350,7 @@ case class T1Parameter(
       portFactor = vrfBankSize,
       maskRequestLatency = 2 * maskRequestLatency,
       vrfRamType = vrfRamType,
+      vrfWritePort = vrfWritePort,
       decoderParam = decoderParam,
       vfuInstantiateParameter = vfuInstantiateParameter
     )
