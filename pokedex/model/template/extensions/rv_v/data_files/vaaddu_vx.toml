@@ -1,0 +1,4 @@
+template = "vaop_vx"
+
+op_func = "__op_aadd_u"
+function_description="compute unsigned wrapping average, round accroding to vxrm, optionally masked by vm"

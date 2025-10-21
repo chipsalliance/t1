@@ -147,3 +147,76 @@ begin
     Unreachable();
   end
 end
+
+////////////////////////////
+// Fixed-point operations //
+////////////////////////////
+
+record WithSaturate(N) {
+  value : bits(N);
+  sat : boolean;
+};
+
+func __op_aadd_u(rs1: bits(N), rs2: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  var res : bits(N) = ((UInt(rs1) + UInt(rs2)) DIVRM 2)[N-1:0];
+
+  if rs1[0] != rs2[0] then
+    case vxrm of
+      when VXRM_RNU => res = res + 1;
+      when VXRM_RNE => res[0] = '0';
+      when VXRM_RDN => begin end // do nothing
+      when VXRM_ROD => res[1] = '1';
+    end
+  end
+
+  return res;
+end
+
+func __op_asub_u(rs1: bits(N), rs2: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  var res : bits(N) = ((UInt(rs1) - UInt(rs2)) DIVRM 2)[N-1:0];
+
+  if rs1[0] != rs2[0] then
+    case vxrm of
+      when VXRM_RNU => res = res + 1;
+      when VXRM_RNE => res[0] = '0';
+      when VXRM_RDN => begin end // do nothing
+      when VXRM_ROD => res[1] = '1';
+    end
+  end
+
+  return res;
+end
+
+func __op_aadd_s(rs1: bits(N), rs2: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  var res : bits(N) = ((SInt(rs1) + SInt(rs2)) DIVRM 2)[N-1:0];
+
+  if rs1[0] != rs2[0] then
+    case vxrm of
+      when VXRM_RNU => res = res + 1;
+      when VXRM_RNE => res[0] = '0';
+      when VXRM_RDN => begin end // do nothing
+      when VXRM_ROD => res[1] = '1';
+    end
+  end
+
+  return res;
+end
+
+func __op_asub_s(rs1: bits(N), rs2: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  var res : bits(N) = ((SInt(rs1) - SInt(rs2)) DIVRM 2)[N-1:0];
+
+  if rs1[0] != rs2[0] then
+    case vxrm of
+      when VXRM_RNU => res = res + 1;
+      when VXRM_RNE => res[0] = '0';
+      when VXRM_RDN => begin end // do nothing
+      when VXRM_ROD => res[1] = '1';
+    end
+  end
+
+  return res;
+end
