@@ -1,0 +1,4 @@
+template = "vsop_vi_novxrm"
+
+op_func = "__op_sadd_u"
+function_description = "compute unsigned saturating addition, set VXSAT when saturationg, optionally masked by vm"
