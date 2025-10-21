@@ -152,10 +152,92 @@ end
 // Fixed-point operations //
 ////////////////////////////
 
-record WithSaturate(N) {
+record WithSaturation(N) {
   value : bits(N);
   sat : boolean;
 };
+
+func __op_sadd_u(rs1: bits(N), rs2: bits(N)) => WithSaturation(N)
+begin
+  let res = UInt(rs1) + UInt(rs2);
+    
+  if res > UInt(Ones(N)) then
+    return WithSaturation(N) {
+      value = Ones(N),
+      sat = TRUE
+    };
+  end
+
+  return WithSaturation(N) {
+    value = res[N-1:0],
+    sat = FALSE
+  };
+end
+
+func __op_ssub_u(rs1: bits(N), rs2: bits(N)) => WithSaturation(N)
+begin
+  let res = UInt(rs1) - UInt(rs2);
+    
+  if res < 0 then
+    return WithSaturation(N) {
+      value = Zeros(N),
+      sat = TRUE
+    };
+  end
+
+  return WithSaturation(N) {
+    value = res[N-1:0],
+    sat = FALSE
+  };
+end
+
+func __op_sadd_s(rs1: bits(N), rs2: bits(N)) => WithSaturation(N)
+begin
+  let res = SInt(rs1) + SInt(rs2);
+    
+  if res > UInt(Ones(N-1)) then
+    return WithSaturation(N) {
+      value = ['0', Ones(N-1)],
+      sat = TRUE
+    };
+  end
+
+  if res < SInt(['1', Zeros(N-1)]) then
+    return WithSaturation(N) {
+      value = ['1', Zeros(N-1)],
+      sat = TRUE
+    };
+  end
+
+  return WithSaturation(N) {
+    value = res[N-1:0],
+    sat = FALSE
+  };
+end
+
+func __op_ssub_s(rs1: bits(N), rs2: bits(N)) => WithSaturation(N)
+begin
+  let res = SInt(rs1) - SInt(rs2);
+    
+  if res > UInt(Ones(N-1)) then
+    return WithSaturation(N) {
+      value = ['0', Ones(N-1)],
+      sat = TRUE
+    };
+  end
+
+  if res < SInt(['1', Zeros(N-1)]) then
+    return WithSaturation(N) {
+      value = ['1', Zeros(N-1)],
+      sat = TRUE
+    };
+  end
+
+  return WithSaturation(N) {
+    value = res[N-1:0],
+    sat = FALSE
+  };
+end
 
 func __op_aadd_u(rs1: bits(N), rs2: bits(N), vxrm: bits(2)) => bits(N)
 begin
@@ -220,3 +302,18 @@ begin
 
   return res;
 end
+
+// func __op_smul_s(rs1: bits(N), rs2: bits(N), vxrm: bits(2)) => WithSaturation(N)
+// begin
+//   Unreachable();
+// end
+
+// func __op_ssrlv(rs1: bits(N), rs2: bits(N)) => bits(N)
+// begin
+//   Unreachable();
+// end
+
+// func __op_ssrav(rs1: bits(N), rs2: bits(N)) => bits(N)
+// begin
+//   Unreachable();
+// end
