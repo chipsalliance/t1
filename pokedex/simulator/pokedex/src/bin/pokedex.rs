@@ -2,7 +2,7 @@ use clap::Parser;
 use miette::IntoDiagnostic;
 use pokedex::{AddressSpaceDescNode, BusInfo, SimulationException, SimulatorParams};
 use tracing::{event, Level};
-use tracing_subscriber::{layer::Filter, prelude::*, EnvFilter};
+use tracing_subscriber::{prelude::*, EnvFilter};
 
 const VERBOSITY_WRITE_TRACE: u8 = 2;
 
@@ -26,17 +26,6 @@ struct Args {
     output_log_path: Option<String>,
 }
 
-struct OnlyTrace;
-impl<S> Filter<S> for OnlyTrace {
-    fn enabled(
-        &self,
-        meta: &tracing::Metadata<'_>,
-        _: &tracing_subscriber::layer::Context<'_, S>,
-    ) -> bool {
-        *meta.level() == Level::TRACE
-    }
-}
-
 fn setup_logging(args: &Args) {
     let stdout_log_layer = tracing_subscriber::fmt::layer()
         .without_time()
@@ -47,35 +36,14 @@ fn setup_logging(args: &Args) {
                 .with_env_var("POKEDEX_LOG_LEVEL")
                 .with_default_directive(match args.verbose {
                     0 => Level::INFO.into(),
-                    1 if args.output_log_path.is_none() => Level::DEBUG.into(),
-                    _ if args.output_log_path.is_none() => Level::TRACE.into(),
-                    _ => Level::DEBUG.into(),
+                    1 => Level::DEBUG.into(),
+                    _ => Level::TRACE.into(),
                 })
                 .from_env_lossy(),
         );
     let registry = tracing_subscriber::registry().with(stdout_log_layer);
 
-    let json_log: Option<_> = args.output_log_path.as_ref().and_then(|log_path| {
-        if args.verbose > VERBOSITY_WRITE_TRACE {
-            let log_file = std::fs::File::create(log_path)
-                .unwrap_or_else(|err| panic!("fail to create log file {}: {}", log_path, err));
-
-            let file_log_layer = tracing_subscriber::fmt::layer()
-                .json()
-                .flatten_event(true)
-                .without_time()
-                .with_target(false)
-                .with_level(false)
-                .with_writer(log_file)
-                .with_filter(OnlyTrace);
-
-            Some(file_log_layer)
-        } else {
-            None
-        }
-    });
-
-    registry.with(json_log).init();
+    registry.init();
 }
 
 #[derive(Debug, knuffel::Decode)]
@@ -85,7 +53,7 @@ struct DumpConfig {
     #[knuffel(child)]
     off: bool,
     #[knuffel(child, unwrap(arguments))]
-    at_pc: Option<Vec<u32>>,
+    before_pc: Option<Vec<u32>>,
 }
 
 #[derive(Debug, knuffel::Decode)]
@@ -120,6 +88,8 @@ struct PokedexConfig {
     max_same_instruction: u32,
     #[knuffel(child, unwrap(argument))]
     slow_motion_ms: u64,
+    #[knuffel(child, unwrap(argument))]
+    reset_vector: Option<u32>,
     #[knuffel(child)]
     dump: DumpConfig,
     #[knuffel(child)]
@@ -136,7 +106,7 @@ fn pretty_print_regs(pc: u32, regs: &[u32]) {
 
     println!();
     println!("{}", "=".repeat(80));
-    println!("Register Dumps on PC {pc:#010x}:");
+    println!("Register Dumps before PC {pc:#010x}:");
     for i in 0..ROW_SIZE {
         for j in 0..COLUMN_SIZE {
             let index = j + COLUMN_SIZE * i;
@@ -179,23 +149,25 @@ fn main() -> miette::Result<()> {
     let mut sim_handle = SimulatorParams {
         max_same_instruction: config.max_same_instruction,
         elf_path: &args.elf_path,
+        commit_log_path: args.output_log_path.as_deref(),
+        reset_vector: config.reset_vector,
     }
     .into_simulator(bus_info);
 
     let mut exit_code = 0;
     loop {
-        let step_result = sim_handle.step();
-
         if config.dump.on
             && !config.dump.off
             && config
                 .dump
-                .at_pc
+                .before_pc
                 .as_ref()
                 .is_some_and(|pc| pc.contains(&sim_handle.current_pc()))
         {
             pretty_print_regs(sim_handle.current_pc(), &sim_handle.dump_regs());
         }
+
+        let step_result = sim_handle.step();
 
         if let Err(exception) = step_result {
             match exception {

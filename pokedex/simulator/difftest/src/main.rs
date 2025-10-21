@@ -2,12 +2,11 @@ use clap::Parser;
 use miette::{Context, IntoDiagnostic};
 use serde::Serialize;
 
-use crate::pokedex::{PokedexEventKind, PokedexLog};
-use crate::spike::SpikeLogs;
-
 mod pokedex;
-mod spike;
 mod spike_parser;
+
+use pokedex::ModelStateWrite as PokedexStateChange;
+use spike_parser::Modification as SpikeStateChange;
 
 #[derive(clap::Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -29,19 +28,33 @@ struct DiffTestArgs {
 fn main() -> miette::Result<()> {
     let arg = DiffTestArgs::try_parse().into_diagnostic()?;
     // use block to force drop raw_str after parse done
-    let spike_log = {
-        let raw_str = std::fs::read_to_string(arg.spike_log_path.as_str())
-            .into_diagnostic()
-            .with_context(|| format!("reading spike log {}", arg.spike_log_path))?;
-        SpikeLogs::parse_from(&raw_str)
-    };
-    let pokedex_log = {
-        let raw_str = std::fs::read(arg.pokedex_log_path.as_str())
-            .into_diagnostic()
-            .with_context(|| format!("reading pokedex log {}", arg.pokedex_log_path))?;
+    let raw_str = std::fs::read_to_string(arg.spike_log_path.as_str())
+        .into_diagnostic()
+        .with_context(|| format!("reading spike log {}", arg.spike_log_path))?;
+    let lines = spike_parser::tokenize_spike_log(&raw_str);
+    let mut spike_log = Vec::new();
+    for l in lines {
+        let commit = spike_parser::parse_single_commit(&l).map_err(|err| {
+            miette::miette!(
+                "fail parse spike log {}: {err}",
+                arg.spike_log_path.as_str()
+            )
+        })?;
+        spike_log.push(commit);
+    }
 
-        crate::pokedex::parse_from(&raw_str)
-    };
+    let pokedex_log: Vec<pokedex::InsnCommit> =
+        std::fs::read_to_string(arg.pokedex_log_path.as_str())
+            .into_diagnostic()
+            .with_context(|| format!("reading pokedex log {}", arg.pokedex_log_path))?
+            .lines()
+            .enumerate()
+            .map(|(line_number, line_str)| {
+                serde_json::from_str::<pokedex::InsnCommit>(line_str).unwrap_or_else(|err| {
+                    panic!("fail parsing pokedex log at line {line_number}: {err}")
+                })
+            })
+            .collect();
     let end_mmio_address = u32::from_str_radix(arg.mmio_address.trim_start_matches("0x"), 16)
         .into_diagnostic()
         .with_context(|| format!("parsing {} to uint32_t", arg.mmio_address))?;
@@ -82,12 +95,54 @@ impl DiffMeta {
 }
 
 struct DiffTest {
-    spike_log: SpikeLogs,
-    pokedex_log: PokedexLog,
+    spike_log: Vec<spike_parser::Commit>,
+    pokedex_log: Vec<pokedex::InsnCommit>,
     end_mmio_address: u32,
 }
 
 impl DiffTest {
+    fn exact_match(
+        &self,
+        spike_commit: &spike_parser::Commit,
+        pokedex_commit: &pokedex::InsnCommit,
+    ) -> bool {
+        // PC and instruction between two simulator should be natually aligned before diff started
+        assert_eq!(spike_commit.pc, pokedex_commit.pc);
+        assert_eq!(spike_commit.instruction, pokedex_commit.instruction);
+
+        spike_commit
+            .state_changes
+            .iter()
+            .fold(true, |all_same, write| {
+                let is_same = match write {
+                    SpikeStateChange::WriteXReg {
+                        rd: spike_rd,
+                        bits: spike_value,
+                    } => pokedex_commit.expect_exists(|evt| match evt {
+                        // TODO: add verbose log
+                        PokedexStateChange::Xrf {
+                            rd: pokedex_rd,
+                            value: pokedex_value,
+                        } => *spike_rd == *pokedex_rd && *spike_value == (*pokedex_value) as u64,
+                        _ => false,
+                    }),
+                    SpikeStateChange::WriteFReg {
+                        rd: spike_rd,
+                        bits: spike_value,
+                    } => pokedex_commit.expect_exists(|evt| match evt {
+                        PokedexStateChange::Frf {
+                            rd: pokedex_rd,
+                            value: pokedex_value,
+                        } => *spike_rd == *pokedex_rd && *spike_value == (*pokedex_value) as u64,
+                        _ => false,
+                    }),
+                    _ => true, // TODO: compare all
+                };
+
+                is_same && all_same
+            })
+    }
+
     fn run(&self) -> DiffMeta {
         assert!(!self.spike_log.is_empty());
         assert!(!self.pokedex_log.is_empty());
@@ -95,52 +150,40 @@ impl DiffTest {
         let mut pokedex_log_cursor = 0;
         let mut is_reset = false;
 
-        // spike contains vendored bootrom but doesn't provide a way to remove it.
-        // so we need to compares commit log from when the emulator run reset_vector
-        let reset_vector_addr = self
+        let reset_vector_event = self
             .pokedex_log
             .iter()
-            .find_map(|event| event.get_reset_vector())
-            .unwrap_or_else(|| {
-                unreachable!("reset_vector event not found");
-            });
-        let test_end_pc = self.spike_log.has_memory_write_commits().find_map(|log| {
-            let (write_address, _) = log.events.get_mem_write().unwrap();
-            if write_address == self.end_mmio_address {
-                Some(log.pc)
-            } else {
-                None
-            }
-        });
-        let Some(end_pc) = test_end_pc else {
+            .find_map(|commit| commit.find_reset_vector());
+        let Some(reset_vector_pc) = reset_vector_event else {
+            return DiffMeta::failed("no reset vector event found in pokedex log");
+        };
+
+        let Some(end_commit) = self.spike_log.iter().find(|commit| {
+            commit
+                .find_store_addr_match(self.end_mmio_address.into())
+                .is_some()
+        }) else {
             return DiffMeta::failed("Can't find any end pattern from spike log");
         };
 
-        for spike_event in self.spike_log.iter() {
+        for cur_spike_commit in self.spike_log.iter() {
             if !is_reset {
-                if spike_event.pc == reset_vector_addr {
+                if cur_spike_commit.pc == reset_vector_pc as u64 {
                     is_reset = true;
                 } else {
                     continue;
                 }
             }
 
-            if spike_event.pc == end_pc {
+            if cur_spike_commit.pc == end_commit.pc {
                 break;
-            }
-
-            // ignore memory read write only commits
-            if !spike_event.events.have_state_changed() {
-                continue;
             }
 
             let search_result = self.pokedex_log[pokedex_log_cursor..]
                 .iter()
                 .enumerate()
                 .find_map(|(i, event)| {
-                    let pc = event.get_pc()?;
-
-                    if pc == spike_event.pc {
+                    if event.pc == cur_spike_commit.pc {
                         pokedex_log_cursor += i + 1;
                         Some(event)
                     } else {
@@ -148,130 +191,30 @@ impl DiffTest {
                     }
                 });
 
-            let Some(search_result) = search_result else {
+            let Some(pokedex_commit) = search_result else {
                 // Event at Spike side doesn't found at Pokedex side
                 return DiffMeta::failed(indoc::formatdoc! {"
-                At PC={:#010x} spike have following commit events that are not occur at simulator side:
+                    At PC={:#010x} spike have following commit events that are not occur at simulator side:
 
-                {spike_event}
-                ", spike_event.pc
+                    {cur_spike_commit:?}
+                ", cur_spike_commit.pc
                 });
             };
 
-            // we must ensure we have already handle diff test for event at this PC
-            let mut is_retired = false;
+            if !self.exact_match(cur_spike_commit, pokedex_commit) {
+                return DiffMeta::failed(indoc::formatdoc! {"
+                    Found unmatched event between spike and pokedex.
 
-            if let PokedexEventKind::Register {
-                reg_idx, data, pc, ..
-            } = search_result
-            {
-                is_retired = spike_event.events.iter().any(|event| {
-                    if let spike::ChangedState::XReg { index, value } = event {
-                        index == reg_idx && value == data
-                    } else {
-                        false
-                    }
-                });
+                    ===============================================
+                    Spike dump:
+                    {cur_spike_commit:#?}
+                    ===============================================
 
-                if !is_retired {
-                    return DiffMeta::failed(indoc::formatdoc! {"
-                        At PC={pc:#010x} simulator write {data:#010x} to register x{reg_idx},
-                        but this action is mismatch at spike side.
-
-                        ------------
-                        |Event Dump|
-                        ------------
-
-                        We get simulator:
-                        {search_result}
-
-                        But have spike:
-                        {spike_event}
-                    "});
-                }
-            };
-
-            if let PokedexEventKind::Csr {
-                action,
-                pc,
-                csr_idx,
-                csr_name,
-                data,
-            } = search_result
-            {
-                is_retired = spike_event.events.iter().any(|event| {
-                    if let spike::ChangedState::Csr {
-                        index,
-                        name: _,
-                        value,
-                    } = event
-                    {
-                        index == csr_idx && value == data
-                    } else {
-                        false
-                    }
-                });
-
-                if !is_retired {
-                    return DiffMeta::failed(indoc::formatdoc! {"
-                        At PC={pc:#010x} simulator {action} {data:#010x} to CSR {csr_name},
-                        but this action is mismatch at spike side.
-
-                        ------------
-                        |Event Dump|
-                        ------------
-
-                        We get simulator:
-                        {search_result}
-
-                        But have spike:
-                        {spike_event}
-                    "});
-                }
-            }
-
-            if let PokedexEventKind::FpReg {
-                action,
-                pc,
-                reg_idx,
-                data,
-            } = search_result
-            {
-                is_retired = spike_event.events.iter().any(|event| {
-                    if let spike::ChangedState::FReg { index, value } = event {
-                        index == reg_idx && value == data
-                    } else {
-                        false
-                    }
-                });
-
-                if !is_retired {
-                    return DiffMeta::failed(indoc::formatdoc! {"
-                        At PC={pc:#010x} simulator {action} {data:#010x} to FP register f{reg_idx},
-                        but this action is mismatch at spike side.
-
-                        ------------
-                        |Event Dump|
-                        ------------
-
-                        We get simulator:
-                        {search_result}
-
-                        But have spike:
-                        {spike_event}
-                    "});
-                }
-            }
-
-            if !is_retired {
-                let msg = indoc::formatdoc! {"
-              An internal error occur: event found at Pokedex and Spike side,
-              but no differtial test was proceed.
-              Spike: {spike_event}
-              Pokedex: {search_result}
-            "};
-
-                panic!("{}", msg);
+                    ===============================================
+                    Pokedex dump:
+                    {pokedex_commit}
+                    ===============================================
+                "});
             }
         }
 
