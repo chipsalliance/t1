@@ -40,6 +40,11 @@ constant LOG2_LMUL_MAX : integer = 3;
 
 type VREG_TYPE of integer{0..31};
 
+constant VXRM_RNU : bits(2) = '00'; // round to nearest up
+constant VXRM_RNE : bits(2) = '01'; // round to nearest even
+constant VXRM_RDN : bits(2) = '10'; // round down
+constant VXRM_ROD : bits(2) = '11'; // round to odd
+
 /////////////////////////////////
 // Architectural State Helpers //
 /////////////////////////////////

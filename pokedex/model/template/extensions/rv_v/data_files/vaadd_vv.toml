@@ -1,0 +1,4 @@
+template = "vaop_vv"
+
+op_func = "__op_aadd_s"
+function_description="compute signed wrapping average, round accroding to vxrm, optionally masked by vm"
