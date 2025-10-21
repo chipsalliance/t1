@@ -13,6 +13,8 @@ begin
   end
 
   var exec_result : Result;
+  // PC will get modified after execution, thus log will have incorrect PC offset
+  let current_pc = PC;
   if least_significant_half.data[1:0] == '11' then
     let most_significant_half : FFI_ReadResult(16) = FFI_instruction_fetch_half(PC + 2);
     if !most_significant_half.success then
@@ -23,8 +25,12 @@ begin
 
     let instruction : bits(32) = [most_significant_half.data, least_significant_half.data];
     exec_result = DecodeAndExecute(instruction);
+
+    ffi_commit_insn(current_pc, instruction, FALSE);
   else
     exec_result = DecodeAndExecute_CEXT(least_significant_half.data);
+
+    ffi_commit_insn(current_pc, ZeroExtend(least_significant_half.data, 32), TRUE);
   end
 
   if !exec_result.is_ok then

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
-use std::io::Read;
+use std::fs::File;
+use std::io::{BufWriter, Read, Write};
 use std::marker::PhantomData;
 use std::ops::Range;
 use std::path::Path;
@@ -23,6 +24,8 @@ pub enum SimulationException {
 pub struct SimulatorParams<'a> {
     pub max_same_instruction: u32,
     pub elf_path: &'a str,
+    pub commit_log_path: Option<&'a str>,
+    pub reset_vector: Option<u32>,
 }
 
 impl SimulatorParams<'_> {
@@ -32,9 +35,17 @@ impl SimulatorParams<'_> {
             is_reset: false,
             bus_bridge: bus_info.bus_bridge,
             addr_reservation: None,
-            pc: 0x1000,
             statistic: Statistic::new(),
             ic_handle: bus_info.ic_handle,
+            model_state_writes: Vec::new(),
+            commit_logger: self.commit_log_path.map(|p| {
+                let file = std::fs::OpenOptions::new()
+                    .append(true)
+                    .create(true)
+                    .open(p)
+                    .unwrap_or_else(|err| panic!("fail open '{p}' for commit log writing: {err}"));
+                BufWriter::new(file)
+            }),
             exception: None,
             last_instruction_fetch_data: 0u16,
             last_instruction_met_count: 0,
@@ -44,7 +55,7 @@ impl SimulatorParams<'_> {
         let mut sim = Simulator { handle, state };
 
         let entry = sim.load_elf(self.elf_path);
-        sim.reset_vector(entry);
+        sim.reset_vector(self.reset_vector.unwrap_or(entry));
 
         sim
     }
@@ -62,11 +73,10 @@ impl Simulator {
     pub fn reset_vector(&mut self, addr: u32) {
         self.handle.reset_states();
         self.handle.reset_vector(addr);
-        self.state.pc = addr;
-        self.state.is_reset = true;
+        self.state.reset_states();
+        self.state.reset_vector(addr);
 
         event!(Level::DEBUG, "reset vector addr to {:#010x}", addr);
-        event!(Level::TRACE, event_type = "reset_vector", new_addr = addr,);
     }
 
     /// `step` drive the ASL model to fetch and execute instruction once,
@@ -80,7 +90,6 @@ impl Simulator {
 
         self.state.statistic.instruction_count += 1;
         self.state.statistic.step_count += 1;
-        self.state.pc = self.handle.get_pc();
 
         if let Some(ic) = self.state.ic_handle.get_enabled_ic() {
             match ic.get_id() {
@@ -139,7 +148,7 @@ impl Simulator {
     }
 
     pub fn current_pc(&self) -> u32 {
-        self.state.pc
+        self.handle.get_pc()
     }
 
     pub fn dump_regs(&self) -> Vec<u32> {
@@ -147,15 +156,30 @@ impl Simulator {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "dest", rename_all = "lowercase")]
+pub(crate) enum ModelStateWrite {
+    Xrf { rd: u8, value: u32 },
+    Frf { rd: u8, value: u32 },
+    Csr { idx: u32, name: String, value: u32 },
+    Load { addr: u32 },
+    Store { addr: u32, data: Vec<u8> },
+    ResetVector { pc: u32 },
+    // internal use
+    _Insn { addr: u32 },
+}
+
 // simulator states not in ASL side
 pub(crate) struct SimulatorState {
     bus_bridge: BusBridge,
     addr_reservation: Option<u32>,
 
-    pc: u32,
     statistic: Statistic,
     exception: Option<SimulationException>,
     ic_handle: ICHandle,
+
+    model_state_writes: Vec<ModelStateWrite>,
+    commit_logger: Option<BufWriter<File>>,
 
     is_reset: bool,
 
@@ -166,17 +190,25 @@ pub(crate) struct SimulatorState {
 
 // callback for ASL generated code
 impl SimulatorState {
+    pub fn reset_states(&mut self) {
+        self.addr_reservation = None;
+        self.exception = None;
+        self.model_state_writes.clear();
+        self.is_reset = false;
+        self.last_instruction_met_count = 0;
+        self.last_instruction_met_count = 0;
+    }
+
+    pub fn reset_vector(&mut self, new_pc: u32) {
+        self.is_reset = true;
+        self.model_state_writes
+            .push(ModelStateWrite::ResetVector { pc: new_pc });
+        self.commit_log_insn(0, 0, false);
+    }
+
     pub fn req_bus_read<const N: usize>(&mut self, addr: u32) -> Result<[u8; N], BusError> {
         if self.is_reset {
-            event!(
-                Level::TRACE,
-                event_type = "physical_memory",
-                action = "read",
-                pc = format!("{:#010x}", self.pc),
-                address = addr,
-                addr_hex = format!("{:#010x}", addr),
-                bytes = N,
-            );
+            self.model_state_writes.push(ModelStateWrite::Load { addr });
         }
 
         let result = self
@@ -197,17 +229,10 @@ impl SimulatorState {
 
     pub fn req_bus_write(&mut self, addr: u32, data: &[u8]) -> Result<(), BusError> {
         if self.is_reset {
-            let hexable: Vec<u8> = data.iter().rev().copied().collect();
-            event!(
-                Level::TRACE,
-                event_type = "physical_memory",
-                action = "write",
-                pc = format!("{:#010x}", self.pc),
-                address = addr,
-                addr_hex = format!("{:#010x}", addr),
-                data_hex = hex::encode_upper(hexable),
-                bytes = data.len(),
-            );
+            self.model_state_writes.push(ModelStateWrite::Store {
+                addr,
+                data: data.to_vec(),
+            })
         }
 
         self.yield_reservation(addr);
@@ -228,6 +253,8 @@ impl SimulatorState {
     }
 
     pub(crate) fn inst_fetch(&mut self, pc: u32) -> Option<u16> {
+        self.model_state_writes
+            .push(ModelStateWrite::_Insn { addr: pc });
         let inst = match self.req_bus_read(pc) {
             Ok(inst) => inst,
             Err(err) => {
@@ -273,45 +300,57 @@ impl SimulatorState {
         stat
     }
 
-    pub(crate) fn write_register(&self, reg_idx: u8, value: u32) {
-        event!(
-            Level::TRACE,
-            event_type = "register",
-            action = "write",
-            pc = self.pc,
-            pc_hex = format!("{:#010x}", self.pc),
-            reg_idx = reg_idx,
-            data = value,
-            data_hex = format!("{:#010x}", value)
-        );
+    #[inline]
+    pub(crate) fn write_register(&mut self, rd: u8, value: u32) {
+        self.model_state_writes
+            .push(ModelStateWrite::Xrf { rd, value })
     }
 
-    pub(crate) fn write_fp_register(&self, reg_idx: u8, value: u32) {
-        event!(
-            Level::TRACE,
-            event_type = "fp_register",
-            action = "write",
-            pc = self.pc,
-            pc_hex = format!("{:#010x}", self.pc),
-            reg_idx = reg_idx,
-            data = value,
-            data_hex = format!("{:#010x}", value)
-        );
+    #[inline]
+    pub(crate) fn write_fp_register(&mut self, rd: u8, value: u32) {
+        self.model_state_writes
+            .push(ModelStateWrite::Frf { rd, value })
     }
 
-    pub(crate) fn write_csr(&self, idx: u32, name: &str, value: u32) {
-        event!(
-            Level::TRACE,
-            event_type = "csr",
-            action = "write",
-            pc = self.pc,
-            pc_hex = format!("{:#010x}", self.pc),
-            csr_idx = idx,
-            csr_idx_hex = format!("{:#0x}", idx),
-            csr_name = name,
-            data = value,
-            data_hex = format!("{:#010x}", value)
-        );
+    pub(crate) fn write_csr(&mut self, idx: u32, name: &str, value: u32) {
+        self.model_state_writes.push(ModelStateWrite::Csr {
+            idx,
+            name: name.to_string(),
+            value,
+        })
+    }
+
+    pub(crate) fn commit_log_insn(&mut self, pc: u32, insn: u32, is_c: bool) {
+        let insn_fetch: Vec<u32> = self
+            .model_state_writes
+            .iter()
+            .filter_map(|ev| match ev {
+                ModelStateWrite::_Insn { addr } => Some(*addr),
+                _ => None,
+            })
+            .collect();
+
+        let state_change: Vec<&ModelStateWrite> = self
+            .model_state_writes
+            .iter()
+            .filter(|ev| match ev {
+                ModelStateWrite::_Insn { .. } => false,
+                ModelStateWrite::Load { addr } => !insn_fetch.contains(addr),
+                _ => true,
+            })
+            .collect();
+
+        self.commit_logger.iter_mut().for_each(|logger| {
+            let commit = serde_json::json! ({
+                "pc": pc,
+                "instruction": insn,
+                "is_compressed": is_c,
+                "states_changed": state_change,
+            });
+            writeln!(logger, "{}", commit).expect("fail writing commit log")
+        });
+
+        self.model_state_writes.clear();
     }
 
     pub(crate) fn print_string(&self, s: &str) {

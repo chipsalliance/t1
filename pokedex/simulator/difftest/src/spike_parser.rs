@@ -70,32 +70,31 @@ pub fn tokenize_spike_log(raw_str: &str) -> Vec<Vec<Token>> {
                             raw_token,
                         }
                     }
-                    tok if tok.len() > 1 && is_digit(&tok[1..]) => match &tok[0..1] {
-                        "x" => Token::XReg(&tok[1..]),
-                        "f" => Token::FReg(&tok[1..]),
-                        "v" => Token::VReg(&tok[1..]),
-                        "e" => Token::Sew(&tok[1..]),
+                    tok if is_hex(tok) => Token::Hexadecimal(&tok[2..]),
+                    tok if is_digit(tok) => Token::NumberLiteral(tok),
+                    tok if tok.len() > 1 => match &tok[0..1] {
+                        "x" if is_digit(&tok[1..]) => Token::XReg(&tok[1..]),
+                        "f" if is_digit(&tok[1..]) => Token::FReg(&tok[1..]),
+                        "v" if is_digit(&tok[1..]) => Token::VReg(&tok[1..]),
+                        "e" if is_digit(&tok[1..]) => Token::Sew(&tok[1..]),
+                        "l" if is_digit(&tok[1..]) => Token::Vl(&tok[1..]),
                         "m" => Token::Lmul(tok), // Lmul is special, can be 'm' or 'mf'
-                        "l" => Token::Vl(&tok[1..]),
+                        "c" if tok.contains('_')
+                            && tok
+                                .chars()
+                                .skip(1)
+                                .take_while(|c| *c != '_')
+                                .all(|c| c.is_ascii_digit()) =>
+                        {
+                            Token::Csr(tok)
+                        }
+
                         _ => Token::Unknown {
                             line_num,
                             raw_line,
                             raw_token,
                         },
                     },
-                    // Csr format is c<number>_<name>
-                    tok if tok.starts_with('c')
-                        && tok.contains('_')
-                        && tok
-                            .chars()
-                            .skip(1)
-                            .take_while(|c| *c != '_')
-                            .all(|c| c.is_ascii_hexdigit()) =>
-                    {
-                        Token::Csr(tok)
-                    }
-                    tok if is_hex(tok) => Token::Hexadecimal(&tok[2..]),
-                    tok if is_digit(tok) => Token::NumberLiteral(tok),
                     _ => Token::Unknown {
                         line_num,
                         raw_line,
@@ -105,12 +104,6 @@ pub fn tokenize_spike_log(raw_str: &str) -> Vec<Vec<Token>> {
                 .collect()
         })
         .collect()
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct VectorRFWrite {
-    pub rd: u8,
-    pub bytes: Vec<u8>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -128,12 +121,15 @@ pub enum Modification {
         name: String,
         bits: u64,
     },
-    WriteVReg {
+    WriteVecCtx {
         sew: u32,
         lmul: u32,
         is_flmul: bool,
         vl: u32,
-        writes: Vec<VectorRFWrite>,
+    },
+    WriteVReg {
+        idx: u8,
+        bytes: Vec<u8>,
     },
     Load {
         addr: u64,
@@ -153,6 +149,19 @@ pub struct Commit {
     pub state_changes: Vec<Modification>,
 }
 
+impl Commit {
+    pub fn find_store_addr_match(&self, expect_addr: u64) -> Option<&Self> {
+        if self.state_changes.iter().any(|ev| match ev {
+            Modification::Store { addr, .. } => *addr == expect_addr,
+            _ => false,
+        }) {
+            Some(self)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError<'a> {
     #[error("Unexpected token at position {pos}: expected {expected}, found {found:?}")]
@@ -168,8 +177,6 @@ pub enum ParseError<'a> {
         value: String,
         reason: String,
     },
-    #[error("Missing required field: {field}")]
-    MissingField { field: &'static str },
     #[error("An unknown token was found on line {line_num}: '{raw_token}' in line '{raw_line}'")]
     UnknownToken {
         line_num: usize,
@@ -460,54 +467,48 @@ pub fn parse_single_commit<'a>(tokens: &'a [Token<'_>]) -> Result<Commit, ParseE
                         reason: e.to_string(),
                     })?;
 
-                let mut writes = Vec::new();
-                while let (Some(Token::VReg(rd_str)), Some(Token::Hexadecimal(hex_str))) =
-                    (p.peek(), p.tokens.clone().nth(1))
-                {
-                    p.consume(); // vreg
-                    p.consume(); // hex
-                    let rd =
-                        rd_str
-                            .parse()
-                            .map_err(|e: ParseIntError| ParseError::InvalidValue {
-                                pos: p.cursor - 1,
-                                kind: "vreg index",
-                                value: rd_str.to_string(),
-                                reason: e.to_string(),
-                            })?;
-                    if hex_str.len() % 8 != 0 {
-                        return Err(ParseError::UnexpectedToken {
-                            pos: p.cursor,
-                            expected: "byte aligned hex data",
-                            found: Some(Token::Hexadecimal(hex_str)),
-                        });
-                    }
-                    let bytes = (0..hex_str.len())
-                        .step_by(2)
-                        .map(|i| u8::from_str_radix(&hex_str[i..i + 2], 16))
-                        .rev()
-                        .collect::<Result<Vec<u8>, _>>()
-                        .map_err(|e| ParseError::InvalidValue {
-                            pos: p.cursor,
-                            kind: "vreg bytes",
-                            value: hex_str.to_string(),
-                            reason: e.to_string(),
-                        })?;
-
-                    writes.push(VectorRFWrite { rd, bytes });
-                }
-
-                if writes.is_empty() {
-                    return Err(ParseError::MissingField { field: "vrf write" });
-                }
-
-                Modification::WriteVReg {
+                Modification::WriteVecCtx {
                     sew,
                     lmul,
                     is_flmul,
                     vl,
-                    writes,
                 }
+            }
+            Token::VReg(vreg_str) => {
+                let idx =
+                    vreg_str
+                        .parse()
+                        .map_err(|e: ParseIntError| ParseError::InvalidValue {
+                            pos: p.cursor,
+                            kind: "vector RF index",
+                            value: vreg_str.to_string(),
+                            reason: e.to_string(),
+                        })?;
+                p.consume();
+
+                let hex_string = p.expect("hex value for vector register", |t| match t {
+                    Token::Hexadecimal(s) => Some(s),
+                    _ => None,
+                })?;
+                let bytes_seq: Vec<char> = hex_string.chars().collect();
+                if bytes_seq.len() % 8 != 0 {
+                    return Err(ParseError::InvalidValue {
+                        pos: p.cursor,
+                        kind: "vrf value",
+                        value: hex_string.to_string(),
+                        reason: "unaligned hex value".to_string(),
+                    });
+                }
+                let bytes = bytes_seq
+                    .chunks(2)
+                    .rev()
+                    .map(|byte_char| {
+                        let byte: String = byte_char.iter().collect();
+                        u8::from_str_radix(&byte, 16).unwrap()
+                    })
+                    .collect();
+
+                Modification::WriteVReg { idx, bytes }
             }
             _ => break, // Break if the next token doesn't start a modification
         };
@@ -632,68 +633,66 @@ mod tests {
                     pc: 2147483892,
                     instruction: 1577070679,
                     state_changes: vec![
-                        WriteVReg {
+                        WriteVecCtx {
                             sew: 8,
                             lmul: 8,
                             is_flmul: false,
                             vl: 256,
-                            writes: vec![
-                                VectorRFWrite {
-                                    rd: 0,
-                                    bytes: vec![
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    ],
-                                },
-                                VectorRFWrite {
-                                    rd: 1,
-                                    bytes: vec![
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    ],
-                                },
-                                VectorRFWrite {
-                                    rd: 2,
-                                    bytes: vec![
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    ],
-                                },
-                                VectorRFWrite {
-                                    rd: 3,
-                                    bytes: vec![
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    ],
-                                },
-                                VectorRFWrite {
-                                    rd: 4,
-                                    bytes: vec![
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    ],
-                                },
-                                VectorRFWrite {
-                                    rd: 5,
-                                    bytes: vec![
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    ],
-                                },
-                                VectorRFWrite {
-                                    rd: 6,
-                                    bytes: vec![
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    ],
-                                },
-                                VectorRFWrite {
-                                    rd: 7,
-                                    bytes: vec![
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    ],
-                                },
+                        },
+                        WriteVReg {
+                            idx: 0,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 1,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 2,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 3,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 4,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 5,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 6,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 7,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                             ],
                         },
                         WriteCSR {
@@ -703,6 +702,135 @@ mod tests {
                         },
                     ],
                 },
+                Commit {
+                    core_id: 0,
+                    privilege: 3,
+                    pc: 2147483904,
+                    instruction: 1577073751,
+                    state_changes: vec![
+                        WriteVecCtx {
+                            sew: 8,
+                            lmul: 8,
+                            is_flmul: false,
+                            vl: 256,
+                        },
+                        WriteCSR {
+                            rd: 8,
+                            name: "vstart".to_string(),
+                            bits: 0,
+                        },
+                        WriteVReg {
+                            idx: 24,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 25,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 26,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 27,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 28,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 29,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 30,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                        WriteVReg {
+                            idx: 31,
+                            bytes: vec![
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            ],
+                        },
+                    ],
+                },
+                Commit {
+                    core_id: 0,
+                    privilege: 3,
+                    pc: 2147483928,
+                    instruction: 33906695,
+                    state_changes: vec![
+                        WriteVecCtx {
+                            sew: 32,
+                            lmul: 1,
+                            is_flmul: false,
+                            vl: 8,
+                        },
+                        WriteVReg {
+                            idx: 0,
+                            bytes: vec![
+                                204, 140, 103, 173, 98, 212, 179, 177, 238, 48, 2, 163, 122, 81, 3,
+                                95, 172, 239, 101, 35, 237, 39, 207, 125, 39, 53, 186, 0, 248, 80,
+                                103, 10
+                            ],
+                        },
+                        WriteCSR {
+                            rd: 8,
+                            name: "vstart".to_string(),
+                            bits: 0,
+                        },
+                        Load { addr: 2147556960 },
+                        Load { addr: 2147556964 },
+                        Load { addr: 2147556968 },
+                        Load { addr: 2147556972 },
+                        Load { addr: 2147556976 },
+                        Load { addr: 2147556980 },
+                        Load { addr: 2147556984 },
+                        Load { addr: 2147556988 },
+                    ],
+                },
+                Commit {
+                    core_id: 0,
+                    privilege: 3,
+                    pc: 2147483982,
+                    instruction: 34618711,
+                    state_changes: vec![
+                        WriteVecCtx {
+                            sew: 8,
+                            lmul: 4,
+                            is_flmul: true,
+                            vl: 0,
+                        },
+                        WriteCSR {
+                            rd: 8,
+                            name: "vstart".to_string(),
+                            bits: 0,
+                        },
+                    ],
+                }
             ]
         );
     }

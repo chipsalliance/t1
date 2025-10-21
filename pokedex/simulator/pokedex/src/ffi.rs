@@ -151,6 +151,12 @@ unsafe extern "C" fn FFI_write_CSR_hook_0(idx: i128, name: *const c_char, data: 
 }
 
 #[unsafe(no_mangle)]
+unsafe extern "C" fn ffi_commit_insn_0(pc: u32, insn: u32, is_c: bool) {
+    let state = unsafe { get_state() };
+    state.commit_log_insn(pc, insn, is_c);
+}
+
+#[unsafe(no_mangle)]
 unsafe extern "C" fn FFI_print_str_0(s: *const c_char) {
     let state = unsafe { get_state() };
     let cstr = unsafe { CStr::from_ptr(s) };

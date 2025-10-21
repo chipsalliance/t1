@@ -9,7 +9,7 @@ dump {
   // Comment following note to disable dump functionality
   on
 
-  at-pc 0x800000FC 0x80000250 0x80000100
+  before-pc 0x800000FC 0x80000250 0x80000100
 }
 
 // SRAM configuration. We have no multiple sram support for now

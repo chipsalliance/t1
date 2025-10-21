@@ -1,98 +1,68 @@
-use serde::Deserialize;
 use std::fmt::Display;
 
-pub type PokedexLog = Vec<PokedexEventKind>;
-
-pub fn parse_from(raw: impl AsRef<[u8]>) -> PokedexLog {
-    String::from_utf8_lossy(raw.as_ref())
-        .lines()
-        .enumerate()
-        .map(|(line_number, line_str)| {
-            serde_json::from_str::<PokedexEventKind>(line_str).unwrap_or_else(|err| {
-                panic!("fail parsing pokedex log at line {line_number}: {err}")
-            })
-        })
-        .collect()
+// TODO: share library
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(tag = "dest", rename_all = "lowercase")]
+pub(crate) enum ModelStateWrite {
+    Xrf { rd: u8, value: u32 },
+    Frf { rd: u8, value: u32 },
+    Csr { idx: u32, name: String, value: u32 },
+    Load { addr: u32 },
+    Store { addr: u32, data: Vec<u8> },
+    ResetVector { pc: u32 },
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-#[serde(tag = "event_type")]
-pub enum PokedexEventKind {
-    #[serde(rename = "physical_memory")]
-    PhysicalMemory {
-        action: String,
-        bytes: u32,
-        address: u64,
-    },
-    #[serde(rename = "csr")]
-    Csr {
-        action: String,
-        pc: u32,
-        csr_idx: u32,
-        csr_name: String,
-        data: u32,
-    },
-    #[serde(rename = "register")]
-    Register {
-        action: String,
-        pc: u32,
-        reg_idx: u8,
-        data: u32,
-    },
-    #[serde(rename = "fp_register")]
-    FpReg {
-        action: String,
-        pc: u32,
-        reg_idx: u8,
-        data: u32,
-    },
-    #[serde(rename = "instruction_fetch")]
-    InstructionFetch { instruction: u32 },
-    #[serde(rename = "reset_vector")]
-    ResetVector { new_addr: u32 },
-}
-
-impl Display for PokedexEventKind {
+impl Display for ModelStateWrite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use ModelStateWrite::*;
+
         match self {
-            Self::Register {
-                action,
-                pc,
-                reg_idx,
-                data,
-            } => indoc::writedoc!(
-                f,
-                "PC={pc:#010x} {action} to integer register [x{reg_idx}] with [{data:#010x}]"
-            ),
-            Self::FpReg {
-                action,
-                pc,
-                reg_idx,
-                data,
-            } => indoc::writedoc!(
-                f,
-                "PC={pc:#010x} {action} to FP register [f{reg_idx}] with [{data:#010x}]"
-            ),
-            _ => write!(f, "{self:#?}"),
+            Xrf { rd, value } => write!(f, "[x{rd} <- {value:#010x}]"),
+            Frf { rd, value } => write!(f, "[f{rd} <- {value:#010x}]"),
+            Csr { idx, name, value } => write!(f, "[csr {idx} {name} <- {value:#010x}]"),
+            Load { addr } => write!(f, "[mem {addr} -> load]"),
+            Store { addr, data } => write!(f, "[mem {addr} <- {:x?}]", &data),
+            ResetVector { pc } => write!(f, "[reset <- {pc}]"),
         }
     }
 }
 
-impl PokedexEventKind {
-    pub fn get_reset_vector(&self) -> Option<u32> {
-        match self {
-            Self::ResetVector { new_addr } => Some(*new_addr),
-            _ => None,
-        }
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+pub struct InsnCommit {
+    pub pc: u64,
+    pub instruction: u32,
+    pub is_compressed: bool,
+    pub states_changed: Vec<ModelStateWrite>,
+}
+
+impl InsnCommit {
+    pub fn expect_exists<P>(&self, predicate: P) -> bool
+    where
+        P: FnMut(&ModelStateWrite) -> bool,
+    {
+        self.states_changed.iter().any(predicate)
     }
 
-    pub fn get_pc(&self) -> Option<u32> {
-        match self {
-            Self::Csr { pc, .. } => Some(*pc),
-            Self::Register { pc, .. } => Some(*pc),
-            Self::FpReg { pc, .. } => Some(*pc),
+    pub fn find_reset_vector(&self) -> Option<u32> {
+        self.states_changed.iter().find_map(|evt| match evt {
+            ModelStateWrite::ResetVector { pc } => Some(*pc),
             _ => None,
-        }
+        })
+    }
+}
+
+impl Display for InsnCommit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "PC={:#010x} instruction={:#010x} is_c_insn={} {}",
+            self.pc,
+            self.instruction,
+            self.is_compressed,
+            self.states_changed
+                .iter()
+                .map(|ev| format!("{ev} "))
+                .collect::<String>()
+        )
     }
 }

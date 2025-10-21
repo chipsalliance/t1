@@ -51,7 +51,8 @@ class IgnoreTestExt:
 
 
 def run_spike(elf: Path, spike: ProcessConfig) -> Path:
-    log_path = Path(f"{elf.stem}-spike-commits.log")
+    prefix = str(elf).replace("/", "_")
+    log_path = Path(f"{prefix}-spike-commits.log")
     args = ["spike"] + spike["args"] + [f"--log={log_path}", elf]
     subprocess.check_call(args, timeout=spike["timeout"])
 
@@ -59,7 +60,8 @@ def run_spike(elf: Path, spike: ProcessConfig) -> Path:
 
 
 def run_pokedex(elf: Path, pokedex: ProcessConfig) -> Path:
-    log_path = Path(f"{elf.stem}-pokedex-trace-events.jsonl")
+    prefix = str(elf).replace("/", "_")
+    log_path = Path(f"{prefix}-pokedex-trace-events.jsonl")
     args = ["pokedex", "-vvv", "--output-log-path", log_path] + pokedex["args"] + [elf]
     output = subprocess.run(args, stdout=subprocess.PIPE, timeout=pokedex["timeout"])
     if output.returncode != 0:
@@ -75,8 +77,9 @@ def run_pokedex(elf: Path, pokedex: ProcessConfig) -> Path:
 def run_difftest(
     elf: Path, spike_log_path: Path, pokedex_log_path: Path, mmio_end_addr: str
 ) -> Path:
-    difftest_result_path = Path(f"{elf.stem}-difftest-result.json")
-    subprocess.check_call(
+    prefix = str(elf).replace("/", "_")
+    difftest_result_path = Path(f"{prefix}-difftest-result.json")
+    handle = subprocess.run(
         [
             "difftest",
             "--spike-log-path",
@@ -89,6 +92,9 @@ def run_difftest(
             difftest_result_path,
         ]
     )
+    if handle.returncode != 0:
+        print(f"fail run difftest on '{elf}'")
+        exit(1)
     return difftest_result_path
 
 
