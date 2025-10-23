@@ -7,4 +7,6 @@ if is_valid_privilege(new_mpp) then
   MSTATUS_MPP_BITS = new_mpp;
 end
 
+MSTATUS_FS = value[MSTATUS_FS_HI:MSTATUS_FS_LO];
+
 return Retired();

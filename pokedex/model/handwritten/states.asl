@@ -137,10 +137,13 @@ let MSTATUS_MIE_IDX = 3;
 let MSTATUS_MPIE_IDX = 7;
 let MSTATUS_MPP_HI = 12;
 let MSTATUS_MPP_LO = 11;
+let MSTATUS_FS_HI = 14;
+let MSTATUS_FS_LO = 13;
 
 var MSTATUS_MIE : bit;
 var MSTATUS_MPIE : bit;
 var MSTATUS_MPP : PRIVILEGE_LEVEL;
+var MSTATUS_FS : bits(2);
 
 getter MSTATUS_MPP_BITS => bits(2)
 begin
@@ -157,6 +160,7 @@ begin
   MSTATUS_MIE = '0';
   MSTATUS_MPIE = '0';
   MSTATUS_MPP = PRIV_MACHINE_MODE;
+  MSTATUS_FS = '00';
 end
 
 
