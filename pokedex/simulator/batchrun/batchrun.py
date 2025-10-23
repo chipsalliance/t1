@@ -26,7 +26,6 @@ class IgnoreTest(TypedDict):
 
 class BatchrunConfig(TypedDict):
     elf_path_glob: str
-    mmio_end_addr: str
     ignore_tests: list[IgnoreTest]
     spike: ProcessConfig
     pokedex: ProcessConfig
@@ -74,9 +73,7 @@ def run_pokedex(elf: Path, pokedex: ProcessConfig) -> Path:
     return log_path
 
 
-def run_difftest(
-    elf: Path, spike_log_path: Path, pokedex_log_path: Path, mmio_end_addr: str
-) -> Path:
+def run_difftest(elf: Path, spike_log_path: Path, pokedex_log_path: Path) -> Path:
     prefix = str(elf).replace("/", "_")
     difftest_result_path = Path(f"{prefix}-difftest-result.json")
     handle = subprocess.run(
@@ -86,8 +83,6 @@ def run_difftest(
             spike_log_path,
             "--pokedex-log-path",
             pokedex_log_path,
-            "--mmio-address",
-            mmio_end_addr,
             "--output-path",
             difftest_result_path,
         ]
@@ -123,9 +118,7 @@ if __name__ == "__main__":
         spike_log_path = run_spike(elf_path, config["spike"])
         pokedex_log_path = run_pokedex(elf_path, config["pokedex"])
 
-        difftest_result = run_difftest(
-            elf_path, spike_log_path, pokedex_log_path, config["mmio_end_addr"]
-        )
+        difftest_result = run_difftest(elf_path, spike_log_path, pokedex_log_path)
         with open(difftest_result, "r") as file:
             result = cast(DifftestResult, json.loads(file.read()))
             if result["is_same"]:

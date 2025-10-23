@@ -39,15 +39,20 @@ setter X[i : XREG_TYPE] = value : bits(32)
 begin
   if i > 0 then
     __GPR[i - 1] = value;
-  end
 
-  // notify emulator that a write to GPR occur
-  FFI_write_GPR_hook(i, value);
+    // notify emulator that a write to GPR occur
+    FFI_write_GPR_hook(i, value);
+  end
 end
 
 enumeration PRIVILEGE_LEVEL {
   PRIV_MACHINE_MODE
 };
+
+func is_valid_privilege(value : bits(2)) => boolean
+begin
+  return value == '11';
+end
 
 func __PrivLevelToBits(priv : PRIVILEGE_LEVEL, N: integer) => bits(N)
 begin
@@ -126,9 +131,23 @@ end
 
 
 /// mie and mpie is by default a switch value, no need to add extra constraint
+let MSTATUS_IDX : bits(12) = 0x300[11:0];
+let MSTATUS_H_IDX : bits(12) = 0x310[11:0];
+let MSTATUS_MIE_IDX = 3;
+let MSTATUS_MPIE_IDX = 7;
+let MSTATUS_MPP_LO = 11;
+let MSTATUS_MPP_HI = 12;
+let MSTATUS_VS_LO = 9;
+let MSTATUS_VS_HI = 10;
+let MSTATUS_FS_LO = 13;
+let MSTATUS_FS_HI = 14;
+
 var MSTATUS_MIE : bit;
 var MSTATUS_MPIE : bit;
 var MSTATUS_MPP : PRIVILEGE_LEVEL;
+var MSTATUS_FS : bits(2);
+var MSTATUS_VS : bits(2);
+var MSTATUS_SD : bit;
 
 getter MSTATUS_MPP_BITS => bits(2)
 begin
@@ -145,6 +164,21 @@ begin
   MSTATUS_MIE = '0';
   MSTATUS_MPIE = '0';
   MSTATUS_MPP = PRIV_MACHINE_MODE;
+  MSTATUS_FS = '00';
+  MSTATUS_VS = '00';
+end
+
+// set MSTATUS.FS to '0b11'.
+func set_mstatus_fs_dirty(log_write : boolean)
+begin
+  MSTATUS_FS = '11'; // set dirty
+
+  if log_write then
+    let r = ReadCSR(MSTATUS_IDX);
+    assert r.is_ok;
+    let w = WriteCSR(MSTATUS_IDX, r.value);
+    assert w.is_ok;
+  end
 end
 
 

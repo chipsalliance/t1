@@ -4,12 +4,12 @@ use std::io::{BufWriter, Read, Write};
 use std::marker::PhantomData;
 use std::ops::Range;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
 use thiserror::Error;
-use tracing::{event, Level};
+use tracing::{Level, event};
 use xmas_elf::program::{ProgramHeader, Type};
-use xmas_elf::{header, ElfFile};
+use xmas_elf::{ElfFile, header};
 
 #[derive(Error, Debug, Clone)]
 pub enum SimulationException {
@@ -96,6 +96,7 @@ impl Simulator {
                 InterruptType::Exit => {
                     let value = ic.get_value();
                     let exit_code = i32::from_le_bytes(value);
+                    self.state.poweroff(exit_code);
                     return Err(SimulationException::Exited(exit_code));
                 }
             }
@@ -165,6 +166,7 @@ pub(crate) enum ModelStateWrite {
     Load { addr: u32 },
     Store { addr: u32, data: Vec<u8> },
     ResetVector { pc: u32 },
+    Poweroff { exit_code: i32 },
     // internal use
     _Insn { addr: u32 },
 }
@@ -203,6 +205,12 @@ impl SimulatorState {
         self.is_reset = true;
         self.model_state_writes
             .push(ModelStateWrite::ResetVector { pc: new_pc });
+        self.commit_log_insn(0, 0, false);
+    }
+
+    pub fn poweroff(&mut self, exit_code: i32) {
+        self.model_state_writes
+            .push(ModelStateWrite::Poweroff { exit_code });
         self.commit_log_insn(0, 0, false);
     }
 

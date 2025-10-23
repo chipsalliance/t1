@@ -2,12 +2,10 @@ use clap::Parser;
 use miette::{Context, IntoDiagnostic};
 use serde::Serialize;
 
+mod diff;
 mod pokedex;
-mod spike_parser;
 mod replay;
-
-use pokedex::ModelStateWrite as PokedexStateChange;
-use spike_parser::Modification as SpikeStateChange;
+mod spike_parser;
 
 #[derive(clap::Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -18,9 +16,6 @@ struct DiffTestArgs {
     /// Path to the pokedex trace log
     #[arg(short = 'p', long)]
     pokedex_log_path: String,
-    /// MMIO address that act as differential test end pattern, support only hex string
-    #[arg(short = 'm', long)]
-    mmio_address: String,
     /// Output path for writing difftest result
     #[arg(short = 'o', long)]
     output_path: String,
@@ -28,7 +23,6 @@ struct DiffTestArgs {
 
 fn main() -> miette::Result<()> {
     let arg = DiffTestArgs::try_parse().into_diagnostic()?;
-    // use block to force drop raw_str after parse done
     let raw_str = std::fs::read_to_string(arg.spike_log_path.as_str())
         .into_diagnostic()
         .with_context(|| format!("reading spike log {}", arg.spike_log_path))?;
@@ -56,16 +50,8 @@ fn main() -> miette::Result<()> {
                 })
             })
             .collect();
-    let end_mmio_address = u32::from_str_radix(arg.mmio_address.trim_start_matches("0x"), 16)
-        .into_diagnostic()
-        .with_context(|| format!("parsing {} to uint32_t", arg.mmio_address))?;
 
-    let result = DiffTest {
-        spike_log,
-        pokedex_log,
-        end_mmio_address,
-    }
-    .run();
+    let result = diff_against_pokedex_spike(&pokedex_log, &spike_log);
 
     let raw_json = serde_json::to_string(&result).into_diagnostic()?;
     std::fs::write(arg.output_path, raw_json).into_diagnostic()?;
@@ -87,7 +73,7 @@ impl DiffMeta {
         }
     }
 
-    fn failed(ctx: impl ToString) -> Self {
+    fn failed(ctx: String) -> Self {
         Self {
             is_same: false,
             context: ctx.to_string(),
@@ -95,130 +81,70 @@ impl DiffMeta {
     }
 }
 
-struct DiffTest {
-    spike_log: Vec<spike_parser::Commit>,
-    pokedex_log: Vec<pokedex::InsnCommit>,
-    end_mmio_address: u32,
-}
+fn diff_against_pokedex_spike(
+    pokedex_log: &[pokedex::InsnCommit],
+    spike_log: &[spike_parser::Commit],
+) -> DiffMeta {
+    let mut pokedex_log = pokedex_log.iter().peekable();
+    let mut pokedex_cassette = replay::CommitCassette::new(&mut pokedex_log);
 
-impl DiffTest {
-    fn exact_match(
-        &self,
-        spike_commit: &spike_parser::Commit,
-        pokedex_commit: &pokedex::InsnCommit,
-    ) -> bool {
-        // PC and instruction between two simulator should be natually aligned before diff started
-        assert_eq!(spike_commit.pc, pokedex_commit.pc);
-        assert_eq!(spike_commit.instruction, pokedex_commit.instruction);
+    let mut spike_log = spike_log.iter().peekable();
+    let mut spike_cassette = replay::CommitCassette::new(&mut spike_log);
 
-        spike_commit
-            .state_changes
-            .iter()
-            .fold(true, |all_same, write| {
-                let is_same = match write {
-                    SpikeStateChange::WriteXReg {
-                        rd: spike_rd,
-                        bits: spike_value,
-                    } => pokedex_commit.expect_exists(|evt| match evt {
-                        // TODO: add verbose log
-                        PokedexStateChange::Xrf {
-                            rd: pokedex_rd,
-                            value: pokedex_value,
-                        } => *spike_rd == *pokedex_rd && *spike_value == (*pokedex_value) as u64,
-                        _ => false,
-                    }),
-                    SpikeStateChange::WriteFReg {
-                        rd: spike_rd,
-                        bits: spike_value,
-                    } => pokedex_commit.expect_exists(|evt| match evt {
-                        PokedexStateChange::Frf {
-                            rd: pokedex_rd,
-                            value: pokedex_value,
-                        } => *spike_rd == *pokedex_rd && *spike_value == (*pokedex_value) as u64,
-                        _ => false,
-                    }),
-                    _ => true, // TODO: compare all
-                };
-
-                is_same && all_same
-            })
+    loop {
+        if pokedex_cassette.get_state().is_reset {
+            break;
+        }
+        pokedex_cassette.roll();
     }
 
-    fn run(&self) -> DiffMeta {
-        assert!(!self.spike_log.is_empty());
-        assert!(!self.pokedex_log.is_empty());
+    if !pokedex_cassette.get_state().is_reset {
+        panic!("internal error: pokedex have no reset event");
+    };
 
-        let mut pokedex_log_cursor = 0;
-        let mut is_reset = false;
+    let reset_pc = pokedex_cassette.get_state().reset_vector;
+    assert!(pokedex_cassette.roll_until(reset_pc));
+    assert!(spike_cassette.roll_until(reset_pc));
 
-        let reset_vector_event = self
-            .pokedex_log
-            .iter()
-            .find_map(|commit| commit.find_reset_vector());
-        let Some(reset_vector_pc) = reset_vector_event else {
-            return DiffMeta::failed("no reset vector event found in pokedex log");
+    while let Some(ct1) = spike_cassette.roll() {
+        let Some(ct2) = pokedex_cassette.roll() else {
+            panic!("internal error: pokedex log ends before spike")
         };
 
-        let Some(end_commit) = self.spike_log.iter().find(|commit| {
-            commit
-                .find_store_addr_match(self.end_mmio_address.into())
-                .is_some()
-        }) else {
-            return DiffMeta::failed("Can't find any end pattern from spike log");
-        };
-
-        for cur_spike_commit in self.spike_log.iter() {
-            if !is_reset {
-                if cur_spike_commit.pc == reset_vector_pc as u64 {
-                    is_reset = true;
-                } else {
-                    continue;
-                }
-            }
-
-            if cur_spike_commit.pc == end_commit.pc {
-                break;
-            }
-
-            let search_result = self.pokedex_log[pokedex_log_cursor..]
-                .iter()
-                .enumerate()
-                .find_map(|(i, event)| {
-                    if event.pc == cur_spike_commit.pc {
-                        pokedex_log_cursor += i + 1;
-                        Some(event)
-                    } else {
-                        None
-                    }
-                });
-
-            let Some(pokedex_commit) = search_result else {
-                // Event at Spike side doesn't found at Pokedex side
-                return DiffMeta::failed(indoc::formatdoc! {"
-                    At PC={:#010x} spike have following commit events that are not occur at simulator side:
-
-                    {cur_spike_commit:?}
-                ", cur_spike_commit.pc
-                });
-            };
-
-            if !self.exact_match(cur_spike_commit, pokedex_commit) {
-                return DiffMeta::failed(indoc::formatdoc! {"
-                    Found unmatched event between spike and pokedex.
-
-                    ===============================================
-                    Spike dump:
-                    {cur_spike_commit:#?}
-                    ===============================================
-
-                    ===============================================
-                    Pokedex dump:
-                    {pokedex_commit}
-                    ===============================================
-                "});
-            }
+        if pokedex_cassette.get_state().is_poweroff {
+            break;
         }
 
-        DiffMeta::passed()
+        if let Err(errors) = crate::diff::compare(
+            spike_cassette.get_state(),
+            &ct1,
+            pokedex_cassette.get_state(),
+            &ct2,
+        ) {
+            return DiffMeta::failed(
+                errors
+                    .iter()
+                    .map(|err| {
+                        indoc::formatdoc! {"
+                            ======================================================
+                            Error: {err}
+                            ======================================================
+
+                            <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                            Spike Dump:
+                            {spike_state}
+                            ======================================================
+                            Pokedex Dump:
+                            {pokedex_state}
+                            >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                        ",
+                        pokedex_state = pokedex_cassette.get_state(),
+                        spike_state = spike_cassette.get_state()}
+                    })
+                    .collect(),
+            );
+        };
     }
+
+    DiffMeta::passed()
 }

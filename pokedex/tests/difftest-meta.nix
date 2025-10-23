@@ -20,6 +20,7 @@ let
         "-m0x80000000:0x20000000,0x40000000:0x1000"
         "-p1"
         "--hartids=0"
+        "--triggers=0"
       ];
     };
     pokedex = {
@@ -29,7 +30,6 @@ let
         "${global-pokedex-config}"
       ];
     };
-    mmio_end_addr = "0x40000004";
     ignore_tests = [
       {
         pattern = "^lrsc.elf$";

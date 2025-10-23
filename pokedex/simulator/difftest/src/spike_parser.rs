@@ -149,16 +149,55 @@ pub struct Commit {
     pub state_changes: Vec<Modification>,
 }
 
-impl Commit {
-    pub fn find_store_addr_match(&self, expect_addr: u64) -> Option<&Self> {
-        if self.state_changes.iter().any(|ev| match ev {
-            Modification::Store { addr, .. } => *addr == expect_addr,
-            _ => false,
-        }) {
-            Some(self)
-        } else {
-            None
-        }
+impl crate::replay::IsInsnCommit for Commit {
+    fn get_pc(&self) -> u32 {
+        self.pc as u32
+    }
+
+    fn write_cpu_state(
+        &self,
+        state: &mut crate::replay::CpuState,
+    ) -> crate::replay::StateCheckType {
+        state.pc = self.pc as u32;
+
+        let mut check_ty = crate::replay::StateCheckType::default();
+
+        let mut has_frf_write = false;
+        let mut has_csr_write = false;
+        self.state_changes.iter().for_each(|write| {
+            use crate::replay::CsrCheckType;
+            use Modification::*;
+
+            match write {
+                WriteXReg { rd, bits } => {
+                    if state.write_gpr((*rd) as usize, (*bits) as u32).is_some() {
+                        check_ty.gpr_rd = Some((*rd) as usize);
+                    }
+                }
+                WriteFReg { rd, bits } => {
+                    if state.write_fpr((*rd) as usize, (*bits) as u32).is_some() {
+                        check_ty.fpr_rd = Some((*rd) as usize);
+                    }
+                    has_frf_write = true;
+                }
+                WriteCSR { rd, name, bits } => {
+                    if state
+                        .write_csr(name, (*rd) as u16, (*bits) as u32)
+                        .is_some()
+                    {
+                        check_ty.csr_mask = CsrCheckType::AllCsr;
+                    }
+                    has_csr_write = true;
+                }
+                _ => (),
+            }
+
+            if has_frf_write && has_csr_write {
+                check_ty.csr_mask = CsrCheckType::FpCsrOnly;
+            }
+        });
+
+        check_ty
     }
 }
 
