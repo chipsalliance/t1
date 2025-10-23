@@ -33,8 +33,6 @@ end
 
 func Write_{{ fn_name }}(value : bits(32)) => Result
 begin
-    FFI_write_CSR_hook({{ data.hex_addr }}, "{{ data.name }}", value);
-
     {% include "csr/write/" + data.filename %}
 end
 
@@ -64,7 +62,11 @@ begin
         {%- for data in csr_metadata %}
 
         when '{{ data.bin_addr }}' =>
-            return Write_{{ data.name | upper() }}(value);
+            let result = Write_{{ data.name | upper() }}(value);
+            let read_back = Read_{{ data.name | upper() }}();
+            assert read_back.is_ok;
+            FFI_write_CSR_hook({{ data.hex_addr }}, "{{ data.name }}", read_back.value);
+            return result;
 
         {%- endfor %}
 
