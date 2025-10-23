@@ -33,8 +33,6 @@ end
 
 func Write_{{ fn_name }}(value : bits(32)) => Result
 begin
-    FFI_write_CSR_hook({{ data.hex_addr }}, "{{ data.name }}", value);
-
     {% include "csr/write/" + data.filename %}
 end
 
