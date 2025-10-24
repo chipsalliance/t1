@@ -136,6 +136,22 @@ impl DiffTest {
                         } => *spike_rd == *pokedex_rd && *spike_value == (*pokedex_value) as u64,
                         _ => false,
                     }),
+                    SpikeStateChange::WriteCSR {
+                        rd: spike_rd,
+                        name: spike_csr_name,
+                        bits: spike_csr_write,
+                    } => pokedex_commit.expect_exists(|evt| match evt {
+                        PokedexStateChange::Csr {
+                            idx: pokedex_csr_idx,
+                            name: pokedex_csr_name,
+                            value: pokedex_csr_write,
+                        } => {
+                            *spike_rd == *pokedex_csr_idx
+                                && *spike_csr_write == *pokedex_csr_write as u64
+                                && spike_csr_name.to_lowercase() == pokedex_csr_name.to_lowercase()
+                        }
+                        _ => false,
+                    }),
                     _ => true, // TODO: compare all
                 };
 
@@ -207,11 +223,11 @@ impl DiffTest {
 
                     ===============================================
                     Spike dump:
+                    -----------------------------------------------
                     {cur_spike_commit:#?}
                     ===============================================
-
-                    ===============================================
                     Pokedex dump:
+                    -----------------------------------------------
                     {pokedex_commit}
                     ===============================================
                 "});
