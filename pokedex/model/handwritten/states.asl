@@ -143,7 +143,8 @@ let MSTATUS_FS_LO = 13;
 var MSTATUS_MIE : bit;
 var MSTATUS_MPIE : bit;
 var MSTATUS_MPP : PRIVILEGE_LEVEL;
-var MSTATUS_FS : bits(2);
+var _MSTATUS_FS : bits(2);
+var MSTATUS_SD : bit;
 
 getter MSTATUS_MPP_BITS => bits(2)
 begin
@@ -153,6 +154,28 @@ end
 setter MSTATUS_MPP_BITS = value : bits(2)
 begin
   MSTATUS_MPP = __BitsToPrivLevel(value);
+end
+
+getter MSTATUS_FS => bits(2)
+begin
+  return _MSTATUS_FS;
+end
+
+setter MSTATUS_FS = value : bits(2)
+begin
+  _MSTATUS_FS = value;
+
+  _internal_set_mstatus_sd();
+end
+
+func _internal_set_mstatus_sd()
+begin
+  // TODO: add VS, XS when supported
+  if _MSTATUS_FS == '11' then
+    MSTATUS_SD = '1';
+  elsif _MSTATUS_FS != '11' then
+    MSTATUS_SD = '0';
+  end
 end
 
 func __ResetMSTATUS()
