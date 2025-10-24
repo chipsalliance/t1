@@ -8,7 +8,8 @@ return OK([
   // MPP[12:11]
   MSTATUS_MPP_BITS,
   // VS[10:9], SPP
-  '000',
+  MSTATUS_VS,
+  '0',
   // MPIE
   MSTATUS_MPIE,
   // UBE, SPIE, WPRI
