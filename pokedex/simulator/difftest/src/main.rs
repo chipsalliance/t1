@@ -4,6 +4,7 @@ use serde::Serialize;
 
 mod pokedex;
 mod spike_parser;
+mod replay;
 
 use pokedex::ModelStateWrite as PokedexStateChange;
 use spike_parser::Modification as SpikeStateChange;
