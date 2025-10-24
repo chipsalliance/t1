@@ -35,6 +35,8 @@ end
 // and status register (CSR). It is a 32-bit read/write register that selects
 // the dynamic rounding mode for floating-point arithmetic operations and holds
 // the accrued exception flags
+let FFLAGS_IDX : bits(12) = ZeroExtend('001', 12);
+let FRM_IDX : bits(12) = ZeroExtend('010', 12);
 
 // FRM can contains any value, and throw invalid on next floating point instruction.
 // So there is no internal constaint for it.
@@ -112,7 +114,10 @@ begin
   end
 
   let xcpt_bits : bits(5) = softfloat_xcpt[4:0];
-  FFLAGS = FFLAGS OR xcpt_bits;
+  // use normal CSR instead of internal write to log commit
+  let new_flags = ZeroExtend(FFLAGS OR xcpt_bits, 32);
+  let wb = WriteCSR(FFLAGS_IDX, new_flags);
+  assert wb.is_ok;
 end
 
 func __reset_fcsr()
