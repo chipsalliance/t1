@@ -1,0 +1,4 @@
+template = "vsop_vv_nosat"
+
+op_func = "__op_ssrav"
+function_description="compute arithmetic right shift, round accroding to vxrm, optionally masked by vm"
