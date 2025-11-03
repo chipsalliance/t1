@@ -1,6 +1,7 @@
 {
   lib,
   stdenv,
+  ninja,
   rvopcode-cli,
   riscv-opcodes-src,
   asl-interpreter,
@@ -11,6 +12,7 @@ stdenv.mkDerivation {
   src = lib.cleanSource ./.;
 
   nativeBuildInputs = [
+    ninja
     rvopcode-cli
     asl-interpreter
     minijinja
