@@ -111,7 +111,7 @@ if __name__ == "__main__":
         config = cast(BatchrunConfig, json.loads(raw_config))
 
     ignore_match = IgnoreTestExt(config["ignore_tests"])
-    context = []
+    failed_log = []
 
     for elf in glob.glob(config["elf_path_glob"], recursive=True):
         elf_path = Path(elf)
@@ -130,12 +130,15 @@ if __name__ == "__main__":
                 else:
                     print(f"\n** {RED}FAIL{RESET}   {elf_path.name}\n")
                     print(result["context"])
-                    context.append(elf_path)
+                    failed_log.append(str(spike_log_path))
+                    failed_log.append(str(pokedex_log_path))
+                    failed_log.append(str(difftest_result))
+                    failed_log.append(str(elf_path))
 
-    if len(context) != 0:
+    if len(failed_log) != 0:
         print("** batch run fail on some tests **")
         with open("batch-run-result.json", "w") as file:
-            file.write(json.dumps(context))
+            file.write(json.dumps(failed_log))
         exit(1)
     else:
         print("** all tests pass **")

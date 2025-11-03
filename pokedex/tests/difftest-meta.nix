@@ -63,13 +63,15 @@ runCommand "run-difftest-for-all-cases"
         exit 1
       fi
 
-      failCases=( $(jq -r '.[]' ./batch-run-result.json) )
-      for case in "''${failedCases[@]}"; do
-        cp "$case".objdump "$out"
-        mv "$(basename $case)-pokedex-trace-log.jsonl" "$out"
-        mv "$(basename $case)-spike-commits.log" "$out"
-        mv "$(basename $case)-difftest-result.json" "$out"
+      contextFiles=( $(jq -r '.[]' ./batch-run-result.json) )
+      for file in "''${contextFiles[@]}"; do
+        if [[ "$file" == *elf ]]; then
+          cp "$file.objdump" "$out/$(echo "$file.objdump" | sed "s|/|_|g")"
+        else
+          cp "$file" "$out"
+        fi
       done
+      echo "Check failed file in $out"
     fi
 
     popd > /dev/null
