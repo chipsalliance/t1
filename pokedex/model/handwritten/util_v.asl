@@ -303,17 +303,54 @@ begin
   return res;
 end
 
-// func __op_smul_s(rs1: bits(N), rs2: bits(N), vxrm: bits(2)) => WithSaturation(N)
-// begin
-//   Unreachable();
-// end
+// compute rs1 * rs1 as signed numbers, then right shift (N-1) bits
+func __op_vsmul_s(rs1: bits(N), rs2: bits(N), vxrm: bits(2)) => WithSaturation(N)
+begin
+  let prod = SInt(rs1) * SInt(rs2);
+  var res = prod DIVRM (2^(N-1));
+  let mod = prod MOD (2^(N-1));
 
-// func __op_ssrlv(rs1: bits(N), rs2: bits(N)) => bits(N)
-// begin
-//   Unreachable();
-// end
+  if mod == 0 then
+    case vxrm of
+      when VXRM_RNU => res = res + 1;
+      when VXRM_RNE => begin
+        if mod > 2^(N-2) then
+          res = res + 1;
+        elsif mod == 2^(N-2) then
+          res[0] ='0';
+        end
+      end
+      when VXRM_RDN => begin end // do nothing
+      when VXRM_ROD => res[1] = '1';
+    end
+  end
 
-// func __op_ssrav(rs1: bits(N), rs2: bits(N)) => bits(N)
-// begin
-//   Unreachable();
-// end
+  if res > UInt(Zeros(N-1)) then
+    // this will only happen in Sbits(N)::MIN * Sbits(N)::MIN
+    return WithSaturation(N) {
+      value = ['0', Zeros(N-1)],
+      sat = TRUE
+    };
+  else
+    return WithSaturation(N) {
+      value = Zeros(N),
+      sat = FALSE
+    };
+  end
+end
+
+// compute rounded logical right shift, rs2 only uses lower log2(N) bits
+func __op_ssrlv(rs1: bits(N), rs2: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  // TODO
+  Unreachable();
+  return Zeros(N);
+end
+
+// compute rounded arithmetic right shift, rs2 only uses lower log2(N) bits
+func __op_ssrav(rs1: bits(N), rs2: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  // TODO
+  Unreachable();
+  return Zeros(N);
+end
