@@ -83,7 +83,7 @@ $(STAGE_0)/output/csr_op.asl: $(STAGE_0)/csr_meta.json
 # -------------------------------------------
 CODEGEN_SRCS := execute.asl causes.asl csr_op.asl
 STAGE_1 := $(BUILD_DIR)/1-project
-$(STAGE_1): $(PROJECT_SRCS) $(HANDWRITTEN_SRCS) $(CSR_SRCS) $(addprefix $(STAGE_0)/output/,$(CODEGEN_SRCS))
+$(STAGE_1): $(PROJECT_SRCS) $(addprefix $(STAGE_0)/output/,$(CODEGEN_SRCS))
 	mkdir -p $@
 	# Copy project related source to rvcore
 	cp $^ $@/
@@ -94,7 +94,7 @@ project: $(BUILD_DIR)/1-project
 # -------------------
 # Stage 2: generate C
 # -------------------
-$(BUILD_DIR)/2-cgen/makefile: $(STAGE_1) aslbuild/libpokedex.makefile
+$(BUILD_DIR)/2-cgen/makefile: $(STAGE_1) aslbuild/libpokedex.makefile $(HANDWRITTEN_SRCS) $(CSR_SRCS)
 	mkdir -p $(@D)/dumps
 	sed -i 's|@CGEN_OUTPUT@|$(@D)|g' $(STAGE_1)/asl2c.prj
 	$(ASLI) \
@@ -105,7 +105,7 @@ $(BUILD_DIR)/2-cgen/makefile: $(STAGE_1) aslbuild/libpokedex.makefile
 		--check-call-markers \
 		--check-constraints \
 		--runtime-checks \
-		$(wildcard $(STAGE_1)/*.asl)
+		$(wildcard $(STAGE_1)/*.asl) $(HANDWRITTEN_SRCS) $(CSR_SRCS) 
 	cp -T aslbuild/libpokedex.makefile $@
 
 .PHONY: asl2c
