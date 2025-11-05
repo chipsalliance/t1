@@ -21,12 +21,6 @@ begin
   };
 end
 
-// TODO : remove OK, use Ok instead
-func OK(value : bits(32)) => Result
-begin
-  return Ok(value);
-end
-
 /// Exception return a Result with provided `cause` and `trap_value`.
 /// The returned result has `is_ok` set to false.
 /// The returned Result is always of 32 bits length. A trap_value longer

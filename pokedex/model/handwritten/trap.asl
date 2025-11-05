@@ -4,9 +4,7 @@ begin
   MEPC = PC;
 
   // mcause
-  MCAUSE_IS_INTERRUPT = FALSE;
-  // convert integer to 31bits length bit vector
-  MCAUSE_XCPT_CODE = cause[30:0];
+  MCAUSE = ['0', cause[30:0]];
 
   // mstatus
   MSTATUS_MPIE = MSTATUS_MIE;
@@ -33,8 +31,7 @@ begin
 
   CURRENT_PRIVILEGE = PRIV_MODE_M;
 
-  MCAUSE_IS_INTERRUPT = TRUE;
-  MCAUSE_XCPT_CODE = interrupt_code[30:0];
+  MCAUSE = ['1', interrupt_code[30:0]];
 
   if MTVEC_MODE == MTVEC_MODE_DIRECT then
     PC = [ MTVEC_BASE, '00' ];
