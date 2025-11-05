@@ -1,16 +1,126 @@
 constant XLEN : integer = 32;
 
-constant CFG_MHARTID : bits(32) = Zeros(32);
-constant CFG_MVENDORID : bits(32) = Zeros(32);
-constant CFG_MARCHID : bits(32) = Zeros(32);
-constant CFG_MIMPID : bits(32) = Zeros(32);
-constant CFG_MCONFIGPTR : bits(32) = Zeros(32);
+constant FLEN : integer = 32;
+
+
 
 constant PRIV_MODE_MOST : PrivMode = PRIV_MODE_M;
 constant PRIV_MODE_LEAST : PrivMode = PRIV_MODE_M;
 
-// Program Counter
+////////////////
+//// CONFIG ////
+////////////////
+
+// Configs are fixed in hardware, but we make it configurable
+// to avoid recompile the model every time.
+//
+// Shall not modify them after the first step.
+
+var CFG_MHARTID : bits(32);
+var CFG_MVENDORID : bits(32);
+var CFG_MARCHID : bits(32);
+var CFG_MIMPID : bits(32);
+var CFG_MCONFIGPTR : bits(32);
+
+func initConfigDefault()
+begin
+  CFG_MHARTID = Zeros(32);
+  CFG_MVENDORID = Zeros(32);
+  CFG_MARCHID = Zeros(32);
+  CFG_MIMPID = Zeros(32);
+  CFG_MCONFIGPTR = Zeros(32);
+end
+
+/////////////////////
+//// Arch States ////
+/////////////////////
+
+// TODO : incorporate with states_v.asl
+
 var __PC : bits(32);
+var __GPR : array[31] of bits(32);
+
+var __FPR : array[32] of bits(32);
+var FRM : bits(3);
+var FFLAGS : bits(5);
+
+var CURRENT_PRIVILEGE : PrivMode;
+
+var MSCRATCH : bits(32);
+var __MEPC : bits(32);
+var MCAUSE : bits(32);
+var MTVAL : bits(32);
+
+var MTVEC_BASE : bits(30);
+var MTVEC_MODE : MtvecMode;
+
+var MSTATUS_MIE : bit;
+var MSTATUS_MPIE : bit;
+var MSTATUS_MPP : PrivMode;
+var MSTATUS_FS : bits(2);
+var MSTATUS_VS : bits(2);
+
+// MIE csr
+var MEIE : bit;
+var MTIE : bit;
+
+func resetArchStateDefault()
+begin
+  __PC = Zeros(32);
+
+  for i = 0 to 30 do
+    __GPR[i] = Zeros(32);
+  end
+
+  for i = 0 to 31 do
+    __FPR[i] = Zeros(32);
+  end
+  FRM = Zeros(3);
+  FFLAGS = Zeros(5);
+
+  CURRENT_PRIVILEGE = PRIV_MODE_M;
+
+  MSCRATCH = Zeros(32);
+  __MEPC = Zeros(32);
+  MCAUSE = Zeros(32);
+  MTVAL = Zeros(32);
+
+  MTVEC_BASE = Zeros(30);
+  MTVEC_MODE = MTVEC_MODE_VECTORED;
+
+  MSTATUS_MIE = '0';
+  MSTATUS_MPIE = '0';
+  MSTATUS_MPP = PRIV_MODE_LEAST;
+  MSTATUS_FS = '00';
+  MSTATUS_VS = '00';
+
+  MEIE = '0';
+  MTIE = '0';
+end
+
+////////////////////////////////
+//// State Type Definitions ////
+////////////////////////////////
+
+type XRegIdx of integer{0..31};
+type FRegIdx of integer{0..31};
+
+// TODO : remove deprecated aliases
+type XREG_TYPE of integer{0..31};
+type freg_index of integer{0..31};
+
+enumeration PrivMode {
+  PRIV_MODE_M
+};
+
+enumeration MtvecMode {
+  MTVEC_MODE_DIRECT,
+  MTVEC_MODE_VECTORED
+};
+
+////////////////////////
+//// Access Helpers ////
+////////////////////////
 
 getter PC => bits(32) begin return __PC; end
 
@@ -20,21 +130,6 @@ begin
   __PC = npc;
 end
 
-// General Propose Register
-var __GPR : array[31] of bits(32);
-
-// Don't use the setter "X" here to avoid invoke the FFI_ hook.
-// Non-software reset should be operated quietly.
-func __ResetGPR()
-begin
-  for i = 0 to 30 do
-    __GPR[i] = Zeros(32);
-  end
-end
-
-type XREG_TYPE of integer{0..31};
-
-// Global getter setter functions for register: developers should never use the private __GPR variable
 getter X[i : XREG_TYPE] => bits(32)
 begin
   if i == 0 then
@@ -54,9 +149,147 @@ begin
   end
 end
 
-enumeration PrivMode {
-  PRIV_MODE_M
+getter F[i : freg_index] => bits(32)
+begin
+  return __FPR[i];
+end
+
+// Instruction should use the `F` getter to update value, eg. `F[5] = Zeros(32);`
+setter F[i : freg_index] = value : bits(32)
+begin
+  __FPR[i] = value;
+
+  // notify emulator that a write to FPR occur
+  ffi_write_fpr_hook(i, value);
+
+  makeDirty_FS();
+end
+
+getter MEPC => bits(32)
+begin
+  return __MEPC;
+end
+
+setter MEPC = pc : bits(32)
+begin
+  assert pc[0] == '0';
+  // we don't support runtime switch off "C" extension so there is
+  // no need for misalign check at 1 bit.
+  __MEPC = pc;
+end
+
+getter MTVEC_MODE_BITS => bits(2)
+begin
+  case MTVEC_MODE of
+    when MTVEC_MODE_DIRECT => return '00';
+    when MTVEC_MODE_VECTORED => return '01';
+  end
+end
+
+setter MTVEC_MODE_BITS = value : bits(2)
+begin
+  case value of
+    when '00' => MTVEC_MODE = MTVEC_MODE_DIRECT;
+    when '01' => MTVEC_MODE = MTVEC_MODE_VECTORED;
+    otherwise => assert FALSE;
+  end
+end
+
+getter MSTATUS_MPP_BITS => bits(2)
+begin
+  return privModeToBits(MSTATUS_MPP, 2);
+end
+
+setter MSTATUS_MPP_BITS = value : bits(2)
+begin
+  MSTATUS_MPP = privModeFromBits(value);
+end
+
+getter getExternal_MEIP => bit
+begin
+  return FFI_machine_external_interrupt_pending();
+end
+
+getter getExternal_MTIP => bit
+begin
+  return FFI_machine_time_interrupt_pending();
+end
+
+///////////////////////////
+//// Utility Functions ////
+///////////////////////////
+
+// RM represents floating-point rounding mode
+enumeration RM {
+  // Round to Nearest, ties to Even
+  RM_RNE,
+  // Round towards Zero
+  RM_RTZ,
+  // Round Down, towards negative infinity
+  RM_RDN,
+  // Round Up, towards positive infinity
+  RM_RUP,
+  // Round to Neareast, ties to Max Magnitude
+  RM_RMM
 };
+
+// RM_Result represent the rounding mode bits decode result
+record RM_Result {
+  mode : RM;
+  valid : boolean;
+};
+
+// Decode three bits to `RM` rounding mode enumeration.
+// '111' is treated as an invalid mode
+func decodeFrmStatic(rm_bits: bits(3)) => RM_Result
+begin
+  var result = RM_Result {
+    mode = RM_RNE,
+    valid = TRUE
+  };
+
+  case rm_bits of
+    when '000' => result.mode = RM_RNE;
+    when '001' => result.mode = RM_RTZ;
+    when '010' => result.mode = RM_RDN;
+    when '011' => result.mode = RM_RUP;
+    when '100' => result.mode = RM_RMM;
+
+    otherwise => result.valid = FALSE;
+  end
+
+  return result;
+end
+
+// Decode three bits to `RM` rounding mode enumeration.
+// '111' is treated as an invalid mode
+func resolveFrmDynamic(rm_bits : bits(3)) => RM_Result
+begin
+  if rm_bits == '111' then
+    return decodeFrmStatic(FRM);
+  else
+    return decodeFrmStatic(rm_bits);
+  end
+end
+
+// TODO : deprecated, use resolveFrmDynamic instead
+func RM_from_bits(rm_bits : bits(3)) => RM_Result
+begin
+  return resolveFrmDynamic(rm_bits);
+end
+
+// set fflags base on the softfloat global exception flag
+func set_fflags_from_softfloat(softfloat_xcpt : integer)
+begin
+  if softfloat_xcpt == 0 then
+    return;
+  end
+
+  FFLAGS = FFLAGS OR softfloat_xcpt[4:0];
+
+  logWrite_FCSR();
+end
+
 
 func is_valid_privilege(value : bits(2)) => boolean
 begin
@@ -84,81 +317,6 @@ begin
   end
 end
 
-// record current privilege level
-var CURRENT_PRIVILEGE : PrivMode;
-
-func __ResetCurrentPrivilege()
-begin
-  CURRENT_PRIVILEGE = PRIV_MODE_M;
-end
-
-
-/// There are only two possible mtvec mode
-enumeration MtvecMode {
-  MTVEC_MODE_DIRECT,
-  MTVEC_MODE_VECTORED
-};
-
-var MTVEC_BASE : bits(30);
-var MTVEC_MODE : MtvecMode;
-
-getter MTVEC_MODE_BITS => bits(2)
-begin
-  case MTVEC_MODE of
-    when MTVEC_MODE_DIRECT => return '00';
-    when MTVEC_MODE_VECTORED => return '01';
-  end
-end
-
-setter MTVEC_MODE_BITS = value : bits(2)
-begin
-  case value of
-    when '00' => MTVEC_MODE = MTVEC_MODE_DIRECT;
-    when '01' => MTVEC_MODE = MTVEC_MODE_VECTORED;
-    otherwise => assert FALSE;
-  end
-end
-
-func __ResetMTVEC()
-begin
-  MTVEC_BASE = Zeros(30);
-  MTVEC_MODE = MTVEC_MODE_VECTORED;
-end
-
-
-/// mtval can hold any value, it is not possible to have constraint
-var MTVAL : bits(32);
-func __ResetMTVAL()
-begin
-  MTVAL = Zeros(32);
-end
-
-var MSTATUS_MIE : bit;
-var MSTATUS_MPIE : bit;
-var MSTATUS_MPP : PrivMode;
-var MSTATUS_FS : bits(2);
-var MSTATUS_VS : bits(2);
-var MSTATUS_SD : bit;
-
-getter MSTATUS_MPP_BITS => bits(2)
-begin
-  return privModeToBits(MSTATUS_MPP, 2);
-end
-
-setter MSTATUS_MPP_BITS = value : bits(2)
-begin
-  MSTATUS_MPP = privModeFromBits(value);
-end
-
-func __ResetMSTATUS()
-begin
-  MSTATUS_MIE = '0';
-  MSTATUS_MPIE = '0';
-  MSTATUS_MPP = PRIV_MODE_LEAST;
-  MSTATUS_FS = '00';
-  MSTATUS_VS = '00';
-end
-
 // MIP and MIE
 //
 // Since in current implementation, only machine mode will be supported, there
@@ -173,98 +331,15 @@ end
 let MACHINE_TIMER_INTERRUPT = 7;
 let MACHINE_EXTERNAL_INTERRUPT = 11;
 
-getter getExternal_MEIP => bit
+// export to simulator
+func ASL_ResetConfigAndState()
 begin
-  return FFI_machine_external_interrupt_pending();
-end
-
-getter getExternal_MTIP => bit
-begin
-  return FFI_machine_time_interrupt_pending();
-end
-
-var MEIE : bit;
-var MTIE : bit;
-
-func __ResetMIE()
-begin
-  MEIE = '0';
-  MTIE = '0';
-end
-
-var __MEPC : bits(32);
-getter MEPC => bits(32)
-begin
-  return __MEPC;
-end
-
-setter MEPC = pc : bits(32)
-begin
-  assert pc[0] == '0';
-  // we don't support runtime switch off "C" extension so there is
-  // no need for misalign check at 1 bit.
-  __MEPC = pc;
-end
-
-func __ResetMEPC()
-begin
-  __MEPC = Zeros(32);
-end
-
-var MSCRATCH : bits(32);
-
-func __ResetMSCRATCH()
-begin
-  MSCRATCH = Zeros(32);
-end
-
-var MCAUSE_IS_INTERRUPT : boolean;
-
-getter MCAUSE_IS_INTERRUPT_BIT => bit
-begin
-  if MCAUSE_IS_INTERRUPT then
-    return '1';
-  else
-    return '0';
-  end
-end
-
-setter MCAUSE_IS_INTERRUPT_BIT = b : bit
-begin
-  MCAUSE_IS_INTERRUPT = (b == '1');
-end
-
-var MCAUSE_XCPT_CODE : bits(31);
-
-func __ResetMCAUSE()
-begin
-  MCAUSE_IS_INTERRUPT = FALSE;
-  MCAUSE_XCPT_CODE = Zeros(31);
-end
-
-
-// General States Reset
-func Reset()
-begin
-  __ResetCurrentPrivilege();
-
-  __ResetGPR();
-
-  __ResetVectorState();
-
-  __reset_f_state();
-
-  __ResetMTVEC();
-  __ResetMTVAL();
-  __ResetMSTATUS();
-  __ResetMIE();
-  __ResetMEPC();
-  __ResetMCAUSE();
-  __ResetMSCRATCH();
+  initConfigDefault();
+  resetArchStateDefault();
 end
 
 // export to simulator
-func ASL_Reset()
+func ASL_ResetState()
 begin
-  Reset();
+  resetArchStateDefault();
 end

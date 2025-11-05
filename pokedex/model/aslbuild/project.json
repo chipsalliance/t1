@@ -21,7 +21,11 @@
     "FFI_amo"
   ],
 
-  "exports": ["ASL_Step", "ASL_Reset"],
+  "exports": [
+    "ASL_Step",
+    "ASL_ResetConfigAndState",
+    "ASL_ResetState"
+  ],
 
   "split_state": {
     "global_state": [],

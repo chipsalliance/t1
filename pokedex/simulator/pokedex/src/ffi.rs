@@ -14,7 +14,7 @@ impl SimulatorHandle {
     }
 
     pub(crate) fn reset_states(&mut self) {
-        unsafe { model::ASL_Reset_0() }
+        unsafe { model::ASL_ResetConfigAndState_0() }
     }
 
     pub(crate) fn step(&mut self, state: &mut SimulatorState) {

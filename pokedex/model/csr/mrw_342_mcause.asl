@@ -4,10 +4,7 @@ begin
     return IllegalInstruction();
   end
 
-  return Ok([
-    MCAUSE_IS_INTERRUPT_BIT,  // [31]
-    MCAUSE_XCPT_CODE          // [30:0]
-  ]);
+  return Ok(MCAUSE);
 end
 
 func Write_MCAUSE(value: bits(32)) => Result
@@ -16,8 +13,12 @@ begin
     return IllegalInstruction();
   end
 
-  MCAUSE_IS_INTERRUPT_BIT = value[31];
-  MCAUSE_XCPT_CODE = value[30:0];
+  // NOTE : impl defiend behavior
+  //
+  // MCAUSE is WLRL, only guaranteed to hold all supported causes
+  // Here treats it as full XLEN-bit register
+
+  MCAUSE = value;
 
   logWrite_MCAUSE();
 
@@ -28,8 +29,5 @@ end
 
 func logWrite_MCAUSE()
 begin
-  FFI_write_CSR_hook("mcause", [
-    MCAUSE_IS_INTERRUPT_BIT,
-    MCAUSE_XCPT_CODE
-  ]);
+  FFI_write_CSR_hook("mcause", MCAUSE);
 end
