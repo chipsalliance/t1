@@ -15,28 +15,9 @@
 
 This file will include following path:
 
-    ./csr/read/{{ filename }}.asl
-    ./csr/write/{{ filename }}.asl
+    model/csr/{{ filename }}.asl
 
 #}
-
-// ------------
-// CSR Handlers
-// ------------
-{%- for data in csr_metadata %}
-{%- set fn_name = data.name | upper() %}
-
-func Read_{{ fn_name }}() => Result
-begin
-    {% include "csr/read/" + data.filename %}
-end
-
-func Write_{{ fn_name }}(value : bits(32)) => Result
-begin
-    {% include "csr/write/" + data.filename %}
-end
-
-{%- endfor %}
 
 // --------------
 // CSR Dispatcher
@@ -52,7 +33,7 @@ begin
         {%- endfor %}
 
         otherwise =>
-            return Exception(CAUSE_ILLEGAL_INSTRUCTION, ZeroExtend(csr, 32));
+            return IllegalInstruction();
     end
 end
 
@@ -60,17 +41,14 @@ func WriteCSR(csr : bits(12), value : bits(32)) => Result
 begin
     case csr of
         {%- for data in csr_metadata %}
+        {%- if data.read_write == "true" %}
 
         when '{{ data.bin_addr }}' =>
-            let result = Write_{{ data.name | upper() }}(value);
-            let read_back = Read_{{ data.name | upper() }}();
-            assert read_back.is_ok;
-            FFI_write_CSR_hook({{ data.hex_addr }}, "{{ data.name }}", read_back.value);
-            return result;
-
+            return Write_{{ data.name | upper() }}(value);
+        {%- endif %}
         {%- endfor %}
 
         otherwise =>
-            return Exception(CAUSE_ILLEGAL_INSTRUCTION, ZeroExtend(csr, 32));
+            return IllegalInstruction();
     end
 end

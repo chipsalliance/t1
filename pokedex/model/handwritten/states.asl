@@ -1,5 +1,14 @@
 constant XLEN : integer = 32;
 
+constant CFG_MHARTID : bits(32) = Zeros(32);
+constant CFG_MVENDORID : bits(32) = Zeros(32);
+constant CFG_MARCHID : bits(32) = Zeros(32);
+constant CFG_MIMPID : bits(32) = Zeros(32);
+constant CFG_MCONFIGPTR : bits(32) = Zeros(32);
+
+constant PRIV_MODE_MOST : PrivMode = PRIV_MODE_M;
+constant PRIV_MODE_LEAST : PrivMode = PRIV_MODE_M;
+
 // Program Counter
 var __PC : bits(32);
 
@@ -45,8 +54,8 @@ begin
   end
 end
 
-enumeration PRIVILEGE_LEVEL {
-  PRIV_MACHINE_MODE
+enumeration PrivMode {
+  PRIV_MODE_M
 };
 
 func is_valid_privilege(value : bits(2)) => boolean
@@ -54,63 +63,58 @@ begin
   return value == '11';
 end
 
-func __PrivLevelToBits(priv : PRIVILEGE_LEVEL, N: integer) => bits(N)
+func IsPrivAtLeast_M() => boolean
+begin
+  return TRUE;
+end
+
+func privModeToBits(priv : PrivMode, N: integer) => bits(N)
 begin
   case priv of
-    when PRIV_MACHINE_MODE => return ZeroExtend('11', N);
+    when PRIV_MODE_M => return ZeroExtend('11', N);
   end
 end
 
-func __BitsToPrivLevel(value : bits(N)) => PRIVILEGE_LEVEL
+func privModeFromBits(value : bits(N)) => PrivMode
 begin
   let mode : integer = UInt(value);
   case mode of
-    when 3 => return PRIV_MACHINE_MODE;
+    when 3 => return PRIV_MODE_M;
     otherwise => assert FALSE;
   end
 end
 
 // record current privilege level
-var CURRENT_PRIVILEGE : PRIVILEGE_LEVEL;
-
-getter CURRENT_PRIVILEGE_BITS => bits(2)
-begin
-  return __PrivLevelToBits(CURRENT_PRIVILEGE, 2);
-end
-
-setter CURRENT_PRIVILEGE_BITS = value : bits(2)
-begin
-  CURRENT_PRIVILEGE = __BitsToPrivLevel(value);
-end
+var CURRENT_PRIVILEGE : PrivMode;
 
 func __ResetCurrentPrivilege()
 begin
-  CURRENT_PRIVILEGE = PRIV_MACHINE_MODE;
+  CURRENT_PRIVILEGE = PRIV_MODE_M;
 end
 
 
 /// There are only two possible mtvec mode
-enumeration MTVEC_MODE_TYPE {
-  MTVEC_DIRECT_MODE,
-  MTVEC_VECTORED_MODE
+enumeration MtvecMode {
+  MTVEC_MODE_DIRECT,
+  MTVEC_MODE_VECTORED
 };
 
 var MTVEC_BASE : bits(30);
-var MTVEC_MODE : MTVEC_MODE_TYPE;
+var MTVEC_MODE : MtvecMode;
 
 getter MTVEC_MODE_BITS => bits(2)
 begin
   case MTVEC_MODE of
-    when MTVEC_DIRECT_MODE => return '00';
-    when MTVEC_VECTORED_MODE => return '01';
+    when MTVEC_MODE_DIRECT => return '00';
+    when MTVEC_MODE_VECTORED => return '01';
   end
 end
 
 setter MTVEC_MODE_BITS = value : bits(2)
 begin
   case value of
-    when '00' => MTVEC_MODE = MTVEC_DIRECT_MODE;
-    when '01' => MTVEC_MODE = MTVEC_VECTORED_MODE;
+    when '00' => MTVEC_MODE = MTVEC_MODE_DIRECT;
+    when '01' => MTVEC_MODE = MTVEC_MODE_VECTORED;
     otherwise => assert FALSE;
   end
 end
@@ -118,7 +122,7 @@ end
 func __ResetMTVEC()
 begin
   MTVEC_BASE = Zeros(30);
-  MTVEC_MODE = MTVEC_DIRECT_MODE;
+  MTVEC_MODE = MTVEC_MODE_VECTORED;
 end
 
 
@@ -129,58 +133,31 @@ begin
   MTVAL = Zeros(32);
 end
 
-
-/// mie and mpie is by default a switch value, no need to add extra constraint
-let MSTATUS_IDX : bits(12) = 0x300[11:0];
-let MSTATUS_H_IDX : bits(12) = 0x310[11:0];
-let MSTATUS_MIE_IDX = 3;
-let MSTATUS_MPIE_IDX = 7;
-let MSTATUS_MPP_LO = 11;
-let MSTATUS_MPP_HI = 12;
-let MSTATUS_VS_LO = 9;
-let MSTATUS_VS_HI = 10;
-let MSTATUS_FS_LO = 13;
-let MSTATUS_FS_HI = 14;
-
 var MSTATUS_MIE : bit;
 var MSTATUS_MPIE : bit;
-var MSTATUS_MPP : PRIVILEGE_LEVEL;
+var MSTATUS_MPP : PrivMode;
 var MSTATUS_FS : bits(2);
 var MSTATUS_VS : bits(2);
 var MSTATUS_SD : bit;
 
 getter MSTATUS_MPP_BITS => bits(2)
 begin
-  return __PrivLevelToBits(MSTATUS_MPP, 2);
+  return privModeToBits(MSTATUS_MPP, 2);
 end
 
 setter MSTATUS_MPP_BITS = value : bits(2)
 begin
-  MSTATUS_MPP = __BitsToPrivLevel(value);
+  MSTATUS_MPP = privModeFromBits(value);
 end
 
 func __ResetMSTATUS()
 begin
   MSTATUS_MIE = '0';
   MSTATUS_MPIE = '0';
-  MSTATUS_MPP = PRIV_MACHINE_MODE;
+  MSTATUS_MPP = PRIV_MODE_LEAST;
   MSTATUS_FS = '00';
   MSTATUS_VS = '00';
 end
-
-// set MSTATUS.FS to '0b11'.
-func set_mstatus_fs_dirty(log_write : boolean)
-begin
-  MSTATUS_FS = '11'; // set dirty
-
-  if log_write then
-    let r = ReadCSR(MSTATUS_IDX);
-    assert r.is_ok;
-    let w = WriteCSR(MSTATUS_IDX, r.value);
-    assert w.is_ok;
-  end
-end
-
 
 // MIP and MIE
 //
@@ -196,12 +173,12 @@ end
 let MACHINE_TIMER_INTERRUPT = 7;
 let MACHINE_EXTERNAL_INTERRUPT = 11;
 
-getter MEIP => bit
+getter getExternal_MEIP => bit
 begin
   return FFI_machine_external_interrupt_pending();
 end
 
-getter MTIP => bit
+getter getExternal_MTIP => bit
 begin
   return FFI_machine_time_interrupt_pending();
 end
@@ -234,6 +211,12 @@ begin
   __MEPC = Zeros(32);
 end
 
+var MSCRATCH : bits(32);
+
+func __ResetMSCRATCH()
+begin
+  MSCRATCH = Zeros(32);
+end
 
 var MCAUSE_IS_INTERRUPT : boolean;
 
@@ -277,6 +260,7 @@ begin
   __ResetMIE();
   __ResetMEPC();
   __ResetMCAUSE();
+  __ResetMSCRATCH();
 end
 
 // export to simulator

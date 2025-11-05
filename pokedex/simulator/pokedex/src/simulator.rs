@@ -162,7 +162,7 @@ impl Simulator {
 pub(crate) enum ModelStateWrite {
     Xrf { rd: u8, value: u32 },
     Frf { rd: u8, value: u32 },
-    Csr { idx: u32, name: String, value: u32 },
+    Csr { name: String, value: u32 },
     Load { addr: u32 },
     Store { addr: u32, data: Vec<u8> },
     ResetVector { pc: u32 },
@@ -320,9 +320,8 @@ impl SimulatorState {
             .push(ModelStateWrite::Frf { rd, value })
     }
 
-    pub(crate) fn write_csr(&mut self, idx: u32, name: &str, value: u32) {
+    pub(crate) fn write_csr(&mut self, name: &str, value: u32) {
         self.model_state_writes.push(ModelStateWrite::Csr {
-            idx,
             name: name.to_string(),
             value,
         })

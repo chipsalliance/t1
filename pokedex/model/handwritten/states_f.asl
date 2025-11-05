@@ -18,8 +18,7 @@ begin
   // notify emulator that a write to FPR occur
   ffi_write_fpr_hook(i, value);
 
-  // implicit set MSTATUS.FS to '11', don't log write
-  set_mstatus_fs_dirty(/*log_write*/FALSE);
+  makeDirty_FS();
 end
 
 // Helper function to reset all the F register to Zeros
