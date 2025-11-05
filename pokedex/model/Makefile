@@ -17,6 +17,7 @@ RISCV_OPCODES_SRC ?= $(_RISCV_OPCODES_SRC)
 
 PROJECT_SRCS := aslbuild/project.json aslbuild/asl2c.prj
 HANDWRITTEN_SRCS := $(wildcard handwritten/*.asl)
+CSR_SRCS := $(wildcard csr/*.asl)
 ENABLED_EXTENSIONS := $(foreach dir,$(wildcard template/extensions/*),$(notdir $(dir)))
 
 all: install
@@ -71,7 +72,7 @@ $(STAGE_0)/output/causes.asl: $(STAGE_0)/causes.json
 		$(STAGE_0)/template/causes.asl.j2 $(STAGE_0)/causes.json
 
 $(STAGE_0)/csr_meta.json: $(STAGE_0)
-	$(RVOPCODE_CLI) csr --dir $(STAGE_0)/template/csr --output $@
+	$(RVOPCODE_CLI) csr --dir csr --output $@
 
 $(STAGE_0)/output/csr_op.asl: $(STAGE_0)/csr_meta.json
 	$(JINJA_CLI) $(JINJA_FLAGS) -f json -o $@ \
@@ -82,7 +83,7 @@ $(STAGE_0)/output/csr_op.asl: $(STAGE_0)/csr_meta.json
 # -------------------------------------------
 CODEGEN_SRCS := execute.asl causes.asl csr_op.asl
 STAGE_1 := $(BUILD_DIR)/1-project
-$(STAGE_1): $(PROJECT_SRCS) $(HANDWRITTEN_SRCS) $(addprefix $(STAGE_0)/output/,$(CODEGEN_SRCS))
+$(STAGE_1): $(PROJECT_SRCS) $(HANDWRITTEN_SRCS) $(CSR_SRCS) $(addprefix $(STAGE_0)/output/,$(CODEGEN_SRCS))
 	mkdir -p $@
 	# Copy project related source to rvcore
 	cp $^ $@/

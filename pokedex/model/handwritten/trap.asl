@@ -31,12 +31,12 @@ begin
   MSTATUS_MPP = CURRENT_PRIVILEGE;
   MEPC = PC;
 
-  CURRENT_PRIVILEGE = PRIV_MACHINE_MODE;
+  CURRENT_PRIVILEGE = PRIV_MODE_M;
 
   MCAUSE_IS_INTERRUPT = TRUE;
   MCAUSE_XCPT_CODE = interrupt_code[30:0];
 
-  if MTVEC_MODE == MTVEC_DIRECT_MODE then
+  if MTVEC_MODE == MTVEC_MODE_DIRECT then
     PC = [ MTVEC_BASE, '00' ];
   else
     PC = [ MTVEC_BASE, '00' ] + (4 * interrupt_code);
@@ -50,13 +50,13 @@ begin
     return FALSE;
   end
 
-  let machine_trap_timer : bit = MTIP AND MTIE;
+  let machine_trap_timer : bit = getExternal_MTIP AND MTIE;
   if machine_trap_timer == '1' then
     TrapInterrupt(MACHINE_TIMER_INTERRUPT);
     return TRUE;
   end
 
-  let machine_trap_external : bit = MEIP AND MEIE;
+  let machine_trap_external : bit = getExternal_MEIP AND MEIE;
   if machine_trap_external == '1' then
     TrapInterrupt(MACHINE_EXTERNAL_INTERRUPT);
     return TRUE;

@@ -6,7 +6,7 @@ record FFI_ReadResult(N) {
 func FFI_instruction_fetch_half(pc : bits(32)) => FFI_ReadResult(16);
 func FFI_emulator_do_fence();
 func FFI_write_GPR_hook(reg_idx: integer{0..31}, data: bits(32));
-func FFI_write_CSR_hook(idx: integer, name: string, value: bits(32));
+func FFI_write_CSR_hook(name: string, value: bits(32));
 func ffi_commit_insn(pc : bits(32), insn : bits(32), is_c: boolean);
 
 func FFI_ecall();

@@ -1,1 +1,0 @@
-return OK([MTVEC_BASE, MTVEC_MODE_BITS]);

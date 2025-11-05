@@ -133,22 +133,23 @@ object Main:
       .filter(p => p.last.endsWith(".asl"))
       .flatMap(p =>
         p.baseName match
-          case s"${name}_${addr}" => Some((name, Integer.parseInt(addr, 16), p.last))
-          case _                  => None
+          case s"${mode}_${addr}_${name}" => Some((name, Integer.parseInt(addr, 16), p.last))
+          case _                          => None
       )
       .groupBy(identity)
       .view
       .map((item, impl) => {
-        if impl.length != 2 then
-          println(s"${BOLD}${YELLOW}WARNING:${RESET} CSR ${item._1} missing read or write implementation")
+        if impl.length != 1 then println(s"${BOLD}${YELLOW}WARNING:${RESET} CSR ${item._1} implementation duplicate")
 
         val (name, addr, filename) = item
 
         Map(
-          "name"     -> name,
-          "filename" -> filename,
-          "hex_addr" -> s"0x${Integer.toString(addr, 16)}",
-          "bin_addr" -> intToBin(addr, 12)
+          "name"       -> name,
+          "filename"   -> filename,
+          "hex_addr"   -> s"0x${Integer.toString(addr, 16)}",
+          "bin_addr"   -> intToBin(addr, 12),
+          // 0x000 - 0xbff are RW; 0xc00 - 0xfff are RO
+          "read_write" -> s"${addr < 0xc00}"
         )
       })
     os.write.over(output, write(Map("csr_metadata" -> csr_meta)))
