@@ -2,10 +2,10 @@ use clap::Parser;
 use miette::{Context, IntoDiagnostic};
 use serde::Serialize;
 
-mod diff;
 mod pokedex;
 mod replay;
 mod spike_parser;
+mod util;
 
 #[derive(clap::Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -106,8 +106,8 @@ fn diff_against_pokedex_spike(
     assert!(pokedex_cassette.roll_until(reset_pc));
     assert!(spike_cassette.roll_until(reset_pc));
 
-    while let Some(ct1) = spike_cassette.roll() {
-        let Some(ct2) = pokedex_cassette.roll() else {
+    while let Some(dr1) = spike_cassette.roll() {
+        let Some(dr2) = pokedex_cassette.roll() else {
             panic!("internal error: pokedex log ends before spike")
         };
 
@@ -115,19 +115,16 @@ fn diff_against_pokedex_spike(
             break;
         }
 
-        if let Err(errors) = crate::diff::compare(
-            spike_cassette.get_state(),
-            &ct1,
-            pokedex_cassette.get_state(),
-            &ct2,
-        ) {
-            return DiffMeta::failed(
-                errors
-                    .iter()
-                    .map(|err| {
-                        indoc::formatdoc! {"
+        let combined_dr = replay::DiffRecord::combine(&dr1, &dr2);
+
+        let pokedex_state = pokedex_cassette.get_state();
+        let spike_state = spike_cassette.get_state();
+
+        if !combined_dr.compare(spike_state, pokedex_state) {
+            let pc = spike_state.pc;
+            return DiffMeta::failed(indoc::formatdoc! {"
                             ======================================================
-                            Error: {err}
+                            Error: difftest error after pc={pc:#010x}
                             ======================================================
 
                             <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -137,12 +134,7 @@ fn diff_against_pokedex_spike(
                             Pokedex Dump:
                             {pokedex_state}
                             >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-                        ",
-                        pokedex_state = pokedex_cassette.get_state(),
-                        spike_state = spike_cassette.get_state()}
-                    })
-                    .collect(),
-            );
+                        "});
         };
     }
 

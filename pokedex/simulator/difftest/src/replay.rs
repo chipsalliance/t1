@@ -1,17 +1,20 @@
-use std::collections::HashMap;
 use std::fmt::Display;
 use std::iter::Peekable;
 use std::slice::Iter;
 
+use crate::util::Bitmap32;
+
+const VLEN: usize = 256;
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct CpuState {
-    pub(crate) gpr: [u32; 32],
-    pub(crate) fpr: [u32; 32],
-    pub(crate) vregs: Vec<u8>,
+    pub gpr: [u32; 32],
+    pub fpr: [u32; 32],
+    pub vregs: Vec<u8>,
 
-    pub(crate) pc: u32,
+    pub pc: u32,
 
-    pub(crate) csr: HashMap<u16, (String, u32)>,
+    pub csr: CsrState,
 
     pub(crate) is_reset: bool,
     pub(crate) reset_vector: u32,
@@ -21,6 +24,78 @@ pub struct CpuState {
     // The ASL model supports only single core with M mode, so we are not going to test them right now
     // current_priv_mode: u8,
     // current_core: u8,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct CsrState {
+    pub fcsr: u32,
+    pub vtype: u32,
+    pub vl: u32,
+    pub vcsr: u32,
+    pub vstart: u32,
+    pub mstatus: u32,
+    pub mstatush: u32,
+    pub mtvec: u32,
+    pub mtval: u32,
+    pub mepc: u32,
+    pub mie: u32,
+    pub mscratch: u32,
+}
+
+impl Default for CsrState {
+    fn default() -> Self {
+        Self {
+            fcsr: 0,
+            vtype: 0x80000000, // vtype.ill is set
+            vl: 0,
+            vcsr: 0,
+            vstart: 0,
+            mstatus: 0x00001800, // mstatus.mpp = M
+            mstatush: 0,
+            mtvec: 0,
+            mtval: 0,
+            mepc: 0,
+            mie: 0,
+            mscratch: 0,
+        }
+    }
+}
+
+// Record which part of CpuState is modified.
+// The record is conservative, which means if the mask is spurious set,
+// the comparison may be slower but still correct.
+#[derive(Debug, Clone, Default)]
+pub struct DiffRecord {
+    gpr_write_mask: Bitmap32,
+    fpr_write_mask: Bitmap32,
+}
+
+impl DiffRecord {
+    pub fn compare(&self, x: &CpuState, y: &CpuState) -> bool {
+        x.pc == y.pc
+            && self.compare_gpr(x, y)
+            && self.compare_fpr(x, y)
+            && Self::compare_csr_all(x, y)
+    }
+
+    pub fn combine(lhs: &DiffRecord, rhs: &DiffRecord) -> DiffRecord {
+        DiffRecord {
+            gpr_write_mask: lhs.gpr_write_mask | rhs.gpr_write_mask,
+            fpr_write_mask: lhs.fpr_write_mask | rhs.fpr_write_mask,
+        }
+    }
+
+    fn compare_gpr(&self, x: &CpuState, y: &CpuState) -> bool {
+        self.gpr_write_mask.indices().all(|i| x.gpr[i] == y.gpr[i])
+    }
+
+    fn compare_fpr(&self, x: &CpuState, y: &CpuState) -> bool {
+        self.fpr_write_mask.indices().all(|i| x.fpr[i] == y.fpr[i])
+    }
+
+    fn compare_csr_all(x: &CpuState, y: &CpuState) -> bool {
+        x.csr == y.csr
+    }
 }
 
 fn pretty_print_regs(
@@ -45,15 +120,28 @@ fn pretty_print_regs(
     Ok(())
 }
 
-fn pretty_print_csr(
-    f: &mut std::fmt::Formatter<'_>,
-    csr: &HashMap<u16, (String, u32)>,
-) -> std::fmt::Result {
+fn pretty_print_csr(f: &mut std::fmt::Formatter<'_>, csr: &CsrState) -> std::fmt::Result {
     const COLUMN: usize = 4;
 
+    // FIXME: find a better way than hard-coding
+    let csr = [
+        ("fcsr", csr.fcsr),
+        ("vtype", csr.vtype),
+        ("vl", csr.vl),
+        ("vcsr", csr.vcsr),
+        ("vstart", csr.vstart),
+        ("mstatus", csr.mstatus),
+        ("mstatush", csr.mstatush),
+        ("mtvec", csr.mtvec),
+        ("mtval", csr.mtval),
+        ("mepc", csr.mepc),
+        ("mie", csr.mie),
+        ("mscratch", csr.mscratch),
+    ];
+
     let mut cursor = 0;
-    for (id, (name, val)) in csr {
-        write!(f, "({name} [{id}])={val:#010x}")?;
+    for (name, val) in csr {
+        write!(f, "{name} = {val:#010x}")?;
         cursor += 1;
 
         if cursor >= COLUMN {
@@ -94,92 +182,128 @@ impl CpuState {
         Self {
             gpr: [0; 32],
             fpr: [0; 32],
-            vregs: Vec::new(),
+            vregs: vec![0; 32 * (VLEN / 8)],
             pc: 0,
-            csr: HashMap::new(),
+
+            csr: CsrState::default(),
+
             reset_vector: 0,
             is_reset: false,
             is_poweroff: false,
         }
     }
 
-    /// Update shadow GPR, return old data if the written data is different with it.
-    pub(crate) fn write_gpr(&mut self, rd: usize, val: u32) -> Option<u32> {
+    pub(crate) fn write_gpr(&mut self, rd: usize, val: u32, diff: &mut DiffRecord) {
         assert!(rd > 0 && rd < 32);
-        let old_val = self.gpr[rd];
-        if old_val != val {
-            self.gpr[rd] = val;
-            Some(old_val)
-        } else {
-            None
-        }
+        self.gpr[rd] = val;
+        diff.gpr_write_mask.set(rd);
     }
 
-    /// Update shadow FPR, return old data if the written data is different with it.
-    pub(crate) fn write_fpr(&mut self, rd: usize, val: u32) -> Option<u32> {
+    pub(crate) fn write_fpr(&mut self, rd: usize, val: u32, diff: &mut DiffRecord) {
         assert!(rd < 32);
-        let old_val = self.fpr[rd];
-        if old_val != val {
-            self.fpr[rd] = val;
-            Some(old_val)
-        } else {
-            None
-        }
+        self.fpr[rd] = val;
+        diff.fpr_write_mask.set(rd);
     }
 
-    pub(crate) fn write_csr(&mut self, name: &str, id: u16, val: u32) -> Option<u32> {
-        let (_, entry) = self.csr.entry(id).or_insert((name.to_string(), val));
-        let old_val = *entry;
-        if old_val != val {
-            *entry = val;
-            Some(old_val)
-        } else {
-            None
+    pub(crate) fn write_csr(&mut self, name: &str, val: u32) -> Result<(), CsrValueError> {
+        const MASK_FCSR: u32 = 0xFF;
+        const MASK_FFLAGS: u32 = 0x1F;
+        const MASK_FRM: u32 = 0x07;
+        const MASK_VCSR: u32 = 0x07;
+        const MASK_VXRM: u32 = 0x03;
+        const MASK_VXSAT: u32 = 0x01;
+
+        macro_rules! ensure {
+            ($cond: expr) => {
+                if !($cond) {
+                    return Err(CsrValueError);
+                }
+            };
         }
+
+        match name {
+            "fcsr" => {
+                ensure!(val == val & MASK_FCSR);
+                self.csr.fcsr = val;
+            }
+            "fflags" => {
+                ensure!(val == val & MASK_FFLAGS);
+                update(&mut self.csr.fcsr, val, MASK_FFLAGS);
+            }
+            "frm" => {
+                ensure!(val == val & MASK_FRM);
+                update(&mut self.csr.fcsr, val << 5, MASK_FRM << 5);
+            }
+
+            "vtype" => {
+                // ensure!(...);
+                self.csr.vtype = val;
+            }
+            "vl" => {
+                // ensure!(val <= VLEN);
+                self.csr.vl = val;
+            }
+            "vcsr" => {
+                ensure!(val == val & MASK_VCSR);
+                self.csr.vcsr = val;
+            }
+            "vxrm" => {
+                ensure!(val == val & MASK_VXRM);
+                update(&mut self.csr.vcsr, val << 1, MASK_VXRM << 1);
+            }
+            "vxsat" => {
+                ensure!(val == val & MASK_VXSAT);
+                update(&mut self.csr.vcsr, val, MASK_VXSAT);
+            }
+            "vstart" => {
+                // ensure!(val <= VLEN);
+                self.csr.vstart = val;
+            }
+
+            "mstatus" => {
+                // check_mstatus(val)?;
+                self.csr.mstatus = val;
+            }
+            "mstatush" => {
+                // check_mstatush(val)?;
+                self.csr.mstatush = val;
+            }
+            "mtvec" => {
+                // check_mtvec(val)?;
+                self.csr.mtvec = val;
+            }
+            "mepc" => {
+                // check_mepc(val)?;
+                self.csr.mepc = val;
+            }
+            "mie" => {
+                // check_mie(val)?;
+                self.csr.mie = val;
+            }
+            "mscratch" => {
+                self.csr.mscratch = val;
+            }
+
+            _ => return Err(CsrValueError),
+        }
+
+        Ok(())
     }
 
-    pub(crate) fn write_vreg(&mut self, data: &[u8], mask: &[bool]) -> Option<Vec<u8>> {
+    pub(crate) fn write_vreg(&mut self, data: &[u8], mask: &[bool]) -> Bitmap32 {
         todo!()
     }
 }
 
-/// CSR Write is conservative, it can be an implicit write from instruction or an explicit write
-/// request by Zicsr instructions. Distinguish those writes could speed up diff test.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CsrCheckType {
-    NoWrite,
-    AllCsr,
-    FpCsrOnly,
-    VecCsrOnly,
+fn update(src: &mut u32, value: u32, mask: u32) {
+    *src = (*src & !mask) | (value & mask);
 }
 
-impl Default for CsrCheckType {
-    fn default() -> Self {
-        Self::NoWrite
-    }
-}
-
-impl CsrCheckType {
-    pub(crate) fn has_write(&self) -> bool {
-        !(matches!(self, Self::NoWrite))
-    }
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct StateCheckType {
-    // rd for general propose register
-    pub(crate) gpr_rd: Option<usize>,
-    // rd for floating point register
-    pub(crate) fpr_rd: Option<usize>,
-    // written data index mask for the concatenated vector register
-    pub(crate) vreg_mask: Option<u32>,
-    // possible write type for CSR
-    pub(crate) csr_mask: CsrCheckType,
-}
+pub struct CsrValueError;
 
 pub trait IsInsnCommit {
     fn get_pc(&self) -> u32;
-    fn write_cpu_state(&self, state: &mut CpuState) -> StateCheckType;
+    fn write_cpu_state(&self, state: &mut CpuState) -> DiffRecord;
 }
 
 pub struct CommitCassette<'a, 'b, T>
@@ -212,7 +336,7 @@ where
         false
     }
 
-    pub fn roll(&mut self) -> Option<StateCheckType> {
+    pub fn roll(&mut self) -> Option<DiffRecord> {
         let check_ty = self
             .commit_cursor
             .peek()
