@@ -1,12 +1,14 @@
 use std::fmt::Display;
 
+use crate::replay;
+
 // TODO: share library
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(tag = "dest", rename_all = "lowercase")]
 pub(crate) enum ModelStateWrite {
     Xrf { rd: u8, value: u32 },
     Frf { rd: u8, value: u32 },
-    Csr { idx: u16, name: String, value: u32 },
+    Csr { name: String, value: u32 },
     Load { addr: u32 },
     Store { addr: u32, data: Vec<u8> },
     ResetVector { pc: u32 },
@@ -20,7 +22,7 @@ impl Display for ModelStateWrite {
         match self {
             Xrf { rd, value } => write!(f, "[x{rd} <- {value:#010x}]"),
             Frf { rd, value } => write!(f, "[f{rd} <- {value:#010x}]"),
-            Csr { idx, name, value } => write!(f, "[csr {idx} {name} <- {value:#010x}]"),
+            Csr { name, value } => write!(f, "[csr {name} <- {value:#010x}]"),
             Load { addr } => write!(f, "[mem {addr} -> load]"),
             Store { addr, data } => write!(f, "[mem {addr} <- {:x?}]", &data),
             ResetVector { pc } => write!(f, "[reset <- {pc:#010x}]"),
@@ -53,42 +55,30 @@ impl Display for InsnCommit {
     }
 }
 
-impl crate::replay::IsInsnCommit for InsnCommit {
+impl replay::IsInsnCommit for InsnCommit {
     fn get_pc(&self) -> u32 {
         self.pc as u32
     }
 
-    fn write_cpu_state(
-        &self,
-        state: &mut crate::replay::CpuState,
-    ) -> crate::replay::StateCheckType {
+    fn write_cpu_state(&self, state: &mut replay::CpuState) -> replay::DiffRecord {
         state.pc = self.pc as u32;
 
-        let mut check_ty = crate::replay::StateCheckType::default();
-
-        let mut has_frf_write = false;
-        let mut has_csr_write = false;
+        let mut dr = replay::DiffRecord::default();
         self.states_changed.iter().for_each(|write| {
-            use crate::replay::CsrCheckType;
             use ModelStateWrite::*;
 
             match write {
-                Xrf { rd, value } => {
-                    if state.write_gpr((*rd) as usize, *value).is_some() {
-                        check_ty.gpr_rd = Some((*rd) as usize);
-                    }
+                &Xrf { rd, value } => {
+                    state.write_gpr(rd as usize, value, &mut dr);
                 }
-                Frf { rd, value } => {
-                    if state.write_fpr((*rd) as usize, *value).is_some() {
-                        check_ty.fpr_rd = Some((*rd) as usize);
-                    }
-                    has_frf_write = true;
+                &Frf { rd, value } => {
+                    state.write_fpr(rd as usize, value, &mut dr);
                 }
-                Csr { idx, name, value } => {
-                    if state.write_csr(name, *idx, *value).is_some() {
-                        check_ty.csr_mask = CsrCheckType::AllCsr;
-                    }
-                    has_csr_write = true;
+                &Csr { ref name, value } => {
+                    // FIXME: error handling
+                    state.write_csr(name, value).unwrap_or_else(|_| {
+                        panic!("pokedex replay error: CSR {name} = {value:#010x}")
+                    });
                 }
                 ResetVector { pc } => {
                     state.is_reset = true;
@@ -97,14 +87,14 @@ impl crate::replay::IsInsnCommit for InsnCommit {
                 Poweroff { .. } => {
                     state.is_poweroff = true;
                 }
-                _ => (),
-            }
 
-            if has_frf_write && has_csr_write {
-                check_ty.csr_mask = CsrCheckType::FpCsrOnly;
+                Load { .. } | Store { .. } => {
+                    // here only replay core events
+                    // memory events are intentionally ignored
+                }
             }
         });
 
-        check_ty
+        dr
     }
 }

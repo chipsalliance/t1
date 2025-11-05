@@ -1,8 +1,8 @@
 use clap::Parser;
 use miette::IntoDiagnostic;
 use pokedex::{AddressSpaceDescNode, BusInfo, SimulationException, SimulatorParams};
-use tracing::{event, Level};
-use tracing_subscriber::{prelude::*, EnvFilter};
+use tracing::{Level, event};
+use tracing_subscriber::{EnvFilter, prelude::*};
 
 const VERBOSITY_WRITE_TRACE: u8 = 2;
 

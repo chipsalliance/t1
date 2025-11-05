@@ -35,7 +35,7 @@ fn is_hex(s: &str) -> bool {
 }
 
 /// Tokenizes a raw string from a Spike commit log.
-pub fn tokenize_spike_log(raw_str: &str) -> Vec<Vec<Token>> {
+pub fn tokenize_spike_log(raw_str: &str) -> Vec<Vec<Token<'_>>> {
     raw_str
         .lines()
         .enumerate()
@@ -154,50 +154,43 @@ impl crate::replay::IsInsnCommit for Commit {
         self.pc as u32
     }
 
-    fn write_cpu_state(
-        &self,
-        state: &mut crate::replay::CpuState,
-    ) -> crate::replay::StateCheckType {
+    fn write_cpu_state(&self, state: &mut crate::replay::CpuState) -> crate::replay::DiffRecord {
         state.pc = self.pc as u32;
 
-        let mut check_ty = crate::replay::StateCheckType::default();
+        let mut dr = crate::replay::DiffRecord::default();
 
-        let mut has_frf_write = false;
-        let mut has_csr_write = false;
-        self.state_changes.iter().for_each(|write| {
-            use crate::replay::CsrCheckType;
+        for write in &self.state_changes {
             use Modification::*;
 
             match write {
-                WriteXReg { rd, bits } => {
-                    if state.write_gpr((*rd) as usize, (*bits) as u32).is_some() {
-                        check_ty.gpr_rd = Some((*rd) as usize);
-                    }
+                &WriteXReg { rd, bits } => {
+                    state.write_gpr(rd as usize, bits as u32, &mut dr);
                 }
-                WriteFReg { rd, bits } => {
-                    if state.write_fpr((*rd) as usize, (*bits) as u32).is_some() {
-                        check_ty.fpr_rd = Some((*rd) as usize);
-                    }
-                    has_frf_write = true;
+                &WriteFReg { rd, bits } => {
+                    state.write_fpr(rd as usize, bits as u32, &mut dr);
                 }
-                WriteCSR { rd, name, bits } => {
-                    if state
-                        .write_csr(name, (*rd) as u16, (*bits) as u32)
-                        .is_some()
-                    {
-                        check_ty.csr_mask = CsrCheckType::AllCsr;
-                    }
-                    has_csr_write = true;
-                }
-                _ => (),
-            }
+                &WriteCSR { rd, ref name, bits } => {
+                    let bits = bits as u32;
 
-            if has_frf_write && has_csr_write {
-                check_ty.csr_mask = CsrCheckType::FpCsrOnly;
-            }
-        });
+                    // TODO: check rd/name correspondence
 
-        check_ty
+                    // FIXME: error handling
+                    state.write_csr(name, bits).unwrap_or_else(|_| {
+                        panic!("spike replay error: CSR {name} = {bits:#010x}")
+                    });
+                }
+
+                WriteVecCtx { .. } => todo!("spike replay: WriteVecCtx"),
+                WriteVReg { .. } => todo!("spike replay: WriteVReg"),
+
+                Load { .. } | Store { .. } => {
+                    // here only replay core events
+                    // memory events are intentionally ignored
+                }
+            }
+        }
+
+        dr
     }
 }
 
