@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::iter::Peekable;
 use std::slice::Iter;
 
@@ -156,8 +155,8 @@ fn pretty_print_csr(f: &mut std::fmt::Formatter<'_>, csr: &CsrState) -> std::fmt
     Ok(())
 }
 
-impl Display for CpuState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl CpuState {
+    pub fn pretty_print(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", "=".repeat(80))?;
 
         writeln!(f, "General Purpose Register dump at PC {:#010x}:", self.pc)?;

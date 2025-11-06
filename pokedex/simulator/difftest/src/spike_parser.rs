@@ -19,11 +19,7 @@ pub enum Token<'a> {
     Lmul(&'a str),
     Vl(&'a str),
     Csr(&'a str),
-    Unknown {
-        line_num: usize,
-        raw_line: &'a str,
-        raw_token: &'a str,
-    },
+    Unknown { raw_token: &'a str },
 }
 
 fn is_digit(s: &str) -> bool {
@@ -35,75 +31,54 @@ fn is_hex(s: &str) -> bool {
 }
 
 /// Tokenizes a raw string from a Spike commit log.
-pub fn tokenize_spike_log(raw_str: &str) -> Vec<Vec<Token<'_>>> {
-    raw_str
-        .lines()
-        .enumerate()
-        .map(|(line_num, raw_line)| {
-            raw_line
-                .split_whitespace()
-                .map(move |raw_token| match raw_token {
-                    "core" => Token::CoreLiteral,
-                    "mem" => Token::MemLiteral,
-                    tok if tok.ends_with(":") => {
-                        if let Some(id) = tok.strip_suffix(':') {
-                            if is_digit(id) {
-                                return Token::CoreId(id);
-                            }
-                        }
-
-                        Token::Unknown {
-                            line_num,
-                            raw_line,
-                            raw_token,
-                        }
+pub fn tokenize_spike_log_line(line: &str) -> Vec<Token<'_>> {
+    fn str_to_token(raw_token: &str) -> Token<'_> {
+        match raw_token {
+            "core" => Token::CoreLiteral,
+            "mem" => Token::MemLiteral,
+            tok if tok.ends_with(":") => {
+                if let Some(id) = tok.strip_suffix(':') {
+                    if is_digit(id) {
+                        return Token::CoreId(id);
                     }
-                    tok if tok.starts_with("(0x") && tok.ends_with(')') => {
-                        if let Some(hex_unstrip) = tok.strip_prefix("(0x") {
-                            if is_hex(&tok[1..tok.len() - 1]) {
-                                return Token::Instruction(&hex_unstrip[..hex_unstrip.len() - 1]);
-                            }
-                        }
-                        Token::Unknown {
-                            line_num,
-                            raw_line,
-                            raw_token,
-                        }
-                    }
-                    tok if is_hex(tok) => Token::Hexadecimal(&tok[2..]),
-                    tok if is_digit(tok) => Token::NumberLiteral(tok),
-                    tok if tok.len() > 1 => match &tok[0..1] {
-                        "x" if is_digit(&tok[1..]) => Token::XReg(&tok[1..]),
-                        "f" if is_digit(&tok[1..]) => Token::FReg(&tok[1..]),
-                        "v" if is_digit(&tok[1..]) => Token::VReg(&tok[1..]),
-                        "e" if is_digit(&tok[1..]) => Token::Sew(&tok[1..]),
-                        "l" if is_digit(&tok[1..]) => Token::Vl(&tok[1..]),
-                        "m" => Token::Lmul(tok), // Lmul is special, can be 'm' or 'mf'
-                        "c" if tok.contains('_')
-                            && tok
-                                .chars()
-                                .skip(1)
-                                .take_while(|c| *c != '_')
-                                .all(|c| c.is_ascii_digit()) =>
-                        {
-                            Token::Csr(tok)
-                        }
+                }
 
-                        _ => Token::Unknown {
-                            line_num,
-                            raw_line,
-                            raw_token,
-                        },
-                    },
-                    _ => Token::Unknown {
-                        line_num,
-                        raw_line,
-                        raw_token,
-                    },
-                })
-                .collect()
-        })
-        .collect()
+                Token::Unknown { raw_token }
+            }
+            tok if tok.starts_with("(0x") && tok.ends_with(')') => {
+                if let Some(hex_unstrip) = tok.strip_prefix("(0x") {
+                    if is_hex(&tok[1..tok.len() - 1]) {
+                        return Token::Instruction(&hex_unstrip[..hex_unstrip.len() - 1]);
+                    }
+                }
+                Token::Unknown { raw_token }
+            }
+            tok if is_hex(tok) => Token::Hexadecimal(&tok[2..]),
+            tok if is_digit(tok) => Token::NumberLiteral(tok),
+            tok if tok.len() > 1 => match &tok[0..1] {
+                "x" if is_digit(&tok[1..]) => Token::XReg(&tok[1..]),
+                "f" if is_digit(&tok[1..]) => Token::FReg(&tok[1..]),
+                "v" if is_digit(&tok[1..]) => Token::VReg(&tok[1..]),
+                "e" if is_digit(&tok[1..]) => Token::Sew(&tok[1..]),
+                "l" if is_digit(&tok[1..]) => Token::Vl(&tok[1..]),
+                "m" => Token::Lmul(tok), // Lmul is special, can be 'm' or 'mf'
+                "c" if tok.contains('_')
+                    && tok
+                        .chars()
+                        .skip(1)
+                        .take_while(|c| *c != '_')
+                        .all(|c| c.is_ascii_digit()) =>
+                {
+                    Token::Csr(tok)
+                }
+
+                _ => Token::Unknown { raw_token },
+            },
+            _ => Token::Unknown { raw_token },
+        }
+    }
+
+    line.split_whitespace().map(str_to_token).collect()
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -209,12 +184,6 @@ pub enum ParseError<'a> {
         value: String,
         reason: String,
     },
-    #[error("An unknown token was found on line {line_num}: '{raw_token}' in line '{raw_line}'")]
-    UnknownToken {
-        line_num: usize,
-        raw_line: &'a str,
-        raw_token: &'a str,
-    },
 }
 
 // Helper struct to manage parsing state
@@ -265,22 +234,6 @@ impl<'a, 'b> Parser<'a, 'b> {
 
 /// Parses a single line of tokens into a Commit struct.
 pub fn parse_single_commit<'a>(tokens: &'a [Token<'_>]) -> Result<Commit, ParseError<'a>> {
-    // Check for any Unknown tokens before starting.
-    for token in tokens {
-        if let Token::Unknown {
-            line_num,
-            raw_line,
-            raw_token,
-        } = token
-        {
-            return Err(ParseError::UnknownToken {
-                line_num: *line_num,
-                raw_line,
-                raw_token,
-            });
-        }
-    }
-
     let mut token_iter = tokens.iter().peekable();
     let mut p = Parser::new(&mut token_iter);
 
@@ -564,6 +517,10 @@ mod tests {
         let mut d = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("assets/example.spike.log");
         std::fs::read_to_string(d).unwrap()
+    }
+
+    fn tokenize_spike_log(raw_str: &str) -> Vec<Vec<Token<'_>>> {
+        raw_str.lines().map(tokenize_spike_log_line).collect()
     }
 
     #[test]
