@@ -65,10 +65,10 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
   val dataInS1:     UInt            = maskAnd(s1Valid, indexToOH(s1Pipe.instructionIndex, parameter.chainingSize)).asUInt
   val fwd1:         Bool            = RegInit(false.B)
 
-  val s3EnqReady: Bool = dequeueWire.ready || !s3Valid
+  val s3EnqReady: Bool = dequeueWire.ready
   val s3Fire:     Bool = s3EnqReady && s2Valid
 
-  val s2EnqReady: Bool = s3EnqReady || !s2Valid
+  val s2EnqReady: Bool = dequeueWire.ready
   val s2Fire:     Bool = s2EnqReady && s1Valid
 
   val s1EnqReady: Bool = Wire(Bool())
@@ -82,7 +82,7 @@ class MaskedWrite(parameter: LaneParameter) extends Module {
   val hitQueue: Bool = !dequeueQueue.empty &&
     address(enqueue.bits) === address(dequeueQueue.deq.bits)
   val fwd:      Bool = enqHitS1 || enqHitS2 || enqHitS3
-  s1EnqReady := (s2EnqReady || !s1Valid) && !hitQueue
+  s1EnqReady := dequeueWire.ready && !hitQueue
   val dataInQueue: UInt = maskAnd(
     !dequeueQueue.empty,
     indexToOH(dequeueQueue.deq.bits.instructionIndex, parameter.chainingSize)
