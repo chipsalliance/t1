@@ -166,10 +166,14 @@ fn diff_against_pokedex_spike(
                             ======================================================
                             Pokedex Dump:
                             {pokedex_state}
+                            ======================================================
+                            Diff: spike <-> pokedex
+                            {state_diff}
                             >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                         ",
                 spike_state = util::from_fn(|f| spike_state.pretty_print(f)),
                 pokedex_state = util::from_fn(|f| pokedex_state.pretty_print(f)),
+                state_diff = util::from_fn(|f| replay::pretty_print_diff(f, spike_state, pokedex_state)),
             });
         };
     }

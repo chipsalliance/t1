@@ -160,7 +160,7 @@ begin
   __FPR[i] = value;
 
   // notify emulator that a write to FPR occur
-  ffi_write_fpr_hook(i, value);
+  FFI_write_FPR_hook(i, value);
 
   makeDirty_FS();
 end
