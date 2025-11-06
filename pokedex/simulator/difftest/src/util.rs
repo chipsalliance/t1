@@ -66,3 +66,35 @@ impl Iterator for BitmapIndexIter32 {
 }
 
 impl FusedIterator for BitmapIndexIter32 {}
+
+// TODO : use std::fmt::from_fn after stabalization, tracked at
+// https://github.com/rust-lang/rust/issues/117729
+
+pub fn from_fn<F: Fn(&mut std::fmt::Formatter<'_>) -> std::fmt::Result>(f: F) -> FromFn<F> {
+    FromFn(f)
+}
+
+/// Implements [`fmt::Debug`] and [`fmt::Display`] using a function.
+///
+/// Created with [`from_fn`].
+pub struct FromFn<F>(F)
+where
+    F: Fn(&mut std::fmt::Formatter<'_>) -> std::fmt::Result;
+
+impl<F> std::fmt::Debug for FromFn<F>
+where
+    F: Fn(&mut std::fmt::Formatter<'_>) -> std::fmt::Result,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        (self.0)(f)
+    }
+}
+
+impl<F> std::fmt::Display for FromFn<F>
+where
+    F: Fn(&mut std::fmt::Formatter<'_>) -> std::fmt::Result,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        (self.0)(f)
+    }
+}
