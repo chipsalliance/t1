@@ -155,8 +155,12 @@ impl crate::replay::IsInsnCommit for Commit {
                     });
                 }
 
-                WriteVecCtx { .. } => todo!("spike replay: WriteVecCtx"),
-                WriteVReg { .. } => todo!("spike replay: WriteVReg"),
+                WriteVecCtx { .. } => {
+                    // TODO
+                }
+                &WriteVReg { idx, ref bytes } => {
+                    state.write_vreg(idx as usize, bytes, &mut dr);
+                }
 
                 Load { .. } | Store { .. } => {
                     // here only replay core events
