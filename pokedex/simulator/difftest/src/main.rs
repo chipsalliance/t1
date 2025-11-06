@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use clap::Parser;
 use miette::{Context, IntoDiagnostic};
 use serde::Serialize;
@@ -12,44 +14,20 @@ mod util;
 struct DiffTestArgs {
     /// Path to the Spike commit log
     #[arg(short = 's', long)]
-    spike_log_path: String,
+    spike_log_path: PathBuf,
     /// Path to the pokedex trace log
     #[arg(short = 'p', long)]
-    pokedex_log_path: String,
+    pokedex_log_path: PathBuf,
     /// Output path for writing difftest result
     #[arg(short = 'o', long)]
-    output_path: String,
+    output_path: PathBuf,
 }
 
 fn main() -> miette::Result<()> {
     let arg = DiffTestArgs::try_parse().into_diagnostic()?;
-    let raw_str = std::fs::read_to_string(arg.spike_log_path.as_str())
-        .into_diagnostic()
-        .with_context(|| format!("reading spike log {}", arg.spike_log_path))?;
-    let lines = spike_parser::tokenize_spike_log(&raw_str);
-    let mut spike_log = Vec::new();
-    for l in lines {
-        let commit = spike_parser::parse_single_commit(&l).map_err(|err| {
-            miette::miette!(
-                "fail parse spike log {}: {err}",
-                arg.spike_log_path.as_str()
-            )
-        })?;
-        spike_log.push(commit);
-    }
+    let spike_log = parse_spike_log(&arg.spike_log_path)?;
 
-    let pokedex_log: Vec<pokedex::InsnCommit> =
-        std::fs::read_to_string(arg.pokedex_log_path.as_str())
-            .into_diagnostic()
-            .with_context(|| format!("reading pokedex log {}", arg.pokedex_log_path))?
-            .lines()
-            .enumerate()
-            .map(|(line_number, line_str)| {
-                serde_json::from_str::<pokedex::InsnCommit>(line_str).unwrap_or_else(|err| {
-                    panic!("fail parsing pokedex log at line {line_number}: {err}")
-                })
-            })
-            .collect();
+    let pokedex_log = parse_pokedex_log(&arg.pokedex_log_path)?;
 
     let result = diff_against_pokedex_spike(&pokedex_log, &spike_log);
 
@@ -57,6 +35,61 @@ fn main() -> miette::Result<()> {
     std::fs::write(arg.output_path, raw_json).into_diagnostic()?;
 
     Ok(())
+}
+
+fn parse_spike_log(log_path: &Path) -> miette::Result<Vec<spike_parser::Commit>> {
+    // FIXME: parse in stream
+
+    let raw_str = std::fs::read_to_string(log_path)
+        .into_diagnostic()
+        .with_context(|| format!("reading spike log {}", log_path.display()))?;
+
+    let mut spike_log = vec![];
+    for (line_number, line_str) in raw_str.lines().enumerate() {
+        let tokens = spike_parser::tokenize_spike_log_line(line_str);
+
+        // Check for any Unknown tokens before starting.
+        for token in &tokens {
+            if let spike_parser::Token::Unknown { raw_token } = token {
+                return Err(miette::miette!(
+                    "fail parse spike log {}, line {line_number}: unknown token `{raw_token}`",
+                    log_path.display()
+                ));
+            }
+        }
+
+        let commit = spike_parser::parse_single_commit(&tokens).map_err(|err| {
+            miette::miette!(
+                "fail parse spike log {}, line {line_number}: {err}",
+                log_path.display(),
+            )
+        })?;
+
+        spike_log.push(commit);
+    }
+
+    Ok(spike_log)
+}
+
+fn parse_pokedex_log(log_path: &Path) -> miette::Result<Vec<pokedex::InsnCommit>> {
+    // FIXME: parse in stream
+
+    let raw_str = std::fs::read_to_string(log_path)
+        .into_diagnostic()
+        .with_context(|| format!("reading pokedex log {}", log_path.display()))?;
+
+    let mut pokedex_log = vec![];
+    for (line_number, line_str) in raw_str.lines().enumerate() {
+        let commit: pokedex::InsnCommit = serde_json::from_str(line_str).map_err(|err| {
+            miette::miette!(
+                "fail parse pokedex log {}, line {line_number}: {err}",
+                log_path.display(),
+            )
+        })?;
+        pokedex_log.push(commit);
+    }
+
+    Ok(pokedex_log)
 }
 
 #[derive(Debug, Serialize)]
@@ -134,7 +167,10 @@ fn diff_against_pokedex_spike(
                             Pokedex Dump:
                             {pokedex_state}
                             >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-                        "});
+                        ",
+                spike_state = util::from_fn(|f| spike_state.pretty_print(f)),
+                pokedex_state = util::from_fn(|f| pokedex_state.pretty_print(f)),
+            });
         };
     }
 
