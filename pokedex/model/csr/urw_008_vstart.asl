@@ -7,7 +7,34 @@ func Write_VSTART(value: bits(32)) => Result
 begin
   VSTART = value[LOG2_VLEN-1:0];
 
-  // TODO : log write
+  FFI_write_CSR_hook("vstart", VSTART[31:0]);
 
   return Retired();
+end
+
+// utility functions
+
+func set_VSTART(value: integer)
+begin
+  assert(value < VLEN);
+
+  VSTART = value[LOG2_VLEN-1:0];
+
+  FFI_write_CSR_hook("vstart", value[31:0]);
+end
+
+func clear_VSTART()
+begin
+  if VSTART != Zeros(LOG2_VLEN) then
+    // in most cases VSTART is zero
+    FFI_write_CSR_hook("vstart", Zeros(32));
+  end
+
+  VSTART = Zeros(LOG2_VLEN);
+end
+
+// TODO: deprecated, use clear_VSTART instead
+func ClearVSTART()
+begin
+  clear_VSTART();
 end

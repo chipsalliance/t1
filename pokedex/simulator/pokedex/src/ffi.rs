@@ -258,7 +258,7 @@ unsafe extern "C" fn FFI_amo_0(
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn ffi_write_fpr_hook_0(reg_idx: u8, data: u32) {
+unsafe extern "C" fn FFI_write_FPR_hook_0(reg_idx: u8, data: u32) {
     let state = unsafe { get_state() };
     state.write_fp_register(reg_idx, data);
 }
