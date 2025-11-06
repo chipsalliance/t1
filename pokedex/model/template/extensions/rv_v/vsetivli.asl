@@ -1,5 +1,9 @@
 // rd=new_vl, rs1(imm)=AVL, imm=new_vtype
 
+if !isEnabled_VS() then
+  return IllegalInstruction();
+end
+
 let rs1 : integer{0..31} = UInt(GetRS1(instruction));
 let rd  : integer{0..31} = UInt(GetRD(instruction));
 
@@ -30,6 +34,10 @@ else
 end
 
 X[rd] = VL[31:0];
+
+makeDirty_VS();
+
+logWrite_VTYPE_VL();
 
 ClearVSTART();
 

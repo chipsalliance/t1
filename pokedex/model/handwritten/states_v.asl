@@ -20,6 +20,16 @@ var VSTART : bits(LOG2_VLEN);
 var VXRM : bits(2);
 var VXSAT : bit;
 
+func resetVectorState()
+begin
+  __VRF = Zeros(32 * VLEN);
+  VTYPE = VTYPE_ILL;
+  VL = 0;
+  VSTART = Zeros(LOG2_VLEN);
+  VXRM = '00';
+  VXSAT = '0';
+end
+
 //////////////////////////////
 // Architectural State Type //
 //////////////////////////////
@@ -38,6 +48,9 @@ type LOG2_VLMUL_TYPE of integer{-3..3};
 constant LOG2_LMUL_MIN : integer = -3;
 constant LOG2_LMUL_MAX : integer = 3;
 
+type VRegIdx of integer{0..31};
+
+// deprecated, use VRegIdx instead
 type VREG_TYPE of integer{0..31};
 
 /////////////////////////////////
@@ -49,49 +62,44 @@ begin
   return (__VRF[idx]) as boolean;
 end
 
-getter VRF_MASK[vreg: VREG_TYPE, idx: integer] => bit
+getter VRF_MASK[vreg: VRegIdx, idx: integer] => bit
 begin
   return __VRF[vreg * VLEN + idx];
 end
 
-setter VRF_MASK[vreg: VREG_TYPE, idx: integer] = value : bit
+setter VRF_MASK[vreg: VRegIdx, idx: integer] = value : bit
 begin
   __VRF[vreg * VLEN + idx] = value;
 end
 
-getter VRF_8[vreg: VREG_TYPE, idx: integer] => bits(8)
+getter VRF_8[vreg: VRegIdx, idx: integer] => bits(8)
 begin
   return __VRF[vreg * VLEN + idx * 8 +: 8];
 end
 
-setter VRF_8[vreg: VREG_TYPE, idx: integer] = value : bits(8)
+setter VRF_8[vreg: VRegIdx, idx: integer] = value : bits(8)
 begin
   __VRF[vreg * VLEN + idx * 8 +: 8] = value;
 end
 
-getter VRF_16[vreg: VREG_TYPE, idx: integer] => bits(16)
+getter VRF_16[vreg: VRegIdx, idx: integer] => bits(16)
 begin
   return __VRF[vreg * VLEN + idx * 16 +: 16];
 end
 
-setter VRF_16[vreg: VREG_TYPE, idx: integer] = value : bits(16)
+setter VRF_16[vreg: VRegIdx, idx: integer] = value : bits(16)
 begin
   __VRF[vreg * VLEN + idx * 16 +: 16] = value;
 end
 
-getter VRF_32[vreg: VREG_TYPE, idx: integer] => bits(32)
+getter VRF_32[vreg: VRegIdx, idx: integer] => bits(32)
 begin
   return __VRF[vreg * VLEN + idx * 32 +: 32];
 end
 
-setter VRF_32[vreg: VREG_TYPE, idx: integer] = value : bits(32)
+setter VRF_32[vreg: VRegIdx, idx: integer] = value : bits(32)
 begin
   __VRF[vreg * VLEN + idx * 32 +: 32] = value;
-end
-
-func ClearVSTART()
-begin
-  VSTART = Zeros(LOG2_VLEN);
 end
 
 constant VTYPE_ILL : VTYPE_TYPE = VTYPE_TYPE {
@@ -150,8 +158,8 @@ begin
 end
 
 getter VTYPE_BITS => bits(32)
-  begin
-    if VTYPE.ill then
+begin
+  if VTYPE.ill then
       return ['1', Zeros(31)];
   else
       var sew_bits : bits(3);
@@ -271,7 +279,7 @@ begin
   end 
 end
 
-func invalid_vreg(lmul: LOG2_VLMUL_TYPE, x: VREG_TYPE) => boolean
+func invalid_vreg(lmul: LOG2_VLMUL_TYPE, x: VRegIdx) => boolean
 begin
   return x MOD vreg_alignment(lmul) != 0;
 end
@@ -283,7 +291,7 @@ begin
 end
 
 // eew(x) = 2 * sew
-func invalid_vreg_2sew(lmul: LOG2_VLMUL_TYPE, x: VREG_TYPE) => boolean
+func invalid_vreg_2sew(lmul: LOG2_VLMUL_TYPE, x: VRegIdx) => boolean
 begin
   return x MOD vreg_double_alignment(lmul) != 0;
 end
@@ -291,7 +299,7 @@ end
 // eew(vd) = 2*sew, eew(vs) = sew
 // return TRUE iff they have overlap and the overlap is invalid
 // assuming vd/vs already checked by invalid_vreg_2sew/invalid_reg
-func invalid_overlap_dst_src_2_1(lmul: LOG2_VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
+func invalid_overlap_dst_src_2_1(lmul: LOG2_VLMUL_TYPE, vd: VRegIdx, vs: VRegIdx) => boolean
 begin
   // 1. when lmul < 1:
   //   they have overlap when (vd == vs),
@@ -308,7 +316,7 @@ end
 // eew(vw) = 2 * sew, eew(vn) = sew
 // return TRUE iff they have overlap
 // assuming vw/vn already checked by invalid_vreg_2sew/invalid_reg
-func invalid_overlap_src_2_1(lmul: LOG2_VLMUL_TYPE, vw: VREG_TYPE, vn: VREG_TYPE) => boolean
+func invalid_overlap_src_2_1(lmul: LOG2_VLMUL_TYPE, vw: VRegIdx, vn: VRegIdx) => boolean
 begin
   case lmul of
     when 0 => return vw >> 1 == vn >> 1;
@@ -324,7 +332,7 @@ end
 // eew(vm) = 1, eew(vs) = sew
 // return TRUE iff they have overlap
 // assuming vs already checked by invalid_reg
-func invalid_overlap_src_m_1(lmul: LOG2_VLMUL_TYPE, vm: VREG_TYPE, vs: VREG_TYPE) => boolean
+func invalid_overlap_src_m_1(lmul: LOG2_VLMUL_TYPE, vm: VRegIdx, vs: VRegIdx) => boolean
 begin
   case lmul of
     when 0 => return vm == vs;
@@ -340,7 +348,7 @@ end
 // eew(vd) = sew, eew(vs) = 2*sew
 // return TRUE iff they have overlap and the overlap is invalid
 // assuming vd/vs already checked by invalid_vreg_2sew/invalid_reg
-func invalid_overlap_dst_src_1_2(lmul: LOG2_VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
+func invalid_overlap_dst_src_1_2(lmul: LOG2_VLMUL_TYPE, vd: VRegIdx, vs: VRegIdx) => boolean
 begin
   // 1. when lmul < 1:
   //   they have overlap when (vd == vs),
@@ -365,7 +373,7 @@ end
 // eew(vd) = 1, eew(vs) = sew, vd is mask
 // return TRUE iff they have overlap and the overlap is invalid
 // assuming vs already checked by invalid_reg
-func invalid_overlap_dst_src_m_1(lmul: LOG2_VLMUL_TYPE, vd: VREG_TYPE, vs: VREG_TYPE) => boolean
+func invalid_overlap_dst_src_m_1(lmul: LOG2_VLMUL_TYPE, vd: VRegIdx, vs: VRegIdx) => boolean
 begin
   // 1. when lmul < 1:
   //   they have overlap when (vd == vs),
@@ -392,4 +400,39 @@ begin
   assert !vtype.ill;
 
   return __mul_lmul(VLEN DIV vtype.sew, vtype.lmul);
+end
+
+func logWrite_VREG_1(idx: VRegIdx)
+begin
+  for j = 0 to (VLEN DIV 64) - 1 do
+    FFI_write_VREG_hook(idx, j as integer{0..(VLEN DIV 64)-1}, __VRF[idx * VLEN + j * 64 +: 64]);
+  end
+end
+
+func logWrite_VREG_elmul(idx: VRegIdx, elmul: integer{1,2,4,8})
+begin
+  case elmul of
+    when 1 => logWrite_VREG_1(idx);
+    when 2 => begin
+      logWrite_VREG_1(idx);
+      logWrite_VREG_1((idx+1) as VRegIdx);
+    end
+    when 4 => begin
+      logWrite_VREG_1(idx);
+      logWrite_VREG_1((idx+1) as VRegIdx);
+      logWrite_VREG_1((idx+2) as VRegIdx);
+      logWrite_VREG_1((idx+3) as VRegIdx);
+    end
+    when 8 => begin
+      logWrite_VREG_1(idx);
+      logWrite_VREG_1((idx+1) as VRegIdx);
+      logWrite_VREG_1((idx+1) as VRegIdx);
+      logWrite_VREG_1((idx+2) as VRegIdx);
+      logWrite_VREG_1((idx+3) as VRegIdx);
+      logWrite_VREG_1((idx+4) as VRegIdx);
+      logWrite_VREG_1((idx+5) as VRegIdx);
+      logWrite_VREG_1((idx+6) as VRegIdx);
+      logWrite_VREG_1((idx+7) as VRegIdx);
+    end
+  end
 end
