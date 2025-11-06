@@ -20,7 +20,7 @@ struct DiffTestArgs {
     pokedex_log_path: PathBuf,
     /// Output path for writing difftest result
     #[arg(short = 'o', long)]
-    output_path: PathBuf,
+    output_path: Option<PathBuf>,
 }
 
 fn main() -> miette::Result<()> {
@@ -31,8 +31,12 @@ fn main() -> miette::Result<()> {
 
     let result = diff_against_pokedex_spike(&pokedex_log, &spike_log);
 
-    let raw_json = serde_json::to_string(&result).into_diagnostic()?;
-    std::fs::write(arg.output_path, raw_json).into_diagnostic()?;
+    if let Some(output_path) = &arg.output_path {
+        let raw_json = serde_json::to_string(&result).into_diagnostic()?;
+        std::fs::write(output_path, raw_json).into_diagnostic()?;
+    } else {
+        eprintln!("{}", result.context);
+    }
 
     Ok(())
 }
