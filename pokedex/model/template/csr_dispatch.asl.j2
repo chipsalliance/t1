@@ -5,9 +5,8 @@
   "csr_metadata": [
     {
       "name": "csrname",
-      "filename": "csrname_301.asl",
-      "hex_addr": "0x301",
       "bin_addr": "001100000001",
+      "read_write": True
     }
   ]
 }
@@ -41,7 +40,7 @@ func WriteCSR(csr : bits(12), value : bits(32)) => Result
 begin
     case csr of
         {%- for data in csr_metadata %}
-        {%- if data.read_write == "true" %}
+        {%- if data.read_write %}
 
         when '{{ data.bin_addr }}' =>
             return Write_{{ data.name | upper() }}(value);

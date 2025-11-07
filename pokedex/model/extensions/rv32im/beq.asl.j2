@@ -1,0 +1,50 @@
+{%- macro branch_instruction_body(name, condition) %}
+  let offset : bits(13) = [GetBIMM(instruction), '0'];
+  let rs1 : integer{0..31} = UInt(GetRS1(instruction));
+  let rs2 : integer{0..31} = UInt(GetRS2(instruction));
+
+  let src1 : bits(XLEN) = X[rs1];
+  let src2 : bits(XLEN) = X[rs2];
+
+  let taken : boolean = {{ condition }};
+
+  if taken then
+    // with C extension, target is guranteed to be aligned
+    let target : bits(XLEN) = PC + SignExtend(offset, XLEN);
+    PC = target;
+  else
+    PC = PC + 4;
+  end
+
+  return Retired();
+{% endmacro -%}
+
+func Execute_BEQ(instruction: bits(32)) => Result
+begin
+{{- branch_instruction_body("BEQ", "src1 == src2") -}}
+end
+
+func Execute_BNE(instruction: bits(32)) => Result
+begin
+{{- branch_instruction_body("BNE", "src1 != src2") -}}
+end
+
+func Execute_BLT(instruction: bits(32)) => Result
+begin
+{{- branch_instruction_body("BLT", "SInt(src1) < SInt(src2)") -}}
+end
+
+func Execute_BGE(instruction: bits(32)) => Result
+begin
+{{- branch_instruction_body("BGE", "SInt(src1) >= SInt(src2)") -}}
+end
+
+func Execute_BLTU(instruction: bits(32)) => Result
+begin
+{{- branch_instruction_body("BLTU", "UInt(src1) < UInt(src2)") -}}
+end
+
+func Execute_BGEU(instruction: bits(32)) => Result
+begin
+{{- branch_instruction_body("BGEU", "UInt(src1) >= UInt(src2)") -}}
+end

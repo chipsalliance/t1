@@ -1,5 +1,4 @@
 {#- Require inputs like following structure:
-
 ```json
 {
   "instructions": [
@@ -12,34 +11,7 @@
   ]
 }
 ```
-
-This file will include following file:
-
-    ./extensions/{{ instruction_set }}/{{ name | replace(., _) }}.asl
-    ./unimpl.asl.j2
-
-The unimpl.asl.j2 file is included when a instruction missing implementation.
 #}
-
-// --------------------
-// Instruction Handlers
-// --------------------
-{%- for inst in instructions %}
-{%- set inst_name = inst.name | replace(".", "_") %}
-{%- set inst_name_upper = inst_name | upper() %}
-{%- set inst_snippet_path = "extensions/" + inst.instruction_set + "/" + inst_name + ".asl" %}
-
-func Execute_{{ inst_name_upper }}(
-    instruction : bits({{ inst.bit_width }})
-) => Result
-begin
-
-{% include [inst_snippet_path, "unimpl.asl.j2"] %}
-
-end
-
-{%- endfor %}
-
 
 // ----------------------
 // Instruction Dispatcher
