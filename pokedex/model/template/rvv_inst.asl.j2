@@ -1,3 +1,6 @@
+func Execute_{{ inst | upper() }}(instruction: bits(32)) => Result
+begin
+
 {% if template == "vop_vv" %}
   {% include "extensions/rv_v/vop_vv.asl.j2" %}
 {% elif template == "vop_vx" %}
@@ -83,3 +86,5 @@
 {% else %}
   {{ explicit_error_template_is_unknown }}
 {% endif %}
+
+end

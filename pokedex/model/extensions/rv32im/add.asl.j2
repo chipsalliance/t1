@@ -1,0 +1,41 @@
+{%- macro arith_instruction_body(name, compute) %}
+  let rs1 : integer{0..31} = UInt(GetRS1(instruction));
+  let rs2 : integer{0..31} = UInt(GetRS2(instruction));
+  let rd  : integer{0..31} = UInt(GetRD(instruction));
+
+  let src1 : bits(XLEN) = X[rs1];
+  let src2 : bits(XLEN) = X[rs2];
+
+  let value : bits(XLEN) = {{ compute }};
+
+  X[rd] = value;
+
+  PC = PC + 4;
+
+  return Retired();
+{% endmacro -%}
+
+func Execute_ADD(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("ADD", "src1 + src2") -}}
+end
+
+func Execute_SUB(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("SUB", "src1 - src2") -}}
+end
+
+func Execute_AND(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("AND", "src1 AND src2") -}}
+end
+
+func Execute_OR(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("OR", "src1 OR src2") -}}
+end
+
+func Execute_XOR(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("XOR", "src1 XOR src2") -}}
+end

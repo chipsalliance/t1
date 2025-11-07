@@ -1,58 +1,62 @@
+{#- Required Keys
+        output_dir
+        basename
+-#}
 // Discard any code not reachable from the list of exported functions.
 // This is done early because it can remove code that we cannot compile.
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.00.filter_reachable_from.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.00.filter_reachable_from.asl
 :filter_reachable_from --keep-builtins exports
 
 // Eliminate 'typedef'
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.01.xform_named_type.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.01.xform_named_type.asl
 :xform_named_type
 
 // Eliminate bit,int arithmetic operations like "'000' + 3"
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.02.xform_desugar.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.02.xform_desugar.asl
 :xform_desugar
 
 // Eliminate bit-tuples like "[x,y] = z;" and "x[7:0, 15:8]";
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.03.xform_bittuples.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.03.xform_bittuples.asl
 :xform_bittuples
 
 // Convert all bit-slice operations to use the +: syntax.
 // e.g., "x[7:0]" --> "x[0 +: 8]"
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.04.xform_lower.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.04.xform_lower.asl
 :xform_lower
 
 // Eliminate slices of integers by first converting the integer to a bitvector.
 // e.g., if "x : integer", then "x[1 +: 8]" to "cvt_int_bits(x, 9)[1 +: 8]"
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.04.xform_int_bitslices.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.04.xform_int_bitslices.asl
 :xform_int_bitslices
 
 // Convert use of getter/setter syntax to function calls.
 // e.g., "Mem[a, sz] = x" --> "Mem_set(a, sz, x)"
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.05.xform_getset.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.05.xform_getset.asl
 :xform_getset
 
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.05a.xform_valid.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.05a.xform_valid.asl
 :xform_valid track-valid
 
 // Perform constant propagation without unrolling loops
 // This helps identify potential targets for the monomorphization pass.
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.06.xform_constprop.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.06.xform_constprop.asl
 :xform_constprop --nounroll
 
 // Create specialized versions of every bitwidth-polymorphic function
 // and change all function calls to use the appropriate specialized
 // version.
 // (Note that this performs an additional round of constant propagation.)
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.07.xform_monomorphize.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.07.xform_monomorphize.asl
 :xform_monomorphize --no-auto-case-split
 
 // Discard any code not reachable from the list of exported functions.
 // This step is repeated because it deletes any bitwidth-polymorphic functions
 // that have been completely replaced by specialized versions of the functions.
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.08.filter_reachable_from.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.08.filter_reachable_from.asl
 :filter_reachable_from --keep-builtins exports
 
 // todo: explain why this needs to be repeated
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.09.xform_monomorphize.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.09.xform_monomorphize.asl
 :xform_monomorphize --no-auto-case-split
 
 // Perform a further round of simplifying passes.
@@ -64,18 +68,18 @@
 // record with multiple fields and change all calls to that function.
 // (This makes constant propagation less precise because constant propagation
 // is not field sensitive.)
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.10.xform_tuples.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.10.xform_tuples.asl
 :xform_tuples
 
 // Convert use of getter/setter syntax to function calls.
 // e.g., "Mem[a, sz] = x" --> "Mem_set(a, sz, x)"
 // (This is repeated because xform_tuples can expose additional
 // getter/setter calls.)
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.11.xform_getset.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.11.xform_getset.asl
 :xform_getset
 
 // todo: explain why this needs to be repeated
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.12.xform_bittuples.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.12.xform_bittuples.asl
 :xform_bittuples
 
 // Lift let-expressions as high as possible out of an expression
@@ -85,28 +89,28 @@
 //
 // Note that source code is not expected to contain let-expressions.
 // They only exist to make some transformations easier to write.
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.13.xform_hoist_lets.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.13.xform_hoist_lets.asl
 :xform_hoist_lets
 
 // Convert bitslice operations like "x[i] = '1';" to a combination
 // of AND/OR and shift operations like "x = x OR (1 << i);"
 // This works better after constant propagation/monomorphization.
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.14.xform_bitslices.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.14.xform_bitslices.asl
 :xform_bitslices 
 
 // Any case statement that does not correspond to what the C language
 // supports is converted to an if statement.
 // This works better after constant propagation/monomorphization
 // because that can eliminate/simplify guards on the clauses of the case statement.
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.15.xform_case.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.15.xform_case.asl
 :xform_case
 
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.15.xform_wrap.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.15.xform_wrap.asl
 :xform_wrap
 
 // A final pass of constant propagation simplifies any constant expressions
 // introduced by previous transforms
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.16.xform_constprop.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.16.xform_constprop.asl
 :xform_constprop --nounroll
 
 // Optimization: optionally use :xform_bounded to represent any
@@ -119,13 +123,13 @@
 // To let the generated code call your own functions, you need to declare
 // the type of an ASL function with a matching type and provide a configuration
 // file containing a list of these external functions.
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.17.filter_unlisted_functions.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.17.filter_unlisted_functions.asl
 :filter_unlisted_functions imports
 
 // Deleting the ASL definitions of any functions on the import list may
 // result in additional dead code (i.e., functions that are only used by
 // those functions) so delete any unreachable functions
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.18.filter_reachable_from.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.18.filter_reachable_from.asl
 :filter_reachable_from exports
 
 // Check that all definitions are bitwidth-monomorphic and report a useful
@@ -135,7 +139,7 @@
 // if we scan for all polymorphic functions and organize the list of functions
 // into a call tree so that you can see which functions are at the roots of
 // the tree (and therefore are the ones that you need to fix).
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.19.check_monomorphization.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.19.check_monomorphization.asl
 :check_monomorphization --fatal --verbose
 
 // Generate C code from the remaining definitions
@@ -154,8 +158,8 @@
 // Optionally, global state can be split across multiple structs.
 // (This can be useful when modelling multi-processor systems to separate
 // thread-local state from global state.)
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.20.generate_c.asl
-:generate_c  --runtime=c23 --output-dir=@CGEN_OUTPUT@ --basename=pokedex-sim --num-c-files=1 --line-info
+:show --format=raw --output {{ output_dir }}/dumps/log.20.generate_c.asl
+:generate_c  --runtime=c23 --output-dir={{ output_dir }} --basename={{ basename }} --num-c-files=1 --line-info
 
-:show --format=raw --output @CGEN_OUTPUT@/dumps/log.21.quit.asl
+:show --format=raw --output {{ output_dir }}/dumps/log.21.quit.asl
 :quit

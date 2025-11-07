@@ -126,43 +126,5 @@ object Main:
     val instructions = Map("instructions" -> generator.dumpInstructions())
     os.write.over(args.output, write(instructions))
 
-  @main
-  def csr(dir: os.Path, output: os.Path) =
-    val csr_meta = os
-      .walk(dir)
-      .filter(p => p.last.endsWith(".asl"))
-      .flatMap(p =>
-        p.baseName match
-          case s"${mode}_${addr}_${name}" => Some((name, Integer.parseInt(addr, 16), p.last))
-          case _                          => None
-      )
-      .groupBy(identity)
-      .view
-      .map((item, impl) => {
-        if impl.length != 1 then println(s"${BOLD}${YELLOW}WARNING:${RESET} CSR ${item._1} implementation duplicate")
-
-        val (name, addr, filename) = item
-
-        Map(
-          "name"       -> name,
-          "filename"   -> filename,
-          "hex_addr"   -> s"0x${Integer.toString(addr, 16)}",
-          "bin_addr"   -> intToBin(addr, 12),
-          // 0x000 - 0xbff are RW; 0xc00 - 0xfff are RO
-          "read_write" -> s"${addr < 0xc00}"
-        )
-      })
-    os.write.over(output, write(Map("csr_metadata" -> csr_meta)))
-
-  def intToBin(i: Int, length: Int) =
-    val bin = i.toBinaryString
-    if bin.length > length then
-      throw new Exception(
-        s"input ${i} has bits length larger than the expected: ${bin.length} > ${length}"
-      )
-
-    if bin.length == length then bin
-    else "0".repeat(length - bin.length) + bin
-
   def main(args: Array[String]): Unit =
     ParserForMethods(this).runOrExit(args.toIndexedSeq)

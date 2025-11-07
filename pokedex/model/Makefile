@@ -16,8 +16,7 @@ _RISCV_OPCODES_SRC = ${RISCV_OPCODES_SRC}
 RISCV_OPCODES_SRC ?= $(_RISCV_OPCODES_SRC)
 
 PROJECT_SRCS := aslbuild/project.json aslbuild/asl2c.prj
-HANDWRITTEN_SRCS := $(wildcard handwritten/*.asl)
-CSR_SRCS := $(wildcard csr/*.asl)
+HANDWRITTEN_SRCS := $(wildcard handwritten/*.asl) $(wildcard csr/*.asl) $(wildcard extensions/*/*.asl) $(wildcard generated/*/*.asl)
 ENABLED_EXTENSIONS := $(foreach dir,$(wildcard template/extensions/*),$(notdir $(dir)))
 
 all: install
@@ -49,18 +48,15 @@ $(STAGE_0)/rvopcodes.json: $(STAGE_0)/template $(RISCV_OPCODES_SRC)
 		--riscv-opcodes-src-dir $(RISCV_OPCODES_SRC) \
 		$(addprefix --enable-instruction-sets ,$(ENABLED_EXTENSIONS))
 
-# Generate RVV instructions
-$(STAGE_0)/template/extensions/rv_v/%.asl: $(STAGE_0)/template/rvv_inst.asl.j2 $(STAGE_0)/template/extensions/rv_v/data_files/%.toml
-	$(JINJA_CLI) $(JINJA_FLAGS) -f toml \
-		-D inst=$* \
-		-o $@ \
-		$(STAGE_0)/template/rvv_inst.asl.j2 \
-		$(STAGE_0)/template/extensions/rv_v/data_files/$*.toml
-
-# Then generate execute.asl
-$(STAGE_0)/output/execute.asl: $(STAGE_0)/rvopcodes.json $(addprefix $(STAGE_0)/template/extensions/rv_v/,$(addsuffix .asl,$(RVV_INSTS)))
+# Then generate inst_dispatch.asl
+$(STAGE_0)/output/inst_dispatch.asl: $(STAGE_0)/rvopcodes.json
 	$(JINJA_CLI) $(JINJA_FLAGS) -f json -o $@ \
-		$(STAGE_0)/template/instruction_execution.asl.j2 $(STAGE_0)/rvopcodes.json 2> >(head -n 30)
+		$(STAGE_0)/template/inst_dispatch.asl.j2 $(STAGE_0)/rvopcodes.json 2> >(head -n 30)
+
+# generate inst_unimplemented.asl
+$(STAGE_0)/output/inst_unimplemented.asl: unimplemented.json
+	$(JINJA_CLI) $(JINJA_FLAGS) -f json -o $@ \
+		template/inst_unimplemented.asl.j2 unimplemented.json
 
 $(STAGE_0)/causes.json: $(STAGE_0)/template $(RISCV_OPCODES_SRC)
 	$(RVOPCODE_CLI) causes \
@@ -74,14 +70,14 @@ $(STAGE_0)/output/causes.asl: $(STAGE_0)/causes.json
 $(STAGE_0)/csr_meta.json: $(STAGE_0)
 	$(RVOPCODE_CLI) csr --dir csr --output $@
 
-$(STAGE_0)/output/csr_op.asl: $(STAGE_0)/csr_meta.json
+$(STAGE_0)/output/csr_operation.asl: $(STAGE_0)/csr_meta.json
 	$(JINJA_CLI) $(JINJA_FLAGS) -f json -o $@ \
 		template/csr_operation.asl.j2 $(STAGE_0)/csr_meta.json
 
 # -------------------------------------------
 # Stage 1: group all ASL file into one folder
 # -------------------------------------------
-CODEGEN_SRCS := execute.asl causes.asl csr_op.asl
+CODEGEN_SRCS := inst_dispatch.asl inst_unimplemented.asl causes.asl csr_operation.asl
 STAGE_1 := $(BUILD_DIR)/1-project
 $(STAGE_1): $(PROJECT_SRCS) $(addprefix $(STAGE_0)/output/,$(CODEGEN_SRCS))
 	mkdir -p $@
@@ -94,7 +90,7 @@ project: $(BUILD_DIR)/1-project
 # -------------------
 # Stage 2: generate C
 # -------------------
-$(BUILD_DIR)/2-cgen/makefile: $(STAGE_1) aslbuild/libpokedex.makefile $(HANDWRITTEN_SRCS) $(CSR_SRCS)
+$(BUILD_DIR)/2-cgen/makefile: $(STAGE_1) aslbuild/libpokedex.makefile $(HANDWRITTEN_SRCS)
 	mkdir -p $(@D)/dumps
 	sed -i 's|@CGEN_OUTPUT@|$(@D)|g' $(STAGE_1)/asl2c.prj
 	$(ASLI) \
@@ -105,7 +101,7 @@ $(BUILD_DIR)/2-cgen/makefile: $(STAGE_1) aslbuild/libpokedex.makefile $(HANDWRIT
 		--check-call-markers \
 		--check-constraints \
 		--runtime-checks \
-		$(wildcard $(STAGE_1)/*.asl) $(HANDWRITTEN_SRCS) $(CSR_SRCS) 
+		$(wildcard $(STAGE_1)/*.asl) $(HANDWRITTEN_SRCS)
 	cp -T aslbuild/libpokedex.makefile $@
 
 .PHONY: asl2c
