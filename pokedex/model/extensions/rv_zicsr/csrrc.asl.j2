@@ -1,0 +1,39 @@
+{%- macro csrrx_instruction_body(name, compute) %}
+  let csr : bits(12) = GetCSR(instruction);
+  let rd : XRegIdx = UInt(GetRD(instruction));
+  let rs1 : XRegIdx = UInt(GetRS1(instruction));
+
+  // FIXME: in CSR read-modify-write operations, wecurrrently assume
+  // X[rd] is equal to the value used to compute write value. 
+  // This is incorrect for some very special csr like mip.seip
+
+  let csr_read : Result = ReadCSR(csr);
+  if !csr_read.is_ok then
+    return csr_read;
+  end
+
+  // only perform write when rs1 != 0
+  if rs1 != 0 then
+    let src1: bits(XLEN) = X[rs1];
+    let write_value : bits(XLEN) = {{ compute }};
+    let csr_write : Result = WriteCSR(csr, write_value);
+    if !csr_write.is_ok then
+      return csr_write;
+    end
+  end
+
+  X[rd] = csr_read.value;
+
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_CSRRC(instruction: bits(32)) => Result
+begin
+{{- csrrx_instruction_body("CSRRC", "csr_read.value AND (NOT src1)") -}}
+end
+
+func Execute_CSRRS(instruction: bits(32)) => Result
+begin
+{{- csrrx_instruction_body("CSRRS", "csr_read.value OR src1") -}}
+end
