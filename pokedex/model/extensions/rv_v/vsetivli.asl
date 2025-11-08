@@ -1,0 +1,48 @@
+
+func Execute_VSETIVLI(instruction: bits(32)) => Result
+begin 
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+
+  // rd=new_vl, rs1(imm)=AVL, imm=new_vtype
+  let rd  : XRegIdx = UInt(GetRD(instruction));
+  let uimm_avl : integer{0..31} = UInt(GetRS1(instruction));
+  let uimm : bits(10) = instruction[29:20];
+
+  let new_vtype_bits = ZeroExtend(uimm, XLEN);
+  let new_vtype : VTYPE_TYPE = VTYPE_from_bits(new_vtype_bits);
+
+  if new_vtype.ill then
+    VTYPE = VTYPE_ILL;
+    VL = 0;
+  elsif rd == 0 && uimm_avl == 0 then
+    // sew/lmul ratio is unchanged iff vlmax is unchanged
+    if !VTYPE.ill && VLMAX == __compute_vlmax(new_vtype) then
+      VTYPE = new_vtype;
+      // VL is unchanged
+    else
+      VTYPE = VTYPE_ILL;
+      VL = 0;
+    end
+  else
+    VTYPE = new_vtype;
+
+    VL = VLMAX;
+    if uimm_avl != 0 then
+      if uimm_avl < VL then
+        VL = uimm_avl;
+      end
+    end
+  end
+
+  X[rd] = VL[31:0];
+
+  makeDirty_VS();
+
+  logWrite_VTYPE_VL();
+
+  ClearVSTART();
+  PC = PC + 4;
+  return Retired();
+end

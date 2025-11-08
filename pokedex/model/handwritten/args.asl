@@ -18,6 +18,11 @@ begin
   return inst[11:7];
 end
 
+func GetShamt5(inst : bits(32)) => bits(5)
+begin
+  return inst[24:20];
+end
+
 func GetIMM(inst : bits(32)) => bits(12)
 begin
   return inst[31:20];

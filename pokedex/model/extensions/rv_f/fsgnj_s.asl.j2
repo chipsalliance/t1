@@ -1,0 +1,36 @@
+{%- macro fsign_instruction_body(name, compute_sign) %}
+  if !isEnabled_FS() then
+    return IllegalInstruction();
+  end
+
+  let fd : FRegIdx = UInt(GetRD(instruction));
+  let fs1 : FRegIdx = UInt(GetRS1(instruction));
+  let fs2 : FRegIdx = UInt(GetRS2(instruction));
+
+  var src1 : bits(32) = F[fs1];
+  var src2 : bits(32) = F[fs2];
+
+  var res : bits(32) = src1;
+  res[31] = {{ compute_sign }};
+
+  F[fd] = res;
+
+  makeDirty_FS();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_FSGNJ_S(instruction: bits(32)) => Result
+begin
+{{- fsign_instruction_body("FSGNJ_S", "src2[31]") -}}
+end
+
+func Execute_FSGNJN_S(instruction: bits(32)) => Result
+begin
+{{- fsign_instruction_body("FSGNJN_S", "NOT src2[31]") -}}
+end
+
+func Execute_FSGNJX_S(instruction: bits(32)) => Result
+begin
+{{- fsign_instruction_body("FSGNJX_S", "src1[31] XOR src2[31]") -}}
+end

@@ -1,0 +1,35 @@
+{#- mew = 8 | 16 | 32 | 64 -#}
+{%- macro store_instruction_body(name, mew) %}
+  let rs1 : integer{0..31} = UInt(GetRS1(instruction));
+  let rs2 : integer{0..31} = UInt(GetRS2(instruction));
+  let imm : bits(12) = GetSIMM(instruction);
+
+  let addr : bits(XLEN) = X[rs1] + SignExtend(imm, XLEN);
+
+  let src2 : bits(XLEN) = X[rs2];
+
+  let store_value : bits({{ mew }}) = src2[{{ mew-1 }}:0];
+
+  let result : Result = WriteMemory(addr, store_value);
+  if !result.is_ok then
+    return result;
+  end
+
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_SB(instruction: bits(32)) => Result
+begin
+{{- store_instruction_body("SB", 8) -}}
+end
+
+func Execute_SH(instruction: bits(32)) => Result
+begin
+{{- store_instruction_body("LH", 16) -}}
+end
+
+func Execute_SW(instruction: bits(32)) => Result
+begin
+{{- store_instruction_body("LW", 32) -}}
+end
