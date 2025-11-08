@@ -2,16 +2,16 @@
 
 ```json
 {
-  causes: [
-    { name: "illegal instruction", addr: 0x2 }
+  exceptions: [
+    { name: "illegal instruction", code: 2 }
   ]
 }
 ```
 
 #}
-{%- for c in causes %}
+{%- for c in exceptions %}
 {%- set cname = c.name | replace(" ", "_") | upper() %}
 
-let CAUSE_{{ cname }}: integer = {{ c.addr }};
+let CAUSE_{{ cname }}: integer = {{ c.code }};
 
 {%- endfor %}

@@ -1,13 +1,21 @@
 {#- Require inputs like following structure:
 ```json
 {
-  "instructions": [
+  "inst_encoding": [
+    {
+      "name": "addi",
+      "encoding": "-----------------000-----0010011",
+      "extension": "rv_c"
+    },
+    ...
+  ],
+  "cinst_encoding": [
     {
       "name": "c.addi",
-      "bit_width": "16",
-      "bit_pattern": "000xxx01110101",
-      "instruction_set": "rv_c"
-    }
+      "encoding": "000-----------01",
+      "extension": "rv_c"
+    },
+    ...
   ]
 }
 ```
@@ -18,30 +26,30 @@
 // ----------------------
 func DecodeAndExecute(instruction : bits(32)) => Result
 begin
-    case instruction of
-        {%- for inst in (instructions | rejectattr("instruction_set", "in", ["rv_c", "rv32_c", "rv32_c_f"])) %}
-        {%- set inst_name = inst.name | replace(".", "_") | upper() %}
+  case instruction of
+    {%- for inst in inst_encoding %}
+    {%- set inst_name = inst.name | replace(".", "_") | upper() %}
 
-        when '{{ inst.bit_pattern }}' =>
-            return Execute_{{ inst_name }}(instruction);
+    when '{{ inst.encoding | replace("-", "x") }}' =>
+      return Execute_{{ inst_name }}(instruction);
 
-        {%- endfor %}
-        otherwise =>
-            return Exception(CAUSE_ILLEGAL_INSTRUCTION, instruction);
-    end
+    {%- endfor %}
+    otherwise =>
+      return IllegalInstruction();
+  end
 end
 
 func DecodeAndExecute_CEXT(instruction : bits(16)) => Result
 begin
-    case instruction of
-        {%- for inst in (instructions | selectattr("instruction_set", "in", ["rv_c", "rv32_c", "rv32_c_f"])) %}
-        {%- set inst_name = inst.name | replace(".", "_") | upper() %}
+  case instruction of
+    {%- for inst in cinst_encoding %}
+    {%- set inst_name = inst.name | replace(".", "_") | upper() %}
 
-        when '{{ inst.bit_pattern }}' =>
-            return Execute_{{ inst_name }}(instruction);
+    when '{{ inst.encoding | replace("-", "x") }}' =>
+      return Execute_{{ inst_name }}(instruction);
 
-        {%- endfor %}
-        otherwise =>
-            return Exception(CAUSE_ILLEGAL_INSTRUCTION, instruction);
-    end
+    {%- endfor %}
+    otherwise =>
+      return IllegalInstruction();
+  end
 end

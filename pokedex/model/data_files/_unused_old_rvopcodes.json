@@ -1,0 +1,3004 @@
+{
+  "instructions": [
+    {
+      "name": "ecall",
+      "bit_width": "32",
+      "bit_pattern": "00000000000000000000000001110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "ebreak",
+      "bit_width": "32",
+      "bit_pattern": "00000000000100000000000001110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "wfi",
+      "bit_width": "32",
+      "bit_pattern": "00010000010100000000000001110011",
+      "instruction_set": "rv_system"
+    },
+    {
+      "name": "mret",
+      "bit_width": "32",
+      "bit_pattern": "00110000001000000000000001110011",
+      "instruction_set": "rv_system"
+    },
+    {
+      "name": "vid.v",
+      "bit_width": "32",
+      "bit_pattern": "010100x0000010001010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl1re8.v",
+      "bit_width": "32",
+      "bit_pattern": "000000101000xxxxx000xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vs1r.v",
+      "bit_width": "32",
+      "bit_pattern": "000000101000xxxxx000xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl1re16.v",
+      "bit_width": "32",
+      "bit_pattern": "000000101000xxxxx101xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl1re32.v",
+      "bit_width": "32",
+      "bit_pattern": "000000101000xxxxx110xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl1re64.v",
+      "bit_width": "32",
+      "bit_pattern": "000000101000xxxxx111xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vlm.v",
+      "bit_width": "32",
+      "bit_pattern": "000000101011xxxxx000xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsm.v",
+      "bit_width": "32",
+      "bit_pattern": "000000101011xxxxx000xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl2re8.v",
+      "bit_width": "32",
+      "bit_pattern": "001000101000xxxxx000xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vs2r.v",
+      "bit_width": "32",
+      "bit_pattern": "001000101000xxxxx000xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl2re16.v",
+      "bit_width": "32",
+      "bit_pattern": "001000101000xxxxx101xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl2re32.v",
+      "bit_width": "32",
+      "bit_pattern": "001000101000xxxxx110xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl2re64.v",
+      "bit_width": "32",
+      "bit_pattern": "001000101000xxxxx111xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmv.s.f",
+      "bit_width": "32",
+      "bit_pattern": "010000100000xxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmv.s.x",
+      "bit_width": "32",
+      "bit_pattern": "010000100000xxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmv.f.s",
+      "bit_width": "32",
+      "bit_pattern": "0100001xxxxx00000001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmv.x.s",
+      "bit_width": "32",
+      "bit_pattern": "0100001xxxxx00000010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmv.v.v",
+      "bit_width": "32",
+      "bit_pattern": "010111100000xxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmv.v.i",
+      "bit_width": "32",
+      "bit_pattern": "010111100000xxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmv.v.x",
+      "bit_width": "32",
+      "bit_pattern": "010111100000xxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmv.v.f",
+      "bit_width": "32",
+      "bit_pattern": "010111100000xxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl4re8.v",
+      "bit_width": "32",
+      "bit_pattern": "011000101000xxxxx000xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vs4r.v",
+      "bit_width": "32",
+      "bit_pattern": "011000101000xxxxx000xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl4re16.v",
+      "bit_width": "32",
+      "bit_pattern": "011000101000xxxxx101xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl4re32.v",
+      "bit_width": "32",
+      "bit_pattern": "011000101000xxxxx110xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl4re64.v",
+      "bit_width": "32",
+      "bit_pattern": "011000101000xxxxx111xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmv1r.v",
+      "bit_width": "32",
+      "bit_pattern": "1001111xxxxx00000011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmv2r.v",
+      "bit_width": "32",
+      "bit_pattern": "1001111xxxxx00001011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmv4r.v",
+      "bit_width": "32",
+      "bit_pattern": "1001111xxxxx00011011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmv8r.v",
+      "bit_width": "32",
+      "bit_pattern": "1001111xxxxx00111011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "fmv.x.w",
+      "bit_width": "32",
+      "bit_pattern": "111000000000xxxxx000xxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fclass.s",
+      "bit_width": "32",
+      "bit_pattern": "111000000000xxxxx001xxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "vl8re8.v",
+      "bit_width": "32",
+      "bit_pattern": "111000101000xxxxx000xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vs8r.v",
+      "bit_width": "32",
+      "bit_pattern": "111000101000xxxxx000xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl8re16.v",
+      "bit_width": "32",
+      "bit_pattern": "111000101000xxxxx101xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl8re32.v",
+      "bit_width": "32",
+      "bit_pattern": "111000101000xxxxx110xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vl8re64.v",
+      "bit_width": "32",
+      "bit_pattern": "111000101000xxxxx111xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "fmv.w.x",
+      "bit_width": "32",
+      "bit_pattern": "111100000000xxxxx000xxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "vcpop.m",
+      "bit_width": "32",
+      "bit_pattern": "010000xxxxxx10000010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfirst.m",
+      "bit_width": "32",
+      "bit_pattern": "010000xxxxxx10001010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfcvt.xu.f.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00000001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfcvt.x.f.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00001001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfcvt.f.xu.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00010001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vzext.vf8",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00010010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfcvt.f.x.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00011001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsext.vf8",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00011010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vzext.vf4",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00100010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsext.vf4",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00101010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfcvt.rtz.xu.f.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00110001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vzext.vf2",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00110010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfcvt.rtz.x.f.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00111001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsext.vf2",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx00111010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwcvt.xu.f.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx01000001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwcvt.x.f.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx01001001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwcvt.f.xu.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx01010001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwcvt.f.x.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx01011001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwcvt.f.f.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx01100001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwcvt.rtz.xu.f.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx01110001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwcvt.rtz.x.f.v",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx01111001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfncvt.xu.f.w",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx10000001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfncvt.x.f.w",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx10001001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfncvt.f.xu.w",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx10010001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfncvt.f.x.w",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx10011001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfncvt.f.f.w",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx10100001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfncvt.rod.f.f.w",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx10101001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfncvt.rtz.xu.f.w",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx10110001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfncvt.rtz.x.f.w",
+      "bit_width": "32",
+      "bit_pattern": "010010xxxxxx10111001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfsqrt.v",
+      "bit_width": "32",
+      "bit_pattern": "010011xxxxxx00000001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfrsqrt7.v",
+      "bit_width": "32",
+      "bit_pattern": "010011xxxxxx00100001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfrec7.v",
+      "bit_width": "32",
+      "bit_pattern": "010011xxxxxx00101001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfclass.v",
+      "bit_width": "32",
+      "bit_pattern": "010011xxxxxx10000001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsbf.m",
+      "bit_width": "32",
+      "bit_pattern": "010100xxxxxx00001010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsof.m",
+      "bit_width": "32",
+      "bit_pattern": "010100xxxxxx00010010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsif.m",
+      "bit_width": "32",
+      "bit_pattern": "010100xxxxxx00011010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "viota.m",
+      "bit_width": "32",
+      "bit_pattern": "010100xxxxxx10000010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "lr.w",
+      "bit_width": "32",
+      "bit_pattern": "00010xx00000xxxxx010xxxxx0101111",
+      "instruction_set": "rv_a"
+    },
+    {
+      "name": "fsqrt.s",
+      "bit_width": "32",
+      "bit_pattern": "010110000000xxxxxxxxxxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fcvt.w.s",
+      "bit_width": "32",
+      "bit_pattern": "110000000000xxxxxxxxxxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fcvt.wu.s",
+      "bit_width": "32",
+      "bit_pattern": "110000000001xxxxxxxxxxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fcvt.s.w",
+      "bit_width": "32",
+      "bit_pattern": "110100000000xxxxxxxxxxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fcvt.s.wu",
+      "bit_width": "32",
+      "bit_pattern": "110100000001xxxxxxxxxxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "vle8.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x00000xxxxx000xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vse8.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x00000xxxxx000xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vle16.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x00000xxxxx101xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vse16.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x00000xxxxx101xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vle32.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x00000xxxxx110xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vse32.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x00000xxxxx110xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vle64.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x00000xxxxx111xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vse64.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x00000xxxxx111xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vle8ff.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x10000xxxxx000xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vle16ff.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x10000xxxxx101xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vle32ff.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x10000xxxxx110xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vle64ff.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx000x10000xxxxx111xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "add",
+      "bit_width": "32",
+      "bit_pattern": "0000000xxxxxxxxxx000xxxxx0110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "slli",
+      "bit_width": "32",
+      "bit_pattern": "0000000xxxxxxxxxx001xxxxx0010011",
+      "instruction_set": "rv32_i"
+    },
+    {
+      "name": "sll",
+      "bit_width": "32",
+      "bit_pattern": "0000000xxxxxxxxxx001xxxxx0110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "slt",
+      "bit_width": "32",
+      "bit_pattern": "0000000xxxxxxxxxx010xxxxx0110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "sltu",
+      "bit_width": "32",
+      "bit_pattern": "0000000xxxxxxxxxx011xxxxx0110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "xor",
+      "bit_width": "32",
+      "bit_pattern": "0000000xxxxxxxxxx100xxxxx0110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "srli",
+      "bit_width": "32",
+      "bit_pattern": "0000000xxxxxxxxxx101xxxxx0010011",
+      "instruction_set": "rv32_i"
+    },
+    {
+      "name": "srl",
+      "bit_width": "32",
+      "bit_pattern": "0000000xxxxxxxxxx101xxxxx0110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "or",
+      "bit_width": "32",
+      "bit_pattern": "0000000xxxxxxxxxx110xxxxx0110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "and",
+      "bit_width": "32",
+      "bit_pattern": "0000000xxxxxxxxxx111xxxxx0110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "mul",
+      "bit_width": "32",
+      "bit_pattern": "0000001xxxxxxxxxx000xxxxx0110011",
+      "instruction_set": "rv_m"
+    },
+    {
+      "name": "mulh",
+      "bit_width": "32",
+      "bit_pattern": "0000001xxxxxxxxxx001xxxxx0110011",
+      "instruction_set": "rv_m"
+    },
+    {
+      "name": "mulhsu",
+      "bit_width": "32",
+      "bit_pattern": "0000001xxxxxxxxxx010xxxxx0110011",
+      "instruction_set": "rv_m"
+    },
+    {
+      "name": "mulhu",
+      "bit_width": "32",
+      "bit_pattern": "0000001xxxxxxxxxx011xxxxx0110011",
+      "instruction_set": "rv_m"
+    },
+    {
+      "name": "div",
+      "bit_width": "32",
+      "bit_pattern": "0000001xxxxxxxxxx100xxxxx0110011",
+      "instruction_set": "rv_m"
+    },
+    {
+      "name": "divu",
+      "bit_width": "32",
+      "bit_pattern": "0000001xxxxxxxxxx101xxxxx0110011",
+      "instruction_set": "rv_m"
+    },
+    {
+      "name": "rem",
+      "bit_width": "32",
+      "bit_pattern": "0000001xxxxxxxxxx110xxxxx0110011",
+      "instruction_set": "rv_m"
+    },
+    {
+      "name": "remu",
+      "bit_width": "32",
+      "bit_pattern": "0000001xxxxxxxxxx111xxxxx0110011",
+      "instruction_set": "rv_m"
+    },
+    {
+      "name": "fsgnj.s",
+      "bit_width": "32",
+      "bit_pattern": "0010000xxxxxxxxxx000xxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fsgnjn.s",
+      "bit_width": "32",
+      "bit_pattern": "0010000xxxxxxxxxx001xxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fsgnjx.s",
+      "bit_width": "32",
+      "bit_pattern": "0010000xxxxxxxxxx010xxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fmin.s",
+      "bit_width": "32",
+      "bit_pattern": "0010100xxxxxxxxxx000xxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fmax.s",
+      "bit_width": "32",
+      "bit_pattern": "0010100xxxxxxxxxx001xxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "sub",
+      "bit_width": "32",
+      "bit_pattern": "0100000xxxxxxxxxx000xxxxx0110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "vadc.vvm",
+      "bit_width": "32",
+      "bit_pattern": "0100000xxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vadc.vim",
+      "bit_width": "32",
+      "bit_pattern": "0100000xxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vadc.vxm",
+      "bit_width": "32",
+      "bit_pattern": "0100000xxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "srai",
+      "bit_width": "32",
+      "bit_pattern": "0100000xxxxxxxxxx101xxxxx0010011",
+      "instruction_set": "rv32_i"
+    },
+    {
+      "name": "sra",
+      "bit_width": "32",
+      "bit_pattern": "0100000xxxxxxxxxx101xxxxx0110011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "vmadc.vvm",
+      "bit_width": "32",
+      "bit_pattern": "0100010xxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmadc.vim",
+      "bit_width": "32",
+      "bit_pattern": "0100010xxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmadc.vxm",
+      "bit_width": "32",
+      "bit_pattern": "0100010xxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmadc.vv",
+      "bit_width": "32",
+      "bit_pattern": "0100011xxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmadc.vi",
+      "bit_width": "32",
+      "bit_pattern": "0100011xxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmadc.vx",
+      "bit_width": "32",
+      "bit_pattern": "0100011xxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsbc.vvm",
+      "bit_width": "32",
+      "bit_pattern": "0100100xxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsbc.vxm",
+      "bit_width": "32",
+      "bit_pattern": "0100100xxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsbc.vvm",
+      "bit_width": "32",
+      "bit_pattern": "0100110xxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsbc.vxm",
+      "bit_width": "32",
+      "bit_pattern": "0100110xxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsbc.vv",
+      "bit_width": "32",
+      "bit_pattern": "0100111xxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsbc.vx",
+      "bit_width": "32",
+      "bit_pattern": "0100111xxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmerge.vvm",
+      "bit_width": "32",
+      "bit_pattern": "0101110xxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmerge.vim",
+      "bit_width": "32",
+      "bit_pattern": "0101110xxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmerge.vxm",
+      "bit_width": "32",
+      "bit_pattern": "0101110xxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmerge.vfm",
+      "bit_width": "32",
+      "bit_pattern": "0101110xxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vcompress.vm",
+      "bit_width": "32",
+      "bit_pattern": "0101111xxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmandn.mm",
+      "bit_width": "32",
+      "bit_pattern": "0110001xxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmand.mm",
+      "bit_width": "32",
+      "bit_pattern": "0110011xxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmor.mm",
+      "bit_width": "32",
+      "bit_pattern": "0110101xxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmxor.mm",
+      "bit_width": "32",
+      "bit_pattern": "0110111xxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmorn.mm",
+      "bit_width": "32",
+      "bit_pattern": "0111001xxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmnand.mm",
+      "bit_width": "32",
+      "bit_pattern": "0111011xxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmnor.mm",
+      "bit_width": "32",
+      "bit_pattern": "0111101xxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmxnor.mm",
+      "bit_width": "32",
+      "bit_pattern": "0111111xxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsetvl",
+      "bit_width": "32",
+      "bit_pattern": "1000000xxxxxxxxxx111xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "fle.s",
+      "bit_width": "32",
+      "bit_pattern": "1010000xxxxxxxxxx000xxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "flt.s",
+      "bit_width": "32",
+      "bit_pattern": "1010000xxxxxxxxxx001xxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "feq.s",
+      "bit_width": "32",
+      "bit_pattern": "1010000xxxxxxxxxx010xxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "vadd.vv",
+      "bit_width": "32",
+      "bit_pattern": "000000xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfadd.vv",
+      "bit_width": "32",
+      "bit_pattern": "000000xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vredsum.vs",
+      "bit_width": "32",
+      "bit_pattern": "000000xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vadd.vi",
+      "bit_width": "32",
+      "bit_pattern": "000000xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vadd.vx",
+      "bit_width": "32",
+      "bit_pattern": "000000xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfadd.vf",
+      "bit_width": "32",
+      "bit_pattern": "000000xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfredusum.vs",
+      "bit_width": "32",
+      "bit_pattern": "000001xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vredand.vs",
+      "bit_width": "32",
+      "bit_pattern": "000001xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsub.vv",
+      "bit_width": "32",
+      "bit_pattern": "000010xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfsub.vv",
+      "bit_width": "32",
+      "bit_pattern": "000010xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vredor.vs",
+      "bit_width": "32",
+      "bit_pattern": "000010xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsub.vx",
+      "bit_width": "32",
+      "bit_pattern": "000010xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfsub.vf",
+      "bit_width": "32",
+      "bit_pattern": "000010xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfredosum.vs",
+      "bit_width": "32",
+      "bit_pattern": "000011xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vredxor.vs",
+      "bit_width": "32",
+      "bit_pattern": "000011xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vrsub.vi",
+      "bit_width": "32",
+      "bit_pattern": "000011xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vrsub.vx",
+      "bit_width": "32",
+      "bit_pattern": "000011xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vminu.vv",
+      "bit_width": "32",
+      "bit_pattern": "000100xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmin.vv",
+      "bit_width": "32",
+      "bit_pattern": "000100xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vredminu.vs",
+      "bit_width": "32",
+      "bit_pattern": "000100xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vminu.vx",
+      "bit_width": "32",
+      "bit_pattern": "000100xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmin.vf",
+      "bit_width": "32",
+      "bit_pattern": "000100xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmin.vv",
+      "bit_width": "32",
+      "bit_pattern": "000101xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfredmin.vs",
+      "bit_width": "32",
+      "bit_pattern": "000101xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vredmin.vs",
+      "bit_width": "32",
+      "bit_pattern": "000101xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmin.vx",
+      "bit_width": "32",
+      "bit_pattern": "000101xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmaxu.vv",
+      "bit_width": "32",
+      "bit_pattern": "000110xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmax.vv",
+      "bit_width": "32",
+      "bit_pattern": "000110xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vredmaxu.vs",
+      "bit_width": "32",
+      "bit_pattern": "000110xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmaxu.vx",
+      "bit_width": "32",
+      "bit_pattern": "000110xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmax.vf",
+      "bit_width": "32",
+      "bit_pattern": "000110xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmax.vv",
+      "bit_width": "32",
+      "bit_pattern": "000111xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfredmax.vs",
+      "bit_width": "32",
+      "bit_pattern": "000111xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vredmax.vs",
+      "bit_width": "32",
+      "bit_pattern": "000111xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmax.vx",
+      "bit_width": "32",
+      "bit_pattern": "000111xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfsgnj.vv",
+      "bit_width": "32",
+      "bit_pattern": "001000xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vaaddu.vv",
+      "bit_width": "32",
+      "bit_pattern": "001000xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfsgnj.vf",
+      "bit_width": "32",
+      "bit_pattern": "001000xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vaaddu.vx",
+      "bit_width": "32",
+      "bit_pattern": "001000xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vand.vv",
+      "bit_width": "32",
+      "bit_pattern": "001001xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfsgnjn.vv",
+      "bit_width": "32",
+      "bit_pattern": "001001xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vaadd.vv",
+      "bit_width": "32",
+      "bit_pattern": "001001xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vand.vi",
+      "bit_width": "32",
+      "bit_pattern": "001001xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vand.vx",
+      "bit_width": "32",
+      "bit_pattern": "001001xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfsgnjn.vf",
+      "bit_width": "32",
+      "bit_pattern": "001001xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vaadd.vx",
+      "bit_width": "32",
+      "bit_pattern": "001001xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vor.vv",
+      "bit_width": "32",
+      "bit_pattern": "001010xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfsgnjx.vv",
+      "bit_width": "32",
+      "bit_pattern": "001010xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vasubu.vv",
+      "bit_width": "32",
+      "bit_pattern": "001010xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vor.vi",
+      "bit_width": "32",
+      "bit_pattern": "001010xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vor.vx",
+      "bit_width": "32",
+      "bit_pattern": "001010xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfsgnjx.vf",
+      "bit_width": "32",
+      "bit_pattern": "001010xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vasubu.vx",
+      "bit_width": "32",
+      "bit_pattern": "001010xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vxor.vv",
+      "bit_width": "32",
+      "bit_pattern": "001011xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vasub.vv",
+      "bit_width": "32",
+      "bit_pattern": "001011xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vxor.vi",
+      "bit_width": "32",
+      "bit_pattern": "001011xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vxor.vx",
+      "bit_width": "32",
+      "bit_pattern": "001011xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vasub.vx",
+      "bit_width": "32",
+      "bit_pattern": "001011xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vrgather.vv",
+      "bit_width": "32",
+      "bit_pattern": "001100xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vrgather.vi",
+      "bit_width": "32",
+      "bit_pattern": "001100xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vrgather.vx",
+      "bit_width": "32",
+      "bit_pattern": "001100xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vrgatherei16.vv",
+      "bit_width": "32",
+      "bit_pattern": "001110xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vslideup.vi",
+      "bit_width": "32",
+      "bit_pattern": "001110xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vslideup.vx",
+      "bit_width": "32",
+      "bit_pattern": "001110xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfslide1up.vf",
+      "bit_width": "32",
+      "bit_pattern": "001110xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vslide1up.vx",
+      "bit_width": "32",
+      "bit_pattern": "001110xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vslidedown.vi",
+      "bit_width": "32",
+      "bit_pattern": "001111xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vslidedown.vx",
+      "bit_width": "32",
+      "bit_pattern": "001111xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfslide1down.vf",
+      "bit_width": "32",
+      "bit_pattern": "001111xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vslide1down.vx",
+      "bit_width": "32",
+      "bit_pattern": "001111xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmseq.vv",
+      "bit_width": "32",
+      "bit_pattern": "011000xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmfeq.vv",
+      "bit_width": "32",
+      "bit_pattern": "011000xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmseq.vi",
+      "bit_width": "32",
+      "bit_pattern": "011000xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmseq.vx",
+      "bit_width": "32",
+      "bit_pattern": "011000xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmfeq.vf",
+      "bit_width": "32",
+      "bit_pattern": "011000xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsne.vv",
+      "bit_width": "32",
+      "bit_pattern": "011001xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmfle.vv",
+      "bit_width": "32",
+      "bit_pattern": "011001xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsne.vi",
+      "bit_width": "32",
+      "bit_pattern": "011001xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsne.vx",
+      "bit_width": "32",
+      "bit_pattern": "011001xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmfle.vf",
+      "bit_width": "32",
+      "bit_pattern": "011001xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsltu.vv",
+      "bit_width": "32",
+      "bit_pattern": "011010xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsltu.vx",
+      "bit_width": "32",
+      "bit_pattern": "011010xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmslt.vv",
+      "bit_width": "32",
+      "bit_pattern": "011011xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmflt.vv",
+      "bit_width": "32",
+      "bit_pattern": "011011xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmslt.vx",
+      "bit_width": "32",
+      "bit_pattern": "011011xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmflt.vf",
+      "bit_width": "32",
+      "bit_pattern": "011011xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsleu.vv",
+      "bit_width": "32",
+      "bit_pattern": "011100xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmfne.vv",
+      "bit_width": "32",
+      "bit_pattern": "011100xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsleu.vi",
+      "bit_width": "32",
+      "bit_pattern": "011100xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsleu.vx",
+      "bit_width": "32",
+      "bit_pattern": "011100xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmfne.vf",
+      "bit_width": "32",
+      "bit_pattern": "011100xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsle.vv",
+      "bit_width": "32",
+      "bit_pattern": "011101xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsle.vi",
+      "bit_width": "32",
+      "bit_pattern": "011101xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsle.vx",
+      "bit_width": "32",
+      "bit_pattern": "011101xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmfgt.vf",
+      "bit_width": "32",
+      "bit_pattern": "011101xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsgtu.vi",
+      "bit_width": "32",
+      "bit_pattern": "011110xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsgtu.vx",
+      "bit_width": "32",
+      "bit_pattern": "011110xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsgt.vi",
+      "bit_width": "32",
+      "bit_pattern": "011111xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmsgt.vx",
+      "bit_width": "32",
+      "bit_pattern": "011111xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmfge.vf",
+      "bit_width": "32",
+      "bit_pattern": "011111xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsaddu.vv",
+      "bit_width": "32",
+      "bit_pattern": "100000xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfdiv.vv",
+      "bit_width": "32",
+      "bit_pattern": "100000xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vdivu.vv",
+      "bit_width": "32",
+      "bit_pattern": "100000xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsaddu.vi",
+      "bit_width": "32",
+      "bit_pattern": "100000xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsaddu.vx",
+      "bit_width": "32",
+      "bit_pattern": "100000xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfdiv.vf",
+      "bit_width": "32",
+      "bit_pattern": "100000xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vdivu.vx",
+      "bit_width": "32",
+      "bit_pattern": "100000xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsadd.vv",
+      "bit_width": "32",
+      "bit_pattern": "100001xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vdiv.vv",
+      "bit_width": "32",
+      "bit_pattern": "100001xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsadd.vi",
+      "bit_width": "32",
+      "bit_pattern": "100001xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsadd.vx",
+      "bit_width": "32",
+      "bit_pattern": "100001xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfrdiv.vf",
+      "bit_width": "32",
+      "bit_pattern": "100001xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vdiv.vx",
+      "bit_width": "32",
+      "bit_pattern": "100001xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vssubu.vv",
+      "bit_width": "32",
+      "bit_pattern": "100010xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vremu.vv",
+      "bit_width": "32",
+      "bit_pattern": "100010xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vssubu.vx",
+      "bit_width": "32",
+      "bit_pattern": "100010xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vremu.vx",
+      "bit_width": "32",
+      "bit_pattern": "100010xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vssub.vv",
+      "bit_width": "32",
+      "bit_pattern": "100011xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vrem.vv",
+      "bit_width": "32",
+      "bit_pattern": "100011xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vssub.vx",
+      "bit_width": "32",
+      "bit_pattern": "100011xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vrem.vx",
+      "bit_width": "32",
+      "bit_pattern": "100011xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmul.vv",
+      "bit_width": "32",
+      "bit_pattern": "100100xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmulhu.vv",
+      "bit_width": "32",
+      "bit_pattern": "100100xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmul.vf",
+      "bit_width": "32",
+      "bit_pattern": "100100xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmulhu.vx",
+      "bit_width": "32",
+      "bit_pattern": "100100xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsll.vv",
+      "bit_width": "32",
+      "bit_pattern": "100101xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmul.vv",
+      "bit_width": "32",
+      "bit_pattern": "100101xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsll.vi",
+      "bit_width": "32",
+      "bit_pattern": "100101xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsll.vx",
+      "bit_width": "32",
+      "bit_pattern": "100101xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmul.vx",
+      "bit_width": "32",
+      "bit_pattern": "100101xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmulhsu.vv",
+      "bit_width": "32",
+      "bit_pattern": "100110xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmulhsu.vx",
+      "bit_width": "32",
+      "bit_pattern": "100110xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsmul.vv",
+      "bit_width": "32",
+      "bit_pattern": "100111xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmulh.vv",
+      "bit_width": "32",
+      "bit_pattern": "100111xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsmul.vx",
+      "bit_width": "32",
+      "bit_pattern": "100111xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfrsub.vf",
+      "bit_width": "32",
+      "bit_pattern": "100111xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmulh.vx",
+      "bit_width": "32",
+      "bit_pattern": "100111xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsrl.vv",
+      "bit_width": "32",
+      "bit_pattern": "101000xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmadd.vv",
+      "bit_width": "32",
+      "bit_pattern": "101000xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsrl.vi",
+      "bit_width": "32",
+      "bit_pattern": "101000xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsrl.vx",
+      "bit_width": "32",
+      "bit_pattern": "101000xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmadd.vf",
+      "bit_width": "32",
+      "bit_pattern": "101000xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsra.vv",
+      "bit_width": "32",
+      "bit_pattern": "101001xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfnmadd.vv",
+      "bit_width": "32",
+      "bit_pattern": "101001xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmadd.vv",
+      "bit_width": "32",
+      "bit_pattern": "101001xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsra.vi",
+      "bit_width": "32",
+      "bit_pattern": "101001xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsra.vx",
+      "bit_width": "32",
+      "bit_pattern": "101001xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfnmadd.vf",
+      "bit_width": "32",
+      "bit_pattern": "101001xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmadd.vx",
+      "bit_width": "32",
+      "bit_pattern": "101001xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vssrl.vv",
+      "bit_width": "32",
+      "bit_pattern": "101010xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmsub.vv",
+      "bit_width": "32",
+      "bit_pattern": "101010xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vssrl.vi",
+      "bit_width": "32",
+      "bit_pattern": "101010xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vssrl.vx",
+      "bit_width": "32",
+      "bit_pattern": "101010xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmsub.vf",
+      "bit_width": "32",
+      "bit_pattern": "101010xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vssra.vv",
+      "bit_width": "32",
+      "bit_pattern": "101011xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfnmsub.vv",
+      "bit_width": "32",
+      "bit_pattern": "101011xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnmsub.vv",
+      "bit_width": "32",
+      "bit_pattern": "101011xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vssra.vi",
+      "bit_width": "32",
+      "bit_pattern": "101011xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vssra.vx",
+      "bit_width": "32",
+      "bit_pattern": "101011xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfnmsub.vf",
+      "bit_width": "32",
+      "bit_pattern": "101011xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnmsub.vx",
+      "bit_width": "32",
+      "bit_pattern": "101011xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnsrl.wv",
+      "bit_width": "32",
+      "bit_pattern": "101100xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmacc.vv",
+      "bit_width": "32",
+      "bit_pattern": "101100xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnsrl.wi",
+      "bit_width": "32",
+      "bit_pattern": "101100xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnsrl.wx",
+      "bit_width": "32",
+      "bit_pattern": "101100xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmacc.vf",
+      "bit_width": "32",
+      "bit_pattern": "101100xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnsra.wv",
+      "bit_width": "32",
+      "bit_pattern": "101101xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfnmacc.vv",
+      "bit_width": "32",
+      "bit_pattern": "101101xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmacc.vv",
+      "bit_width": "32",
+      "bit_pattern": "101101xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnsra.wi",
+      "bit_width": "32",
+      "bit_pattern": "101101xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnsra.wx",
+      "bit_width": "32",
+      "bit_pattern": "101101xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfnmacc.vf",
+      "bit_width": "32",
+      "bit_pattern": "101101xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vmacc.vx",
+      "bit_width": "32",
+      "bit_pattern": "101101xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnclipu.wv",
+      "bit_width": "32",
+      "bit_pattern": "101110xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmsac.vv",
+      "bit_width": "32",
+      "bit_pattern": "101110xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnclipu.wi",
+      "bit_width": "32",
+      "bit_pattern": "101110xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnclipu.wx",
+      "bit_width": "32",
+      "bit_pattern": "101110xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfmsac.vf",
+      "bit_width": "32",
+      "bit_pattern": "101110xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnclip.wv",
+      "bit_width": "32",
+      "bit_pattern": "101111xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfnmsac.vv",
+      "bit_width": "32",
+      "bit_pattern": "101111xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnmsac.vv",
+      "bit_width": "32",
+      "bit_pattern": "101111xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnclip.wi",
+      "bit_width": "32",
+      "bit_pattern": "101111xxxxxxxxxxx011xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnclip.wx",
+      "bit_width": "32",
+      "bit_pattern": "101111xxxxxxxxxxx100xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfnmsac.vf",
+      "bit_width": "32",
+      "bit_pattern": "101111xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vnmsac.vx",
+      "bit_width": "32",
+      "bit_pattern": "101111xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwredsumu.vs",
+      "bit_width": "32",
+      "bit_pattern": "110000xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwadd.vv",
+      "bit_width": "32",
+      "bit_pattern": "110000xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwaddu.vv",
+      "bit_width": "32",
+      "bit_pattern": "110000xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwadd.vf",
+      "bit_width": "32",
+      "bit_pattern": "110000xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwaddu.vx",
+      "bit_width": "32",
+      "bit_pattern": "110000xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwredsum.vs",
+      "bit_width": "32",
+      "bit_pattern": "110001xxxxxxxxxxx000xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwredusum.vs",
+      "bit_width": "32",
+      "bit_pattern": "110001xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwadd.vv",
+      "bit_width": "32",
+      "bit_pattern": "110001xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwadd.vx",
+      "bit_width": "32",
+      "bit_pattern": "110001xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwsub.vv",
+      "bit_width": "32",
+      "bit_pattern": "110010xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwsubu.vv",
+      "bit_width": "32",
+      "bit_pattern": "110010xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwsub.vf",
+      "bit_width": "32",
+      "bit_pattern": "110010xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwsubu.vx",
+      "bit_width": "32",
+      "bit_pattern": "110010xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwredosum.vs",
+      "bit_width": "32",
+      "bit_pattern": "110011xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwsub.vv",
+      "bit_width": "32",
+      "bit_pattern": "110011xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwsub.vx",
+      "bit_width": "32",
+      "bit_pattern": "110011xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwadd.wv",
+      "bit_width": "32",
+      "bit_pattern": "110100xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwaddu.wv",
+      "bit_width": "32",
+      "bit_pattern": "110100xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwadd.wf",
+      "bit_width": "32",
+      "bit_pattern": "110100xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwaddu.wx",
+      "bit_width": "32",
+      "bit_pattern": "110100xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwadd.wv",
+      "bit_width": "32",
+      "bit_pattern": "110101xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwadd.wx",
+      "bit_width": "32",
+      "bit_pattern": "110101xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwsub.wv",
+      "bit_width": "32",
+      "bit_pattern": "110110xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwsubu.wv",
+      "bit_width": "32",
+      "bit_pattern": "110110xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwsub.wf",
+      "bit_width": "32",
+      "bit_pattern": "110110xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwsubu.wx",
+      "bit_width": "32",
+      "bit_pattern": "110110xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwsub.wv",
+      "bit_width": "32",
+      "bit_pattern": "110111xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwsub.wx",
+      "bit_width": "32",
+      "bit_pattern": "110111xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwmul.vv",
+      "bit_width": "32",
+      "bit_pattern": "111000xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmulu.vv",
+      "bit_width": "32",
+      "bit_pattern": "111000xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwmul.vf",
+      "bit_width": "32",
+      "bit_pattern": "111000xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmulu.vx",
+      "bit_width": "32",
+      "bit_pattern": "111000xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmulsu.vv",
+      "bit_width": "32",
+      "bit_pattern": "111010xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmulsu.vx",
+      "bit_width": "32",
+      "bit_pattern": "111010xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmul.vv",
+      "bit_width": "32",
+      "bit_pattern": "111011xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmul.vx",
+      "bit_width": "32",
+      "bit_pattern": "111011xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwmacc.vv",
+      "bit_width": "32",
+      "bit_pattern": "111100xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmaccu.vv",
+      "bit_width": "32",
+      "bit_pattern": "111100xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwmacc.vf",
+      "bit_width": "32",
+      "bit_pattern": "111100xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmaccu.vx",
+      "bit_width": "32",
+      "bit_pattern": "111100xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwnmacc.vv",
+      "bit_width": "32",
+      "bit_pattern": "111101xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmacc.vv",
+      "bit_width": "32",
+      "bit_pattern": "111101xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwnmacc.vf",
+      "bit_width": "32",
+      "bit_pattern": "111101xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmacc.vx",
+      "bit_width": "32",
+      "bit_pattern": "111101xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwmsac.vv",
+      "bit_width": "32",
+      "bit_pattern": "111110xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwmsac.vf",
+      "bit_width": "32",
+      "bit_pattern": "111110xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmaccus.vx",
+      "bit_width": "32",
+      "bit_pattern": "111110xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwnmsac.vv",
+      "bit_width": "32",
+      "bit_pattern": "111111xxxxxxxxxxx001xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmaccsu.vv",
+      "bit_width": "32",
+      "bit_pattern": "111111xxxxxxxxxxx010xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vfwnmsac.vf",
+      "bit_width": "32",
+      "bit_pattern": "111111xxxxxxxxxxx101xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vwmaccsu.vx",
+      "bit_width": "32",
+      "bit_pattern": "111111xxxxxxxxxxx110xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "amoadd.w",
+      "bit_width": "32",
+      "bit_pattern": "00000xxxxxxxxxxxx010xxxxx0101111",
+      "instruction_set": "rv_a"
+    },
+    {
+      "name": "amoswap.w",
+      "bit_width": "32",
+      "bit_pattern": "00001xxxxxxxxxxxx010xxxxx0101111",
+      "instruction_set": "rv_a"
+    },
+    {
+      "name": "sc.w",
+      "bit_width": "32",
+      "bit_pattern": "00011xxxxxxxxxxxx010xxxxx0101111",
+      "instruction_set": "rv_a"
+    },
+    {
+      "name": "amoxor.w",
+      "bit_width": "32",
+      "bit_pattern": "00100xxxxxxxxxxxx010xxxxx0101111",
+      "instruction_set": "rv_a"
+    },
+    {
+      "name": "amoor.w",
+      "bit_width": "32",
+      "bit_pattern": "01000xxxxxxxxxxxx010xxxxx0101111",
+      "instruction_set": "rv_a"
+    },
+    {
+      "name": "amoand.w",
+      "bit_width": "32",
+      "bit_pattern": "01100xxxxxxxxxxxx010xxxxx0101111",
+      "instruction_set": "rv_a"
+    },
+    {
+      "name": "amomin.w",
+      "bit_width": "32",
+      "bit_pattern": "10000xxxxxxxxxxxx010xxxxx0101111",
+      "instruction_set": "rv_a"
+    },
+    {
+      "name": "amomax.w",
+      "bit_width": "32",
+      "bit_pattern": "10100xxxxxxxxxxxx010xxxxx0101111",
+      "instruction_set": "rv_a"
+    },
+    {
+      "name": "amominu.w",
+      "bit_width": "32",
+      "bit_pattern": "11000xxxxxxxxxxxx010xxxxx0101111",
+      "instruction_set": "rv_a"
+    },
+    {
+      "name": "amomaxu.w",
+      "bit_width": "32",
+      "bit_pattern": "11100xxxxxxxxxxxx010xxxxx0101111",
+      "instruction_set": "rv_a"
+    },
+    {
+      "name": "fadd.s",
+      "bit_width": "32",
+      "bit_pattern": "0000000xxxxxxxxxxxxxxxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fsub.s",
+      "bit_width": "32",
+      "bit_pattern": "0000100xxxxxxxxxxxxxxxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fmul.s",
+      "bit_width": "32",
+      "bit_pattern": "0001000xxxxxxxxxxxxxxxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fdiv.s",
+      "bit_width": "32",
+      "bit_pattern": "0001100xxxxxxxxxxxxxxxxxx1010011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "vluxei8.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx001xxxxxxxxxxx000xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsuxei8.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx001xxxxxxxxxxx000xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vluxei16.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx001xxxxxxxxxxx101xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsuxei16.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx001xxxxxxxxxxx101xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vluxei32.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx001xxxxxxxxxxx110xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsuxei32.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx001xxxxxxxxxxx110xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vluxei64.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx001xxxxxxxxxxx111xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsuxei64.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx001xxxxxxxxxxx111xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vlse8.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx010xxxxxxxxxxx000xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsse8.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx010xxxxxxxxxxx000xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vlse16.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx010xxxxxxxxxxx101xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsse16.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx010xxxxxxxxxxx101xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vlse32.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx010xxxxxxxxxxx110xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsse32.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx010xxxxxxxxxxx110xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vlse64.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx010xxxxxxxxxxx111xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsse64.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx010xxxxxxxxxxx111xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vloxei8.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx011xxxxxxxxxxx000xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsoxei8.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx011xxxxxxxxxxx000xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vloxei16.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx011xxxxxxxxxxx101xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsoxei16.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx011xxxxxxxxxxx101xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vloxei32.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx011xxxxxxxxxxx110xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsoxei32.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx011xxxxxxxxxxx110xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vloxei64.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx011xxxxxxxxxxx111xxxxx0000111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsoxei64.v",
+      "bit_width": "32",
+      "bit_pattern": "xxx011xxxxxxxxxxx111xxxxx0100111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsetivli",
+      "bit_width": "32",
+      "bit_pattern": "11xxxxxxxxxxxxxxx111xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "vsetvli",
+      "bit_width": "32",
+      "bit_pattern": "0xxxxxxxxxxxxxxxx111xxxxx1010111",
+      "instruction_set": "rv_v"
+    },
+    {
+      "name": "lb",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx000xxxxx0000011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "fence",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx000xxxxx0001111",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "addi",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx000xxxxx0010011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "sb",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx000xxxxx0100011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "beq",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx000xxxxx1100011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "jalr",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx000xxxxx1100111",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "lh",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx001xxxxx0000011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "fence.i",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx001xxxxx0001111",
+      "instruction_set": "rv_zifencei"
+    },
+    {
+      "name": "sh",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx001xxxxx0100011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "bne",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx001xxxxx1100011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "csrrw",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx001xxxxx1110011",
+      "instruction_set": "rv_zicsr"
+    },
+    {
+      "name": "lw",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx010xxxxx0000011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "flw",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx010xxxxx0000111",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "slti",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx010xxxxx0010011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "sw",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx010xxxxx0100011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "fsw",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx010xxxxx0100111",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "csrrs",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx010xxxxx1110011",
+      "instruction_set": "rv_zicsr"
+    },
+    {
+      "name": "sltiu",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx011xxxxx0010011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "csrrc",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx011xxxxx1110011",
+      "instruction_set": "rv_zicsr"
+    },
+    {
+      "name": "lbu",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx100xxxxx0000011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "xori",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx100xxxxx0010011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "blt",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx100xxxxx1100011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "lhu",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx101xxxxx0000011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "bge",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx101xxxxx1100011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "csrrwi",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx101xxxxx1110011",
+      "instruction_set": "rv_zicsr"
+    },
+    {
+      "name": "ori",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx110xxxxx0010011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "bltu",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx110xxxxx1100011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "csrrsi",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx110xxxxx1110011",
+      "instruction_set": "rv_zicsr"
+    },
+    {
+      "name": "andi",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx111xxxxx0010011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "bgeu",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx111xxxxx1100011",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "csrrci",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxx111xxxxx1110011",
+      "instruction_set": "rv_zicsr"
+    },
+    {
+      "name": "fmadd.s",
+      "bit_width": "32",
+      "bit_pattern": "xxxxx00xxxxxxxxxxxxxxxxxx1000011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fmsub.s",
+      "bit_width": "32",
+      "bit_pattern": "xxxxx00xxxxxxxxxxxxxxxxxx1000111",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fnmsub.s",
+      "bit_width": "32",
+      "bit_pattern": "xxxxx00xxxxxxxxxxxxxxxxxx1001011",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "fnmadd.s",
+      "bit_width": "32",
+      "bit_pattern": "xxxxx00xxxxxxxxxxxxxxxxxx1001111",
+      "instruction_set": "rv_f"
+    },
+    {
+      "name": "auipc",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxxxxxxxxxx0010111",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "lui",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxxxxxxxxxx0110111",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "jal",
+      "bit_width": "32",
+      "bit_pattern": "xxxxxxxxxxxxxxxxxxxxxxxxx1101111",
+      "instruction_set": "rv_i"
+    },
+    {
+      "name": "c.ebreak",
+      "bit_width": "16",
+      "bit_pattern": "1001000000000010",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.jr",
+      "bit_width": "16",
+      "bit_pattern": "1000xxxxx0000010",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.jalr",
+      "bit_width": "16",
+      "bit_pattern": "1001xxxxx0000010",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.nop",
+      "bit_width": "16",
+      "bit_pattern": "000x00000xxxxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.addi16sp",
+      "bit_width": "16",
+      "bit_pattern": "011x00010xxxxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.sub",
+      "bit_width": "16",
+      "bit_pattern": "100011xxx00xxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.xor",
+      "bit_width": "16",
+      "bit_pattern": "100011xxx01xxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.or",
+      "bit_width": "16",
+      "bit_pattern": "100011xxx10xxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.and",
+      "bit_width": "16",
+      "bit_pattern": "100011xxx11xxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.srli",
+      "bit_width": "16",
+      "bit_pattern": "100000xxxxxxxx01",
+      "instruction_set": "rv32_c"
+    },
+    {
+      "name": "c.srai",
+      "bit_width": "16",
+      "bit_pattern": "100001xxxxxxxx01",
+      "instruction_set": "rv32_c"
+    },
+    {
+      "name": "c.andi",
+      "bit_width": "16",
+      "bit_pattern": "100x10xxxxxxxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.slli",
+      "bit_width": "16",
+      "bit_pattern": "0000xxxxxxxxxx10",
+      "instruction_set": "rv32_c"
+    },
+    {
+      "name": "c.mv",
+      "bit_width": "16",
+      "bit_pattern": "1000xxxxxxxxxx10",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.add",
+      "bit_width": "16",
+      "bit_pattern": "1001xxxxxxxxxx10",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.addi4spn",
+      "bit_width": "16",
+      "bit_pattern": "000xxxxxxxxxxx00",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.addi",
+      "bit_width": "16",
+      "bit_pattern": "000xxxxxxxxxxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.jal",
+      "bit_width": "16",
+      "bit_pattern": "001xxxxxxxxxxx01",
+      "instruction_set": "rv32_c"
+    },
+    {
+      "name": "c.lw",
+      "bit_width": "16",
+      "bit_pattern": "010xxxxxxxxxxx00",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.li",
+      "bit_width": "16",
+      "bit_pattern": "010xxxxxxxxxxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.lwsp",
+      "bit_width": "16",
+      "bit_pattern": "010xxxxxxxxxxx10",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.flw",
+      "bit_width": "16",
+      "bit_pattern": "011xxxxxxxxxxx00",
+      "instruction_set": "rv32_c_f"
+    },
+    {
+      "name": "c.lui",
+      "bit_width": "16",
+      "bit_pattern": "011xxxxxxxxxxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.flwsp",
+      "bit_width": "16",
+      "bit_pattern": "011xxxxxxxxxxx10",
+      "instruction_set": "rv32_c_f"
+    },
+    {
+      "name": "c.j",
+      "bit_width": "16",
+      "bit_pattern": "101xxxxxxxxxxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.sw",
+      "bit_width": "16",
+      "bit_pattern": "110xxxxxxxxxxx00",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.beqz",
+      "bit_width": "16",
+      "bit_pattern": "110xxxxxxxxxxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.swsp",
+      "bit_width": "16",
+      "bit_pattern": "110xxxxxxxxxxx10",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.fsw",
+      "bit_width": "16",
+      "bit_pattern": "111xxxxxxxxxxx00",
+      "instruction_set": "rv32_c_f"
+    },
+    {
+      "name": "c.bnez",
+      "bit_width": "16",
+      "bit_pattern": "111xxxxxxxxxxx01",
+      "instruction_set": "rv_c"
+    },
+    {
+      "name": "c.fswsp",
+      "bit_width": "16",
+      "bit_pattern": "111xxxxxxxxxxx10",
+      "instruction_set": "rv32_c_f"
+    }
+  ]
+}

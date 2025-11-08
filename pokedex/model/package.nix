@@ -25,7 +25,7 @@ stdenv.mkDerivation {
   };
 
   configurePhase = ''
-    python buildgen.py
+    python -m scripts.buildgen
   '';
 
   # buildPhase will use ninja
