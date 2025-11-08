@@ -3,7 +3,8 @@ let imm : bits(32) = SignExtend(nzimm, 32);
 
 let rd : integer{0..31} = UInt(GetRD(instruction));
 
-if rd != 0 && (!IsZero(nzimm)) then
+// when rd == 0, it is nop
+if rd != 0 then
   X[rd] = X[rd] + imm;
 end
 
