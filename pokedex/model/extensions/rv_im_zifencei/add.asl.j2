@@ -1,7 +1,7 @@
 {%- macro arith_instruction_body(name, compute) %}
-  let rs1 : integer{0..31} = UInt(GetRS1(instruction));
-  let rs2 : integer{0..31} = UInt(GetRS2(instruction));
-  let rd  : integer{0..31} = UInt(GetRD(instruction));
+  let rd  : XRegIdx = UInt(GetRD(instruction));
+  let rs1 : XRegIdx = UInt(GetRS1(instruction));
+  let rs2 : XRegIdx = UInt(GetRS2(instruction));
 
   let src1 : bits(XLEN) = X[rs1];
   let src2 : bits(XLEN) = X[rs2];
@@ -37,4 +37,69 @@ end
 func Execute_XOR(instruction: bits(32)) => Result
 begin
 {{- arith_instruction_body("XOR", "src1 XOR src2") -}}
+end
+
+func Execute_SLT(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("SLT", "riscv_slt_s(src1, src2)") -}}
+end
+
+func Execute_SLTU(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("SLTU", "riscv_slt_u(src1, src2)") -}}
+end
+
+func Execute_SLL(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("SLL", "riscv_sll_var(src1, src2)") -}}
+end
+
+func Execute_SRL(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("SRL", "riscv_srl_var(src1, src2)") -}}
+end
+
+func Execute_SRA(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("SRA", "riscv_sra_var(src1, src2)") -}}
+end
+
+func Execute_MUL(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("MUL", "src1 * src2") -}}
+end
+
+func Execute_MULH(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("MULH", "riscv_mulh_ss(src1, src2)") -}}
+end
+
+func Execute_MULHU(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("MULHU", "riscv_mulh_uu(src1, src2)") -}}
+end
+
+func Execute_MULHSU(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("MULHSU", "riscv_mulh_su(src1, src2)") -}}
+end
+
+func Execute_DIV(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("DIV", "riscv_div_s(src1, src2)") -}}
+end
+
+func Execute_REM(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("REM", "riscv_rem_s(src1, src2)") -}}
+end
+
+func Execute_DIVU(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("DIVU", "riscv_div_u(src1, src2)") -}}
+end
+
+func Execute_REMU(instruction: bits(32)) => Result
+begin
+{{- arith_instruction_body("REMU", "riscv_rem_u(src1, src2)") -}}
 end

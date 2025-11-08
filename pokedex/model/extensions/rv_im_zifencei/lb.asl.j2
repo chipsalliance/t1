@@ -1,0 +1,46 @@
+{#- mew = 8 | 16 | 32 | 64 -#}
+{#- extend = "SignExtend" | "ZeroExtend" -#}
+{%- macro load_instruction_body(name, mew, extend) %}
+  let rd : XRegIdx  = UInt(GetRD(instruction));
+  let rs1 : XRegIdx = UInt(GetRS1(instruction));
+  let imm : bits(12) = GetIMM(instruction);
+
+  let addr : bits(XLEN) = X[rs1] + SignExtend(imm, XLEN);
+
+  let (data, result) = ReadMemory(addr, {{ mew }});
+  if !result.is_ok then
+    return result;
+  end
+
+  let value : bits(XLEN) = {{ extend }}(data, XLEN);
+
+  X[rd] = value;
+
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_LB(instruction: bits(32)) => Result
+begin
+{{- load_instruction_body("LB", 8, "SignExtend") -}}
+end
+
+func Execute_LH(instruction: bits(32)) => Result
+begin
+{{- load_instruction_body("LH", 16, "SignExtend") -}}
+end
+
+func Execute_LW(instruction: bits(32)) => Result
+begin
+{{- load_instruction_body("LW", 32, "SignExtend") -}}
+end
+
+func Execute_LBU(instruction: bits(32)) => Result
+begin
+{{- load_instruction_body("LBU", 8, "ZeroExtend") -}}
+end
+
+func Execute_LHU(instruction: bits(32)) => Result
+begin
+{{- load_instruction_body("LHU", 16, "ZeroExtend") -}}
+end

@@ -1,0 +1,70 @@
+{%- macro amow_instruction_body(name, op) %}
+  let rd : XRegIdx = UInt(GetRD(instruction));
+  let rs1 : XRegIdx = UInt(GetRS1(instruction));
+  let rs2 : XRegIdx = UInt(GetRS2(instruction));
+  let is_aq : boolean = IsAcquire(instruction);
+  let is_rl : boolean = IsRelease(instruction);
+
+  let addr : bits(XLEN) = X[rs1];
+
+  // NOTE: impl defined behavior
+  // we do not emulate misaligned AMO, thus we raise access fault exception
+  if addr[1:0] != '00' then
+    return Exception(CAUSE_STORE_ACCESS, addr);
+  end
+
+  let result: FFI_ReadResult(32) = FFI_amo({{ op }}, X[rs1], X[rs2], is_aq, is_rl);
+  if !result.success then
+    return Exception(CAUSE_STORE_ACCESS, addr);
+  end
+
+  X[rd] = result.data;
+
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_AMOSWAP_W(instruction: bits(32)) => Result
+begin
+{{- amow_instruction_body("AMOSWAP_W", "AMO_SWAP") -}}
+end
+
+func Execute_AMOAND_W(instruction: bits(32)) => Result
+begin
+{{- amow_instruction_body("AMOAND_W", "AMO_AND") -}}
+end
+
+func Execute_AMOOR_W(instruction: bits(32)) => Result
+begin
+{{- amow_instruction_body("AMOOR_W", "AMO_OR") -}}
+end
+
+func Execute_AMOXOR_W(instruction: bits(32)) => Result
+begin
+{{- amow_instruction_body("AMOXOR_W", "AMO_XOR") -}}
+end
+
+func Execute_AMOADD_W(instruction: bits(32)) => Result
+begin
+{{- amow_instruction_body("AMOADD_W", "AMO_ADD") -}}
+end
+
+func Execute_AMOMAX_W(instruction: bits(32)) => Result
+begin
+{{- amow_instruction_body("AMOMAX_W", "AMO_MAX") -}}
+end
+
+func Execute_AMOMAXU_W(instruction: bits(32)) => Result
+begin
+{{- amow_instruction_body("AMOMAXU_W", "AMO_MAXU") -}}
+end
+
+func Execute_AMOMIN_W(instruction: bits(32)) => Result
+begin
+{{- amow_instruction_body("AMOMIN_W", "AMO_MIN") -}}
+end
+
+func Execute_AMOMINU_W(instruction: bits(32)) => Result
+begin
+{{- amow_instruction_body("AMOMAXU_W", "AMO_MINU") -}}
+end

@@ -1,16 +1,14 @@
 func Execute_JALR(instruction: bits(32)) => Result
 begin
-  let rd : integer{0..31} = UInt(GetRD(instruction));
-  let next_pc : bits(XLEN) = PC + 4;
-
+  let rd : XRegIdx = UInt(GetRD(instruction));
+  let rs1 : XRegIdx = UInt(GetRS1(instruction));
   let imm : bits(12) = GetIMM(instruction);
-  let offset : bits(XLEN) = SignExtend(imm, XLEN);
 
-  let rs1 : integer{0..31} = UInt(GetRS1(instruction));
+  let next_pc : bits(XLEN) = PC + 4;
 
   // the least bit must be cleared, the spec says.
   // with C extension, target is guranteed to be aligned
-  var target : bits(XLEN) = offset + X[rs1];
+  var target : bits(XLEN) = X[rs1] + SignExtend(imm, XLEN);
   target[0] = '0';
 
   PC = target;
