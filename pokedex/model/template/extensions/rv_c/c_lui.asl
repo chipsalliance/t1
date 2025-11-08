@@ -6,8 +6,15 @@ if IsZero(imm) then
 end
 
 let rd : integer{0..31} = UInt(GetRD(instruction));
-if rd == 0 || rd == 2 then
-  return Exception(CAUSE_ILLEGAL_INSTRUCTION, instruction);
+
+if rd == 0 then
+  // This is reserved encoding
+  return IllegalInstruction();
+end
+
+// FIXME : it should be unreachable after the decoder supports decoding priority
+if rd == 2 then
+  return Execute_C_ADDI16SP(instruction);
 end
 
 X[rd] = imm;
