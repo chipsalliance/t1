@@ -1,0 +1,103 @@
+{%- macro vle_body(name, eew) %}
+{% set eew_byte = eew // 8 %}
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+
+  // NOTE: this instruction supports non-zero vstart
+  if UInt(VSTART) > VL then
+    return IllegalInstruction();
+  end
+ 
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let rs1: XRegIdx = UInt(GetRS1(instruction));
+  let vm : bit = GetVM(instruction);
+  let nf : integer{0..7} = UInt(GetNF(instruction));
+
+  if vm == '0' && vd == 0 then
+    // overlap with mask
+    return IllegalInstruction();
+  end
+
+  let (vreg_align, valid) = getEewAlign(VTYPE, {{eew}});
+  if !valid then
+    // elmul is invalid
+    return IllegalInstruction();
+  end
+
+  if vd MOD vreg_align != 0 then
+    // vd is not aligned with elmul group
+    return IllegalInstruction();
+  end
+
+  if vreg_align * (nf + 1) > 8 then
+    // segment is too large
+    return IllegalInstruction();
+  end
+
+  let base_addr: bits(XLEN) = X[rs1];
+  let vstart: integer = UInt(VSTART);
+  let vl: integer = VL;
+
+  if nf == 0 then
+    // vle{{eew}}.v vd, (rs1), [vm]
+    for idx = vstart to VL - 1 do
+      if vm != '0' || V0_MASK[idx] then
+        let addr: bits(XLEN) = base_addr + idx * {{ eew_byte }};
+        let (data, result) = ReadMemory(addr, {{eew}});
+
+        if !result.is_ok then
+          vectorInterrupt(idx);
+          return result;
+        end
+
+        VRF_{{eew}}[vd, idx] = data;
+      end
+    end
+  else
+    // vlseg<NF>e{{eew}}.v vd, (rs1), [vm]
+    for idx = vstart to vl - 1 do
+      if vm != '0' || V0_MASK[idx] then
+        let group_addr = base_addr + idx * {{eew_byte}} * (nf + 1);
+        for j = 0 to nf do
+          let vd_j = (vd + j * vreg_align) as integer{0..31};
+          let addr : bits(XLEN) = group_addr + {{eew_byte}} * j;
+          let (data, result) = ReadMemory(addr, {{eew}});
+
+          if !result.is_ok then
+            logWrite_VREG_elmul(vd, vreg_align);
+            vectorInterrupt(idx);
+            return result;
+          end
+
+          VRF_{{eew}}[vd_j, idx] = data;
+        end
+      end
+    end
+  end
+
+  logWrite_VREG_elmul(vd, vreg_align);
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_VLE8_V(instruction: bits(32)) => Result
+begin
+{{- vle_body("vle8_v", 8) -}}
+end
+
+func Execute_VLE16_V(instruction: bits(32)) => Result
+begin
+{{- vle_body("vle16_v", 16) -}}
+end
+
+func Execute_VLE32_V(instruction: bits(32)) => Result
+begin
+{{- vle_body("vle32_v", 32) -}}
+end

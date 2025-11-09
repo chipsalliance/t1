@@ -8,7 +8,7 @@ func FFI_emulator_do_fence();
 func FFI_write_GPR_hook(reg_idx: XRegIdx, data: bits(32));
 func FFI_write_FPR_hook(reg_idx: FRegIdx, data: bits(32));
 func FFI_write_CSR_hook(name: string, value: bits(32));
-func FFI_write_VREG_hook(reg_idx: VRegIdx, frag_idx: integer{0..(VLEN DIV 64)-1}, data: bits(64));
+func FFI_write_VREG_vlen256_hook(vd: bits(8), frag0: bits(64), frag1: bits(64), frag2: bits(64), frag3: bits(64));
 func ffi_commit_insn(pc : bits(32), insn : bits(32), is_c: boolean);
 
 func FFI_ecall();

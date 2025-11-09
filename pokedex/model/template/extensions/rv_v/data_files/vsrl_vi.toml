@@ -1,4 +1,0 @@
-template = "vop_vi_uimm"
-
-op_func = "__op_srlv"
-function_description="compute vd = vs2 u>> uimm, only lower log2(sew) bits of uimm is used, optionally masked by vm"

@@ -551,6 +551,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "xmas-elf",
+ "zerocopy",
 ]
 
 [[package]]

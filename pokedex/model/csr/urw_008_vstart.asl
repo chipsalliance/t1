@@ -14,20 +14,20 @@ end
 
 // utility functions
 
-func set_VSTART(value: integer)
+func vectorInterrupt(idx: integer)
 begin
-  assert(value < VLEN);
+  assert(idx < VLEN);
 
-  VSTART = value[LOG2_VLEN-1:0];
+  VSTART = idx[LOG2_VLEN-1:0];
 
-  FFI_write_CSR_hook("vstart", value[31:0]);
+  FFI_write_CSR_hook("vstart", idx[31:0]);
 end
 
 func clear_VSTART()
 begin
-  if VSTART != Zeros(LOG2_VLEN) then
+  if !IsZero(VSTART) then
     // in most cases VSTART is zero
-    FFI_write_CSR_hook("vstart", Zeros(32));
+    FFI_write_CSR_hook("vstart", Zeros(XLEN));
   end
 
   VSTART = Zeros(LOG2_VLEN);

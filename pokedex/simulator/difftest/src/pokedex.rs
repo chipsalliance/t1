@@ -8,6 +8,7 @@ use crate::replay;
 pub(crate) enum ModelStateWrite {
     Xrf { rd: u8, value: u32 },
     Frf { rd: u8, value: u32 },
+    Vrf { rd: u8, value: Vec<u8> },
     Csr { name: String, value: u32 },
     Load { addr: u32 },
     Store { addr: u32, data: Vec<u8> },
@@ -22,6 +23,7 @@ impl Display for ModelStateWrite {
         match self {
             Xrf { rd, value } => write!(f, "[x{rd} <- {value:#010x}]"),
             Frf { rd, value } => write!(f, "[f{rd} <- {value:#010x}]"),
+            Vrf { rd, value } => write!(f, "[v{rd} <- {value:02x?}]"),
             Csr { name, value } => write!(f, "[csr {name} <- {value:#010x}]"),
             Load { addr } => write!(f, "[mem {addr} -> load]"),
             Store { addr, data } => write!(f, "[mem {addr} <- {:x?}]", &data),
@@ -73,6 +75,9 @@ impl replay::IsInsnCommit for InsnCommit {
                 }
                 &Frf { rd, value } => {
                     state.write_fpr(rd as usize, value, &mut dr);
+                }
+                &Vrf { rd, ref value } => {
+                    state.write_vreg(rd as usize, value, &mut dr);
                 }
                 &Csr { ref name, value } => {
                     // FIXME: error handling
