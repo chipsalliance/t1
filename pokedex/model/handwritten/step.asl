@@ -24,10 +24,13 @@ begin
     end
 
     let instruction : bits(32) = [most_significant_half.data, least_significant_half.data];
+
+    FFI_debug_log_issue(PC, instruction, FALSE);
     exec_result = DecodeAndExecute(instruction);
 
     ffi_commit_insn(current_pc, instruction, FALSE);
   else
+    FFI_debug_log_issue(PC, ZeroExtend(least_significant_half.data, 32), TRUE);
     exec_result = DecodeAndExecute_CEXT(least_significant_half.data);
 
     ffi_commit_insn(current_pc, ZeroExtend(least_significant_half.data, 32), TRUE);
