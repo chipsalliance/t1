@@ -147,6 +147,12 @@ unsafe extern "C" fn FFI_write_CSR_hook_0(name: *const c_char, data: u32) {
 }
 
 #[unsafe(no_mangle)]
+unsafe extern "C" fn FFI_debug_log_issue_0(pc: u32, insn: u32, is_c: bool) {
+    let state = unsafe { get_state() };
+    state.debug_log_issue(pc, insn, is_c);
+}
+
+#[unsafe(no_mangle)]
 unsafe extern "C" fn ffi_commit_insn_0(pc: u32, insn: u32, is_c: bool) {
     let state = unsafe { get_state() };
     state.commit_log_insn(pc, insn, is_c);

@@ -285,15 +285,6 @@ impl SimulatorState {
             self.exception = Some(SimulationException::InfiniteInstruction);
         }
 
-        event!(
-            Level::TRACE,
-            event_type = "instruction_fetch",
-            pc = pc,
-            pc_hex = format!("{:#010x}", pc),
-            instruction = inst,
-            inst_hex = format!("{:#06x}", inst)
-        );
-
         Some(inst)
     }
 
@@ -325,6 +316,25 @@ impl SimulatorState {
             name: name.to_string(),
             value,
         })
+    }
+
+    // only for debug purpose
+    pub(crate) fn debug_log_issue(&mut self, pc: u32, inst: u32, is_c: bool) {
+        if is_c {
+            event!(
+                Level::TRACE,
+                event_type = "inst_issue_c",
+                pc_hex = format!("{:#010x}", pc),
+                inst_hex = format!("{:#06x}", inst)
+            );
+        } else {
+            event!(
+                Level::TRACE,
+                event_type = "inst_issue_w",
+                pc_hex = format!("{:#010x}", pc),
+                inst_hex = format!("{:#010x}", inst)
+            );
+        }
     }
 
     pub(crate) fn commit_log_insn(&mut self, pc: u32, insn: u32, is_c: bool) {

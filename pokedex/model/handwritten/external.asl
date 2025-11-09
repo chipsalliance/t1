@@ -23,6 +23,7 @@ func FFI_write_physical_memory_16bits(addr : bits(32), data : bits(16)) => boole
 func FFI_write_physical_memory_32bits(addr : bits(32), data : bits(32)) => boolean;
 
 // debug
+func FFI_debug_log_issue(pc : bits(32), insn : bits(32), is_c: boolean);
 func FFI_print_str(s: string);
 func FFI_print_bits_hex(v: bits(32));
 func FFI_ebreak();
