@@ -11,7 +11,7 @@ constant LOG2_VLEN : integer = 8;
 // all vector registers are concatenated
 var __VRF : bits(32 * VLEN);
 
-var VTYPE : VTYPE_TYPE;
+var VTYPE : VType;
 
 var VL : integer;
 
@@ -34,7 +34,7 @@ end
 // Architectural State Type //
 //////////////////////////////
 
-record VTYPE_TYPE {
+record VType {
   ill : boolean;
   ma : bit;
   ta : bit;
@@ -49,6 +49,9 @@ constant LOG2_LMUL_MIN : integer = -3;
 constant LOG2_LMUL_MAX : integer = 3;
 
 type VRegIdx of integer{0..31};
+type VRegIdxLmul2 of integer{0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30};
+type VRegIdxLmul4 of integer{0,4,8,12,16,20,24,28};
+type VRegIdxLmul8 of integer{0,8,16,24};
 
 // deprecated, use VRegIdx instead
 type VREG_TYPE of integer{0..31};
@@ -107,7 +110,7 @@ begin
   __VRF[vreg * VLEN + idx * 32 +: 32] = value;
 end
 
-constant VTYPE_ILL : VTYPE_TYPE = VTYPE_TYPE {
+constant VTYPE_ILL : VType = VType {
   ill=TRUE,
   ma='0',
   ta='0',
@@ -115,7 +118,7 @@ constant VTYPE_ILL : VTYPE_TYPE = VTYPE_TYPE {
   lmul=0        // '000'
 };
 
-func VTYPE_from_bits(value: bits(32)) => VTYPE_TYPE
+func VTYPE_from_bits(value: bits(32)) => VType
 begin
   // vtype[31] is `vill`
   // vtype[30:8] is reserved
@@ -153,7 +156,7 @@ begin
     when '101' => log2_lmul = -3;
   end
 
-  return VTYPE_TYPE {
+  return VType {
     ill=FALSE,
     ma=ma,
     ta=ta,
@@ -269,7 +272,40 @@ begin
   end
 end
 
-func vreg_eew_alignment(vtype: VTYPE_TYPE, eew: integer{8, 16, 32, 64}) => integer{0, 1, 2, 4, 8}
+// compute vreg alignemnt based on lmul
+func getAlign(vtype: VType) => integer{1, 2, 4, 8}
+begin
+  assert(!vtype.ill);
+
+  case vtype.lmul of
+    when 0 => return 1;
+    when 1 => return 2;
+    when 2 => return 4;
+    when 3 => return 8;
+    when -1 => return 1;
+    when -2 => return 1;
+    when -3 => return 1;
+  end
+end
+
+func getEewAlign(vtype: VType, eew: integer{8, 16, 32, 64}) => (integer{1, 2, 4, 8}, boolean)
+begin
+  assert(!vtype.ill);
+
+  let log2_emul : integer = vtype.lmul + __log2_sew(eew) - __log2_sew(vtype.sew);
+  case log2_emul of
+    when 0 => return (1, TRUE);
+    when 1 => return (2, TRUE);
+    when 2 => return (4, TRUE);
+    when 3 => return (8, TRUE);
+    when -1 => return (1, TRUE);
+    when -2 => return (1, TRUE);
+    when -3 => return (1, TRUE);
+    otherwise => return (1, FALSE);
+  end
+end
+
+func vreg_eew_alignment(vtype: VType, eew: integer{8, 16, 32, 64}) => integer{0, 1, 2, 4, 8}
 begin
   let log2_emul : integer = vtype.lmul + __log2_sew(eew) - __log2_sew(vtype.sew);
   case log2_emul of
@@ -400,44 +436,43 @@ begin
 end
 
 // VLMAX = VLEN * VLMUL / VSEW
-func __compute_vlmax(vtype: VTYPE_TYPE) => integer
+func __compute_vlmax(vtype: VType) => integer
 begin
   assert !vtype.ill;
 
   return __mul_lmul(VLEN DIV vtype.sew, vtype.lmul);
 end
 
-func logWrite_VREG_1(idx: VRegIdx)
+func logWrite_VREG_1(vd: VRegIdx)
 begin
-  for j = 0 to (VLEN DIV 64) - 1 do
-    FFI_write_VREG_hook(idx, j as integer{0..(VLEN DIV 64)-1}, __VRF[idx * VLEN + j * 64 +: 64]);
-  end
+  let vreg : bits(256) = __VRF[vd * VLEN  +: VLEN];
+  FFI_write_VREG_vlen256_hook(vd[7:0], vreg[63:0], vreg[127:64], vreg[191:128], vreg[255:192]);
 end
 
-func logWrite_VREG_elmul(idx: VRegIdx, elmul: integer{1,2,4,8})
+func logWrite_VREG_elmul(vd: VRegIdx, elmul: integer{1,2,4,8})
 begin
   case elmul of
-    when 1 => logWrite_VREG_1(idx);
+    when 1 => logWrite_VREG_1(vd);
     when 2 => begin
-      logWrite_VREG_1(idx);
-      logWrite_VREG_1((idx+1) as VRegIdx);
+      logWrite_VREG_1(vd);
+      logWrite_VREG_1((vd+1) as VRegIdx);
     end
     when 4 => begin
-      logWrite_VREG_1(idx);
-      logWrite_VREG_1((idx+1) as VRegIdx);
-      logWrite_VREG_1((idx+2) as VRegIdx);
-      logWrite_VREG_1((idx+3) as VRegIdx);
+      logWrite_VREG_1(vd);
+      logWrite_VREG_1((vd+1) as VRegIdx);
+      logWrite_VREG_1((vd+2) as VRegIdx);
+      logWrite_VREG_1((vd+3) as VRegIdx);
     end
     when 8 => begin
-      logWrite_VREG_1(idx);
-      logWrite_VREG_1((idx+1) as VRegIdx);
-      logWrite_VREG_1((idx+1) as VRegIdx);
-      logWrite_VREG_1((idx+2) as VRegIdx);
-      logWrite_VREG_1((idx+3) as VRegIdx);
-      logWrite_VREG_1((idx+4) as VRegIdx);
-      logWrite_VREG_1((idx+5) as VRegIdx);
-      logWrite_VREG_1((idx+6) as VRegIdx);
-      logWrite_VREG_1((idx+7) as VRegIdx);
+      logWrite_VREG_1(vd);
+      logWrite_VREG_1((vd+1) as VRegIdx);
+      logWrite_VREG_1((vd+1) as VRegIdx);
+      logWrite_VREG_1((vd+2) as VRegIdx);
+      logWrite_VREG_1((vd+3) as VRegIdx);
+      logWrite_VREG_1((vd+4) as VRegIdx);
+      logWrite_VREG_1((vd+5) as VRegIdx);
+      logWrite_VREG_1((vd+6) as VRegIdx);
+      logWrite_VREG_1((vd+7) as VRegIdx);
     end
   end
 end

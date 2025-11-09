@@ -162,6 +162,7 @@ impl Simulator {
 pub(crate) enum ModelStateWrite {
     Xrf { rd: u8, value: u32 },
     Frf { rd: u8, value: u32 },
+    Vrf { rd: u8, value: Vec<u8> },
     Csr { name: String, value: u32 },
     Load { addr: u32 },
     Store { addr: u32, data: Vec<u8> },
@@ -318,6 +319,13 @@ impl SimulatorState {
         })
     }
 
+    pub(crate) fn write_vector_register(&mut self, vd: u8, value: &[u8]) {
+        self.model_state_writes.push(ModelStateWrite::Vrf {
+            rd: vd,
+            value: value.into(),
+        })
+    }
+
     // only for debug purpose
     pub(crate) fn debug_log_issue(&mut self, pc: u32, inst: u32, is_c: bool) {
         if is_c {
@@ -357,7 +365,8 @@ impl SimulatorState {
             })
             .collect();
 
-        self.commit_logger.iter_mut().for_each(|logger| {
+        
+        if let Some(logger) = &mut self.commit_logger {
             let commit = serde_json::json! ({
                 "pc": pc,
                 "instruction": insn,
@@ -365,7 +374,7 @@ impl SimulatorState {
                 "states_changed": state_change,
             });
             writeln!(logger, "{}", commit).expect("fail writing commit log")
-        });
+        };
 
         self.model_state_writes.clear();
     }

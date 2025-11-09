@@ -12,7 +12,7 @@ begin
   let src1 : bits(XLEN) = X[rs1];
   let src2 : bits(XLEN) = X[rs2];
 
-  let new_vtype : VTYPE_TYPE = VTYPE_from_bits(src2);
+  let new_vtype : VType = VTYPE_from_bits(src2);
 
   if new_vtype.ill then
     VTYPE = VTYPE_ILL;

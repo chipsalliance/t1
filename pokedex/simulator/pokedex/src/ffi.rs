@@ -1,3 +1,5 @@
+use zerocopy::IntoBytes as _;
+
 use crate::model;
 use crate::simulator::{SimulatorHandle, SimulatorState};
 use std::ffi::CStr;
@@ -137,6 +139,12 @@ unsafe extern "C" fn FFI_write_GPR_hook_0(reg_idx: u8, data: u32) {
     state.write_register(reg_idx, data);
 }
 
+#[unsafe(no_mangle)]
+unsafe extern "C" fn FFI_write_FPR_hook_0(reg_idx: u8, data: u32) {
+    let state = unsafe { get_state() };
+    state.write_fp_register(reg_idx, data);
+}
+
 #[allow(improper_ctypes_definitions)]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn FFI_write_CSR_hook_0(name: *const c_char, data: u32) {
@@ -144,6 +152,14 @@ unsafe extern "C" fn FFI_write_CSR_hook_0(name: *const c_char, data: u32) {
     let name = unsafe { CStr::from_ptr(name) };
     let name = String::from_utf8_lossy(name.to_bytes());
     state.write_csr(&name, data);
+}
+
+#[unsafe(no_mangle)]
+unsafe extern "C" fn FFI_write_VREG_vlen256_hook_0(vd: u8, data0: u64, data1: u64, data2: u64, data3: u64) {
+    let state = unsafe { get_state() };
+    let data: [u64; 4] = [data0, data1, data2, data3];
+
+    state.write_vector_register(vd, data.as_bytes());
 }
 
 #[unsafe(no_mangle)]
@@ -261,12 +277,6 @@ unsafe extern "C" fn FFI_amo_0(
             data: 0,
         }
     }
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn FFI_write_FPR_hook_0(reg_idx: u8, data: u32) {
-    let state = unsafe { get_state() };
-    state.write_fp_register(reg_idx, data);
 }
 
 static mut CALLBACK_STATE: *mut SimulatorState = std::ptr::null_mut();
