@@ -142,6 +142,10 @@
 :show --format=raw --output {{ output_dir }}/dumps/log.19.check_monomorphization.asl
 :check_monomorphization --fatal --verbose
 
+// NOTE: we delibrately do not enable line info in the following step.
+// The line info convert GCC diagnostic's line from 'xxx.c, line xxx' to 'xxx.ASL, line xxx',
+// which is confusing and hinders debugging.
+
 // Generate C code from the remaining definitions
 //
 // This produces multiple files that will be prefixed by the basename and saved
@@ -159,7 +163,7 @@
 // (This can be useful when modelling multi-processor systems to separate
 // thread-local state from global state.)
 :show --format=raw --output {{ output_dir }}/dumps/log.20.generate_c.asl
-:generate_c  --runtime=c23 --output-dir={{ output_dir }} --basename={{ basename }} --num-c-files=1 --line-info
+:generate_c  --runtime=c23 --output-dir={{ output_dir }} --basename={{ basename }} --num-c-files=1
 
 :show --format=raw --output {{ output_dir }}/dumps/log.21.quit.asl
 :quit
