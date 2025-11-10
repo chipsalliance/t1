@@ -1,5 +1,5 @@
 {#- mew = 8 | 16 | 32 | 64 -#}
-{%- macro store_instruction_body(name, mew) %}
+{%- macro store_body(name, mew) %}
   let rs1 : integer{0..31} = UInt(GetRS1(instruction));
   let rs2 : integer{0..31} = UInt(GetRS2(instruction));
   let imm : bits(12) = GetSIMM(instruction);
@@ -21,15 +21,15 @@
 
 func Execute_SB(instruction: bits(32)) => Result
 begin
-{{- store_instruction_body("SB", 8) -}}
+{{- store_body("sb", 8) -}}
 end
 
 func Execute_SH(instruction: bits(32)) => Result
 begin
-{{- store_instruction_body("LH", 16) -}}
+{{- store_body("lh", 16) -}}
 end
 
 func Execute_SW(instruction: bits(32)) => Result
 begin
-{{- store_instruction_body("LW", 32) -}}
+{{- store_body("lw", 32) -}}
 end

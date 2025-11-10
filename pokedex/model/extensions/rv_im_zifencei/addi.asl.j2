@@ -1,4 +1,4 @@
-{%- macro arith_imm_instruction_body(name, compute) %}
+{%- macro arith_imm_instruction_body(name, op) %}
   let rd : XRegIdx = UInt(GetRD(instruction));
   let rs1 : XRegIdx = UInt(GetRS1(instruction));
   let imm12 : bits(12) = GetIMM(instruction);
@@ -7,7 +7,7 @@
 
   let src1 : bits(XLEN) = X[rs1];
 
-  let value : bits(XLEN) = {{ compute }};
+  let value : bits(XLEN) = {{op}}(src1, imm);
 
   X[rd] = value;
 
@@ -17,30 +17,30 @@
 
 func Execute_ADDI(instruction: bits(32)) => Result
 begin
-{{- arith_imm_instruction_body("ADDI", "src1 + imm") -}}
+{{- arith_imm_instruction_body("addi", "riscv_add") -}}
 end
 
 func Execute_ANDI(instruction: bits(32)) => Result
 begin
-{{- arith_imm_instruction_body("ANDI", "src1 AND imm") -}}
+{{- arith_imm_instruction_body("andi", "riscv_and") -}}
 end
 
 func Execute_ORI(instruction: bits(32)) => Result
 begin
-{{- arith_imm_instruction_body("ORI", "src1 OR imm") -}}
+{{- arith_imm_instruction_body("ori", "riscv_or") -}}
 end
 
 func Execute_XORI(instruction: bits(32)) => Result
 begin
-{{- arith_imm_instruction_body("XORI", "src1 XOR imm") -}}
+{{- arith_imm_instruction_body("xori", "riscv_xor") -}}
 end
 
 func Execute_SLTI(instruction: bits(32)) => Result
 begin
-{{- arith_imm_instruction_body("SLTI", "riscv_slt_s(src1, imm)") -}}
+{{- arith_imm_instruction_body("slti", "riscv_slt_s") -}}
 end
 
 func Execute_SLTIU(instruction: bits(32)) => Result
 begin
-{{- arith_imm_instruction_body("SLTIU", "riscv_slt_u(src1, imm)") -}}
+{{- arith_imm_instruction_body("sltiu", "riscv_slt_u") -}}
 end

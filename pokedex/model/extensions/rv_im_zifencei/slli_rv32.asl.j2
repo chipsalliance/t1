@@ -1,11 +1,11 @@
-{%- macro shift_imm_instruction_body(name, compute) %}
+{%- macro shift_imm_body(name, op) %}
   let rd : XRegIdx = UInt(GetRD(instruction));
   let rs1 : XRegIdx = UInt(GetRS1(instruction));
   let shamt : bits(5) = GetShamt5(instruction);
 
   let src1 : bits(32) = X[rs1];
 
-  X[rd] = {{ compute }};
+  X[rd] = {{op}}(src1, UInt(shamt));
 
   PC = PC + 4;
 
@@ -14,15 +14,15 @@
 
 func Execute_SLLI(instruction: bits(32)) => Result
 begin
-{{- shift_imm_instruction_body("SLLI", "riscv_sll(src1, UInt(shamt))") -}}
+{{- shift_imm_body("slli", "riscv_sll") -}}
 end
 
 func Execute_SRLI(instruction: bits(32)) => Result
 begin
-{{- shift_imm_instruction_body("SRLI", "riscv_srl(src1, UInt(shamt))") -}}
+{{- shift_imm_body("srli", "riscv_srl") -}}
 end
 
 func Execute_SRAI(instruction: bits(32)) => Result
 begin
-{{- shift_imm_instruction_body("SRAI", "riscv_sra(src1, UInt(shamt))") -}}
+{{- shift_imm_body("srai", "riscv_sra") -}}
 end

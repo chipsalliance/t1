@@ -1,6 +1,8 @@
-{#- mew = 8 | 16 | 32 | 64 -#}
-{#- extend = "SignExtend" | "ZeroExtend" -#}
-{%- macro load_instruction_body(name, mew, extend) %}
+{#-
+  mew = 8 | 16 | 32 | 64
+  extend = "SignExtend" | "ZeroExtend"
+-#}
+{%- macro load_body(name, mew, extend) %}
   let rd : XRegIdx  = UInt(GetRD(instruction));
   let rs1 : XRegIdx = UInt(GetRS1(instruction));
   let imm : bits(12) = GetIMM(instruction);
@@ -22,25 +24,25 @@
 
 func Execute_LB(instruction: bits(32)) => Result
 begin
-{{- load_instruction_body("LB", 8, "SignExtend") -}}
+{{- load_body("lb", 8, "SignExtend") -}}
 end
 
 func Execute_LH(instruction: bits(32)) => Result
 begin
-{{- load_instruction_body("LH", 16, "SignExtend") -}}
+{{- load_body("lh", 16, "SignExtend") -}}
 end
 
 func Execute_LW(instruction: bits(32)) => Result
 begin
-{{- load_instruction_body("LW", 32, "SignExtend") -}}
+{{- load_body("lw", 32, "SignExtend") -}}
 end
 
 func Execute_LBU(instruction: bits(32)) => Result
 begin
-{{- load_instruction_body("LBU", 8, "ZeroExtend") -}}
+{{- load_body("lbu", 8, "ZeroExtend") -}}
 end
 
 func Execute_LHU(instruction: bits(32)) => Result
 begin
-{{- load_instruction_body("LHU", 16, "ZeroExtend") -}}
+{{- load_body("lhu", 16, "ZeroExtend") -}}
 end

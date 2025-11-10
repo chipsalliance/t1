@@ -1,4 +1,4 @@
-{%- macro amow_instruction_body(name, op) %}
+{%- macro amo_w_body(name, op) %}
   let rd : XRegIdx = UInt(GetRD(instruction));
   let rs1 : XRegIdx = UInt(GetRS1(instruction));
   let rs2 : XRegIdx = UInt(GetRS2(instruction));
@@ -26,45 +26,45 @@
 
 func Execute_AMOSWAP_W(instruction: bits(32)) => Result
 begin
-{{- amow_instruction_body("AMOSWAP_W", "AMO_SWAP") -}}
+{{- amo_w_body("amoswap_w", "AMO_SWAP") -}}
 end
 
 func Execute_AMOAND_W(instruction: bits(32)) => Result
 begin
-{{- amow_instruction_body("AMOAND_W", "AMO_AND") -}}
+{{- amo_w_body("amoand_w", "AMO_AND") -}}
 end
 
 func Execute_AMOOR_W(instruction: bits(32)) => Result
 begin
-{{- amow_instruction_body("AMOOR_W", "AMO_OR") -}}
+{{- amo_w_body("amoor_w", "AMO_OR") -}}
 end
 
 func Execute_AMOXOR_W(instruction: bits(32)) => Result
 begin
-{{- amow_instruction_body("AMOXOR_W", "AMO_XOR") -}}
+{{- amo_w_body("amoxor_w", "AMO_XOR") -}}
 end
 
 func Execute_AMOADD_W(instruction: bits(32)) => Result
 begin
-{{- amow_instruction_body("AMOADD_W", "AMO_ADD") -}}
+{{- amo_w_body("amoadd_w", "AMO_ADD") -}}
 end
 
 func Execute_AMOMAX_W(instruction: bits(32)) => Result
 begin
-{{- amow_instruction_body("AMOMAX_W", "AMO_MAX") -}}
+{{- amo_w_body("amomax_w", "AMO_MAX") -}}
 end
 
 func Execute_AMOMAXU_W(instruction: bits(32)) => Result
 begin
-{{- amow_instruction_body("AMOMAXU_W", "AMO_MAXU") -}}
+{{- amo_w_body("amomaxu_w", "AMO_MAXU") -}}
 end
 
 func Execute_AMOMIN_W(instruction: bits(32)) => Result
 begin
-{{- amow_instruction_body("AMOMIN_W", "AMO_MIN") -}}
+{{- amo_w_body("amomin_w", "AMO_MIN") -}}
 end
 
 func Execute_AMOMINU_W(instruction: bits(32)) => Result
 begin
-{{- amow_instruction_body("AMOMAXU_W", "AMO_MINU") -}}
+{{- amo_w_body("amominu_w", "AMO_MINU") -}}
 end

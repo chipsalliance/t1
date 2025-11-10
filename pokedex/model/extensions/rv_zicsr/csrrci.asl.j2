@@ -1,4 +1,4 @@
-{%- macro csrrxi_instruction_body(name, compute) %}
+{%- macro csrrxi_body(name, compute) %}
   let csr : bits(12) = GetCSR(instruction);
   let rd : XRegIdx = UInt(GetRD(instruction));
   let uimm5 : bits(5) = GetRS1(instruction);
@@ -30,10 +30,10 @@
 
 func Execute_CSRRCI(instruction: bits(32)) => Result
 begin
-{{- csrrxi_instruction_body("CSRRCI", "csr_read.value AND (NOT uimm)") -}}
+{{- csrrxi_body("csrrci", "csr_read.value AND (NOT uimm)") -}}
 end
 
 func Execute_CSRRSI(instruction: bits(32)) => Result
 begin
-{{- csrrxi_instruction_body("CSRRSI", "csr_read.value OR uimm") -}}
+{{- csrrxi_body("csrrsi", "csr_read.value OR uimm") -}}
 end
