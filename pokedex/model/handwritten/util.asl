@@ -1,3 +1,13 @@
+func Todo(message: string)
+begin
+  FFI_print_str(message);
+  Unreachable();
+end
+
+////////////////////////////////////////////////////////
+// Deprecated helpers used in old RVV implementations //
+////////////////////////////////////////////////////////
+
 func __op_add(rs1: bits(N), rs2: bits(N)) => bits(N)
 begin
   return rs1 + rs2;

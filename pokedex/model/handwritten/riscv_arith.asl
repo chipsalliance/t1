@@ -1,38 +1,32 @@
-
 // wrapping addition, e.g. add, addi
-//
-// func riscv_add{N}(x: bits(N), y: bits(N)) => bits(N)
-// begin
-//   return x + y;
-// end
+func riscv_add{N}(x: bits(N), y: bits(N)) => bits(N)
+begin
+  return x + y;
+end
 
 // wrapping substraction, e.g. sub
-//
-// func riscv_sub{N}(x: bits(N), y: bits(N)) => bits(N)
-// begin
-//   return x - y;
-// end
+func riscv_sub{N}(x: bits(N), y: bits(N)) => bits(N)
+begin
+  return x - y;
+end
 
-// logical and, e.g. sub
-//
-// func logical_and{N}(x: bits(N), y: bits(N)) => bits(N)
-// begin
-//   return x AND y;
-// end
+// logical and, e.g. and, andi
+func riscv_and{N}(x: bits(N), y: bits(N)) => bits(N)
+begin
+  return x AND y;
+end
 
-// logical or, e.g. sub
-//
-// func logical_and{N}(x: bits(N), y: bits(N)) => bits(N)
-// begin
-//   return x OR y;
-// end
+// logical or, e.g. or, ori
+func riscv_or{N}(x: bits(N), y: bits(N)) => bits(N)
+begin
+  return x OR y;
+end
 
-// logical xor, e.g. sub
-//
-// func logical_xor{N}(x: bits(N), y: bits(N)) => bits(N)
-// begin
-//   return x OR y;
-// end
+// logical xor, e.g. xor, xori
+func riscv_xor{N}(x: bits(N), y: bits(N)) => bits(N)
+begin
+  return x XOR y;
+end
 
 // set if less than as unsigned, e.g. sltu, sltiu
 func riscv_slt_u{N}(x: bits(N), y: bits(N)) => bits(N)
@@ -54,9 +48,11 @@ begin
   end
 end
 
+
 //////////////////////
 // shift operations //
 //////////////////////
+
 
 // logical shift left
 func riscv_sll{N}(x: bits(N), shamt: integer{0..N-1}) => bits(N)
@@ -119,12 +115,12 @@ end
 // multiplication and division //
 /////////////////////////////////
 
-// wrapping multiplication, e.g. sub
-//
-// func riscv_mul{N}(x: bits(N), y: bits(N)) => bits(N)
-// begin
-//   return x * y;
-// end
+
+// wrapping multiplication, e.g. mul
+func riscv_mul{N}(x: bits(N), y: bits(N)) => bits(N)
+begin
+  return x * y;
+end
 
 // upper bits of multiplication as signed, e.g. mulh
 func riscv_mulh_ss{N}(x: bits(N), y: bits(N)) => bits(N)
@@ -211,4 +207,16 @@ begin
     // division: round to zero
     return (UInt(rs1) REM UInt(rs2))[N-1:0];
   end
+end
+
+
+////////////////////
+// RVV operations //
+////////////////////
+
+
+// wrapping substraction with swapped operand, e.g. vrsub_vi
+func riscv_reverseSub{N}(x: bits(N), y: bits(N)) => bits(N)
+begin
+  return y - x;
 end
