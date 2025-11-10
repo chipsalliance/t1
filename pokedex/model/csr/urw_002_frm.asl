@@ -1,10 +1,10 @@
-func Read_FRM() => Result
+func Read_FRM() => CsrReadResult
 begin
   if !isEnabled_FS() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok([
+  return CsrReadOk([
     Zeros(29),
     FRM
   ]);

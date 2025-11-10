@@ -1,10 +1,10 @@
-func Read_VTYPE() => Result
+func Read_VTYPE() => CsrReadResult
 begin
   if !isEnabled_VS() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(VTYPE_BITS);
+  return CsrReadOk(VTYPE_BITS);
 end
 
 func GetRaw_VTYPE() => bits(32)

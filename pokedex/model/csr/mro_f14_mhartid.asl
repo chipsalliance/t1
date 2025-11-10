@@ -1,8 +1,8 @@
-func Read_MHARTID() => Result
+func Read_MHARTID() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(CFG_MHARTID);
+  return CsrReadOk(CFG_MHARTID);
 end

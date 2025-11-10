@@ -1,7 +1,7 @@
-func Read_MISA() => Result
+func Read_MISA() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
   // machine xlen is read-only 32;
@@ -25,7 +25,7 @@ begin
     MISA_EXTS
   ];
 
-  return Ok(misa);
+  return CsrReadOk(misa);
 end
 
 func Write_MISA(value: bits(32)) => Result

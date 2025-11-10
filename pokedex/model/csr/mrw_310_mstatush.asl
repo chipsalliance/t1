@@ -1,10 +1,10 @@
-func Read_MSTATUSH() => Result
+func Read_MSTATUSH() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(Zeros(32));
+  return CsrReadOk(Zeros(32));
 end
 
 func Write_MSTATUSH(value: bits(32)) => Result

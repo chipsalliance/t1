@@ -21,7 +21,7 @@ This file will include following path:
 // --------------
 // CSR Dispatcher
 // --------------
-func ReadCSR(csr : bits(12)) => Result
+func ReadCSR(csr : bits(12)) => CsrReadResult
 begin
     case csr of
         {%- for data in csr_metadata %}
@@ -32,7 +32,7 @@ begin
         {%- endfor %}
 
         otherwise =>
-            return IllegalInstruction();
+            return CsrReadIllegalInstruction();
     end
 end
 

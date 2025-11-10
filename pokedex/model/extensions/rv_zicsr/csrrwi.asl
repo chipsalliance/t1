@@ -7,12 +7,13 @@ begin
   let uimm : bits(XLEN) = ZeroExtend(uimm5, XLEN);
 
   // only perform read when rd != 0
-  var csr_read : Result = Ok(Zeros(XLEN));
+  var read_data = Zeros(XLEN);
   if rd != 0 then
-    csr_read = ReadCSR(csr);
+    let (rdata, csr_read) = asTupleCsrRead(ReadCSR(csr));
     if !csr_read.is_ok then
       return csr_read;
     end
+    read_data = rdata;
   end
 
   let csr_write : Result = WriteCSR(csr, uimm);
@@ -20,7 +21,7 @@ begin
     return csr_write;
   end
 
-  X[rd] = csr_read.value;
+  X[rd] = read_data;
 
   PC = PC + 4;
   return Retired();

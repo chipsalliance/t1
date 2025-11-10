@@ -1,6 +1,6 @@
-func Read_VSTART() => Result
+func Read_VSTART() => CsrReadResult
 begin
-  return Ok(VSTART[31:0]);
+  return CsrReadOk(VSTART[31:0]);
 end
 
 func Write_VSTART(value: bits(32)) => Result

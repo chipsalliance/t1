@@ -1,8 +1,8 @@
-func Read_VL() => Result
+func Read_VL() => CsrReadResult
 begin
   if !isEnabled_VS() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(VL[31:0]);
+  return CsrReadOk(VL[31:0]);
 end

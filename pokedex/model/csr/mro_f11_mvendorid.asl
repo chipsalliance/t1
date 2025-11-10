@@ -1,8 +1,8 @@
-func Read_MVENDORID() => Result
+func Read_MVENDORID() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(CFG_MVENDORID);
+  return CsrReadOk(CFG_MVENDORID);
 end

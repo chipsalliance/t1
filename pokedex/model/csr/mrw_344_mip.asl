@@ -1,13 +1,13 @@
-func Read_MIP() => Result
+func Read_MIP() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
   var value : bits(32) = Zeros(32);
   value[7] = getExternal_MTIP;
   value[11] = getExternal_MEIP;
-  return Ok(value);
+  return CsrReadOk(value);
 end
 
 func Write_MIP(value : bits(32)) => Result

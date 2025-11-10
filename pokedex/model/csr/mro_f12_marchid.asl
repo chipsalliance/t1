@@ -1,8 +1,8 @@
-func Read_MARCHID() => Result
+func Read_MARCHID() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(CFG_MARCHID);
+  return CsrReadOk(CFG_MARCHID);
 end

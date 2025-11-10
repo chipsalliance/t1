@@ -1,8 +1,8 @@
-func Read_MCONFIGPTR() => Result
+func Read_MCONFIGPTR() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(CFG_MCONFIGPTR);
+  return CsrReadOk(CFG_MCONFIGPTR);
 end

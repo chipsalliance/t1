@@ -11,7 +11,11 @@
 #}
 {%- for c in exceptions %}
 {%- set cname = c.name | replace(" ", "_") | upper() %}
+constant XCPT_CODE_{{ cname }} = {{ c.code }};
+{%- endfor %}
 
-let CAUSE_{{ cname }}: integer = {{ c.code }};
-
+// Keep compatibility for old code
+{%- for c in exceptions %}
+{%- set cname = c.name | replace(" ", "_") | upper() %}
+constant CAUSE_{{ cname }} = XCPT_CODE_{{ cname }};
 {%- endfor %}

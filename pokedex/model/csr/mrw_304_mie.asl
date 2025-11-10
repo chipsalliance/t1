@@ -1,10 +1,10 @@
-func Read_MIE() => Result
+func Read_MIE() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(GetRaw_MIE());
+  return CsrReadOk(GetRaw_MIE());
 end
 
 func Write_MIE(value: bits(32)) => Result

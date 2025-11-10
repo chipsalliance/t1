@@ -1,10 +1,10 @@
-func Read_VCSR() => Result
+func Read_VCSR() => CsrReadResult
 begin
   if !isEnabled_VS() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(GetRaw_VCSR());
+  return CsrReadOk(GetRaw_VCSR());
 end
 
 func Write_VCSR(value: bits(32)) => Result

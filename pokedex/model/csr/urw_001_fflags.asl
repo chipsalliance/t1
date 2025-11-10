@@ -1,10 +1,10 @@
-func Read_FFLAGS() => Result
+func Read_FFLAGS() => CsrReadResult
 begin
   if !isEnabled_FS() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok([
+  return CsrReadOk([
     Zeros(27),
     FFLAGS
   ]);
