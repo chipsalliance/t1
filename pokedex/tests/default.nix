@@ -18,4 +18,6 @@ lib.makeScope newScope (scope: {
       '';
     }
   ) { };
+
+  riscv-arch-test = scope.callPackage ./riscv-non-isa/riscv-arch-test/package.nix { };
 })
