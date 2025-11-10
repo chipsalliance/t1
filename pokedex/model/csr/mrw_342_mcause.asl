@@ -1,10 +1,10 @@
-func Read_MCAUSE() => Result
+func Read_MCAUSE() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(MCAUSE);
+  return CsrReadOk(MCAUSE);
 end
 
 func Write_MCAUSE(value: bits(32)) => Result

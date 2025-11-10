@@ -1,10 +1,10 @@
-func Read_MSCRATCH() => Result
+func Read_MSCRATCH() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(MSCRATCH);
+  return CsrReadOk(MSCRATCH);
 end
 
 func Write_MSCRATCH(value: bits(32)) => Result

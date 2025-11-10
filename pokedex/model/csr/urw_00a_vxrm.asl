@@ -1,10 +1,10 @@
-func Read_VXRM() => Result
+func Read_VXRM() => CsrReadResult
 begin
   if !isEnabled_VS() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok([Zeros(30), VXRM]);
+  return CsrReadOk([Zeros(30), VXRM]);
 end
 
 func Write_VXRM(value: bits(32)) => Result

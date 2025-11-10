@@ -1,10 +1,10 @@
-func Read_MTVEC() => Result
+func Read_MTVEC() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok([
+  return CsrReadOk([
     MTVEC_BASE,       // [31:2]
     MTVEC_MODE_BITS   // [1:0]
   ]);

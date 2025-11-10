@@ -1,10 +1,10 @@
-func Read_MEPC() => Result
+func Read_MEPC() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(MEPC);
+  return CsrReadOk(MEPC);
 end
 
 func Write_MEPC(value: bits(32)) => Result

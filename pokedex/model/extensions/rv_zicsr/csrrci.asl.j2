@@ -7,7 +7,7 @@
   // X[rd] is equal to the value used to compute write value. 
   // This is incorrect for some very special csr like mip.seip
 
-  let csr_read : Result = ReadCSR(csr);
+  let (read_data, csr_read) = asTupleCsrRead(ReadCSR(csr));
   if !csr_read.is_ok then
     return csr_read;
   end
@@ -22,7 +22,7 @@
     end
   end
 
-  X[rd] = csr_read.value;
+  X[rd] = read_data;
 
   PC = PC + 4;
   return Retired();
@@ -30,10 +30,10 @@
 
 func Execute_CSRRCI(instruction: bits(32)) => Result
 begin
-{{- csrrxi_body("csrrci", "csr_read.value AND (NOT uimm)") -}}
+{{- csrrxi_body("csrrci", "read_data AND (NOT uimm)") -}}
 end
 
 func Execute_CSRRSI(instruction: bits(32)) => Result
 begin
-{{- csrrxi_body("csrrsi", "csr_read.value OR uimm") -}}
+{{- csrrxi_body("csrrsi", "read_data OR uimm") -}}
 end

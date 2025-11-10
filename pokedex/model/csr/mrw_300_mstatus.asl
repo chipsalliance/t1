@@ -1,10 +1,10 @@
-func Read_MSTATUS() => Result
+func Read_MSTATUS() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(GetRaw_MSTATUS());
+  return CsrReadOk(GetRaw_MSTATUS());
 end
 
 func Write_MSTATUS(value: bits(32)) => Result

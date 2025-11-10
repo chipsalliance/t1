@@ -1,8 +1,8 @@
-func Read_MIMPID() => Result
+func Read_MIMPID() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(CFG_MIMPID);
+  return CsrReadOk(CFG_MIMPID);
 end

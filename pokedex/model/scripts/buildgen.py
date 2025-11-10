@@ -119,11 +119,6 @@ class CustomWriter(ninja_syntax.Writer):
 
         outputs = [
             w.build_jinja(
-                f"{GENASL_BASE}/causes.asl",
-                template="template/causes.asl.j2",
-                data_sources=["data_files/causes.json"],
-            ),
-            w.build_jinja(
                 f"{GENASL_BASE}/csr_dispatch.asl",
                 template="template/csr_dispatch.asl.j2",
                 data_sources=["data_files/csr.json"],

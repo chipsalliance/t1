@@ -1,10 +1,10 @@
-func Read_FCSR() => Result
+func Read_FCSR() => CsrReadResult
 begin
   if !isEnabled_FS() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok(GetRaw_FCSR());
+  return CsrReadOk(GetRaw_FCSR());
 end
 
 func Write_FCSR(value: bits(32)) => Result

@@ -1,10 +1,10 @@
-func Read_VXSAT() => Result
+func Read_VXSAT() => CsrReadResult
 begin
   if !isEnabled_VS() then
-    return IllegalInstruction();
+    return CsrReadIllegalInstruction();
   end
 
-  return Ok([Zeros(31), VXSAT]);
+  return CsrReadOk([Zeros(31), VXSAT]);
 end
 
 func Write_VXSAT(value: bits(32)) => Result
