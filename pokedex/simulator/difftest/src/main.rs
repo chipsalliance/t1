@@ -7,6 +7,7 @@ use serde::Serialize;
 mod pokedex;
 mod replay;
 mod spike_parser;
+mod t1;
 mod util;
 
 #[derive(clap::Parser, Debug)]

@@ -206,6 +206,7 @@ dependencies = [
  "indoc",
  "knuffel",
  "miette",
+ "num-bigint",
  "serde",
  "serde_json",
  "thiserror 2.0.12",
