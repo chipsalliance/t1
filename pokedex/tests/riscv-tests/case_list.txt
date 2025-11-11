@@ -1,0 +1,79 @@
+# rv32ui
+rv32ui/add.S
+rv32ui/addi.S
+rv32ui/and.S
+rv32ui/andi.S
+rv32ui/auipc.S
+rv32ui/beq.S
+rv32ui/bge.S
+rv32ui/bgeu.S
+rv32ui/blt.S
+rv32ui/bltu.S
+rv32ui/bne.S
+rv32ui/fence_i.S
+rv32ui/jal.S
+rv32ui/jalr.S
+rv32ui/lb.S
+rv32ui/lbu.S
+rv32ui/lh.S
+rv32ui/lhu.S
+rv32ui/lui.S
+rv32ui/lw.S
+rv32ui/or.S
+rv32ui/ori.S
+rv32ui/sb.S
+rv32ui/sh.S
+rv32ui/simple.S
+rv32ui/sll.S
+rv32ui/slli.S
+rv32ui/slt.S
+rv32ui/slti.S
+rv32ui/sltiu.S
+rv32ui/sltu.S
+rv32ui/sra.S
+rv32ui/srai.S
+rv32ui/srl.S
+rv32ui/srli.S
+rv32ui/sub.S
+rv32ui/sw.S
+rv32ui/xor.S
+rv32ui/xori.S
+# rv32um
+rv32um/div.S
+rv32um/divu.S
+rv32um/mul.S
+rv32um/mulh.S
+rv32um/mulhsu.S
+rv32um/mulhu.S
+rv32um/rem.S
+rv32um/remu.S
+# rv32ua
+rv32ua/amoadd_w.S
+rv32ua/amoand_w.S
+rv32ua/amomax_w.S
+rv32ua/amomaxu_w.S
+rv32ua/amomin_w.S
+rv32ua/amominu_w.S
+rv32ua/amoor_w.S
+rv32ua/amoswap_w.S
+rv32ua/amoxor_w.S
+#
+# SKIP: rv32ua/lrsc.S
+#
+# Spike constantly yield load reservation that is not easy to reproduce on ASL side.
+# Details: https://github.com/riscv-software-src/riscv-isa-sim/issues/278
+#
+# rv32uc
+rv32uc/rvc.S
+# rv32uf
+rv32uf/fadd.S
+rv32uf/fclass.S
+rv32uf/fcmp.S
+rv32uf/fcvt.S
+rv32uf/fcvt_w.S
+rv32uf/fdiv.S
+rv32uf/fmadd.S
+rv32uf/fmin.S
+rv32uf/ldst.S
+rv32uf/move.S
+rv32uf/recoding.S

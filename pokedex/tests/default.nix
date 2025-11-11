@@ -1,7 +1,5 @@
 { lib, newScope }:
 lib.makeScope newScope (scope: {
-  all-tests = scope.callPackage ./package.nix { };
-
   global-pokedex-config = ./pokedex-config.kdl;
 
   difftest-meta = scope.callPackage ./difftest-meta.nix { };
@@ -18,4 +16,17 @@ lib.makeScope newScope (scope: {
       '';
     }
   ) { };
+
+  # Group entry, linker script and riscv-test-env header together for easier usage
+  pokedex-compile-stubs = ./compile-stubs;
+
+  smoke-tests = scope.callPackage ./smoke/package.nix { };
+
+  smoke-v-tests = scope.callPackage ./smoke_v/package.nix { };
+
+  riscv-tests-bins = scope.callPackage ./riscv-tests/package.nix { };
+
+  riscv-vector-tests-bins = scope.callPackage ./riscv-vector-tests/package.nix { };
+
+  batch-run-difftest = scope.callPackage ./batch-difftest.nix { };
 })
