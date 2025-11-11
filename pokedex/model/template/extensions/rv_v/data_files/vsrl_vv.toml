@@ -1,4 +1,0 @@
-template = "vop_vv"
-
-op_func = "__op_srlv"
-function_description="compute vd = vs2 u>> vs1, only lower log2(sew) bits of vs1 is used, optionally masked by vm"

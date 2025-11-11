@@ -1,4 +1,0 @@
-template = "vop_vx"
-
-op_func = "__op_min_u"
-function_description="compute vd = min_u(vs2, rs1), optionally masked by vm"

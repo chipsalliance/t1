@@ -1,4 +1,0 @@
-template = "vop_vv_no_sew64"
-
-op_func = "__op_mulh_ss"
-function_description="compute vd = mul_hi_ss(vs2, vs1), optionally masked by vm"

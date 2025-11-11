@@ -1,13 +1,13 @@
 func Read_VSTART() => CsrReadResult
 begin
-  return CsrReadOk(VSTART[31:0]);
+  return CsrReadOk(ZeroExtend(VSTART, 32));
 end
 
 func Write_VSTART(value: bits(32)) => Result
 begin
   VSTART = value[LOG2_VLEN-1:0];
 
-  FFI_write_CSR_hook("vstart", VSTART[31:0]);
+  FFI_write_CSR_hook("vstart", ZeroExtend(VSTART, 32));
 
   return Retired();
 end
