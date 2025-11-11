@@ -5,13 +5,13 @@
 
 ocamlPackages.buildDunePackage {
   pname = "aslref";
-  version = "7.57+dev";
+  version = "7.58-unstable-73140600";
 
   src = fetchFromGitHub {
     owner = "herd";
     repo = "herdtools7";
-    rev = "e0e3cf84e130965775689c33f2696fe8a0d7a700";
-    hash = "sha256-6SW44j/yBNoz8x9oYg9G3feFwtP6YGkbxP5gOpm3qgI=";
+    rev = "731406005260d9c131b370febb5c5bb6221db695";
+    hash = "sha256-0R+R5WZFAHwLh7hQbobMCLKZTy9dPMGT43f9kd1hiiE=";
   };
 
   nativeBuildInputs = with ocamlPackages; [
@@ -48,7 +48,7 @@ ocamlPackages.buildDunePackage {
     export DUNE_CACHE=disabled
 
     # Build only the core library and executables, skip tests and optional components
-    dune build --profile release --cache disabled asllib/aslref.exe asllib/bundler.exe
+    dune build -j "$NIX_BUILD_CORES" --profile release --cache disabled asllib/aslref.exe
 
     runHook postBuild
   '';
