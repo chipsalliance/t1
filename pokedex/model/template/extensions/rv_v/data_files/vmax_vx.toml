@@ -1,4 +1,0 @@
-template = "vop_vx"
-
-op_func = "__op_max_s"
-function_description="compute vd = max_s(vs2, rs1), optionally masked by vm"
