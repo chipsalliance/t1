@@ -48,6 +48,46 @@ begin
   end
 end
 
+// min value as signed, e.g. min, vmin.vv
+func riscv_min_s{N}(x: bits(N), y: bits(N)) => bits(N)
+begin
+  if SInt(x) < SInt(y) then
+    return x;
+  else
+    return y;
+  end
+end
+
+// max value as signed, e.g. max, vmax.vv
+func riscv_max_s{N}(x: bits(N), y: bits(N)) => bits(N)
+begin
+  if SInt(x) > SInt(y) then
+    return x;
+  else
+    return y;
+  end
+end
+
+// min value as unsigned, e.g. minu, vminu.vv
+func riscv_min_u{N}(x: bits(N), y: bits(N)) => bits(N)
+begin
+  if UInt(x) < UInt(y) then
+    return x;
+  else
+    return y;
+  end
+end
+
+// max value as unsigned, e.g. maxu, vmaxu.vv
+func riscv_max_u{N}(x: bits(N), y: bits(N)) => bits(N)
+begin
+  if UInt(x) > UInt(y) then
+    return x;
+  else
+    return y;
+  end
+end
+
 
 //////////////////////
 // shift operations //

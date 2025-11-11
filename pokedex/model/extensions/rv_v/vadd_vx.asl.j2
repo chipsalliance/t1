@@ -1,0 +1,201 @@
+{#-
+  inst vd, vs2, rs1, vm; vm mask is optional
+
+  eew(vd, vs2) = sew, w(src1) = sew, src1 is sext/truncate from X[rs1]
+  
+  NOTE: sign extension of X[rs1] only happens when XLEN=32 and sew=64
+
+  NOTE: it computes vd[i] = op(vs2[i], vs1[i])
+  the order of vs1/vs2 is swapped compared to ordinary riscv inst.
+-#}
+{%- macro vop_vx_body(name, op, support_sew64=True) %}
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+  if !IsZero(VSTART) then
+    return IllegalInstruction();
+  end
+
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let vs2: VRegIdx = UInt(GetRS2(instruction));
+  let rs1: XRegIdx = UInt(GetRS1(instruction));
+  let vm: bit = GetVM(instruction);
+
+  let vl: integer = VL;
+  let sew: integer{8, 16, 32, 64} = VTYPE.sew;
+  let vreg_align: integer{1, 2, 4, 8} = getAlign(VTYPE);
+
+  if vm == '0' && vd == 0 then
+    // overlap with mask
+    return IllegalInstruction();
+  end
+  if vd MOD vreg_align != 0 then
+    // vd is not aligned with lmul group
+    return IllegalInstruction();
+  end
+  if vs2 MOD vreg_align != 0 then
+    // vs2 is not aligned with elmul group
+    return IllegalInstruction();
+  end
+
+  case sew of
+    when 8 => begin
+      let src1 : bits(8) = (X[rs1])[7:0];
+
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2 : bits(8) = VRF_8[vs2, idx];
+          let res : bits(8) = {{op}}(src2, src1);
+          VRF_8[vd, idx] = res;
+        end
+      end
+    end
+
+    when 16 => begin
+      let src1 : bits(16) = (X[rs1])[15:0];
+
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2 : bits(16) = VRF_16[vs2, idx];
+          let res : bits(16) = {{op}}(src2, src1);
+          VRF_16[vd, idx] = res;
+        end
+      end
+    end
+
+    when 32 => begin
+      let src1 : bits(32) = (X[rs1])[31:0];
+
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2 : bits(32) = VRF_32[vs2, idx];
+          let res : bits(32) = {{op}}(src2, src1);
+          VRF_32[vd, idx] = res;
+        end
+      end
+    end
+
+    when 64 => Todo("support sew=64");
+
+    otherwise => Unreachable();
+  end
+
+  logWrite_VREG_elmul(vd, vreg_align);
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_VADD_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vadd_vx", "riscv_add") -}}
+end
+
+func Execute_VSUB_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vsub_vx", "riscv_sub") -}}
+end
+
+func Execute_VRSUB_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vrsub_vx", "riscv_reverseSub") -}}
+end
+
+func Execute_VAND_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vand_vx", "riscv_and") -}}
+end
+
+func Execute_VOR_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vor_vx", "riscv_or") -}}
+end
+
+func Execute_VXOR_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vxor_vx", "riscv_xor") -}}
+end
+
+func Execute_VMIN_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vmin_vx", "riscv_min_s") -}}
+end
+
+func Execute_VMAX_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vmax_vx", "riscv_max_s") -}}
+end
+
+func Execute_VMINU_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vminu_vx", "riscv_min_u") -}}
+end
+
+func Execute_VMAXU_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vmaxu_vx", "riscv_max_u") -}}
+end
+
+func Execute_VSLL_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vsll_vx", "riscv_sll_var") -}}
+end
+
+func Execute_VSRL_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vsrl_vx", "riscv_srl_var") -}}
+end
+
+func Execute_VSRA_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vsra_vx", "riscv_sra_var") -}}
+end
+
+
+func Execute_VMUL_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vmul_vx", "riscv_mul") -}}
+end
+
+// vmulh family does not need to support sew=64
+func Execute_VMULH_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vmulh_vx", "riscv_mulh_ss", support_sew64=False) -}}
+end
+
+// vmulh family does not need to support sew=64
+func Execute_VMULHU_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vmulhu_vx", "riscv_mulh_uu", support_sew64=False) -}}
+end
+
+// vmulh family does not need to support sew=64
+func Execute_VMULHSU_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vmulhsu_vx", "riscv_mulh_su", support_sew64=False) -}}
+end
+
+func Execute_VDIV_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vdiv_vx", "riscv_div_s") -}}
+end
+
+func Execute_VREM_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vrem_vx", "riscv_rem_s") -}}
+end
+
+func Execute_VDIVU_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vdivu_vx", "riscv_div_u") -}}
+end
+
+func Execute_VREMU_VX(instruction: bits(32)) => Result
+begin
+{{- vop_vx_body("vremu_vx", "riscv_rem_u") -}}
+end
