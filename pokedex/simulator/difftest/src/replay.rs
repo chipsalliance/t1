@@ -97,7 +97,9 @@ impl DiffRecord {
     }
 
     fn compare_vreg(&self, x: &CpuState, y: &CpuState) -> bool {
-        self.vreg_write_mask.indices().all(|i| x.vreg_slice(i) == y.vreg_slice(i))
+        self.vreg_write_mask
+            .indices()
+            .all(|i| x.vreg_slice(i) == y.vreg_slice(i))
     }
 
     fn compare_csr_all(x: &CpuState, y: &CpuState) -> bool {
@@ -178,9 +180,9 @@ pub fn pretty_print_diff(
 
     // compare FPR
     for i in 0..32 {
-        let (goldv, dutv) = (gold.gpr[i], dut.gpr[i]);
+        let (goldv, dutv) = (gold.fpr[i], dut.fpr[i]);
         if goldv != dutv {
-            writeln!(f, "x{i:<9} : {goldv:#010x} <-> {dutv:#010x}")?;
+            writeln!(f, "f{i:<9} : {goldv:#010x} <-> {dutv:#010x}")?;
         }
     }
 
@@ -215,15 +217,22 @@ pub fn pretty_print_diff(
     // compare vector regs
     if gold.vregs != dut.vregs {
         writeln!(f, "note: vreg diff is organized in 8-byte fragments")?;
-        writeln!(f, "      frags are shown as hex bytes, the left is the least byte")?;
+        writeln!(
+            f,
+            "      frags are shown as hex bytes, the left is the least byte"
+        )?;
         for i in 0..32 {
             let goldv = gold.vreg_slice(i);
             let dutv = dut.vreg_slice(i);
             if goldv != dutv {
-                for j in 0..VLEN/64 {
-                    let goldv_frag = &goldv[8*j..][..8];
-                    let dutv_frag = &dutv[8*j..][..8];
-                    writeln!(f, "v{i:<2} [{:4} +: 64] : {goldv_frag:02x?} <-> {dutv_frag:02x?}", j*64)?;
+                for j in 0..VLEN / 64 {
+                    let goldv_frag = &goldv[8 * j..][..8];
+                    let dutv_frag = &dutv[8 * j..][..8];
+                    writeln!(
+                        f,
+                        "v{i:<2} [{:4} +: 64] : {goldv_frag:02x?} <-> {dutv_frag:02x?}",
+                        j * 64
+                    )?;
                 }
             }
         }
@@ -258,7 +267,7 @@ impl CpuState {
         Self {
             gpr: [0; 32],
             fpr: [0; 32],
-            vregs: vec![0; 32 * (VLEN / 8)],
+            vregs: vec![0; 32 * VLEN_BYTE],
             pc: 0,
 
             csr: CsrState::default(),
@@ -281,24 +290,19 @@ impl CpuState {
         diff.fpr_write_mask.set(rd);
     }
 
-    pub(crate) fn write_vreg(
-        &mut self,
-        rd: usize,
-        data: &[u8],
-        diff: &mut DiffRecord,
-    ) {
+    pub(crate) fn write_vreg(&mut self, rd: usize, data: &[u8], diff: &mut DiffRecord) {
         assert!(rd < 32);
-        assert_eq!(data.len(), VLEN / 8);
+        assert_eq!(data.len(), VLEN_BYTE);
         self.vreg_slice_mut(rd).copy_from_slice(data);
         diff.vreg_write_mask.set(rd);
     }
 
     fn vreg_slice(&self, idx: usize) -> &[u8] {
-        &self.vregs[idx * (VLEN / 8)..][0..VLEN/8]
+        &self.vregs[idx * VLEN_BYTE..][..VLEN_BYTE]
     }
 
     fn vreg_slice_mut(&mut self, idx: usize) -> &mut [u8] {
-        &mut self.vregs[idx * (VLEN / 8)..][0..VLEN/8]
+        &mut self.vregs[idx * VLEN_BYTE..][..VLEN_BYTE]
     }
 
     pub(crate) fn write_csr(&mut self, name: &str, val: u32) -> Result<(), CsrValueError> {

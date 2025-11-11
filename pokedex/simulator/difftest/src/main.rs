@@ -4,6 +4,8 @@ use clap::Parser;
 use miette::{Context, IntoDiagnostic};
 use serde::Serialize;
 
+use crate::replay::{CpuState, pretty_print_diff};
+
 mod pokedex;
 mod replay;
 mod spike_parser;
@@ -31,7 +33,8 @@ fn main() -> miette::Result<()> {
 
     let result = diff_against_pokedex_spike(&pokedex_log, &spike_log);
 
-    let raw_json = serde_json::to_string(&result).into_diagnostic()?;
+    let result_json = DiffResultJson::from(result);
+    let raw_json = serde_json::to_string_pretty(&result_json).into_diagnostic()?;
     std::fs::write(arg.output_path, raw_json).into_diagnostic()?;
 
     Ok(())
@@ -92,32 +95,10 @@ fn parse_pokedex_log(log_path: &Path) -> miette::Result<Vec<pokedex::InsnCommit>
     Ok(pokedex_log)
 }
 
-#[derive(Debug, Serialize)]
-struct DiffMeta {
-    is_same: bool,
-    context: String,
-}
-
-impl DiffMeta {
-    fn passed() -> Self {
-        Self {
-            is_same: true,
-            context: String::new(),
-        }
-    }
-
-    fn failed(ctx: String) -> Self {
-        Self {
-            is_same: false,
-            context: ctx.to_string(),
-        }
-    }
-}
-
 fn diff_against_pokedex_spike(
     pokedex_log: &[pokedex::InsnCommit],
     spike_log: &[spike_parser::Commit],
-) -> DiffMeta {
+) -> Result<(), DiffFailed> {
     let mut pokedex_log = pokedex_log.iter().peekable();
     let mut pokedex_cassette = replay::CommitCassette::new(&mut pokedex_log);
 
@@ -154,8 +135,64 @@ fn diff_against_pokedex_spike(
         let spike_state = spike_cassette.get_state();
 
         if !combined_dr.compare(spike_state, pokedex_state) {
-            let pc = spike_state.pc;
-            return DiffMeta::failed(indoc::formatdoc! {"
+            return Err(DiffFailed {
+                spike_state: spike_state.clone(),
+                pokedex_state: pokedex_state.clone(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+/// Nix relies on "is_same" and "context" fields.
+/// Others are for humans.
+#[derive(Debug, Serialize)]
+struct DiffResultJson {
+    is_same: bool,
+
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pc: String, // like "0x80000000"
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    diff: Vec<String>,
+
+    context: String,
+}
+
+impl From<Result<(), DiffFailed>> for DiffResultJson {
+    fn from(value: Result<(), DiffFailed>) -> Self {
+        match value {
+            Ok(()) => DiffResultJson {
+                is_same: true,
+                pc: "".into(),
+                diff: vec![],
+                context: "".into(),
+            },
+            Err(e) => {
+                let pc = e.spike_state.pc;
+                let diff_string =
+                    util::fn_to_string(|f| pretty_print_diff(f, &e.spike_state, &e.pokedex_state));
+                let diff_lines: Vec<String> = diff_string.lines().map(|x| x.into()).collect();
+                DiffResultJson {
+                    is_same: false,
+                    pc: format!("{pc:#010x}"),
+                    diff: diff_lines,
+                    context: e.render_context(),
+                }
+            }
+        }
+    }
+}
+
+struct DiffFailed {
+    spike_state: CpuState,
+    pokedex_state: CpuState,
+}
+
+impl DiffFailed {
+    fn render_context(&self) -> String {
+        let pc = self.spike_state.pc;
+        indoc::formatdoc! {"
                             ======================================================
                             Error: difftest error after pc={pc:#010x}
                             ======================================================
@@ -171,12 +208,9 @@ fn diff_against_pokedex_spike(
                             {state_diff}
                             >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                         ",
-                spike_state = util::from_fn(|f| spike_state.pretty_print(f)),
-                pokedex_state = util::from_fn(|f| pokedex_state.pretty_print(f)),
-                state_diff = util::from_fn(|f| replay::pretty_print_diff(f, spike_state, pokedex_state)),
-            });
-        };
+            spike_state = util::from_fn(|f| self.spike_state.pretty_print(f)),
+            pokedex_state = util::from_fn(|f| self.pokedex_state.pretty_print(f)),
+            state_diff = util::from_fn(|f| replay::pretty_print_diff(f, &self.spike_state, &self.pokedex_state)),
+        }
     }
-
-    DiffMeta::passed()
 }
