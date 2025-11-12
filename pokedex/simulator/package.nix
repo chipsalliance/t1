@@ -5,7 +5,6 @@
   model,
   rust-analyzer,
   clippy,
-  python3,
   softfloat,
   softfloat-ext,
 }:
@@ -17,7 +16,6 @@ rustPlatform.buildRustPackage (finalAttr: {
   buildInputs = [
     rustPlatform.bindgenHook
     model
-    python3
   ];
 
   env = {
@@ -39,10 +37,6 @@ rustPlatform.buildRustPackage (finalAttr: {
   cargoLock = {
     lockFile = ./Cargo.lock;
   };
-
-  postInstall = ''
-    mv ./batchrun/batchrun.py $out/bin/batchrun
-  '';
 
   meta.mainProgram = "pokedex";
 })
