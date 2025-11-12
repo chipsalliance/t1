@@ -6,7 +6,7 @@
   jq,
 }:
 { caseInfo }:
-runCommand "pokedex-difftest-on-${caseInfo.caseName}"
+runCommand "difftest-${caseInfo.caseName}"
   {
     nativeBuildInputs = [
       spike
