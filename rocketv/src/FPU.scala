@@ -379,10 +379,9 @@ class FPU(val parameter: FPUParameter)
 
     def isOneOf(x: UInt, s: Seq[UInt]): Bool = VecInit(s.map(x === _)).asUInt.orR
     // we don't currently support round-max-magnitude (rm=4)
-    io.core.illegal_rm := isOneOf(io.core.inst(14, 12), Seq(5.U, 6.U)) || io.core.inst(
-      14,
-      12
-    ) === 7.U && io.core.fcsr_rm >= 5.U
+    io.core.illegal_rm :=
+      (isOneOf(io.core.inst(14, 12), Seq(5.U, 6.U)) && io.core.inst(6, 0) =/= "b1010111".U) ||
+        io.core.inst(14, 12) === 7.U && io.core.fcsr_rm >= 5.U
 
     if (cfg.divSqrt) {
       val divSqrt_inValid = mem_reg_valid && (mem_ctrl.div || mem_ctrl.sqrt) && !divSqrt_inFlight
