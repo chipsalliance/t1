@@ -16,6 +16,7 @@ rec {
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
+  lvgl = final.callPackage ./pkgs/lvgl.nix { };
   libspike_interfaces = final.callPackage ../difftest/spike_interfaces { };
 
   dramsim3-config = ../difftest/config/dramsim3-config.ini;
