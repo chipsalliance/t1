@@ -45,9 +45,6 @@ record VType {
 type SEW_TYPE of integer{8, 16, 32, 64};
 type LOG2_VLMUL_TYPE of integer{-3..3};
 
-constant LOG2_LMUL_MIN : integer = -3;
-constant LOG2_LMUL_MAX : integer = 3;
-
 type VRegIdx of integer{0..31};
 type VRegIdxLmul2 of integer{0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30};
 type VRegIdxLmul4 of integer{0,4,8,12,16,20,24,28};
@@ -154,6 +151,23 @@ begin
     when '111' => log2_lmul = -1;
     when '110' => log2_lmul = -2;
     when '101' => log2_lmul = -3;
+  end
+
+  // NOTE: impl define behavior:
+  // 
+  // We always assume SEW_MIN = 8.
+  // We follow the must strict rule to check the validity for sew & lmul,
+  // ELEN = 32:
+  //   sew = 8  =>  lmul >= 1/4
+  //   sew = 16 =>  lmul >= 1/2
+  //   sew = 32 =>  lmul >= 1
+  // ELEN = 64:
+  //   sew = 8  =>  lmul >= 1/8
+  //   sew = 16 =>  lmul >= 1/4
+  //   sew = 32 =>  lmul >= 1/2
+  //   sew = 64 =>  lmul >= 1
+  if log2_lmul < 0 && sew << (-log2_lmul) > ELEN then
+    return VTYPE_ILL;
   end
 
   return VType {
