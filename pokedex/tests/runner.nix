@@ -2,6 +2,7 @@
   runCommand,
   spike,
   dtc,
+  model,
   simulator,
   jq,
 }:
@@ -14,6 +15,10 @@ runCommand "difftest-${caseInfo.caseName}"
       dtc
       jq
     ];
+
+    env = {
+      POKEDEX_MODEL_DYLIB = "${model}/lib/libpokedex_model.so";
+    };
   }
   ''
     runSpike() {
