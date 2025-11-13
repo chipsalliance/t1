@@ -3,6 +3,9 @@ name = "pokedex"
 edition.workspace = true
 version.workspace = true
 
+[features]
+bundled-model-lib = []
+
 [build-dependencies]
 bindgen = "0.71.0"
 
@@ -19,3 +22,4 @@ miette = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 zerocopy = { workspace = true }
+libc = "0.2.177"
