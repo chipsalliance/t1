@@ -16,23 +16,12 @@ begin
   if new_vtype.ill then
     VTYPE = VTYPE_ILL;
     VL = 0;
-  elsif rd == 0 && uimm_avl == 0 then
-    // sew/lmul ratio is unchanged iff vlmax is unchanged
-    if !VTYPE.ill && VLMAX == __compute_vlmax(new_vtype) then
-      VTYPE = new_vtype;
-      // VL is unchanged
-    else
-      VTYPE = VTYPE_ILL;
-      VL = 0;
-    end
   else
     VTYPE = new_vtype;
 
     VL = VLMAX;
-    if uimm_avl != 0 then
-      if uimm_avl < VL then
-        VL = uimm_avl;
-      end
+    if uimm_avl < VL then
+      VL = uimm_avl;
     end
   end
 
