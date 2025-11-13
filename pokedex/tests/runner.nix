@@ -2,6 +2,7 @@
   runCommand,
   spike,
   dtc,
+  model,
   simulator,
   jq,
 }:
@@ -16,6 +17,8 @@ runCommand "difftest-${caseInfo.caseName}"
     ];
   }
   ''
+    export POKEDEX_MODEL_DYLIB=${model}/lib/libpokedex_model.so
+
     runSpike() {
       logfile="$1"; shift
       spike --isa=rv32imafc_zvl256b_zve32x_zifencei \
