@@ -1,6 +1,6 @@
 func Todo(message: string)
 begin
-  FFI_print_str(message);
+  FFI_debug_print(message);
   Unreachable();
 end
 

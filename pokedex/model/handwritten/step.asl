@@ -10,7 +10,7 @@ begin
 
   let least_significant_half : FFI_ReadResult(16) = FFI_instruction_fetch_half(current_pc);
   if !least_significant_half.success then
-    FFI_print_str("instruction fetch LSH fail");
+    FFI_debug_print("instruction fetch LSH fail");
     handleException(
       current_pc,
       Zeros(XLEN),
@@ -26,7 +26,7 @@ begin
     // execute non-compressed instruction
     let most_significant_half : FFI_ReadResult(16) = FFI_instruction_fetch_half(current_pc + 2);
     if !most_significant_half.success then
-      FFI_print_str("instruction fetch MSH fail");
+      FFI_debug_print("instruction fetch MSH fail");
       handleException(
         current_pc,       // MEPC points to current pc
         Zeros(XLEN),
@@ -38,11 +38,11 @@ begin
 
     let instruction : bits(32) = [most_significant_half.data, least_significant_half.data];
 
-    FFI_debug_log_issue(PC, instruction, FALSE);
+    FFI_inst_issue(PC, instruction);
     exec_result = DecodeAndExecute(instruction);
 
     if exec_result.is_ok then
-      ffi_commit_insn(current_pc, instruction, FALSE);
+      FFI_inst_commit();
     else
       // if the inst is not commited, PC should not be modified
       assert(current_pc == PC);
@@ -58,11 +58,11 @@ begin
     // execute compressed instruction
 
     let instruction: bits(16) = least_significant_half.data;
-    FFI_debug_log_issue(PC, ZeroExtend(instruction, 32), TRUE);
+    FFI_inst_issue_c(PC, instruction);
     exec_result = DecodeAndExecute_CEXT(instruction);
 
     if exec_result.is_ok then
-      ffi_commit_insn(current_pc, ZeroExtend(least_significant_half.data, 32), TRUE);
+      FFI_inst_commit();
     else
       // if the inst is not commited, PC should not be modified
       assert(current_pc == PC);
@@ -79,6 +79,7 @@ end
 
 func handleException(pc: bits(XLEN), inst: bits(XLEN), cause: integer{0..31}, payload: bits(XLEN))
 begin
+  let mcause: bits(XLEN) = ['0', cause[30:0]];
   var mtval: bits(XLEN) = Zeros(XLEN);
 
   case cause of
@@ -99,10 +100,6 @@ begin
       mtval = payload;
     end
 
-    when {XCPT_CODE_BREAKPOINT} => begin
-      FFI_ebreak();
-    end
-
     // FIXME: when asl2c supports exhanstion check,
     // replace otherwise to an explicit list.
     //
@@ -113,7 +110,7 @@ begin
   // mepc
   MEPC = PC;
   // mcause
-  MCAUSE = ['0', cause[30:0]];
+  MCAUSE = mcause;
   // mtval
   MTVAL = mtval;
   // mstatus
@@ -125,7 +122,7 @@ begin
 
   PC = [MTVEC_BASE, '00'];
 
-  ffi_debug_trap_xcpt(cause, mtval);
+  FFI_inst_xcpt(mcause, mtval);
 end
 
 func checkInterrupt() => boolean

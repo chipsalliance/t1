@@ -4,12 +4,14 @@ record FFI_ReadResult(N) {
 };
 
 func FFI_instruction_fetch_half(pc : bits(32)) => FFI_ReadResult(16);
-func FFI_emulator_do_fence();
-func FFI_write_GPR_hook(reg_idx: XRegIdx, data: bits(32));
-func FFI_write_FPR_hook(reg_idx: FRegIdx, data: bits(32));
+func FFI_write_GPR_hook(rd: XRegIdx, data: bits(32));
+func FFI_write_FPR_hook(fd: FRegIdx, data: bits(32));
 func FFI_write_CSR_hook(name: string, value: bits(32));
-func FFI_write_VREG_vlen256_hook(vd: bits(8), frag0: bits(64), frag1: bits(64), frag2: bits(64), frag3: bits(64));
-func ffi_commit_insn(pc : bits(32), insn : bits(32), is_c: boolean);
+func FFI_write_VREG_hook(vd: VRegIdx, data: bits(VLEN));
+func FFI_inst_issue(pc: bits(XLEN), insn: bits(32));
+func FFI_inst_issue_c(pc: bits(XLEN), insn: bits(16));
+func FFI_inst_commit();
+func FFI_inst_xcpt(xcause: bits(XLEN), xtval: bits(XLEN));
 
 func FFI_ecall();
 
@@ -23,10 +25,8 @@ func FFI_write_physical_memory_16bits(addr : bits(32), data : bits(16)) => boole
 func FFI_write_physical_memory_32bits(addr : bits(32), data : bits(32)) => boolean;
 
 // debug
-func FFI_debug_log_issue(pc : bits(32), insn : bits(32), is_c: boolean);
-func FFI_print_str(s: string);
-func FFI_print_bits_hex(v: bits(32));
-func FFI_ebreak();
+func FFI_debug_print(s: string);
+func FFI_debug_unimpl_insn(name: string, data: bits(32));
 
 func ffi_debug_trap_xcpt(cause : integer, tval : bits(32));
 
@@ -52,10 +52,8 @@ enumeration AmoOperationType {
 
 func FFI_amo(
   operation : AmoOperationType,
-  src1 : bits(32),
-  src2 : bits(32),
-  is_acquire : boolean,
-  is_release : boolean
+  addr : bits(XLEN),
+  value : bits(32)
 ) => FFI_ReadResult(32);
 
 func ffi_yield_softfloat_exception_flags() => integer;
