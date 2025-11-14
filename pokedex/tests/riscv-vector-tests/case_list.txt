@@ -161,38 +161,38 @@ vmin.vv
 vmin.vx
 vminu.vv
 vminu.vx
-# vmnand.mm
-# vmnor.mm
-# vmor.mm
-# vmorn.mm
+vmnand.mm
+vmnor.mm
+vmor.mm
+vmorn.mm
 # vmsbc.vv
 # vmsbc.vvm
 # vmsbc.vx
 # vmsbc.vxm
 # vmsbf.m
-# vmseq.vi
-# vmseq.vv
-# vmseq.vx
-# vmsgt.vi
-# vmsgt.vv
-# vmsgt.vx
-# vmsgtu.vi
-# vmsgtu.vv
-# vmsgtu.vx
+vmseq.vi
+vmseq.vv
+vmseq.vx
+vmsgt.vi
+vmsgt.vv
+vmsgt.vx
+vmsgtu.vi
+vmsgtu.vv
+vmsgtu.vx
 # vmsif.m
-# vmsle.vi
-# vmsle.vv
-# vmsle.vx
-# vmsleu.vi
-# vmsleu.vv
-# vmsleu.vx
-# vmslt.vv
-# vmslt.vx
-# vmsltu.vv
-# vmsltu.vx
-# vmsne.vi
-# vmsne.vv
-# vmsne.vx
+vmsle.vi
+vmsle.vv
+vmsle.vx
+vmsleu.vi
+vmsleu.vv
+vmsleu.vx
+vmslt.vv
+vmslt.vx
+vmsltu.vv
+vmsltu.vx
+vmsne.vi
+vmsne.vv
+vmsne.vx
 # vmsof.m
 vmul.vv
 vmul.vx
@@ -211,8 +211,8 @@ vmulhu.vx
 # vmv2r.v
 # vmv4r.v
 # vmv8r.v
-# vmxnor.mm
-# vmxor.mm
+vmxnor.mm
+vmxor.mm
 # vnclip.wi
 # vnclip.wv
 # vnclip.wx

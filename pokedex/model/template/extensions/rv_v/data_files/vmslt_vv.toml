@@ -1,4 +1,0 @@
-template = "vmsop_vv"
-
-op_func_cmp = "__op_cmp_lt_s"
-function_description="compute vd = (vs2 s< vs1), optionally masked by vm"
