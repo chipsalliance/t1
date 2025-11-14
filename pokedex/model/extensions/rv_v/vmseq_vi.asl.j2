@@ -1,0 +1,115 @@
+{#-
+  inst vd, vs2, imm, [vm]; vm mask is optional
+  eew(vd) = 1, eew(vs2) = sew, w(imm) = sew, sign extended from imm5
+  vd is allowed to overlap with vm(v0)
+-#}
+{%- macro vmsop_vi_body(name, compute) %}
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+  if !IsZero(VSTART) then
+    return IllegalInstruction();
+  end
+
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let vs2: VRegIdx = UInt(GetRS2(instruction));
+  let imm5: bits(5) = GetRS1(instruction);
+  let vm: bit = GetVM(instruction);
+
+  let vl: integer = VL;
+  let sew: integer{8, 16, 32, 64} = VTYPE.sew;
+  let vreg_align: integer{1, 2, 4, 8} = getAlign(VTYPE);
+
+  if vs2 MOD vreg_align != 0 then
+    // vs2 is not aligned with elmul group
+    return IllegalInstruction();
+  end
+  if isBadOverlap_vdm_vs(vd, vs2, vreg_align) then
+    // vd is illegally overlapped with vs2
+    return IllegalInstruction();
+  end
+
+  case sew of
+    when 8 => begin
+      let src1: bits(8) = SignExtend(imm5, 8);
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2 : bits(8) = VRF_8[vs2, idx];
+          let res : boolean = {{ compute }};
+          VRF_MASK[vd, idx] = res as bit;
+        end
+      end
+    end
+
+    when 16 => begin
+      let src1: bits(16) = SignExtend(imm5, 16);
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2 : bits(16) = VRF_16[vs2, idx];
+          let res : boolean = {{ compute }};
+          VRF_MASK[vd, idx] = res as bit;
+        end
+      end
+    end
+
+    when 32 => begin
+      for idx = 0 to vl - 1 do
+        let src1: bits(32) = SignExtend(imm5, 32);
+        if vm != '0' || V0_MASK[idx] then
+          let src2 : bits(32) = VRF_32[vs2, idx];
+          let res : boolean = {{ compute }};
+          VRF_MASK[vd, idx] = res as bit;
+        end
+      end
+    end
+
+    when 64 => Todo("support sew=64");
+
+    otherwise => Unreachable();
+  end
+
+  logWrite_VREG_1(vd);
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_VMSEQ_VI(instruction: bits(32)) => Result
+begin
+{{- vmsop_vi_body("vmseq_vi", "src2 == src1") -}}
+end
+
+func Execute_VMSNE_VI(instruction: bits(32)) => Result
+begin
+{{- vmsop_vi_body("vmsne_vi", "src2 != src1") -}}
+end
+
+func Execute_VMSLE_VI(instruction: bits(32)) => Result
+begin
+{{- vmsop_vi_body("vmsle_vi", "SInt(src2) <= SInt(src1)") -}}
+end
+
+func Execute_VMSGT_VI(instruction: bits(32)) => Result
+begin
+{{- vmsop_vi_body("vmsgt_vi", "SInt(src2) > SInt(src1)") -}}
+end
+
+func Execute_VMSLTU_VI(instruction: bits(32)) => Result
+begin
+{{- vmsop_vi_body("vmsltu_vi", "UInt(src2) < UInt(src1)") -}}
+end
+
+func Execute_VMSLEU_VI(instruction: bits(32)) => Result
+begin
+{{- vmsop_vi_body("vmsleu_vi", "UInt(src2) <= UInt(src1)") -}}
+end
+
+func Execute_VMSGTU_VI(instruction: bits(32)) => Result
+begin
+{{- vmsop_vi_body("vmsgtu_vi", "UInt(src2) > UInt(src1)") -}}
+end

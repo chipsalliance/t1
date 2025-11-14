@@ -1,4 +1,0 @@
-template = "vmsop_vi"
-
-op_func_cmp = "__op_cmp_eq"
-function_description="compute vd = (vs2 == imm), optionally masked by vm"
