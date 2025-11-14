@@ -1,0 +1,167 @@
+{%- macro vsse_func(name, eew) %}
+{% set eew_byte = eew // 8 %}
+func ExecuteReal_VSSE{{eew}}_V(instruction: bits(32)) => Result
+begin
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+
+  // NOTE: this instruction supports non-zero vstart
+  if UInt(VSTART) > VL then
+    return IllegalInstruction();
+  end
+ 
+  let vs3: VRegIdx = UInt(GetRD(instruction));
+  let rs1: XRegIdx = UInt(GetRS1(instruction));
+  let rs2: XRegIdx = UInt(GetRS2(instruction));
+  let vm : bit = GetVM(instruction);
+
+  let (vreg_align, valid) = getEewAlign(VTYPE, {{eew}});
+  if !valid then
+    // elmul is invalid
+    return IllegalInstruction();
+  end
+
+  if vs3 MOD vreg_align != 0 then
+    // vs3 is not aligned with elmul group
+    return IllegalInstruction();
+  end
+
+  let base_addr: bits(XLEN) = X[rs1];
+  let stride: bits(XLEN) = X[rs2];
+  let vstart: integer = UInt(VSTART);
+  let vl: integer = VL;
+
+  for idx = vstart to VL - 1 do
+    if vm != '0' || V0_MASK[idx] then
+      let addr: bits(XLEN) = base_addr + stride * idx;
+      let data : bits({{eew}}) = VRF_{{eew}}[vs3, idx];
+      let result = WriteMemory(addr, data);
+
+      if !result.is_ok then
+        vectorInterrupt(idx);
+        return result;
+      end
+    end
+  end
+
+  // no makeDirty_VS
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+end
+{% endmacro -%}
+
+{%- macro vsse_seg_func(name, eew) %}
+{% set eew_byte = eew // 8 %}
+func ExecuteReal_VSSSEG_NF_E{{eew}}_V(instruction: bits(32), nf: integer{2..8}) => Result
+begin
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+
+  // NOTE: this instruction supports non-zero vstart
+  if UInt(VSTART) > VL then
+    return IllegalInstruction();
+  end
+ 
+  let vs3: VRegIdx = UInt(GetRD(instruction));
+  let rs1: XRegIdx = UInt(GetRS1(instruction));
+  let rs2: XRegIdx = UInt(GetRS2(instruction));
+  let vm : bit = GetVM(instruction);
+
+  let (vreg_align, valid) = getEewAlign(VTYPE, {{eew}});
+  if !valid then
+    // elmul is invalid
+    return IllegalInstruction();
+  end
+
+  if vs3 MOD vreg_align != 0 then
+    // vs3 is not aligned with elmul group
+    return IllegalInstruction();
+  end
+
+  if vreg_align * nf > 8 then
+    // segment is too large
+    return IllegalInstruction();
+  end
+
+  let base_addr: bits(XLEN) = X[rs1];
+  let stride: bits(XLEN) = X[rs2];
+  let vstart: integer = UInt(VSTART);
+  let vl: integer = VL;
+
+  for idx = vstart to vl - 1 do
+    if vm != '0' || V0_MASK[idx] then
+      let group_addr = base_addr + stride * idx;
+      for j = 0 to nf - 1 do
+        let vs3_j = (vs3 + j * vreg_align) as integer{0..31};
+        let addr : bits(XLEN) = group_addr + {{eew_byte}} * j;
+        let data : bits({{eew}}) = VRF_{{eew}}[vs3_j, idx];
+        let result = WriteMemory(addr, data);
+
+        if !result.is_ok then
+          vectorInterrupt(idx);
+          return result;
+        end
+      end
+    end
+  end
+
+  // no makeDirty_VS
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+end
+{% endmacro -%}
+
+func Execute_VSSE8_V(instruction: bits(32)) => Result
+begin
+  let nf_bits : bits(3) = GetNF(instruction);
+  if IsZero(nf_bits) then
+    return ExecuteReal_VSSE8_V(instruction);
+  else
+    let nf = (UInt(nf_bits) + 1) as integer{2..8};
+    return ExecuteReal_VSSSEG_NF_E8_V(instruction, nf);
+  end
+end
+
+func Execute_VSSE16_V(instruction: bits(32)) => Result
+begin
+  let nf_bits : bits(3) = GetNF(instruction);
+  if IsZero(nf_bits) then
+    return ExecuteReal_VSSE16_V(instruction);
+  else
+    let nf = (UInt(nf_bits) + 1) as integer{2..8};
+    return ExecuteReal_VSSSEG_NF_E16_V(instruction, nf);
+  end
+end
+
+func Execute_VSSE32_V(instruction: bits(32)) => Result
+begin
+  let nf_bits : bits(3) = GetNF(instruction);
+  if IsZero(nf_bits) then
+    return ExecuteReal_VSSE32_V(instruction);
+  else
+    let nf = (UInt(nf_bits) + 1) as integer{2..8};
+    return ExecuteReal_VSSSEG_NF_E32_V(instruction, nf);
+  end
+end
+
+{{- vsse_func("vsse8", eew=8) -}}
+
+{{- vsse_func("vsse16", eew=16) -}}
+
+{{- vsse_func("vsse32", eew=32) -}}
+
+{{- vsse_seg_func("vsssegNe8", eew=8) -}}
+
+{{- vsse_seg_func("vsssegNe16", eew=16) -}}
+
+{{- vsse_seg_func("vsssegNe32", eew=32) -}}
