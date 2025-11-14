@@ -74,6 +74,10 @@ pub fn from_fn<F: Fn(&mut std::fmt::Formatter<'_>) -> std::fmt::Result>(f: F) ->
     FromFn(f)
 }
 
+pub fn fn_to_string<F: Fn(&mut std::fmt::Formatter<'_>) -> std::fmt::Result>(f: F) -> String {
+    FromFn(f).to_string()
+}
+
 /// Implements [`fmt::Debug`] and [`fmt::Display`] using a function.
 ///
 /// Created with [`from_fn`].

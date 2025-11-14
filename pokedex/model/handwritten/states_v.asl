@@ -445,8 +445,7 @@ end
 
 func logWrite_VREG_1(vd: VRegIdx)
 begin
-  let vreg : bits(256) = __VRF[vd * VLEN  +: VLEN];
-  FFI_write_VREG_vlen256_hook(vd[7:0], vreg[63:0], vreg[127:64], vreg[191:128], vreg[255:192]);
+  FFI_write_VREG_hook(vd, __VRF[vd * VLEN  +: VLEN]);
 end
 
 func logWrite_VREG_elmul(vd: VRegIdx, elmul: integer{1,2,4,8})

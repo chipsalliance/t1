@@ -13,7 +13,8 @@
     return Exception(CAUSE_STORE_ACCESS, addr);
   end
 
-  let result: FFI_ReadResult(32) = FFI_amo({{ op }}, X[rs1], X[rs2], is_aq, is_rl);
+  // NOTE: aq/rl is not useful in instruction simulator
+  let result: FFI_ReadResult(32) = FFI_amo({{ op }}, addr, X[rs2]);
   if !result.success then
     return Exception(CAUSE_STORE_ACCESS, addr);
   end
