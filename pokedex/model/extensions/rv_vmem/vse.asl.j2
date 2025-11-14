@@ -1,6 +1,6 @@
-{%- macro vle_func(name, eew) %}
+{%- macro vse_func(name, eew) %}
 {% set eew_byte = eew // 8 %}
-func ExecuteReal_VLE{{eew}}_V(instruction: bits(32)) => Result
+func ExecuteReal_VSE{{eew}}_V(instruction: bits(32)) => Result
 begin
   if !isEnabled_VS() then
     return IllegalInstruction();
@@ -14,14 +14,9 @@ begin
     return IllegalInstruction();
   end
  
-  let vd: VRegIdx = UInt(GetRD(instruction));
+  let vs3: VRegIdx = UInt(GetRD(instruction));
   let rs1: XRegIdx = UInt(GetRS1(instruction));
   let vm : bit = GetVM(instruction);
-
-  if vm == '0' && vd == 0 then
-    // overlap with mask
-    return IllegalInstruction();
-  end
 
   let (vreg_align, valid) = getEewAlign(VTYPE, {{eew}});
   if !valid then
@@ -29,8 +24,8 @@ begin
     return IllegalInstruction();
   end
 
-  if vd MOD vreg_align != 0 then
-    // vd is not aligned with elmul group
+  if vs3 MOD vreg_align != 0 then
+    // vs3 is not aligned with elmul group
     return IllegalInstruction();
   end
 
@@ -41,30 +36,26 @@ begin
   for idx = vstart to VL - 1 do
     if vm != '0' || V0_MASK[idx] then
       let addr: bits(XLEN) = base_addr + idx * {{ eew_byte }};
-      let (data, result) = ReadMemory(addr, {{eew}});
+      let data : bits({{eew}}) = VRF_{{eew}}[vs3, idx];
+      let result = WriteMemory(addr, data);
 
       if !result.is_ok then
-        logWrite_VREG_elmul(vd, vreg_align);
         vectorInterrupt(idx);
         return result;
       end
-
-      VRF_{{eew}}[vd, idx] = data;
     end
   end
 
-  logWrite_VREG_elmul(vd, vreg_align);
-
-  makeDirty_VS();
+  // no makeDirty_VS
   clear_VSTART();
   PC = PC + 4;
   return Retired();
 end
 {% endmacro -%}
 
-{%- macro vle_seg_func(name, eew) %}
+{%- macro vse_seg_func(name, eew) %}
 {% set eew_byte = eew // 8 %}
-func ExecuteReal_VLSEG_NF_E{{eew}}_V(instruction: bits(32), nf: integer{2..8}) => Result
+func ExecuteReal_VSSEG_NF_E{{eew}}_V(instruction: bits(32), nf: integer{2..8}) => Result
 begin
   if !isEnabled_VS() then
     return IllegalInstruction();
@@ -78,14 +69,9 @@ begin
     return IllegalInstruction();
   end
  
-  let vd: VRegIdx = UInt(GetRD(instruction));
+  let vs3: VRegIdx = UInt(GetRD(instruction));
   let rs1: XRegIdx = UInt(GetRS1(instruction));
   let vm : bit = GetVM(instruction);
-
-  if vm == '0' && vd == 0 then
-    // overlap with mask
-    return IllegalInstruction();
-  end
 
   let (vreg_align, valid) = getEewAlign(VTYPE, {{eew}});
   if !valid then
@@ -93,8 +79,8 @@ begin
     return IllegalInstruction();
   end
 
-  if vd MOD vreg_align != 0 then
-    // vd is not aligned with elmul group
+  if vs3 MOD vreg_align != 0 then
+    // vs3 is not aligned with elmul group
     return IllegalInstruction();
   end
 
@@ -111,76 +97,67 @@ begin
     if vm != '0' || V0_MASK[idx] then
       let group_addr = base_addr + idx * {{eew_byte}} * nf;
       for j = 0 to nf - 1 do
-        let vd_j = (vd + j * vreg_align) as integer{0..31};
+        let vs3_j = (vs3 + j * vreg_align) as integer{0..31};
         let addr : bits(XLEN) = group_addr + {{eew_byte}} * j;
-        let (data, result) = ReadMemory(addr, {{eew}});
+        let data : bits({{eew}}) = VRF_{{eew}}[vs3_j, idx];
+        let result = WriteMemory(addr, data);
 
         if !result.is_ok then
-          for i = 0 to nf - 1 do
-            logWrite_VREG_elmul((vd + i * vreg_align) as VRegIdx, vreg_align);
-          end
-
           vectorInterrupt(idx);
           return result;
         end
-
-        VRF_{{eew}}[vd_j, idx] = data;
       end
     end
   end
 
-  for i = 0 to nf - 1 do
-    logWrite_VREG_elmul((vd + i * vreg_align) as VRegIdx, vreg_align);
-  end
-
-  makeDirty_VS();
+  // no makeDirty_VS
   clear_VSTART();
   PC = PC + 4;
   return Retired();
 end
 {% endmacro -%}
 
-func Execute_VLE8_V(instruction: bits(32)) => Result
+func Execute_VSE8_V(instruction: bits(32)) => Result
 begin
   let nf_bits : bits(3) = GetNF(instruction);
   if IsZero(nf_bits) then
-    return ExecuteReal_VLE8_V(instruction);
+    return ExecuteReal_VSE8_V(instruction);
   else
     let nf = (UInt(nf_bits) + 1) as integer{2..8};
-    return ExecuteReal_VLSEG_NF_E8_V(instruction, nf);
+    return ExecuteReal_VSSEG_NF_E8_V(instruction, nf);
   end
 end
 
-func Execute_VLE16_V(instruction: bits(32)) => Result
+func Execute_VSE16_V(instruction: bits(32)) => Result
 begin
   let nf_bits : bits(3) = GetNF(instruction);
   if IsZero(nf_bits) then
-    return ExecuteReal_VLE16_V(instruction);
+    return ExecuteReal_VSE16_V(instruction);
   else
     let nf = (UInt(nf_bits) + 1) as integer{2..8};
-    return ExecuteReal_VLSEG_NF_E16_V(instruction, nf);
+    return ExecuteReal_VSSEG_NF_E16_V(instruction, nf);
   end
 end
 
-func Execute_VLE32_V(instruction: bits(32)) => Result
+func Execute_VSE32_V(instruction: bits(32)) => Result
 begin
   let nf_bits : bits(3) = GetNF(instruction);
   if IsZero(nf_bits) then
-    return ExecuteReal_VLE32_V(instruction);
+    return ExecuteReal_VSE32_V(instruction);
   else
     let nf = (UInt(nf_bits) + 1) as integer{2..8};
-    return ExecuteReal_VLSEG_NF_E32_V(instruction, nf);
+    return ExecuteReal_VSSEG_NF_E32_V(instruction, nf);
   end
 end
 
-{{- vle_func("vle8", eew=8) -}}
+{{- vse_func("vse8", eew=8) -}}
 
-{{- vle_func("vle16", eew=16) -}}
+{{- vse_func("vse16", eew=16) -}}
 
-{{- vle_func("vle32", eew=32) -}}
+{{- vse_func("vse32", eew=32) -}}
 
-{{- vle_seg_func("vlsegNe8", eew=8) -}}
+{{- vse_seg_func("vssegNe8", eew=8) -}}
 
-{{- vle_seg_func("vlsegNe16", eew=16) -}}
+{{- vse_seg_func("vssegNe16", eew=16) -}}
 
-{{- vle_seg_func("vlsegNe32", eew=32) -}}
+{{- vse_seg_func("vssegNe32", eew=32) -}}

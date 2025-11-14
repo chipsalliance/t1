@@ -4,6 +4,15 @@ begin
   Unreachable();
 end
 
+func DivCeil(x: integer, y: integer) => integer
+begin
+  if x MOD y == 0 then
+    return x DIVRM y;
+  else
+    return (x DIVRM y) + 1;
+  end
+end
+
 ////////////////////////////////////////////////////////
 // Deprecated helpers used in old RVV implementations //
 ////////////////////////////////////////////////////////
@@ -241,13 +250,4 @@ end
 func __op_cmp_ge_s(rs1: bits(N), rs2: bits(N)) => boolean
 begin
   return SInt(rs1) >= SInt(rs2);
-end
-
-func divCeil(x: integer, y: integer) => integer
-begin
-  if x MOD y == 0 then
-    return x DIVRM y;
-  else
-    return (x DIVRM y) + 1;
-  end
 end
