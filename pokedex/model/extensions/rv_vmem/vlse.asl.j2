@@ -1,0 +1,199 @@
+{%- macro vlse_func(name, eew) %}
+{% set eew_byte = eew // 8 %}
+func ExecuteReal_VLSE{{eew}}_V(instruction: bits(32)) => Result
+begin
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+
+  // NOTE: this instruction supports non-zero vstart
+  if UInt(VSTART) > VL then
+    return IllegalInstruction();
+  end
+ 
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let rs1: XRegIdx = UInt(GetRS1(instruction));
+  let rs2: XRegIdx = UInt(GetRS2(instruction));
+  let vm : bit = GetVM(instruction);
+
+  if vm == '0' && vd == 0 then
+    // overlap with mask
+    return IllegalInstruction();
+  end
+
+  let (vreg_align, valid) = getEewAlign(VTYPE, {{eew}});
+  if !valid then
+    // elmul is invalid
+    return IllegalInstruction();
+  end
+
+  if vd MOD vreg_align != 0 then
+    // vd is not aligned with elmul group
+    return IllegalInstruction();
+  end
+
+  // NOTE: impl defined behavior
+  // The spec permits coalesce access when rs2=x0
+  //
+  // - We do not perform such memory access coalesce.
+  // - We treat perform memory accesses in order in instruction simulator 
+  let base_addr: bits(XLEN) = X[rs1];
+  let stride: bits(XLEN) = X[rs2];
+  let vstart: integer = UInt(VSTART);
+  let vl: integer = VL;
+
+  for idx = vstart to VL - 1 do
+    if vm != '0' || V0_MASK[idx] then
+      let addr: bits(XLEN) = base_addr + stride * idx;
+      let (data, result) = ReadMemory(addr, {{eew}});
+
+      if !result.is_ok then
+        vectorInterrupt(idx);
+        return result;
+      end
+
+      VRF_{{eew}}[vd, idx] = data;
+    end
+  end
+
+  logWrite_VREG_elmul(vd, vreg_align);
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+end
+{% endmacro -%}
+
+{%- macro vlse_seg_func(name, eew) %}
+{% set eew_byte = eew // 8 %}
+func ExecuteReal_VLSSEG_NF_E{{eew}}_V(instruction: bits(32), nf: integer{2..8}) => Result
+begin
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+
+  // NOTE: this instruction supports non-zero vstart
+  if UInt(VSTART) > VL then
+    return IllegalInstruction();
+  end
+ 
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let rs1: XRegIdx = UInt(GetRS1(instruction));
+  let rs2: XRegIdx = UInt(GetRS2(instruction));
+  let vm : bit = GetVM(instruction);
+
+  if vm == '0' && vd == 0 then
+    // overlap with mask
+    return IllegalInstruction();
+  end
+
+  let (vreg_align, valid) = getEewAlign(VTYPE, {{eew}});
+  if !valid then
+    // elmul is invalid
+    return IllegalInstruction();
+  end
+
+  if vd MOD vreg_align != 0 then
+    // vd is not aligned with elmul group
+    return IllegalInstruction();
+  end
+
+  if vreg_align * nf > 8 then
+    // segment is too large
+    return IllegalInstruction();
+  end
+
+  // NOTE: impl defined behavior
+  // The spec permits coalesce access when rs2=x0
+  //
+  // - We do not perform such memory access coalesce.
+  // - We treat perform memory accesses in order in instruction simulator 
+  let base_addr: bits(XLEN) = X[rs1];
+  let stride: bits(XLEN) = X[rs2];
+  let vstart: integer = UInt(VSTART);
+  let vl: integer = VL;
+
+  for idx = vstart to vl - 1 do
+    if vm != '0' || V0_MASK[idx] then
+      let group_addr = base_addr + stride * idx;
+      for j = 0 to nf - 1 do
+        let vd_j = (vd + j * vreg_align) as integer{0..31};
+        let addr : bits(XLEN) = group_addr + {{eew_byte}} * j;
+        let (data, result) = ReadMemory(addr, {{eew}});
+
+        if !result.is_ok then
+          for i = 0 to nf - 1 do
+            logWrite_VREG_elmul((vd + i * vreg_align) as VRegIdx, vreg_align);
+          end
+
+          vectorInterrupt(idx);
+          return result;
+        end
+
+        VRF_{{eew}}[vd_j, idx] = data;
+      end
+    end
+  end
+
+  for i = 0 to nf - 1 do
+    logWrite_VREG_elmul((vd + i * vreg_align) as VRegIdx, vreg_align);
+  end
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+end
+{% endmacro -%}
+
+func Execute_VLSE8_V(instruction: bits(32)) => Result
+begin
+  let nf_bits : bits(3) = GetNF(instruction);
+  if IsZero(nf_bits) then
+    return ExecuteReal_VLSE8_V(instruction);
+  else
+    let nf = (UInt(nf_bits) + 1) as integer{2..8};
+    return ExecuteReal_VLSSEG_NF_E8_V(instruction, nf);
+  end
+end
+
+func Execute_VLSE16_V(instruction: bits(32)) => Result
+begin
+  let nf_bits : bits(3) = GetNF(instruction);
+  if IsZero(nf_bits) then
+    return ExecuteReal_VLSE16_V(instruction);
+  else
+    let nf = (UInt(nf_bits) + 1) as integer{2..8};
+    return ExecuteReal_VLSSEG_NF_E16_V(instruction, nf);
+  end
+end
+
+func Execute_VLSE32_V(instruction: bits(32)) => Result
+begin
+  let nf_bits : bits(3) = GetNF(instruction);
+  if IsZero(nf_bits) then
+    return ExecuteReal_VLSE32_V(instruction);
+  else
+    let nf = (UInt(nf_bits) + 1) as integer{2..8};
+    return ExecuteReal_VLSSEG_NF_E32_V(instruction, nf);
+  end
+end
+
+{{- vlse_func("vlse8", eew=8) -}}
+
+{{- vlse_func("vlse16", eew=16) -}}
+
+{{- vlse_func("vlse32", eew=32) -}}
+
+{{- vlse_seg_func("vlssegNe8", eew=8) -}}
+
+{{- vlse_seg_func("vlssegNe16", eew=16) -}}
+
+{{- vlse_seg_func("vlssegNe32", eew=32) -}}
