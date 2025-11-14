@@ -1,0 +1,129 @@
+{#-
+  inst vd, vs2, vs1, [vm]; vm mask is optional
+  eew(vd) = 1, eew(vs2, vs1) = sew
+  vd is allowed to overlap with vm(v0)
+-#}
+{%- macro vmsop_vv_body(name, compute) %}
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+  if !IsZero(VSTART) then
+    return IllegalInstruction();
+  end
+
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let vs2: VRegIdx = UInt(GetRS2(instruction));
+  let vs1: VRegIdx = UInt(GetRS1(instruction));
+  let vm: bit = GetVM(instruction);
+
+  let vl: integer = VL;
+  let sew: integer{8, 16, 32, 64} = VTYPE.sew;
+  let vreg_align: integer{1, 2, 4, 8} = getAlign(VTYPE);
+
+  if vs2 MOD vreg_align != 0 then
+    // vs2 is not aligned with elmul group
+    return IllegalInstruction();
+  end
+  if vs1 MOD vreg_align != 0 then
+    // vs2 is not aligned with elmul group
+    return IllegalInstruction();
+  end
+
+  if isBadOverlap_vdm_vs(vd, vs2, vreg_align) then
+    // vd is illegally overlapped with vs2
+    return IllegalInstruction();
+  end
+  if isBadOverlap_vdm_vs(vd, vs1, vreg_align) then
+    // vd is illegally overlapped with vs1
+    return IllegalInstruction();
+  end
+
+  case sew of
+    when 8 => begin
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2 : bits(8) = VRF_8[vs2, idx];
+          let src1 : bits(8) = VRF_8[vs1, idx];
+          let res : boolean = {{ compute }};
+          VRF_MASK[vd, idx] = res as bit;
+        end
+      end
+    end
+
+    when 16 => begin
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2 : bits(16) = VRF_16[vs2, idx];
+          let src1 : bits(16) = VRF_16[vs1, idx];
+          let res : boolean = {{ compute }};
+          VRF_MASK[vd, idx] = res as bit;
+        end
+      end
+    end
+
+    when 32 => begin
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2 : bits(32) = VRF_32[vs2, idx];
+          let src1 : bits(32) = VRF_32[vs1, idx];
+          let res : boolean = {{ compute }};
+          VRF_MASK[vd, idx] = res as bit;
+        end
+      end
+    end
+
+    when 64 => Todo("support sew=64");
+
+    otherwise => Unreachable();
+  end
+
+  logWrite_VREG_1(vd);
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_VMSEQ_VV(instruction: bits(32)) => Result
+begin
+{{- vmsop_vv_body("vmseq_vv", "src2 == src1") -}}
+end
+
+func Execute_VMSNE_VV(instruction: bits(32)) => Result
+begin
+{{- vmsop_vv_body("vmsne_vv", "src2 != src1") -}}
+end
+
+func Execute_VMSLT_VV(instruction: bits(32)) => Result
+begin
+{{- vmsop_vv_body("vmslt_vv", "SInt(src2) < SInt(src1)") -}}
+end
+
+func Execute_VMSLE_VV(instruction: bits(32)) => Result
+begin
+{{- vmsop_vv_body("vmsle_vv", "SInt(src2) <= SInt(src1)") -}}
+end
+
+func Execute_VMSLTU_VV(instruction: bits(32)) => Result
+begin
+{{- vmsop_vv_body("vmsltu_vv", "UInt(src2) < UInt(src1)") -}}
+end
+
+func Execute_VMSLEU_VV(instruction: bits(32)) => Result
+begin
+{{- vmsop_vv_body("vmsleu_vv", "UInt(src2) <= UInt(src1)") -}}
+end
+
+// utility functions
+
+// eew(vd) = 1, elmul(vs) = vsalign
+// we actually do not need eew(vs) or fractual lmul info
+func isBadOverlap_vdm_vs(vd: VRegIdx, vs: VRegIdx, vs_align: integer{1, 2, 4, 8}) => boolean
+begin
+  // vd == vs is a case of illegal overlap
+  return vd > vs && vd < vs + vs_align;
+end
