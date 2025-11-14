@@ -181,6 +181,7 @@ fn main() -> miette::Result<ExitCode> {
         },
     );
 
+    info!("running case: {}", args.elf_path.display());
     let elf_entry = load_elf(&mut sim.global_mut().bus, &args.elf_path);
 
     // if config defines reset vector, use it, otherwise use ELF entrypoint

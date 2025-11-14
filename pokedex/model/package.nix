@@ -39,7 +39,22 @@ let
 in
 stdenv.mkDerivation {
   name = "pokedex-model";
-  src = lib.cleanSource ./.;
+  src =
+    with lib.fileset;
+    toSource {
+      root = ./.;
+      fileset = unions [
+        ./aslbuild
+        ./csr
+        ./csrc
+        ./data_files
+        ./extensions
+        ./handwritten
+        ./scripts
+        ./template
+        ./config.toml
+      ];
+    };
 
   nativeBuildInputs = [
     rvopcode-cli

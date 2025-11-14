@@ -1,7 +1,7 @@
 final: prev:
 
 let
-  llvmForRVV_attrName = "llvmPackages_rv_xsfmm";
+  llvmForRVV_attrName = "llvmPackages";
   rv32_pkgs = final.pkgsCross.riscv32-embedded;
   rv32_buildPkgs = rv32_pkgs.buildPackages;
 in
