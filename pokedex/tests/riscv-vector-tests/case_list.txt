@@ -69,9 +69,9 @@ vlm.v
 # vloxseg8ei16.v
 # vloxseg8ei32.v
 # vloxseg8ei8.v
-# vlse16.v
-# vlse32.v
-# vlse8.v
+vlse16.v
+vlse32.v
+vlse8.v
 vlseg2e16.v
 vlseg2e32.v
 vlseg2e8.v
@@ -93,27 +93,27 @@ vlseg7e8.v
 vlseg8e16.v
 vlseg8e32.v
 vlseg8e8.v
-# vlsseg2e16.v
-# vlsseg2e32.v
-# vlsseg2e8.v
-# vlsseg3e16.v
-# vlsseg3e32.v
-# vlsseg3e8.v
-# vlsseg4e16.v
-# vlsseg4e32.v
-# vlsseg4e8.v
-# vlsseg5e16.v
-# vlsseg5e32.v
-# vlsseg5e8.v
-# vlsseg6e16.v
-# vlsseg6e32.v
-# vlsseg6e8.v
-# vlsseg7e16.v
-# vlsseg7e32.v
-# vlsseg7e8.v
-# vlsseg8e16.v
-# vlsseg8e32.v
-# vlsseg8e8.v
+vlsseg2e16.v
+vlsseg2e32.v
+vlsseg2e8.v
+vlsseg3e16.v
+vlsseg3e32.v
+vlsseg3e8.v
+vlsseg4e16.v
+vlsseg4e32.v
+vlsseg4e8.v
+vlsseg5e16.v
+vlsseg5e32.v
+vlsseg5e8.v
+vlsseg6e16.v
+vlsseg6e32.v
+vlsseg6e8.v
+vlsseg7e16.v
+vlsseg7e32.v
+vlsseg7e8.v
+vlsseg8e16.v
+vlsseg8e32.v
+vlsseg8e8.v
 # vluxei16.v
 # vluxei32.v
 # vluxei8.v
@@ -312,9 +312,9 @@ vsra.vx
 vsrl.vi
 vsrl.vv
 vsrl.vx
-# vsse16.v
-# vsse32.v
-# vsse8.v
+vsse16.v
+vsse32.v
+vsse8.v
 vsseg2e16.v
 vsseg2e32.v
 vsseg2e8.v
@@ -342,27 +342,27 @@ vsseg8e8.v
 # vssrl.vi
 # vssrl.vv
 # vssrl.vx
-# vssseg2e16.v
-# vssseg2e32.v
-# vssseg2e8.v
-# vssseg3e16.v
-# vssseg3e32.v
-# vssseg3e8.v
-# vssseg4e16.v
-# vssseg4e32.v
-# vssseg4e8.v
-# vssseg5e16.v
-# vssseg5e32.v
-# vssseg5e8.v
-# vssseg6e16.v
-# vssseg6e32.v
-# vssseg6e8.v
-# vssseg7e16.v
-# vssseg7e32.v
-# vssseg7e8.v
-# vssseg8e16.v
-# vssseg8e32.v
-# vssseg8e8.v
+vssseg2e16.v
+vssseg2e32.v
+vssseg2e8.v
+vssseg3e16.v
+vssseg3e32.v
+vssseg3e8.v
+vssseg4e16.v
+vssseg4e32.v
+vssseg4e8.v
+vssseg5e16.v
+vssseg5e32.v
+vssseg5e8.v
+vssseg6e16.v
+vssseg6e32.v
+vssseg6e8.v
+vssseg7e16.v
+vssseg7e32.v
+vssseg7e8.v
+vssseg8e16.v
+vssseg8e32.v
+vssseg8e8.v
 # vssub.vv
 # vssub.vx
 # vssubu.vv
