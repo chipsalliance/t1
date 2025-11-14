@@ -1,0 +1,105 @@
+{%- macro vlr_body(name, elmul, eew) %}
+{% set eew_byte = eew // 8 %}
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  // NOTE: this instruction does not depend on vtype
+
+  let evl = {{elmul}} * (VLEN DIV {{eew}});
+
+  // NOTE: this instruction supports non-zero vstart
+  if UInt(VSTART) > evl then
+    return IllegalInstruction();
+  end
+ 
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let rs1: XRegIdx = UInt(GetRS1(instruction));
+
+  if vd MOD {{elmul}} != 0 then
+    // vd is not aligned with elmul group
+    return IllegalInstruction();
+  end
+
+  let base_addr: bits(XLEN) = X[rs1];
+  let vstart: integer = UInt(VSTART);
+
+  for idx = vstart to evl - 1 do
+    let addr: bits(XLEN) = base_addr + {{eew_byte}} * idx;
+    let (data, result) = ReadMemory(addr, {{eew}});
+
+    if !result.is_ok then
+      logWrite_VREG_elmul(vd, {{elmul}});
+      vectorInterrupt(idx);
+      return result;
+    end
+
+    VRF_{{eew}}[vd, idx] = data;
+  end
+
+  logWrite_VREG_elmul(vd, {{elmul}});
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_VL1RE8_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl1re8_v", elmul=1, eew=8) -}}
+end
+
+func Execute_VL1RE16_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl1re16_v", elmul=1, eew=16) -}}
+end
+
+func Execute_VL1RE32_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl1re8_v", elmul=1, eew=32) -}}
+end
+
+func Execute_VL2RE8_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl2re8_v", elmul=2, eew=8) -}}
+end
+
+func Execute_VL2RE16_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl2re16_v", elmul=2, eew=16) -}}
+end
+
+func Execute_VL2RE32_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl2re8_v", elmul=2, eew=32) -}}
+end
+
+func Execute_VL4RE8_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl4re8_v", elmul=4, eew=8) -}}
+end
+
+func Execute_VL4RE16_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl4re16_v", elmul=4, eew=16) -}}
+end
+
+func Execute_VL4RE32_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl4re8_v", elmul=4, eew=32) -}}
+end
+
+func Execute_VL8RE8_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl8re8_v", elmul=8, eew=8) -}}
+end
+
+func Execute_VL8RE16_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl8re16_v", elmul=8, eew=16) -}}
+end
+
+func Execute_VL8RE32_V(instruction: bits(32)) => Result
+begin
+{{- vlr_body("vl8re8_v", elmul=8, eew=32) -}}
+end
