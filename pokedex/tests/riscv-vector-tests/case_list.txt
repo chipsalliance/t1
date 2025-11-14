@@ -26,18 +26,18 @@ vdivu.vx
 # vfirst.m
 # vid.v
 # viota.m
-# vl1re16.v
-# vl1re32.v
-# vl1re8.v
-# vl2re16.v
-# vl2re32.v
-# vl2re8.v
-# vl4re16.v
-# vl4re32.v
-# vl4re8.v
-# vl8re16.v
-# vl8re32.v
-# vl8re8.v
+vl1re16.v
+vl1re32.v
+vl1re8.v
+vl2re16.v
+vl2re32.v
+vl2re8.v
+vl4re16.v
+vl4re32.v
+vl4re8.v
+vl8re16.v
+vl8re32.v
+vl8re8.v
 vle16.v
 # vle16ff.v
 vle32.v
@@ -207,10 +207,10 @@ vmulhu.vx
 # vmv.v.v
 # vmv.v.x
 # vmv.x.s
-# vmv1r.v
-# vmv2r.v
-# vmv4r.v
-# vmv8r.v
+vmv1r.v
+vmv2r.v
+vmv4r.v
+vmv8r.v
 vmxnor.mm
 vmxor.mm
 # vnclip.wi
@@ -250,10 +250,10 @@ vremu.vx
 # vrgatherei16.vv
 vrsub.vi
 vrsub.vx
-# vs1r.v
-# vs2r.v
-# vs4r.v
-# vs8r.v
+vs1r.v
+vs2r.v
+vs4r.v
+vs8r.v
 # vsadd.vi
 # vsadd.vv
 # vsadd.vx
