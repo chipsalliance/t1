@@ -1,0 +1,58 @@
+{#-
+  vmvNr vd, vs2
+  eew(vd, vs2) = sew
+  move the whole register, vd = vs2
+-#}
+{%- macro vmvr_v_body(name, elmul) %}
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    // the spec does say it depends on vtype
+    return IllegalInstruction();
+  end
+  if !IsZero(VSTART) then
+    return IllegalInstruction();
+  end
+
+  let vd : VRegIdx = UInt(GetRD(instruction));
+  let vs2 : VRegIdx = UInt(GetRS2(instruction));
+
+  if vd MOD {{elmul}} != 0 then
+    // vd is not aligned with lmul group
+    return IllegalInstruction();
+  end
+  if vs2 MOD {{elmul}} != 0 then
+    // vs2 is not aligned with elmul group
+    return IllegalInstruction();
+  end
+
+  __VRF[vd * VLEN +: {{elmul}} * VLEN] = __VRF[vs2 * VLEN +: {{elmul}} * VLEN];
+
+  logWrite_VREG_elmul(vd, {{elmul}});
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_VMV1R_V(instruction: bits(32)) => Result
+begin
+{{- vmvr_v_body("vmv1r_v", elmul=1) -}}
+end
+
+func Execute_VMV2R_V(instruction: bits(32)) => Result
+begin
+{{- vmvr_v_body("vmv2r_v", elmul=2) -}}
+end
+
+func Execute_VMV4R_V(instruction: bits(32)) => Result
+begin
+{{- vmvr_v_body("vmv4r_v", elmul=4) -}}
+end
+
+func Execute_VMV8R_V(instruction: bits(32)) => Result
+begin
+{{- vmvr_v_body("vmv8r_v", elmul=8) -}}
+end
