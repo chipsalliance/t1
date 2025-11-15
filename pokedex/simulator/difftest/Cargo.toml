@@ -13,3 +13,4 @@ serde_json = { workspace = true }
 knuffel = { workspace = true }
 miette = { workspace = true }
 indoc = "2"
+num-bigint = "0.4.6"
