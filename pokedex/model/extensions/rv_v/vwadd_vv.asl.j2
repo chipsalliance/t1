@@ -1,0 +1,134 @@
+{#-
+  inst vd, vs2, vs1, vm; vm mask is optional
+
+  eew(vd) = 2*sew, eew(vs2, vs1) = sew
+
+  NOTE: it computes vd[i] = op(vs2[i], vs1[i])
+  the order of vs1/vs2 is swapped compared to ordinary riscv inst.
+-#}
+{%- macro vwop_vv_body(name, op) %}
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+  if !IsZero(VSTART) then
+    return IllegalInstruction();
+  end
+
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let vs2: VRegIdx = UInt(GetRS2(instruction));
+  let vs1: VRegIdx = UInt(GetRS1(instruction));
+  let vm: bit = GetVM(instruction);
+
+  let vl: integer = VL;
+  let sew: integer{8, 16, 32, 64} = VTYPE.sew;
+  let vreg_align: integer{1, 2, 4, 8} = getAlign(VTYPE);
+  let (vreg_w_align: integer{1, 2, 4, 8}, valid: boolean) = getAlignWiden(VTYPE);
+
+  if sew >= 64 then
+    // 2*sew is too large
+    return IllegalInstruction();
+  end
+
+  if vm == '0' && vd == 0 then
+    // overlap with mask
+    return IllegalInstruction();
+  end
+  if !valid then
+    // 2*lmul is too large
+    return IllegalInstruction();
+  end
+  if vd MOD vreg_w_align != 0 then
+    // vd is not aligned with 2*lmul group
+    return IllegalInstruction();
+  end
+  if vs2 MOD vreg_align != 0 then
+    // vs2 is not aligned with lmul group
+    return IllegalInstruction();
+  end
+  if vs1 MOD vreg_align != 0 then
+    // vs2 is not aligned with lmul group
+    return IllegalInstruction();
+  end
+
+  if vd == vs2 then
+    // vd is illegally overlapped with vs2
+    return IllegalInstruction();
+  end
+  if vd == vs1 then
+    // vd is illegally overlapped with vs1
+    return IllegalInstruction();
+  end
+
+  case sew of
+    when 8 => begin
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2 : bits(8) = VRF_8[vs2, idx];
+          let src1 : bits(8) = VRF_8[vs1, idx];
+          let res : bits(16) = {{op}}(src2, src1);
+          VRF_16[vd, idx] = res;
+        end
+      end
+    end
+
+    when 16 => begin
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2 : bits(16) = VRF_16[vs2, idx];
+          let src1 : bits(16) = VRF_16[vs1, idx];
+          let res : bits(32) = {{op}}(src2, src1);
+          VRF_32[vd, idx] = res;
+        end
+      end
+    end
+
+    when 32 => Todo("support sew=64");
+
+    otherwise => Unreachable();
+  end
+
+  logWrite_VREG_elmul(vd, vreg_w_align);
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_VWADD_VV(instruction: bits(32)) => Result
+begin
+{{- vwop_vv_body("vwadd_vv", "riscv_widenAdd_s") -}}
+end
+
+func Execute_VWADDU_VV(instruction: bits(32)) => Result
+begin
+{{- vwop_vv_body("vwaddu_vv", "riscv_widenAdd_u") -}}
+end
+
+func Execute_VWSUB_VV(instruction: bits(32)) => Result
+begin
+{{- vwop_vv_body("vwsub_vv", "riscv_widenSub_s") -}}
+end
+
+func Execute_VWSUBU_VV(instruction: bits(32)) => Result
+begin
+{{- vwop_vv_body("vwsubu_vv", "riscv_widenSub_u") -}}
+end
+
+func Execute_VWMUL_VV(instruction: bits(32)) => Result
+begin
+{{- vwop_vv_body("vwmul_vv", "riscv_widenMul_ss") -}}
+end
+
+func Execute_VWMULU_VV(instruction: bits(32)) => Result
+begin
+{{- vwop_vv_body("vwmulu_vv", "riscv_widenMul_uu") -}}
+end
+
+func Execute_VWMULSU_VV(instruction: bits(32)) => Result
+begin
+{{- vwop_vv_body("vwmulsu_vv", "riscv_widenMul_su") -}}
+end

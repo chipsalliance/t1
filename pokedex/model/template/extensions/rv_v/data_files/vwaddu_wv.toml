@@ -1,3 +1,0 @@
-template = "vwop_wv"
-op_func_widen_wx = "__op_widen_add_wu"
-function_description="compute vd = vs2 + zext(vs1), optionally masked by vm"

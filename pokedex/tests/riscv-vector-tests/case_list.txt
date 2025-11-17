@@ -393,37 +393,37 @@ vsub.vx
 # vsuxseg8ei16.v
 # vsuxseg8ei32.v
 # vsuxseg8ei8.v
-# vwadd.vv
-# vwadd.vx
-# vwadd.wv
-# vwadd.wx
-# vwaddu.vv
-# vwaddu.vx
-# vwaddu.wv
-# vwaddu.wx
-# vwmacc.vv
-# vwmacc.vx
-# vwmaccsu.vv
-# vwmaccsu.vx
-# vwmaccu.vv
-# vwmaccu.vx
-# vwmaccus.vx
-# vwmul.vv
-# vwmul.vx
-# vwmulsu.vv
-# vwmulsu.vx
-# vwmulu.vv
-# vwmulu.vx
+vwadd.vv
+vwadd.vx
+vwadd.wv
+vwadd.wx
+vwaddu.vv
+vwaddu.vx
+vwaddu.wv
+vwaddu.wx
+vwmacc.vv
+vwmacc.vx
+vwmaccsu.vv
+vwmaccsu.vx
+vwmaccu.vv
+vwmaccu.vx
+vwmaccus.vx
+vwmul.vv
+vwmul.vx
+vwmulsu.vv
+vwmulsu.vx
+vwmulu.vv
+vwmulu.vx
 # vwredsum.vs
 # vwredsumu.vs
-# vwsub.vv
-# vwsub.vx
-# vwsub.wv
-# vwsub.wx
-# vwsubu.vv
-# vwsubu.vx
-# vwsubu.wv
-# vwsubu.wx
+vwsub.vv
+vwsub.vx
+vwsub.wv
+vwsub.wx
+vwsubu.vv
+vwsubu.vx
+vwsubu.wv
+vwsubu.wx
 vxor.vi
 vxor.vv
 vxor.vx

@@ -1,3 +1,0 @@
-template = "vwop_vv"
-op_func_widen_xx = "__op_widen_sub_ss"
-function_description="compute vd = sext(vs2) - sext(vs1), optionally masked by vm"
