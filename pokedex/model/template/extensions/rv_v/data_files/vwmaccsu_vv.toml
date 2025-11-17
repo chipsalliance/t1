@@ -1,4 +1,0 @@
-template = "vwmacop_vv"
-
-op_func_widen_mul = "__op_widen_mul_su"
-function_description="compute vd = vd + sext(vs1) * zext(vs2), optionally masked by vm"

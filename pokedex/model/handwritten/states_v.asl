@@ -302,6 +302,21 @@ begin
   end
 end
 
+func getAlignWiden(vtype: VType) => (integer{1, 2, 4, 8}, boolean)
+begin
+  assert(!vtype.ill);
+
+  case vtype.lmul of
+    when 0 => return (2, TRUE);
+    when 1 => return (4, TRUE);
+    when 2 => return (8, TRUE);
+    when 3 => return (8, FALSE);
+    when -1 => return (1, TRUE);
+    when -2 => return (1, TRUE);
+    when -3 => return (1, TRUE);
+  end
+end
+
 func getEewAlign(vtype: VType, eew: integer{8, 16, 32, 64}) => (integer{1, 2, 4, 8}, boolean)
 begin
   assert(!vtype.ill);

@@ -1,0 +1,121 @@
+{#-
+  inst vd, vs1, vs2, vm; vm mask is optional
+
+  eew(vd) = 2*sew, eew(vs1, vs2) = sew
+
+  NOTE: vd is both source and destination
+-#}
+{%- macro vwmop_vv_body(name, compute) %}
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+  if !IsZero(VSTART) then
+    return IllegalInstruction();
+  end
+
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let vs2: VRegIdx = UInt(GetRS2(instruction));
+  let vs1: VRegIdx = UInt(GetRS1(instruction));
+  let vm: bit = GetVM(instruction);
+
+  let vl: integer = VL;
+  let sew: integer{8, 16, 32, 64} = VTYPE.sew;
+  let vreg_align: integer{1, 2, 4, 8} = getAlign(VTYPE);
+  let (vreg_w_align: integer{1, 2, 4, 8}, valid: boolean) = getAlignWiden(VTYPE);
+
+  if sew >= 64 then
+    // 2*sew is too large
+    return IllegalInstruction();
+  end
+
+  if vm == '0' && vd == 0 then
+    // overlap with mask
+    return IllegalInstruction();
+  end
+  if !valid then
+    // 2*lmul is too large
+    return IllegalInstruction();
+  end
+  if vd MOD vreg_w_align != 0 then
+    // vd is not aligned with 2*lmul group
+    return IllegalInstruction();
+  end
+  if vs2 MOD vreg_align != 0 then
+    // vs2 is not aligned with lmul group
+    return IllegalInstruction();
+  end
+  if vs1 MOD vreg_align != 0 then
+    // vs2 is not aligned with lmul group
+    return IllegalInstruction();
+  end
+
+  // NOTE: vd is both source and destination
+  if vd <= vs2 && vs2 < vd + vreg_w_align then
+    // vd is overlapped with vs2
+    return IllegalInstruction();
+  end
+  if vd <= vs1 && vs1 < vd + vreg_w_align then
+    // vd is overlapped with vs1
+    return IllegalInstruction();
+  end
+
+  case sew of
+    when 8 => begin
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let srcd : bits(16) = VRF_16[vd, idx];
+          let src2 : bits(8) = VRF_8[vs2, idx];
+          let src1 : bits(8) = VRF_8[vs1, idx];
+          let res : bits(16) = {{compute}};
+          VRF_16[vd, idx] = res;
+        end
+      end
+    end
+
+    when 16 => begin
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let srcd : bits(32) = VRF_32[vd, idx];
+          let src2 : bits(16) = VRF_16[vs2, idx];
+          let src1 : bits(16) = VRF_16[vs1, idx];
+          let res : bits(32) = {{compute}};
+          VRF_32[vd, idx] = res;
+        end
+      end
+    end
+
+    when 32 => Todo("support sew=64");
+
+    otherwise => Unreachable();
+  end
+
+  logWrite_VREG_elmul(vd, vreg_w_align);
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_VWMACC_VV(instruction: bits(32)) => Result
+begin
+{{- vwmop_vv_body("vwmacc_vv", "srcd + riscv_widenMul_ss(src1, src2)") -}}
+end
+
+func Execute_VWMACCU_VV(instruction: bits(32)) => Result
+begin
+{{- vwmop_vv_body("vwmaccu_vv", "srcd + riscv_widenMul_uu(src1, src2)") -}}
+end
+
+func Execute_VWMACCSU_VV(instruction: bits(32)) => Result
+begin
+{{- vwmop_vv_body("vwmaccsu_vv", "srcd + riscv_widenMul_su(src1, src2)") -}}
+end
+
+func Execute_VWMACCUS_VV(instruction: bits(32)) => Result
+begin
+{{- vwmop_vv_body("vwmaccus_vv", "srcd + riscv_widenMul_us(src1, src2)") -}}
+end

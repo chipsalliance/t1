@@ -260,3 +260,51 @@ func riscv_reverseSub{N}(x: bits(N), y: bits(N)) => bits(N)
 begin
   return y - x;
 end
+
+// widening addition, treat both operands as signed, e.g. vwadd.vv
+func riscv_widenAdd_s{N}(x: bits(N), y: bits(N)) => bits(2*N)
+begin
+  return (SInt(x) + SInt(y))[2*N-1:0];
+end
+
+// widening addition, treat both operands as unsigned, e.g. vwaddu.vv
+func riscv_widenAdd_u{N}(x: bits(N), y: bits(N)) => bits(2*N)
+begin
+  return (UInt(x) + UInt(y))[2*N-1:0];
+end
+
+// widening substraction, treat both operands as signed, e.g. vwsub.vv
+func riscv_widenSub_s{N}(x: bits(N), y: bits(N)) => bits(2*N)
+begin
+  return (SInt(x) - SInt(y))[2*N-1:0];
+end
+
+// widening substraction, treat both operands as unsigned, e.g. vwsubu.vv
+func riscv_widenSub_u{N}(x: bits(N), y: bits(N)) => bits(2*N)
+begin
+  return (UInt(x) - UInt(y))[2*N-1:0];
+end
+
+// widening multiplication, treat both operands as signed, e.g. vwmul.vv
+func riscv_widenMul_ss{N}(x: bits(N), y: bits(N)) => bits(2*N)
+begin
+  return (SInt(x) * SInt(y))[2*N-1:0];
+end
+
+// widening multiplication, treat both operands as unsigned, e.g. vwmulu.vv
+func riscv_widenMul_uu{N}(x: bits(N), y: bits(N)) => bits(2*N)
+begin
+  return (UInt(x) * UInt(y))[2*N-1:0];
+end
+
+// widening multiplication, treat x as signed and y as unsigned, e.g. vwmulsu.vv
+func riscv_widenMul_su{N}(x: bits(N), y: bits(N)) => bits(2*N)
+begin
+  return (SInt(x) * UInt(y))[2*N-1:0];
+end
+
+// widening multiplication, treat x as unsigned and y as signed, e.g. vwmaccus.vv
+func riscv_widenMul_us{N}(x: bits(N), y: bits(N)) => bits(2*N)
+begin
+  return (UInt(x) * SInt(y))[2*N-1:0];
+end
