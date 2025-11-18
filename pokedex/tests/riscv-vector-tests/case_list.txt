@@ -45,30 +45,30 @@ vle32.v
 vle8.v
 # vle8ff.v
 vlm.v
-# vloxei16.v
-# vloxei32.v
-# vloxei8.v
-# vloxseg2ei16.v
-# vloxseg2ei32.v
-# vloxseg2ei8.v
-# vloxseg3ei16.v
-# vloxseg3ei32.v
-# vloxseg3ei8.v
-# vloxseg4ei16.v
-# vloxseg4ei32.v
-# vloxseg4ei8.v
-# vloxseg5ei16.v
-# vloxseg5ei32.v
-# vloxseg5ei8.v
-# vloxseg6ei16.v
-# vloxseg6ei32.v
-# vloxseg6ei8.v
-# vloxseg7ei16.v
-# vloxseg7ei32.v
-# vloxseg7ei8.v
-# vloxseg8ei16.v
-# vloxseg8ei32.v
-# vloxseg8ei8.v
+vloxei16.v
+vloxei32.v
+vloxei8.v
+vloxseg2ei16.v
+vloxseg2ei32.v
+vloxseg2ei8.v
+vloxseg3ei16.v
+vloxseg3ei32.v
+vloxseg3ei8.v
+vloxseg4ei16.v
+vloxseg4ei32.v
+vloxseg4ei8.v
+vloxseg5ei16.v
+vloxseg5ei32.v
+vloxseg5ei8.v
+vloxseg6ei16.v
+vloxseg6ei32.v
+vloxseg6ei8.v
+vloxseg7ei16.v
+vloxseg7ei32.v
+vloxseg7ei8.v
+vloxseg8ei16.v
+vloxseg8ei32.v
+vloxseg8ei8.v
 vlse16.v
 vlse32.v
 vlse8.v
@@ -114,30 +114,30 @@ vlsseg7e8.v
 vlsseg8e16.v
 vlsseg8e32.v
 vlsseg8e8.v
-# vluxei16.v
-# vluxei32.v
-# vluxei8.v
-# vluxseg2ei16.v
-# vluxseg2ei32.v
-# vluxseg2ei8.v
-# vluxseg3ei16.v
-# vluxseg3ei32.v
-# vluxseg3ei8.v
-# vluxseg4ei16.v
-# vluxseg4ei32.v
-# vluxseg4ei8.v
-# vluxseg5ei16.v
-# vluxseg5ei32.v
-# vluxseg5ei8.v
-# vluxseg6ei16.v
-# vluxseg6ei32.v
-# vluxseg6ei8.v
-# vluxseg7ei16.v
-# vluxseg7ei32.v
-# vluxseg7ei8.v
-# vluxseg8ei16.v
-# vluxseg8ei32.v
-# vluxseg8ei8.v
+vluxei16.v
+vluxei32.v
+vluxei8.v
+vluxseg2ei16.v
+vluxseg2ei32.v
+vluxseg2ei8.v
+vluxseg3ei16.v
+vluxseg3ei32.v
+vluxseg3ei8.v
+vluxseg4ei16.v
+vluxseg4ei32.v
+vluxseg4ei8.v
+vluxseg5ei16.v
+vluxseg5ei32.v
+vluxseg5ei8.v
+vluxseg6ei16.v
+vluxseg6ei32.v
+vluxseg6ei8.v
+vluxseg7ei16.v
+vluxseg7ei32.v
+vluxseg7ei8.v
+vluxseg8ei16.v
+vluxseg8ei32.v
+vluxseg8ei8.v
 vmacc.vv
 vmacc.vx
 vmadc.vi
@@ -282,30 +282,30 @@ vsll.vx
 vsm.v
 # vsmul.vv
 # vsmul.vx
-# vsoxei16.v
-# vsoxei32.v
-# vsoxei8.v
-# vsoxseg2ei16.v
-# vsoxseg2ei32.v
-# vsoxseg2ei8.v
-# vsoxseg3ei16.v
-# vsoxseg3ei32.v
-# vsoxseg3ei8.v
-# vsoxseg4ei16.v
-# vsoxseg4ei32.v
-# vsoxseg4ei8.v
-# vsoxseg5ei16.v
-# vsoxseg5ei32.v
-# vsoxseg5ei8.v
-# vsoxseg6ei16.v
-# vsoxseg6ei32.v
-# vsoxseg6ei8.v
-# vsoxseg7ei16.v
-# vsoxseg7ei32.v
-# vsoxseg7ei8.v
-# vsoxseg8ei16.v
-# vsoxseg8ei32.v
-# vsoxseg8ei8.v
+vsoxei16.v
+vsoxei32.v
+vsoxei8.v
+vsoxseg2ei16.v
+vsoxseg2ei32.v
+vsoxseg2ei8.v
+vsoxseg3ei16.v
+vsoxseg3ei32.v
+vsoxseg3ei8.v
+vsoxseg4ei16.v
+vsoxseg4ei32.v
+vsoxseg4ei8.v
+vsoxseg5ei16.v
+vsoxseg5ei32.v
+vsoxseg5ei8.v
+vsoxseg6ei16.v
+vsoxseg6ei32.v
+vsoxseg6ei8.v
+vsoxseg7ei16.v
+vsoxseg7ei32.v
+vsoxseg7ei8.v
+vsoxseg8ei16.v
+vsoxseg8ei32.v
+vsoxseg8ei8.v
 vsra.vi
 vsra.vv
 vsra.vx
@@ -369,30 +369,30 @@ vssseg8e8.v
 # vssubu.vx
 vsub.vv
 vsub.vx
-# vsuxei16.v
-# vsuxei32.v
-# vsuxei8.v
-# vsuxseg2ei16.v
-# vsuxseg2ei32.v
-# vsuxseg2ei8.v
-# vsuxseg3ei16.v
-# vsuxseg3ei32.v
-# vsuxseg3ei8.v
-# vsuxseg4ei16.v
-# vsuxseg4ei32.v
-# vsuxseg4ei8.v
-# vsuxseg5ei16.v
-# vsuxseg5ei32.v
-# vsuxseg5ei8.v
-# vsuxseg6ei16.v
-# vsuxseg6ei32.v
-# vsuxseg6ei8.v
-# vsuxseg7ei16.v
-# vsuxseg7ei32.v
-# vsuxseg7ei8.v
-# vsuxseg8ei16.v
-# vsuxseg8ei32.v
-# vsuxseg8ei8.v
+vsuxei16.v
+vsuxei32.v
+vsuxei8.v
+vsuxseg2ei16.v
+vsuxseg2ei32.v
+vsuxseg2ei8.v
+vsuxseg3ei16.v
+vsuxseg3ei32.v
+vsuxseg3ei8.v
+vsuxseg4ei16.v
+vsuxseg4ei32.v
+vsuxseg4ei8.v
+vsuxseg5ei16.v
+vsuxseg5ei32.v
+vsuxseg5ei8.v
+vsuxseg6ei16.v
+vsuxseg6ei32.v
+vsuxseg6ei8.v
+vsuxseg7ei16.v
+vsuxseg7ei32.v
+vsuxseg7ei8.v
+vsuxseg8ei16.v
+vsuxseg8ei32.v
+vsuxseg8ei8.v
 vwadd.vv
 vwadd.vx
 vwadd.wv
