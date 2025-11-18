@@ -88,6 +88,10 @@ begin
     // segment is too large
     return IllegalInstruction();
   end
+  if vs3 + vreg_align * nf > 32 then
+    // segment is too large
+    return IllegalInstruction();
+  end
 
   let base_addr: bits(XLEN) = X[rs1];
   let vstart: integer = UInt(VSTART);

@@ -102,6 +102,10 @@ begin
     // segment is too large
     return IllegalInstruction();
   end
+  if vd + vreg_align * nf > 32 then
+    // segment is too large
+    return IllegalInstruction();
+  end
 
   let base_addr: bits(XLEN) = X[rs1];
   let vstart: integer = UInt(VSTART);
@@ -116,10 +120,7 @@ begin
         let (data, result) = ReadMemory(addr, {{eew}});
 
         if !result.is_ok then
-          for i = 0 to nf - 1 do
-            logWrite_VREG_elmul((vd + i * vreg_align) as VRegIdx, vreg_align);
-          end
-
+          logWrite_VREG_elmul(vd, (nf * vreg_align) as integer{1..8});
           vectorInterrupt(idx);
           return result;
         end
@@ -129,9 +130,7 @@ begin
     end
   end
 
-  for i = 0 to nf - 1 do
-    logWrite_VREG_elmul((vd + i * vreg_align) as VRegIdx, vreg_align);
-  end
+  logWrite_VREG_elmul(vd, (nf * vreg_align) as integer{1..8});
 
   makeDirty_VS();
   clear_VSTART();

@@ -477,30 +477,10 @@ begin
   FFI_write_VREG_hook(vd, __VRF[vd * VLEN  +: VLEN]);
 end
 
-func logWrite_VREG_elmul(vd: VRegIdx, elmul: integer{1,2,4,8})
+// to support segmented load, elmul is not restricted to 1,2,4,8
+func logWrite_VREG_elmul(vd: VRegIdx, elmul: integer{1..8})
 begin
-  case elmul of
-    when 1 => logWrite_VREG_1(vd);
-    when 2 => begin
-      logWrite_VREG_1(vd);
-      logWrite_VREG_1((vd+1) as VRegIdx);
-    end
-    when 4 => begin
-      logWrite_VREG_1(vd);
-      logWrite_VREG_1((vd+1) as VRegIdx);
-      logWrite_VREG_1((vd+2) as VRegIdx);
-      logWrite_VREG_1((vd+3) as VRegIdx);
-    end
-    when 8 => begin
-      logWrite_VREG_1(vd);
-      logWrite_VREG_1((vd+1) as VRegIdx);
-      logWrite_VREG_1((vd+1) as VRegIdx);
-      logWrite_VREG_1((vd+2) as VRegIdx);
-      logWrite_VREG_1((vd+3) as VRegIdx);
-      logWrite_VREG_1((vd+4) as VRegIdx);
-      logWrite_VREG_1((vd+5) as VRegIdx);
-      logWrite_VREG_1((vd+6) as VRegIdx);
-      logWrite_VREG_1((vd+7) as VRegIdx);
-    end
+  for i = 0 to elmul - 1 do
+    logWrite_VREG_1((vd + i) as VRegIdx);
   end
 end

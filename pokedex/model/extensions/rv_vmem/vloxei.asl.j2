@@ -1,0 +1,335 @@
+{%- macro vloxei_func(name, eewi) %}
+func ExecuteReal_VLOXEI{{eewi}}_V(instruction: bits(32)) => Result
+begin
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+
+  // NOTE: this instruction supports non-zero vstart
+  if UInt(VSTART) > VL then
+    return IllegalInstruction();
+  end
+ 
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let rs1: XRegIdx = UInt(GetRS1(instruction));
+  let vs2: VRegIdx = UInt(GetRS2(instruction));
+  let vm : bit = GetVM(instruction);
+
+  let vd_align = getAlign(VTYPE);
+  let (vs2_align, valid) = getEewAlign(VTYPE, {{eewi}});
+  if vm == '0' && vd == 0 then
+    // overlap with mask
+    return IllegalInstruction();
+  end
+  if vd MOD vd_align != 0 then
+    // vd is not aligned with lmul
+    return IllegalInstruction();
+  end
+  if !valid then
+    // elmul is invalid
+    return IllegalInstruction();
+  end
+  if vs2 MOD vs2_align != 0 then
+    // vs2 is not aligned with elmul group
+    return IllegalInstruction();
+  end
+
+  if VTYPE.sew != {{eewi}} then
+    // overlap with sew == eewi is always legal
+ 
+    if (vs2 <= vd && vd < vs2 + vs2_align) || (vd <= vs2 && vs2 < vd + vd_align) then
+      // FIXME: allow legal overlap
+      // vs2 is overlapped with vd
+      return IllegalInstruction();
+    end
+  end
+
+  let base_addr: bits(XLEN) = X[rs1];
+  let vstart: integer = UInt(VSTART);
+  let sew: integer{8, 16, 32, 64} = VTYPE.sew;
+  let vl: integer = VL;
+
+  case sew of
+    when 8 => begin
+      for idx = vstart to VL - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let offset: bits({{eewi}}) = VRF_{{eewi}}[vs2, idx];
+          let addr: bits(XLEN) = base_addr + ZeroExtend(offset, XLEN);
+          let (data: bits(8), result) = ReadMemory(addr, 8);
+
+          if !result.is_ok then
+            logWrite_VREG_elmul(vd, vd_align);
+            vectorInterrupt(idx);
+            return result;
+          end
+
+          VRF_8[vd, idx] = data;
+        end
+      end
+    end
+
+    when 16 => begin
+      for idx = vstart to VL - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let offset: bits({{eewi}}) = VRF_{{eewi}}[vs2, idx];
+          let addr: bits(XLEN) = base_addr + ZeroExtend(offset, XLEN);
+          let (data: bits(16), result) = ReadMemory(addr, 16);
+
+          if !result.is_ok then
+            logWrite_VREG_elmul(vd, vd_align);
+            vectorInterrupt(idx);
+            return result;
+          end
+
+          VRF_16[vd, idx] = data;
+        end
+      end
+    end
+
+    when 32 => begin
+      for idx = vstart to VL - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let offset: bits({{eewi}}) = VRF_{{eewi}}[vs2, idx];
+          let addr: bits(XLEN) = base_addr + ZeroExtend(offset, XLEN);
+          let (data: bits(32), result) = ReadMemory(addr, 32);
+
+          if !result.is_ok then
+            logWrite_VREG_elmul(vd, vd_align);
+            vectorInterrupt(idx);
+            return result;
+          end
+
+          VRF_32[vd, idx] = data;
+        end
+      end
+    end
+
+    when 64 => Todo("support sew=64");
+
+    otherwise => Unreachable();
+  end
+
+  logWrite_VREG_elmul(vd, vd_align);
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+end
+{% endmacro -%}
+
+{%- macro vloxei_seg_func(name, eewi) %}
+func ExecuteReal_VLOXSEG_NF_EI{{eewi}}_V(instruction: bits(32), nf: integer{2..8}) => Result
+begin
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+
+  // NOTE: this instruction supports non-zero vstart
+  if UInt(VSTART) > VL then
+    return IllegalInstruction();
+  end
+ 
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let rs1: XRegIdx = UInt(GetRS1(instruction));
+  let vs2: VRegIdx = UInt(GetRS2(instruction));
+  let vm : bit = GetVM(instruction);
+
+  let vd_align = getAlign(VTYPE);
+  let (vs2_align, valid) = getEewAlign(VTYPE, {{eewi}});
+  if vm == '0' && vd == 0 then
+    // overlap with mask
+    return IllegalInstruction();
+  end
+  if vd MOD vd_align != 0 then
+    // vd is not aligned with lmul
+    return IllegalInstruction();
+  end
+  if !valid then
+    // elmul is invalid
+    return IllegalInstruction();
+  end
+  if vs2 MOD vs2_align != 0 then
+    // vs2 is not aligned with elmul group
+    return IllegalInstruction();
+  end
+
+  if vd_align * nf > 8 then
+    // segment is too large
+    return IllegalInstruction();
+  end
+  if vd + vd_align * nf > 32 then
+    // segment is too large
+    return IllegalInstruction();
+  end
+
+  if VTYPE.sew != {{eewi}} then
+    // overlap with sew == eewi is always legal
+ 
+    if (vs2 <= vd && vd < vs2 + vs2_align) || (vd <= vs2 && vs2 < vd + vd_align * nf) then
+      // FIXME: allow legal overlap
+      // vs2 is overlapped with vd
+      return IllegalInstruction();
+    end
+  end
+
+  let base_addr: bits(XLEN) = X[rs1];
+  let vstart: integer = UInt(VSTART);
+  let sew: integer{8, 16, 32, 64} = VTYPE.sew;
+  let vl: integer = VL;
+
+  case sew of 
+    when 8 => begin
+      for idx = vstart to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let offset: bits({{eewi}}) = VRF_{{eewi}}[vs2, idx];
+          let group_addr: bits(XLEN) = base_addr + ZeroExtend(offset, XLEN);
+          for j = 0 to nf - 1 do
+            let vd_j = (vd + j * vd_align) as VRegIdx;
+            let addr : bits(XLEN) = group_addr + 1 * j;
+            let (data: bits(8), result) = ReadMemory(addr, 8);
+
+            if !result.is_ok then
+              logWrite_VREG_elmul(vd, (vd_align * nf) as integer{1..8});
+              vectorInterrupt(idx);
+              return result;
+            end
+
+            VRF_8[vd_j, idx] = data;
+          end
+        end
+      end
+    end
+
+    when 16 => begin
+      for idx = vstart to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let offset: bits({{eewi}}) = VRF_{{eewi}}[vs2, idx];
+          let group_addr: bits(XLEN) = base_addr + ZeroExtend(offset, XLEN);
+          for j = 0 to nf - 1 do
+            let vd_j = (vd + j * vd_align) as VRegIdx;
+            let addr : bits(XLEN) = group_addr + 2 * j;
+            let (data: bits(16), result) = ReadMemory(addr, 16);
+
+            if !result.is_ok then
+              logWrite_VREG_elmul(vd, (vd_align * nf) as integer{1..8});
+              vectorInterrupt(idx);
+              return result;
+            end
+
+            VRF_16[vd_j, idx] = data;
+          end
+        end
+      end
+    end
+
+    when 32 => begin
+      for idx = vstart to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let offset: bits({{eewi}}) = VRF_{{eewi}}[vs2, idx];
+          let group_addr: bits(XLEN) = base_addr + ZeroExtend(offset, XLEN);
+          for j = 0 to nf - 1 do
+            let vd_j = (vd + j * vd_align) as VRegIdx;
+            let addr : bits(XLEN) = group_addr + 4 * j;
+            let (data: bits(32), result) = ReadMemory(addr, 32);
+
+            if !result.is_ok then
+              logWrite_VREG_elmul(vd, (vd_align * nf) as integer{1..8});
+              vectorInterrupt(idx);
+              return result;
+            end
+
+            VRF_32[vd_j, idx] = data;
+          end
+        end
+      end
+    end
+
+    when 64 => Todo("support sew=64");
+
+    otherwise => Unreachable();
+  end
+
+  logWrite_VREG_elmul(vd, (vd_align * nf) as integer{1..8});
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+end
+{% endmacro -%}
+
+func Execute_VLOXEI8_V(instruction: bits(32)) => Result
+begin
+  let nf_bits : bits(3) = GetNF(instruction);
+  if IsZero(nf_bits) then
+    return ExecuteReal_VLOXEI8_V(instruction);
+  else
+    let nf = (UInt(nf_bits) + 1) as integer{2..8};
+    return ExecuteReal_VLOXSEG_NF_EI8_V(instruction, nf);
+  end
+end
+
+func Execute_VLUXEI8_V(instruction: bits(32)) => Result
+begin
+  // NOTE: impl define behavior
+  // In instruction simulator, we perform memory access in order.
+  // Therefore simply delegate to vloxei implementation
+  return Execute_VLOXEI8_V(instruction);
+end
+
+func Execute_VLOXEI16_V(instruction: bits(32)) => Result
+begin
+  let nf_bits : bits(3) = GetNF(instruction);
+  if IsZero(nf_bits) then
+    return ExecuteReal_VLOXEI16_V(instruction);
+  else
+    let nf = (UInt(nf_bits) + 1) as integer{2..8};
+    return ExecuteReal_VLOXSEG_NF_EI16_V(instruction, nf);
+  end
+end
+
+func Execute_VLUXEI16_V(instruction: bits(32)) => Result
+begin
+  // NOTE: impl define behavior
+  // In instruction simulator, we perform memory access in order.
+  // Therefore simply delegate to vloxei implementation
+  return Execute_VLOXEI16_V(instruction);
+end
+
+func Execute_VLOXEI32_V(instruction: bits(32)) => Result
+begin
+  let nf_bits : bits(3) = GetNF(instruction);
+  if IsZero(nf_bits) then
+    return ExecuteReal_VLOXEI32_V(instruction);
+  else
+    let nf = (UInt(nf_bits) + 1) as integer{2..8};
+    return ExecuteReal_VLOXSEG_NF_EI32_V(instruction, nf);
+  end
+end
+
+func Execute_VLUXEI32_V(instruction: bits(32)) => Result
+begin
+  // NOTE: impl define behavior
+  // In instruction simulator, we perform memory access in order.
+  // Therefore simply delegate to vsoxei implementation
+  return Execute_VLOXEI32_V(instruction);
+end
+
+{{- vloxei_func("vloxei8", eewi=8) -}}
+
+{{- vloxei_func("vloxei16", eewi=16) -}}
+
+{{- vloxei_func("vloxei32", eewi=32) -}}
+
+{{- vloxei_seg_func("vloxsegNei8", eewi=8) -}}
+
+{{- vloxei_seg_func("vloxsegNei16", eewi=16) -}}
+
+{{- vloxei_seg_func("vloxsegNei32", eewi=32) -}}
