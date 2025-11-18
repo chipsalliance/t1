@@ -4,9 +4,9 @@
 # vaadd.vx
 # vaaddu.vv
 # vaaddu.vx
-# vadc.vim
-# vadc.vvm
-# vadc.vxm
+vadc.vim
+vadc.vvm
+vadc.vxm
 vadd.vi
 vadd.vv
 vadd.vx
@@ -140,12 +140,12 @@ vlsseg8e8.v
 # vluxseg8ei8.v
 vmacc.vv
 vmacc.vx
-# vmadc.vi
-# vmadc.vim
-# vmadc.vv
-# vmadc.vvm
-# vmadc.vx
-# vmadc.vxm
+vmadc.vi
+vmadc.vim
+vmadc.vv
+vmadc.vvm
+vmadc.vx
+vmadc.vxm
 vmadd.vv
 vmadd.vx
 vmand.mm
@@ -165,10 +165,10 @@ vmnand.mm
 vmnor.mm
 vmor.mm
 vmorn.mm
-# vmsbc.vv
-# vmsbc.vvm
-# vmsbc.vx
-# vmsbc.vxm
+vmsbc.vv
+vmsbc.vvm
+vmsbc.vx
+vmsbc.vxm
 # vmsbf.m
 vmseq.vi
 vmseq.vv
@@ -260,8 +260,8 @@ vs8r.v
 # vsaddu.vi
 # vsaddu.vv
 # vsaddu.vx
-# vsbc.vvm
-# vsbc.vxm
+vsbc.vvm
+vsbc.vxm
 vse16.v
 vse32.v
 vse8.v
