@@ -1,5 +1,6 @@
 {
   rv32-stdenv,
+  mkDiffEnv,
   pokedex-compile-stubs,
 }:
 rv32-stdenv.mkDerivation (finalAttrs: {
@@ -18,19 +19,18 @@ rv32-stdenv.mkDerivation (finalAttrs: {
   ];
   dontFixup = true;
 
-  passthru.casesInfo =
+  passthru.diff =
     [
       "mul"
       "addi"
     ]
-    |> map (
-      case:
-      let
-        fileName = "${case}.elf";
-      in
-      {
-        caseName = "${finalAttrs.name}/${fileName}";
-        path = "${finalAttrs.finalPackage}/bin/${fileName}";
-      }
-    );
+    |> map (case: {
+      name = case;
+      value = mkDiffEnv {
+        caseName = "${finalAttrs.name}.${case}";
+        casePath = "${finalAttrs.finalPackage}/bin/${case}.elf";
+        caseDump = "${finalAttrs.finalPackage}/share/${case}.objdump";
+      };
+    })
+    |> builtins.listToAttrs;
 })
