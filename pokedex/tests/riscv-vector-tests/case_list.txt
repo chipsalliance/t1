@@ -232,14 +232,14 @@ vnmsub.vx
 vor.vi
 vor.vv
 vor.vx
-# vredand.vs
-# vredmax.vs
-# vredmaxu.vs
-# vredmin.vs
-# vredminu.vs
-# vredor.vs
-# vredsum.vs
-# vredxor.vs
+vredand.vs
+vredmax.vs
+vredmaxu.vs
+vredmin.vs
+vredminu.vs
+vredor.vs
+vredsum.vs
+vredxor.vs
 vrem.vv
 vrem.vx
 vremu.vv
@@ -414,8 +414,8 @@ vwmulsu.vv
 vwmulsu.vx
 vwmulu.vv
 vwmulu.vx
-# vwredsum.vs
-# vwredsumu.vs
+vwredsum.vs
+vwredsumu.vs
 vwsub.vv
 vwsub.vx
 vwsub.wv

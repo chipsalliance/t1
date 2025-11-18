@@ -1,0 +1,122 @@
+{#-
+  inst vd, vs2, vs1, vm; vm mask is optional
+
+  eew(vs2) = sew, w(vd, vs1) = sew
+
+  NOTE: vd, vs1 behaves as scalar dst/src, they do not participate in overlapping check
+-#}
+{%- macro vredop_vs_body(name, op) %}
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+  if !IsZero(VSTART) then
+    // required by the spec
+    return IllegalInstruction();
+  end
+
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let vs2: VRegIdx = UInt(GetRS2(instruction));
+  let vs1: VRegIdx = UInt(GetRS1(instruction));
+  let vm: bit = GetVM(instruction);
+
+  let vl: integer = VL;
+  let sew: integer{8, 16, 32, 64} = VTYPE.sew;
+  let vreg_align: integer{1, 2, 4, 8} = getAlign(VTYPE);
+
+  if vs2 MOD vreg_align != 0 then
+    // vs2 is not aligned with lmul group
+    return IllegalInstruction();
+  end
+
+  if vl != 0 then
+    // the spec mandates it do nothing when vl == 0
+    case sew of
+      when 8 => begin
+        var acc: bits(8) = VRF_8[vs1, 0];
+        for idx = 0 to vl - 1 do
+          if vm != '0' || V0_MASK[idx] then
+            let src2 : bits(8) = VRF_8[vs2, idx];
+            acc = {{op}}(acc, src2);
+          end
+        end
+        VRF_8[vd, 0] = acc;
+      end
+
+      when 16 => begin
+        var acc: bits(16) = VRF_16[vs1, 0];
+        for idx = 0 to vl - 1 do
+          if vm != '0' || V0_MASK[idx] then
+            let src2 : bits(16) = VRF_16[vs2, idx];
+            acc = {{op}}(acc, src2);
+          end
+        end
+        VRF_16[vd, 0] = acc;
+      end
+
+      when 32 => begin
+        var acc: bits(32) = VRF_32[vs1, 0];
+        for idx = 0 to vl - 1 do
+          if vm != '0' || V0_MASK[idx] then
+            let src2 : bits(32) = VRF_32[vs2, idx];
+            acc = {{op}}(acc, src2);
+          end
+        end
+        VRF_32[vd, 0] = acc;
+      end
+
+      when 64 => Todo("support sew=64");
+
+      otherwise => Unreachable();
+    end
+
+    logWrite_VREG_1(vd);
+  end
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_VREDSUM_VS(instruction: bits(32)) => Result
+begin
+{{- vredop_vs_body("vredsum_vs", "riscv_add") -}}
+end
+
+func Execute_VREDAND_VS(instruction: bits(32)) => Result
+begin
+{{- vredop_vs_body("vredand_vs", "riscv_and") -}}
+end
+
+func Execute_VREDOR_VS(instruction: bits(32)) => Result
+begin
+{{- vredop_vs_body("vredor_vs", "riscv_or") -}}
+end
+
+func Execute_VREDXOR_VS(instruction: bits(32)) => Result
+begin
+{{- vredop_vs_body("vredxor_vs", "riscv_xor") -}}
+end
+
+func Execute_VREDMIN_VS(instruction: bits(32)) => Result
+begin
+{{- vredop_vs_body("vredmin_vs", "riscv_min_s") -}}
+end
+
+func Execute_VREDMINU_VS(instruction: bits(32)) => Result
+begin
+{{- vredop_vs_body("vredminu_vs", "riscv_min_u") -}}
+end
+
+func Execute_VREDMAX_VS(instruction: bits(32)) => Result
+begin
+{{- vredop_vs_body("vredmax_vs", "riscv_max_s") -}}
+end
+
+func Execute_VREDMAXU_VS(instruction: bits(32)) => Result
+begin
+{{- vredop_vs_body("vredmaxu_vs", "riscv_max_u") -}}
+end
