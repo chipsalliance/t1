@@ -254,6 +254,20 @@ end
 // RVV operations //
 ////////////////////
 
+// add with carry, e.g. vadc.vvm
+func riscv_carryAdd{N}(x: bits(N), y: bits(N), carry: bit) => (bits(N), bit)
+begin
+  let res: bits(N+1) = ['0', x] + ['0', y] + ZeroExtend(carry, N+1);
+  return (res[N-1:0], res[N]);
+end
+
+// sub with borrow, e.g. vsbc.vvm
+func riscv_borrowSub{N}(x: bits(N), y: bits(N), borrow: bit) => (bits(N), bit)
+begin
+  let res: bits(N+1) = ['0', x] - ['0', y] - ZeroExtend(borrow, N+1);
+  return (res[N-1:0], res[N]);
+end
+
 
 // wrapping substraction with swapped operand, e.g. vrsub_vi
 func riscv_reverseSub{N}(x: bits(N), y: bits(N)) => bits(N)
