@@ -9,6 +9,7 @@ use crate::replay::{CpuState, pretty_print_diff};
 mod pokedex;
 mod replay;
 mod spike_parser;
+mod t1;
 mod util;
 
 #[derive(clap::Parser, Debug)]
