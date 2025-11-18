@@ -3,10 +3,11 @@
   riscv-tests,
   rv32-stdenv,
   pokedex-compile-stubs,
+  mkDiffEnv,
   vlen ? 256,
 }:
 rv32-stdenv.mkDerivation (finalAttrs: {
-  name = "riscv-tests@testset";
+  name = "riscv-tests-bins";
 
   src = ./.;
 
@@ -22,20 +23,27 @@ rv32-stdenv.mkDerivation (finalAttrs: {
     "PREFIX=${placeholder "out"}"
   ];
 
+  enableParallelBuilding = true;
   dontFixup = true;
 
-  passthru.casesInfo =
+  passthru.diff =
     lib.readFile ./case_list.txt
     |> lib.splitString "\n"
     |> lib.filter (line: line != "" && !(lib.hasPrefix "#" line))
     |> map (
       case:
       let
-        fileName = lib.replaceStrings [ ".S" ] [ ".elf" ] case;
+        fileName = lib.replaceStrings [ ".S" ] [ "" ] case;
+        sanitizedName = lib.replaceStrings [ "/" ] [ "_" ] fileName;
       in
       {
-        caseName = "${finalAttrs.name}@${toString vlen}b/${fileName}";
-        path = "${finalAttrs.finalPackage}/bin/${fileName}";
+        name = sanitizedName;
+        value = mkDiffEnv {
+          caseName = "${finalAttrs.name}+VLEN=${toString vlen}b.${sanitizedName}";
+          casePath = "${finalAttrs.finalPackage}/bin/${fileName}.elf";
+          caseDump = "${finalAttrs.finalPackage}/share/${fileName}.objdump";
+        };
       }
-    );
+    )
+    |> lib.listToAttrs;
 })
