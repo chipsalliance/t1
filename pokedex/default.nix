@@ -11,4 +11,6 @@ lib.makeScope newScope (scope: {
   simulator = scope.callPackage ./simulator/package.nix { };
 
   tests = scope.callPackage ./tests { };
+
+  docs = scope.callPackage ./docs/package.nix { };
 })

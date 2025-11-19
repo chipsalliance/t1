@@ -6,7 +6,7 @@ enabled_extensions = [
     'rv_c',
     'rv_f',
     'rv_v',
-    'rv_zicsr', 
+    'rv_zicsr',
     'rv_zifencei',
     'rv32_i',
     'rv32_c',

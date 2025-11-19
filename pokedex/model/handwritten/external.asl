@@ -57,25 +57,47 @@ func FFI_amo(
 
 // following are exported accessors
 
+/// `ASL_read_PC()` return the current `PC` value.
 func ASL_read_PC() => bits(32)
 begin
   return PC;
 end
 
+/// `ASL_read_XREG(i : bits(5))` return XLEN width GPR register value at given index.
 func ASL_read_XREG(xs: bits(5)) => bits(XLEN)
 begin
   return X[UInt(xs)];
 end
 
+/// `ASL_read_FREG(i : bits(5))` return FLEN width floating point register value at given index.
 func ASL_read_FREG(fs: bits(5)) => bits(FLEN)
 begin
   return F[UInt(fs)];
 end
 
+/// `ASL_read_VREG(vs : bits(5))` return `VLEN` width VRF value started from `vs * VLEN`.
+/// Index `vs` is used as unsigned integer.
+///
+/// Formulated as
+/// ```asl
+/// let lo = UInt(vs) * VLEN;
+/// let hi = lo + VLEN;
+/// return VRF[hi:lo];
+/// ```
 func ASL_read_VREG(vs: bits(5)) => bits(VLEN)
 begin
   return __VRF[UInt(vs) * VLEN +: VLEN];
 end
 
+/// `ASL_read_CSR(vs : bits(12))` return XLEN bits width CSR value at given CSR index.
+/// Note that the model will stop executing with _unreachable_ error when CSR index
+/// is not handled.
+//
 // defined in csr_dispatch.asl.j2
 // func ASL_read_CSR(csr: bits(12)) => bits(XLEN)
+//
+
+//
+// defined in step.asl
+// func Step() => FFI_StepResult
+//

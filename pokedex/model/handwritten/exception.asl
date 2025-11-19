@@ -1,27 +1,35 @@
-/// Result denotes whether an operations trigger an exception.
-/// When is_ok is TRUE, we do not use _cause_ and _payload_ fields.
-/// When is_ok is FALSE, _cause_ contains the exception code, which will be written to XCAUSE later
-///
-/// Some exceptions define corresponding _payload_, which will be written to XTVAL later.
-/// If the exception does not have payload, _payload_ generally should be set to zero.
+// The `Result` structure indicates whether an operation triggered an exception.
+//
+// - When `is_ok` is `TRUE`, the operation was successful.
+// - When `is_ok` is `FALSE`, the operation failed, and the structure contains
+//   necessary exception details (such as the `cause`).
+//
+// If an exception does not require a `payload`, the field is typically set to
+// zero. However, developers should treat the `payload` as undefined in these
+// cases and ignore it.
 record Result {
   is_ok : boolean;
   cause : integer{0..31};
   payload : bits(XLEN);
 };
 
+// OK is a constant instance value always indicate successful operation.
 let OK: Result = Result {
   is_ok = TRUE,
   cause = 0,
   payload = Zeros(XLEN)
 };
 
-// Keep compatibility for old code.
+
+/// Return a `Result` indicating success(`is_ok` is `TRUE`).
+/// Other fields are undefined.
 func Retired() => Result
 begin
   return OK;
 end
 
+/// Return an error `Result` with `cause` set to illegal
+/// instruction exception code. `payload` is undefined.
 func IllegalInstruction() => Result
 begin
   return Result {
@@ -40,6 +48,9 @@ begin
   };
 end
 
+/// Return an error `Result` with `cause` set
+/// to environment call (ECALL) exception code corresponding to the
+/// provided privilege `mode`.`payload` is undefined.
 func ExceptionEcall(mode: PrivMode) => Result
 begin
   var cause: integer{0..31};
@@ -53,6 +64,8 @@ begin
   };
 end
 
+/// Return an error `Result` with `cause` set
+/// to the breakpoint exception code. `payload` is undefined.
 func ExceptionEbreak() => Result
 begin
   return Result {
@@ -69,6 +82,8 @@ type CsrReadResult of record {
   result: Result
 };
 
+/// Return a `CsrReadResult` containing an
+/// `IllegalInstruction()` error. `data` is undefined.
 func CsrReadIllegalInstruction() => CsrReadResult
 begin
   return CsrReadResult {
@@ -77,6 +92,8 @@ begin
   };
 end
 
+/// Return a `CsrReadResult` containing the
+/// provided `data`, with an internal success result.
 func CsrReadOk(data: bits(XLEN)) => CsrReadResult
 begin
   return CsrReadResult {

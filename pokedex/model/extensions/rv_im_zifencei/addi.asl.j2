@@ -15,31 +15,126 @@
   return Retired();
 {% endmacro -%}
 
+/// ---
+/// inst: "addi"
+/// encoding: "-----------------000-----0010011"
+/// extension: "rv_i"
+/// ---
+/// *ADDI* extracts #argLut("RD"), #argLut("RS1"), and #argLut("IMM") from the 32-bit instruction.
+/// It performs a bitwise ADD operation on the value stored in register X[RS1] and
+/// the sign-extended immediate value, then stores the result in register X[RD].
+///
+/// Formulated as:
+/// ```text
+/// X[RD] = X[RS1] + SExt(IMM)
+/// ```
 func Execute_ADDI(instruction: bits(32)) => Result
 begin
 {{- arith_imm_instruction_body("addi", "riscv_add") -}}
 end
 
+/// ---
+/// inst: "andi"
+/// encoding: "-----------------111-----0010011"
+/// extension: "rv_i"
+/// ---
+/// *ANDI* extracts #argLut("RD"), #argLut("RS1"), and #argLut("IMM") from the 32-bit
+/// instruction. It performs a bitwise AND operation on the value stored in
+/// register X[RS1] and the sign-extended immediate value, then stores the result
+/// in register X[RD].
+///
+/// Formulated as:
+/// ```text
+/// X[RD] = X[RS1] `AND` SExt(IMM)
+/// ```
 func Execute_ANDI(instruction: bits(32)) => Result
 begin
 {{- arith_imm_instruction_body("andi", "riscv_and") -}}
 end
 
+/// ---
+/// inst: "ori"
+/// encoding: "-----------------110-----0010011"
+/// extension: "rv_i"
+/// ---
+/// *ORI* extracts #argLut("RD"), #argLut("RS1"), and #argLut("IMM") from the 32-bit
+/// instruction. It performs a bitwise OR operation on the value stored in register
+/// X[RS1] and the sign-extended immediate value, then stores the result in
+/// register X[RD].
+///
+/// Formulated as:
+/// ```text
+/// X[RD] = X[RS1] `OR` SExt(IMM)
+/// ```
 func Execute_ORI(instruction: bits(32)) => Result
 begin
 {{- arith_imm_instruction_body("ori", "riscv_or") -}}
 end
 
+/// ---
+/// inst: "xori"
+/// encoding: "-----------------100-----0010011"
+/// extension: "rv_i"
+/// ---
+/// *XORI* extracts #argLut("RD"), #argLut("RS1"), and #argLut("IMM") from the
+/// 32-bit instruction. It performs a bitwise XOR operation on the value stored in
+/// register X[RS1] and the sign-extended immediate value, then stores the result
+/// in register X[RD].
+///
+/// Formulated as:
+/// ```text
+/// X[RD] = X[RS1] `OR` SExt(IMM)
+/// ```
 func Execute_XORI(instruction: bits(32)) => Result
 begin
 {{- arith_imm_instruction_body("xori", "riscv_xor") -}}
 end
 
+/// ---
+/// inst: "slti"
+/// encoding: "-----------------010-----0010011"
+/// extension: "rv_i"
+/// ---
+/// *SLTI* extracts #argLut("RD"), #argLut("RS1"), and #argLut("IMM") from the
+/// 32-bit instruction. It place the value `1` in register X[RD] if value in
+/// register RS1(X[RS1]) is less than the sign-extended immediate value when they
+/// both treated as *signed number*.
+///
+/// Formulated as:
+/// ```text
+/// let v1 = SInt(X[RS1]);
+/// let v2 = SInt(SExt(IMM));
+/// if v1 < v2 then
+///   X[RD] = 1;
+/// else
+///   X[RD] = 0;
+/// end
+/// ```
 func Execute_SLTI(instruction: bits(32)) => Result
 begin
 {{- arith_imm_instruction_body("slti", "riscv_slt_s") -}}
 end
 
+/// ---
+/// inst: "sltiu"
+/// encoding: "-----------------011-----0010011"
+/// extension: "rv_i"
+/// ---
+/// *SLTIU* extracts #argLut("RD"), #argLut("RS1"), and #argLut("IMM") from the
+/// 32-bit instruction. It place the value `1` in register X[RD] if value in register
+/// RS1(X[RS1]) is less than the sign-extended immediate value when they both
+/// treated as *unsigned number*.
+///
+/// Formulated as:
+/// ```text
+/// let v1 = UInt(X[RS1]);
+/// let v2 = UInt(SExt(IMM));
+/// if v1 < v2 then
+///   X[RD] = 1;
+/// else
+///   X[RD] = 0;
+/// end
+/// ```
 func Execute_SLTIU(instruction: bits(32)) => Result
 begin
 {{- arith_imm_instruction_body("sltiu", "riscv_slt_u") -}}

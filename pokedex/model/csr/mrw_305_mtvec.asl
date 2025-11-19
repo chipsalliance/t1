@@ -1,3 +1,23 @@
+//! ---
+//! csr: "mtvec"
+//! bin: "001100000101"
+//! mode: "mrw"
+//! id: 0x305
+//! ---
+//! The mtvec (Machine Trap-Vector Base-Address Register) is a read/write register
+//! accessible exclusively in Machine Mode. Attempts to access this register from
+//! lower privilege levels result in an Illegal Instruction Exception.
+//!
+//! mtvec adheres to WARL (Write Any Values, Read Legal Values) semantics. The
+//! simulator implements the following behavior:
+//!
+//! - Supported Modes: Only Direct (00) and Vectored (01) modes are valid.
+//! - Invalid Writes: If a write operation specifies an unsupported mode, the entire
+//! write is ignored, and the register retains its previous value.
+
+
+// Details of MTVEC arch states see states.asl
+
 func Read_MTVEC() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then

@@ -78,19 +78,31 @@ stdenv.mkDerivation {
 
   passthru = {
     inherit softfloat-riscv;
+
+    doc-comments-file = "docs/doc-comments.yml";
   };
 
   configurePhase = ''
+    runHook preConfigure
+
     python -m scripts.buildgen
+
+    runHook postConfigure
   '';
 
   # buildPhase will use ninja
 
   installPhase = ''
-    mkdir -p $out/include
-    mkdir -p $out/lib
+    runHook preInstall
+
+    mkdir -p $out/include $out/lib
+
     cp -v -t $out/include build/2-cgen/*.h
     cp -v -t $out/lib build/3-clib/*.a
     cp -v -t $out/lib build/3-clib/*.so
+
+    cp -v -r build/docs $out/docs
+
+    runHook postInstall
   '';
 }
