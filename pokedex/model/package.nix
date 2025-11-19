@@ -40,7 +40,22 @@ let
 in
 stdenv.mkDerivation {
   name = "pokedex-model";
-  src = lib.cleanSource ./.;
+  src =
+    with lib.fileset;
+    toSource {
+      root = ./.;
+      fileset = unions [
+        ./aslbuild
+        ./csr
+        ./csrc
+        ./data_files
+        ./extensions
+        ./handwritten
+        ./scripts
+        ./template
+        ./config.toml
+      ];
+    };
 
   nativeBuildInputs = [
     rvopcode-cli
@@ -60,7 +75,7 @@ stdenv.mkDerivation {
 
     # Do not let model depend on other parts of pokedex in nix build,
     # therefore directly pull the include directory.
-    POKEDEX_INCLUDE = "${../simulator/pokedex/include}";
+    POKEDEX_INCLUDE = "${../simulator/include}";
   };
 
   passthru = {

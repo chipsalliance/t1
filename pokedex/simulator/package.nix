@@ -8,11 +8,22 @@
 rustPlatform.buildRustPackage (finalAttr: {
   name = "pokedex-simulator";
 
-  src = lib.cleanSource ./.;
+  src =
+    with lib.fileset;
+    toSource {
+      root = ./.;
+      fileset = unions [
+        ./include
+        ./assets
+        ./src
+        ./build.rs
+        ./Cargo.lock
+        ./Cargo.toml
+      ];
+    };
 
   buildInputs = [
     rustPlatform.bindgenHook
-    model
   ];
 
   passthru.shell = finalAttr.overrideAttrs (old: {

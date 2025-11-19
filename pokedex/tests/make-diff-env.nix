@@ -48,7 +48,6 @@ stdenvNoCC.mkDerivation {
     diffResult = "diff_result.json";
     pokedex = "pokedex";
     spike = "spike";
-    difftest = "difftest";
 
     inherit caseName casePath caseDump;
   };
@@ -81,7 +80,7 @@ stdenvNoCC.mkDerivation {
   pokedexPhase = ''
     runHook preRunPokedex
 
-    "$pokedex" \
+    "$pokedex" run \
       --config-path ${./pokedex-config.kdl} \
       --output-log-path "$pokedexLog" \
       "$casePath"
@@ -92,7 +91,7 @@ stdenvNoCC.mkDerivation {
   diffPhase = ''
     runHook preDiff
 
-    "$difftest" \
+    "$pokedex" difftest \
       --spike-log-path "$spikeLog" \
       --pokedex-log-path "$pokedexLog" \
       --output-path "$diffResult"
@@ -125,7 +124,7 @@ stdenvNoCC.mkDerivation {
     fi
 
     echo "[FAIL] $caseName"
-    jq -r .context "$diffResult"
+    echo "NOTE: see $diffResult in "nix develop" for details"
 
     if [[ -z "''${ignoreFailure:-}" ]]; then
       exit 1
