@@ -15,8 +15,6 @@ class BlockFormatError(Exception):
 
 
 class DocComment(TypedDict):
-    file: str
-    line: int
     frontmatter: list[str]
     body: list[str]
 
@@ -30,12 +28,7 @@ def doc_comment_to_yaml(dc: DocComment, writer: TextIO):
         else:
             writer.write(content)
 
-    indent_write(1, list_marker + f'file: "{dc['file']}"\n')
-    indent_write(2, f'line: {dc["line"]}\n')
-    for line in dc["frontmatter"]:
-        indent_write(2, line)
-
-    indent_write(2, "body: |\n")
+    indent_write(1, list_marker + "body: |\n")
 
     body: str = ""
     for text in dc["body"]:
@@ -45,10 +38,13 @@ def doc_comment_to_yaml(dc: DocComment, writer: TextIO):
             body += (YAML_TAB * 3) + text
     writer.write(body)
 
+    for line in dc["frontmatter"]:
+        indent_write(2, line)
+
     writer.write("\n")
 
 
-def find_files(directory: str, extension: str) -> List[Path]:
+def find_files(directory: str, exts: list[str]) -> List[Path]:
     """
     Search given directory recursively for files with specific extension.
     """
@@ -57,11 +53,15 @@ def find_files(directory: str, extension: str) -> List[Path]:
 
     search_path = Path(directory)
 
-    if not extension.startswith("."):
-        extension = "." + extension
+    all_files: list[Path] = []
+    for extension in exts:
+        if not extension.startswith("."):
+            extension = "." + extension
 
-    # rglob('*' + extension) performs the recursive search
-    return list(search_path.rglob(f"*{extension}"))
+        # rglob('*' + extension) performs the recursive search
+        all_files += list(search_path.rglob(f"*{extension}"))
+
+    return all_files
 
 
 def parse_block_content(
@@ -74,7 +74,7 @@ def parse_block_content(
 
     for line in block_lines:
         stripped = line.lstrip()
-        if stripped.startswith("///"):
+        if stripped.startswith("//!") or stripped.startswith("///"):
             content = stripped[3:]
             if content.startswith(" "):
                 content = content[1:]
@@ -110,8 +110,6 @@ def parse_block_content(
     body_lines = cleaned_lines[closing_index + 1 :]
 
     return {
-        "file": str(file_path),
-        "line": line_offset,
         "frontmatter": header_lines,
         "body": body_lines,
     }
@@ -119,7 +117,7 @@ def parse_block_content(
 
 def build_yml_block(file_path: Path, writer: TextIO) -> Optional[str]:
     """
-    Scan the document, find lines starting with ///.
+    Scan the document, find lines starting with //! or ///.
     Collect those lines as a block.
     """
     lines = []
@@ -136,10 +134,11 @@ def build_yml_block(file_path: Path, writer: TextIO) -> Optional[str]:
     all_blocks: list[DocComment] = []
 
     for i, line in enumerate(lines):
-        is_slash_line = line.lstrip().startswith("///")
+        sline = line.lstrip()
+        is_doc_block = sline.startswith("//!") or sline.startswith("///")
 
-        if is_slash_line:
-            if not in_block:
+        if is_doc_block:
+            if (not in_block) and ((sline[3:]).strip() == "---"):
                 # Start of a new block
                 in_block = True
                 start_line_num = i + 1
@@ -165,7 +164,7 @@ def build_yml_block(file_path: Path, writer: TextIO) -> Optional[str]:
             result = parse_block_content(current_block, start_line_num, file_path)
             all_blocks.append(result)
         except BlockFormatError as e:
-            print(f"xx [PARSING ERROR] {e}")
+            print(f"[PARSING ERROR] {e}")
 
     for blk in all_blocks:
         doc_comment_to_yaml(blk, writer)
@@ -173,14 +172,19 @@ def build_yml_block(file_path: Path, writer: TextIO) -> Optional[str]:
 
 def main():
     parser = argparse.ArgumentParser(description="Scan for doc comment.")
-    parser.add_argument("directory", help="The root directory to search")
-    parser.add_argument("extension", help="File extension to filter (e.g., .asl)")
-    parser.add_argument("output", help="File to save all metadata")
+    parser.add_argument("-d", "--directory", help="The root directory to search")
+    parser.add_argument(
+        "-e",
+        "--extensions",
+        action="append",
+        help="File extension to filter (e.g., .asl, .asl.j2)",
+    )
+    parser.add_argument("-o", "--output", help="File to save all metadata")
 
     args = parser.parse_args()
 
     root_dir = args.directory
-    ext = args.extension
+    exts = args.extensions
     output: str = args.output
     if not output.endswith(".yml"):
         output = output + ".yml"
@@ -189,12 +193,12 @@ def main():
         print(f"Error: Directory '{root_dir}' not found.")
         return
 
-    print(f"Scanning '{root_dir}' for extension '{ext}'...\n")
+    print(f"Scanning '{root_dir}' for extension '{" ".join(exts)}'...\n")
 
-    files = find_files(root_dir, ext)
+    files = find_files(root_dir, exts)
 
     if not files:
-        print(f"No files suffix with {ext} found.")
+        print(f"No files suffix with '{" ".join(exts)}' found.")
         return
 
     with open(output, "w") as out:

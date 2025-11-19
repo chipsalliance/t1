@@ -1,640 +1,508 @@
-#set heading(numbering: "1.")
-#show heading.where(level: 1): it => {
-  pagebreak(weak: true)
-  it
-}
+#import "@preview/fletcher:0.5.8" as fletcher: diagram, edge, node
+#import fletcher.shapes: hexagon, house
+
+#let in_release = sys.inputs.keys().any(k => k == "release")
+#let darkmode_enable = sys.inputs.keys().any(k => k == "enable_darkmode")
+
+#let theme = (
+  bg: if darkmode_enable { black } else { white },
+  fg: if darkmode_enable { white } else { black },
+  bg_grey: if darkmode_enable { luma(100) } else { luma(240) },
+  bg_raw: if darkmode_enable { rgb("#1d2433") } else { luma(240) },
+)
+
+#set page(fill: theme.bg)
+#set text(fill: theme.fg)
+
+// Title Page
+#v(30%)
+#line(length: 100%, stroke: theme.fg)
+#align(center, text(size: 3em, weight: 800, "Document for Pokedex"))
+#line(length: 100%, stroke: theme.fg)
+#align(center, text(1.5em, weight: 500, datetime.today().display()))
+
+#pagebreak()
+
+// Contents
+#set heading(numbering: "1.1")
 #show heading: set block(above: 1.8em, below: 1.5em)
+#show heading.where(level: 1): it => pagebreak(weak: true) + it
 #show link: underline
 #show raw.where(block: true): it => {
   set align(center)
-  set block(fill: luma(240), inset: 1em, radius: 0.2em, width: 95%)
-  it
+  set block(
+    fill: theme.bg_raw,
+    inset: 1em,
+    radius: 5pt,
+    width: 95%,
+  )
+  text(fill: theme.fg, it)
 }
-#show raw.where(block: false): box.with(
-  fill: luma(240),
+#show raw.where(block: false): it => box(
+  fill: theme.bg_raw,
   inset: (x: 0.3em, y: 0pt),
   outset: (y: 0.3em),
   radius: 0.2em,
+  text(fill: theme.fg, it),
 )
 
 #let notes(body) = {
-  show quote.where(block: true): block.with(stroke: (left: 3pt + blue, rest: none), outset: 0.4em, width: 90%)
+  show quote.where(block: true): block.with(
+    inset: 0.5em,
+    stroke: (left: 3pt + blue, rest: none),
+  )
   quote(block: true, body)
 }
 
+#let markup(it) = eval(it, mode: "markup")
+
+#show figure: it => {
+  v(2em)
+  it
+  v(2em)
+}
+
+// Add some indent to the list item
+#show enum: it => pad(left: 1em, it)
+#show list: it => pad(left: 1em, it)
+
+#show ref: it => underline(it)
+
+#show outline.entry.where(level: 1): it => {
+  set block(above: 1.2em, below: 0.8em)
+  set text(size: 1.2em, weight: 900)
+  it
+}
+#set outline(
+  indent: 2em,
+  title: box(
+    stroke: (bottom: theme.fg),
+    inset: (
+      bottom: 0.8em,
+      right: 4em,
+    ),
+    text(size: 1.5em)[Contents],
+  ),
+)
 #outline()
 
-= Introduction
+= The Pokedex Project
 
-The Pokedex project is an implementation of the RISC-V `rv32imafc` instruction
-set architecture (ISA). It includes a formal specification, an instruction
-decoder, and an emulator designed for functional verification.
+== Introduction
+Pokedex is an implementation of the RISC-V instruction set architecture (ISA).
+It provides a simple, maintainable, and flexible ISA design that allows
+developers to easily add new instructions or make architectural changes—capabilities
+that are often difficult to achieve with existing tools like `riscv/sail-riscv`
+or Spike (`riscv/riscv-isa-sim`).
 
-A primary goal of this project is to provide a simple, maintainable, and
-flexible design. This allows developers to easily add new instructions or make
-architectural changes—capabilities not easily supported by existing tools like
-`riscv/sail-riscv` or Spike (`riscv/riscv-isa-sim`).
+The Pokedex project comprises three main components:
+- A formal specification written in the ARM Architecture Specification Language (*The ISA Model*).
+- A *simulator* written in Rust, which provides a system platform for co-simulation with the ISA model.
+- A *differential test framework* to cross-validate architectural states against Spike and RTL.
 
-The emulator can be linked with the T1 testbench to enable full functional
-verification, including the standard RVV and custom extensions.
+You can think of _The ISA Model_ as the code that implements the logic defined
+by the RISC-V ISA Specification. _The Simulator_ acts as the host environment;
+it handles the necessary system-level operations (such as loading ELF files)
+that are not covered by the ISA specification but are required to run programs.
+Finally, the _Differential Test Framework_ provides the tools necessary to
+validate and guarantee the correctness of _The ISA Model_.
 
-This guide explains the ASL (ARM Specification Language) model used in
-the Pokedex project. It provides the necessary information for a developer to:
+#let blob(pos, label, tint: white, ..args) = node(
+  pos,
+  align(center, label),
+  width: 20mm,
+  fill: if darkmode_enable { tint.darken(50%) } else { tint.lighten(60%) },
+  stroke: 1pt + tint.darken(20%),
+  corner-radius: 5pt,
+  ..args,
+)
 
-- Create functional model for RISC-V.
-- Serve as a reference model for RTL design.
-- Add custom instruction with low effort.
+#let pokedex_arch = diagram(
+  spacing: 8mm,
+  cell-size: (8mm, 10mm),
+  edge-stroke: 1pt + theme.fg,
+  edge-corner-radius: 5pt,
+  mark-scale: 70%,
+
+  blob((0, 0), [ASL Source Code], tint: green),
+  blob((1, 0), [Softfloat Library], tint: yellow, shape: hexagon),
+
+  blob((0, 1), [ASL Share Library], tint: green, shape: hexagon),
+  edge((0, 0), (0, 1), "->"),
+  edge((1, 0), (1, 0.5), "l"),
+
+  blob((2, 0), [Rust Source Code], tint: blue),
+  blob((2, 1), [Simulator], tint: blue, shape: hexagon),
+  edge((2, 0), (2, 1), "->"),
+
+  edge((0, 1), (2, 1), "-->", label: "dl-load"),
+
+  blob((2, 2), [Commits JSON Log], tint: gray),
+  edge((2, 1), (2, 2), "->"),
+
+  blob((3, 0), [RISC-V ELF], tint: purple, shape: hexagon),
+  edge((3, 0), (3, 0.5), (2.5, 0.5), (2.5, 1.5), (2, 1.5), "-->"),
+
+  blob((3, 1), [Spike], tint: blue, shape: hexagon),
+  edge((3, 0), (3, 1), "-->", label: "file load"),
+
+  edge((3, 1), (3, 2), "->"),
+  blob((3, 2), [Spike Commits], tint: gray),
+
+  blob((2.5, 3), [difftest], tint: blue, shape: house),
+  edge((2, 2), (2.5, 3), "-->"),
+  edge((3, 2), (2.5, 3), "-->"),
+)
+
+#align(center, figure(pokedex_arch, caption: [Pokedex Architecture])) <pokedex-architecture-figure>
+
+The primary goal of the Pokedex project is to serve as a "source of truth" for
+the ISA's behavior. This enables co-simulation to identify bugs in Register
+Transfer Level (RTL) designs.
 
 #notes[
-  *Why using Pokedex as project name*
+  *Why the name "Pokedex"?*
 
-  Our T1 testbench works with a collection of micro-architecture designs, each
-  of which is named after a Pokémon. We chose the name Pokedex for this project
-  to align with that theme.
+  Our T1 testbench supports a collection of micro-architecture designs, each
+  named after a Pokémon. We chose the name "Pokedex" to align with this theme.
 
-  In the world of Pokémon, a Pokédex is an essential tool for understanding the
-  creatures you interact with. In the same spirit, this project provides the
-  tools to help us better understand, maintain, and improve our T1
-  architectures.
+  In the Pokémon world, a Pokédex is an essential tool for understanding the
+  creatures you interact with. In that same spirit, this project provides the
+  tools necessary to understand, maintain, and improve our T1 architectures.
 ]
 
-== How to build this document
+== What's Coming
+This document is intended for readers with a basic understanding of software
+programming. It covers the entire Pokedex architecture and explains key design
+choices. By the end of this guide, readers will be able to modify and verify
+the whole project.
 
-Document are written in `docs/doc.typ` file. Developer should first install
-typst and pandoc in their system environment.
+== Suggest Reading
 
-- Build README
-
-```bash
-make doc
-```
-
-- Build PDF
-
-```bash
-make doc-pdf
-```
-
-== Resources
-
-- ASL Document hosted by Intel Lab: https://intellabs.github.io/asl-interpreter/asl_reading.html
-- ASL specification: https://developer.arm.com/documentation/ddi0626/latest
-- RISC-V ISA Specification: https://github.com/riscv/riscv-isa-manual/
-- ASL Prelude Reference: https://github.com/IntelLabs/asl-interpreter/blob/master/prelude.asl
-  (Can also be obtained by running command `asli --print_spec`)
+- *ASL Reading Guide* (The most important one, this will give you a quick
+  glance on the ASL language): https://intellabs.github.io/asl-interpreter/asl_reading.html
+- *RISC-V ISA Specification*: https://github.com/riscv/riscv-isa-manual/
+- *ASL Prelude Reference*: https://github.com/IntelLabs/asl-interpreter/blob/master/prelude.asl
+- *herdtools7* (The "official" ASL): https://github.com/herd/herdtools7/tree/ASLRefALP3.1/asllib
+- *ASL Specification* (The official ASL Specification, optional):
+  https://developer.arm.com/documentation/ddi0626/latest
 
 == Compatibility
 
-Note that we are using Intel Labs fork of ASL Interpreter, which doesn't
-strictly implementing the ASL
+Note that we currently use the Intel Labs fork of the ASL Interpreter, which
+deviates slightly from the official ASL specification.
 
-= Overview
-This project provides a simulator for a custom RISC-V Instruction Set
-Architecture (ISA) model. The simulator can load an ELF file, execute its
-instructions, and log all architectural state changes, such as register and CSR
-modifications.
+#notes[A migration to _herdtools7_ is planned, pending support for C code
+generation in that toolchain.]
 
-Its primary goal is to serve as a "source of truth" for the ISA's behavior,
-enabling co-simulation to identify bugs in Register Transfer Level (RTL)
-designs.
+== System Requirement
 
-Following is an overview of the project architecture:
+We use Nix as our primary build system. It orchestrates the build systems for
+each module and produces final artifacts without requiring manual dependency
+management.
 
-#align(center, image("architecture.drawio.png", width: 85%))
+The only requirement is a system with Nix installed. You can follow the installation
+guide here: https://nixos.org/download.
+(Note: You do not need the full NixOS operating system; only the Nix package manager
+CLI and daemon are required).
 
-The system is composed of two primary components: an *ASL Model* that defines
-the ISA and a *Rust Simulator* that executes it.
+After installation, add the following configuration to `~/.config/nix/nix.conf`:
 
-== ASL Model
+```conf
+extra-experimental-features = flakes nix-command pipe-operators
+```
+
+Writing Nix code is outside the scope of this guide. However, the Pokedex
+project configuration is stable, so you generally will not need to modify Nix
+files. If you encounter build issues, please file an issue report.
+
+= ASL Model
 
 We use ARM's Architecture Specification Language (ASL) to formally describe the
-RISC-V ISA. The core logic is organized into three categories within the
-`model/` directory:
+RISC-V ISA. The core logic is organized within the `model/` directory:
 
-- *`csr/`*: Contains code snippets for individual Control and Status Register (CSR) implementations.
-- *`extensions/`*: Holds code snippets defining the semantics for each instruction, organized by ISA extension.
-- *`handwritten/`*: Includes foundational, manually written code, such as architectural state declarations and helper libraries.
+- `aslbuild/`: Contains configuration files for `asl2c` to generate C code.
+- `csr/`: Contains code snippets for individual Control and Status Register
+  (CSR) implementations.
+- `csrc/`: Contains C source code for ABI compatibility and module integration.
+- `data_files/`: Pre-generated files containing deserializable data for the
+  decoder.
+- `extensions/`: Holds code snippets defining the semantics for each
+  instruction, organized by ISA extension.
+- `handwritten/`: Includes foundational, manually written code, such as
+  architectural state declarations and helper libraries.
+- `scripts/`: Includes scripts to generate Ninja build files, data files, etc.
 
-To improve accuracy and reduce manual effort, significant parts of the model
-are code-generated based on the official `riscv-opcodes` repository. This
-includes instruction decoders, dispatch logic, and CSR read/write dispatchers.
+== Quick Glance at the Build Process
 
-== Rust Simulator
+ASL provides limited support for polymorphic types. Consequently, implementing
+the full RISC-V ISA manually is difficult due to the significant amount of
+redundant logic required for instruction execution. To address this, we use
+#link("https://jinja.palletsprojects.com/en/stable/")[Jinja] to define and
+reuse code snippets.
 
-The ASL model defines *what* the ISA does but not *how* to run it. The
-simulation environment is provided by a platform written in Rust. It links to
-the compiled ASL model and handles all runtime responsibilities that the model
-does not, including:
+The script `scripts/buildgen.py` acts as the primary build entry point. It
+scans all source files and generates a #link("https://ninja-build.org/")[Ninja]
+build file to perform the following tasks:
 
-- Command-line argument parsing
-- Memory allocation and maintenance
-- Logging utilities
-- Interrupt handling
-- Driving the simulation loop
++ Process all `.j2` templates using JSON data from `data_files` to generate the
+  final ASL code.
++ Combine the generated ASL code with the handwritten ASL code, then use the
+  `asl2c` tool to compile them into C source code.
++ Compile the resulting C code alongside the interface code in `csrc/`, linking
+  them with the `softfloat` library to produce the final dynamic library
+  (`libpokedex_model.so`).
 
-The simulator's entry point is `simulator/pokedex/src/bin/pokedex.rs`, which
-parses command-line arguments and runs the main simulation loop.
+Now, we will step through the build process to explain the ASL model structure.
 
-The simulator logic is organized into several key modules:
+== How we "decode"
 
-- *`simulator.rs`*: The core simulation driver, responsible for managing memory and interrupts.
-- *`ffi.rs`*: Exposes Rust functions (like memory access) to the ASL model through a C-compatible API.
-- *`model.rs`*: A wrapper around the C code that is auto-generated from the ASL model by `bindgen`.
+Fundamentally, an instruction can be viewed as a sequence of bytes representing
+a "command" (opcode) paired with "arguments" (operands). The *decoder's*
+responsibility is to interpret this sequence: it identifies which "command" to
+execute and extracts the necessary "arguments", ensuring strict adherence to
+the ISA specification.
 
-The ASL model communicates with the Rust simulator through a Foreign Function
-Interface (FFI). The ASL code is first compiled into a C archive
-(`libpokedex_sim.a`) with corresponding header files. The Rust simulator then
-uses these C-bindings to step each instruction and handle I/O operations
-like memory loads and stores.
+=== Instructions Decoding <asl-instruction-decode>
 
-The `build.rs` script orchestrates the build process. It read the ASLi
-generated C code and then uses the `bindgen` tool to generate Rust bindings
-from the `asl_export.h` header file. These bindings are then used by the
-`model.rs` module to interact with the ISA model.
+Instruction encodings are defined in the `data_files/inst_encoding.json` file,
+which is generated by `scripts/datagen.py`. Each instruction entry requires the
+following fields to define an encoding:
 
-Implementation details can be found at chapter @rust-simulator.
+```json
+{
+  "name": "addi",
+  "encoding": "-----------------000-----0010011",
+  "extension": "rv_i"
+}
+```
 
-== Differential Testing with Spike
+The encoding data is derived from the
+#link("https://github.com/riscv/riscv-opcodes")[riscv/riscv-opcodes] project.
+We vendor the upstream parsing tool at `scripts/riscv_opcodes_util.py`,
+allowing us to accept any _riscv-opcodes_ source. This enables us to easily
+define encodings for unratified extensions.
 
-To ensure our model's correctness, we perform differential testing against
-`riscv-isa-sim` (Spike), the official RISC-V golden model. By comparing our
-model's architectural state changes against Spike's on a per-instruction basis,
-we can verify that our implementation is trustworthy and accurate.
-
-The `difftest` CLI will read a configuration where user specify the directory
-for all test cases and arguments for simulator and spike. It will run simulator
-and spike automatically, then get corresponding commit log and parse to structure
-metadata for comparing. When any part of the log is mismatched, like missing
-register read/write operation or register get written with different value at same
-point, the `difftest` CLI will run fail and provide dump near the error place.
-
-#notes[By default, differential testing for memory operations is disabled.
-
-  This is because the behavior of the memory system is platform-specific and
-  not defined by the ISA specification, making a direct comparison between
-  different simulators impractical for these operations.]
-
-
-= Exception
-
-== Exception API
-
-To handle operations that may fail, our ASL model emulates Rust's `Result`
-type. Since ASL does not support generic enums, we use a custom `record` and a
-set of helper functions to provide a standardized way of returning either a
-successful value or an exception.
+The encoding field is utilized by the `templates/inst_dispatch.asl.j2`
+template, which defines the instruction decoding entry point. Each encoding
+string becomes a bit-pattern match arm. When an instruction matches a specific
+bit pattern, the `DecodeAndExecute` function delegates execution to the
+corresponding function identified by the name field. If no bit pattern matches,
+an `IllegalInstruction` result is returned.
 
 ```asl
-// A record to hold the outcome of an operation.
-record Result {
-  cause : integer;
-  value : bits(32);
-  is_ok : boolean;
-};
-
-// Helper functions to create a Result.
-func OK(value : bits(32)) => Result
-func Exception(cause : integer, trap_value : bits(32)) => Result
-func Retired() => Result
-```
-
-- *`OK(value)`*: Use this to return a successful result. It creates a
-  `Result` with `is_ok` set to `TRUE` and the `value` field populated.
-- *`Exception(cause, trap_value)`*: Use this to return a failure. It creates
-  a `Result` with `is_ok` set to `FALSE`, the `cause` field set to the
-  exception type, and the `trap_value` field holding relevant context about the
-  error (e.g., the faulting address).
-- *`Retired()`*: Use this for successful operations that do not produce a
-  return value. It creates a `Result` with `is_ok` set to `TRUE`, `cause` set
-  to `-1` and `value` set to zeros.
-
-== Exception Causes
-While the `Exception` function can be called with any custom `cause` ID, most
-exceptions should use the standard cause codes defined by the RISC-V privilege
-specification.
-
-We auto-generate these cause codes as named constants from the
-#link("https://github.com/riscv/riscv-opcodes/blob/master/causes.csv")[`causes.csv`]
-file in the official `riscv-opcodes` repository. For each entry in the CSV, a
-constant is generated with the `CAUSE_` prefix, followed by the uppercase
-description with spaces replaced by underscores.
-
-For example, the description "Misaligned load" becomes the constant `CAUSE_MISALIGNED_LOAD`.
-
-*Example Usage:*
-
-To return a misaligned load exception, you would use the generated constant like this:
-
-```asl
-// ...
-// Check if the address is misaligned.
-if addr[1:0] != '00' then
-  // Return an exception with the standard cause and the faulting address.
-  return Exception(CAUSE_MISALIGNED_LOAD, addr);
-end
-
-// ...
-```
-
-== Trap Handling
-
-Trap handling is explained at @trap-handling.
-
-= Instruction Sets
-This model implements the RISC-V instruction set architecture based on the
-official `riscv-isa-manual` repository. Our implementation specifically adheres
-to the latest ratified version released on May 08, 2025.
-
-For reference, developers can download the official specification document for
-from the following link:
-
-- *RISC-V ISA Specification (Release 2025-05-08)*:
-  https://github.com/riscv/riscv-isa-manual/releases/tag/20250508
-
-This section contains details guidance of how we describe instruction semantics.
-
-== Instruction file convention
-The implementation logic for each instruction is defined in its own `.asl` file.
-These files are organized into directories, with each directory corresponding
-to a specific RISC-V instruction set.
-
-The directory structure for instruction sets must follow the official
-`riscv-opcodes` repository. Each instruction set is represented by a directory.
-And the directory's name must exactly match the corresponding extension
-filename found within the `extensions/` directory of the `riscv-opcodes`
-repository.
-
-Within each directory, the filename for an instruction must strictly follow the
-`<instruction_name>.asl` format:
-
-- The `<instruction_name>` must be the lowercase version of the instruction.
-- Any dot (`.`) in an instruction's name must be replaced with an underscore (`_`).
-
-Finally, to mirror the layout of the official `riscv-opcodes` repository, all of
-the previously mentioned instruction set directories (`rv_i`, `rv_v`, etc.) must be
-placed inside a single top-level directory named `extensions`.
-
-=== Example
-
-Given the instructions `slli`, `addi` and `vle64.v`, the resulting directory and
-file structure would be:
-
-```
-model/
-└── extensions/
-    ├── rv_i/
-    │   └── addi.asl
-    ├── rv_v/
-    │   └── vle64_v.asl
-    └── rv32_i/
-        └── slli.asl
-```
-
-== Writing Instruction Semantics
-The logic for each instruction is written in its own `.asl` file (e.g.,
-`addi.asl`). This file contains *only the body* of the instruction's execution
-logic. The `codegen` CLI tool automatically wraps this logic in a full function
-signature and adds a call to it from a global dispatcher. Developer *should not*
-write the function signature yourself.
-
-=== How It Works
-
-The `codegen` CLI tool processes every `.asl` file within the `extensions/`
-directory and performs two main actions:
-
-*1. Generates an `Execute_<INSTRUCTION_NAME>` Function*: It creates a unique
-function for each instruction. The name is derived from the filename (e.g.,
-`vle64_v.asl` becomes `Execute_VLE64_V`), and your code snippet is inserted
-into its body. This function will always receive the 32-bit instruction opcode
-as an argument:
-
-```asl
-func Execute_<INSTRUCTION_NAME>(instruction: bits(32)) => Result
-```
-
-*2. Creates a Dispatch Case*: It adds a pattern match case to the global
-`Execute()` function. This dispatcher inspects the opcode of every incoming
-instruction and calls the corresponding `Execute_<INSTRUCTION_NAME>` function.
-
-=== Developers Responsibilities
-
-- *Implement Core Logic*: Your code must decode operands from the instruction
-  argument, perform the operation, and write the results to the appropriate
-  registers (GPRs, CSRs, etc.).
-- *Update the Program Counter (PC)*: The main `Step()` function of the model does
-  not automatically increment the PC. Your instruction logic is responsible for
-  updating the PC value after execution (e.g., `PC = PC + 4;`). Forgetting this
-  step will cause the model to loop on the same instruction.
-- *Return Result*: Developer should return `Result` value after handling the execution.
-
-=== Example: implementing the `addi` instruction in `rv_i`
-
-Here is a complete walkthrough for implementing the addi instruction.
-
-*Step 1: Create the Instruction File*
-
-First, create the `addi.asl` file and place it in the correct directory
-according to the convention: `extensions/rv_i/addi.asl`.
-
-*Step 2: Write the Implementation Logic*
-
-Inside `addi.asl`, write the code to perform the "add immediate" operation.
-
-#notes[Note there is no surrounding `func` block.]
-
-```asl
-// Decode operands from the instruction bits.
-// Read following arg luts sections for details about `Get*` API.
-let rd  : integer{0..31} = UInt(GetRD(instruction));
-
-// NOP optimization
-if rd != 0 then
-  let imm : bits(12) = GetIMM(instruction);
-  let rs1 : integer{0..31} = UInt(GetRS1(instruction));
-  X[rd] = X[rs1] + SignExtend(imm, 32);
-end
-
-PC = PC + 4;
-
-return Retired();
-```
-
-*Step 3: Review the Generated Code*
-
-After running the `codegen` tool, the `addi.asl` snippet will be integrated
-into the model. The final generated code will look like this:
-
-```asl
-// the code generated for addi
-func Execute_ADDI(instruction : bits(32)) => Result
-begin
-  // code from addi.asl will be inserted here
-
-  let rd  : integer{0..31} = UInt(GetRD(instruction));
-
-  // NOP optimization
-  if rd != 0 then
-    let imm : bits(12) = GetIMM(instruction);
-    let rs1 : integer{0..31} = UInt(GetRS1(instruction));
-    X[rd] = X[rs1] + SignExtend(imm, 32);
-  end
-
-  PC = PC + 4;
-
-  return Retired();
-end
-
-// The global dispatcher function, now with a branch for addi
-func Execute(instruction: bits(32)) => Result
+// example of code generated inst_dispatch.asl
+func DecodeAndExecute(instruction : bits(32)) => Result
 begin
   case instruction of
-    when 'xxxx xxxx xxxx xxxx x000 xxxx x001 0011' =>
-        return Execute_ADDI(instruction);
-    // ...
+    when '-----------------000-----0010011' =>
+      return Execute_ADDI(instruction);
+
+    // ... other bit patterns and dispatcher ...
+
     otherwise =>
-      return Exception(CAUSE_ILLEGAL_INSTRUCTION, instruction);
+      return IllegalInstruction();
   end
 end
 ```
 
-== Arg Luts
-
-To reduce decoding bugs and simplify development, extracting arg field from
-instruction is abstracted to functions implemented in `handwritten/arg.asl` file.
-
-The arg APIs follow a consistent naming and signature convention:
-
-- Naming: All functions start with a `Get` prefix, followed by the field name
-  in uppercase (e.g., `GetRD`, `GetRS1`).
-- Signature: Each function accepts the 32-bit instruction as a `bits(32)`
-  parameter and returns a bit vector whose size is determined by the field's
-  definition in the lookup table.
-
-For example, instead of manually slicing the immediate field for each J-type
-instruction, developer should use the provided `GetJIMM` API. This function
-takes the 32-bits instruction and returns the corresponding 20-bit immediate
-value.
+In the example above, the decoder is defined as a function. A typical function
+block follows this structure:
 
 ```asl
-func GetJIMM(inst : bits(32)) => bits(20)
+function FunctionName(argument : type)
 begin
-  let imm20 : bit = inst[31];
-  let imm10_1 : bits(10) = inst[30:21];
-  let imm11 : bit = inst[20];
-  let imm19_12 : bits(8) = inst[19:12];
-
-  return [imm20, imm19_12, imm11, imm10_1];
+  // function body
 end
 ```
 
-== CSR
-This section contains basic information of how to implement Control and Status
-Register (CSR) to models.
-
-=== Reading and Writing CSRs
-All CSRs operations are handled by two main APIs that are generated by the
-`codegen` CLI tool.
-
-- Read API: `func ReadCSR(csr_number: bits(12)) => Result`
-- Write API: `func WriteCSR(csr_number: bits(12), value: bits(32)) => Result`
-
-The generated code works as a dispatcher. It uses pattern matching on the
-`csr_number` parameter to identify the target CSR and then calls the
-corresponding handler function that you have implemented for that specific
-register.
-
-For example, the generated code will look similar to this:
+The input type `bits(32)` denote that `instruction` is a `bitvector` of length
+`32`. Pattern matching is achieved using the `case...when` expression. Each
+`when` keyword defines a match arm; if the pattern matches the value, the
+associated statements are executed. The `otherwise` keyword acts as a
+"catch-all" default arm; if no pattern matches the value, the statements
+defined in `otherwise` will be executed.
 
 ```asl
-func ReadCSR(csr_number: bits(12)) => Result
-begin
-  case csr_number of
-    when '1111 0001 0010' =>
-      return Read_MARCHID();
-    when '0011 0100 0010' =>
-      return Read_MCAUSE();
-    when '0011 0100 0001' =>
-      return Read_MEPC();
-    // ...
+// ...
+  case <expression> of
+    when <pattern> =>
+      <statement>
     otherwise =>
-      return Exception(CAUSE_ILLEGAL_INSTRUCTION, ZeroExtend(csr, 32));
+      <statement>
+  end
+// ...
+```
+
+As the number of supported ISA extensions grows, hand-writing these pattern
+matches becomes unmanageable. That's why we use Jinja to parse the list of
+encodings and automatically generate this instruction dispatch logic.
+
+Document of all instruction handler can be found in @model-reference.
+
+=== Control and Status Register Decoding <csr-decoding>
+
+CSR handling follows the same logic as instruction decoding: a CSR definition
+file feeds an ASL Jinja template to generate the pattern matching and dispatch
+code.
+
+The standard RISC-V ISA sets aside a 12-bit encoding space (`csr[11:0]`) for up
+to 4,096 CSRs. By convention, the upper 4 bits of the CSR address (`csr[11:8]`)
+are used to encode the read and write accessibility of the CSRs according to
+privilege level. The top two bits (`csr[11:10]`) indicate whether the register
+is read/write (`00`, `01`, or `10`) or read-only (`11`). The next two bits
+(`csr[9:8]`) encode the lowest privilege level that can access the CSR.
+
+The CSR encoding data is derived from the `riscv-opcodes` project and stored in
+`data_files/csr.json`. Each CSR is defined using the following JSON format:
+
+```json
+{
+  "name": "fflags",
+  "mode": "urw",
+  "addr": 1,
+  "bin_addr": "000000000001",
+  "read_write": true
+}
+```
+
+This JSON data is processed by the `templates/csr_dispatch.asl.j2` template to
+generate CSR operations as follows:
+
+```asl
+func ReadCSR(csr : bits(12)) => CsrReadResult
+begin
+  case csr of
+    when '000000001000' =>
+      return Read_VSTART();
+
+    // other csr
+
+    otherwise =>
+      return CsrReadIllegalInstruction();
   end
 end
 
-func WriteCSR(csr_number: bits(12), value: bits(32)) => Result
+func WriteCSR(csr : bits(12)) => Result
 begin
-  case csr_number of
-    when '1111 0001 0010' =>
-      return Write_MARCHID(value);
-    when '0011 0100 0010' =>
-      return Write_MCAUSE(value);
-    when '0011 0100 0001' =>
-      return Write_MEPC(value);
-    // ...
+  case csr of
+    when '000000001000' =>
+      return Write_VSTART();
+
+    // other csr
+
     otherwise =>
-      return Exception(CAUSE_ILLEGAL_INSTRUCTION, ZeroExtend(csr, 32));
+      return IllegalInstruction();
   end
 end
 ```
 
-=== Implementing CSR Handlers
-While the `codegen` CLI tool creates the main dispatcher and the function
-signatures, developers are responsible for implementing the specific read and
-write logic for each CSR.
+Note that the `Write_XXX` function call is only generated if the CSR is defined
+as writable (based on the `read_write` fields).
 
-This is done by providing the body of the function in a dedicated `.asl` file.
-The build process then combines the provided logic with the generated function
-signature.
+Details of CSR can be found in @csr-vs-arch-states.
 
-Here is the step-by-step process to add a new CSR or modify an existing one.
+== Stepping Instructions <asl-step-instruction>
 
-*Step 1: Create the Handler Files*
+We have seen how instructions are decoded and dispatched to their handler
+functions. Next, we examine how instructions are fetched and passed to the
+decoder.
 
-The logic for each CSR operation lives in its own file. The `codegen` CLI tool
-looks for these files in two directories:
-
-- `csr/read/` for read operations.
-- `csr/write/` for write operations.
-
-The `codegen` CLI tool identifies each CSR and its corresponding address
-directly from the `.asl` filename. This file-based mapping requires a strict
-naming convention.
-
-The required format is: `<csr_name>_<address>.asl`
-
-- `<csr_name>`: The name of the CSR in lowercase (e.g., `mcycle`).
-- `_`: An underscore used as a separator.
-- `<address>`: The CSR address represented as a lowercase hexadecimal string,
-  *without the `0x` prefix* (e.g., `b00` for address `0xB00`).
-
-For example, to implement the `mcycle` CSR, you would create files named
-`csr/read/mcycle_b00.asl` and `csr/write/mcycle_b00.asl`.
-
-*Step 2: Implement the Handler Logic*
-
-You only need to write the code that goes inside the function body. The tool
-generates the function signature around your code.
-
-*Read Handlers:*
-The tool generates a read function named `Read_<CSR_NAME>`. Your `.asl` file in
-the `csr/read/` directory must contain the logic to return the CSR's value as
-`Result` type.
-
-*Write Handlers:*
-The tool generates a write function named `Write_<CSR_NAME>`. Your `.asl` file in
-the `csr/write/` directory must contain the logic to handle the write
-operation. The new value is passed in as the `value` argument with `XLEN` bits.
-For read-only CSR, a write handler must return illegal instruction exception.
-
-==== Example: Implementing `misa`
-
-Let's walk through the complete process for adding the `misa` (at `0x301`) CSR.
-
-*1. Create the File Structure*
-
-Create the empty `misa_301.asl` files in the correct directories. Your file
-structure should look like this:
-```
-model/
-└── csr/
-    ├── csrs.csv
-    ├── read/
-    │   └── misa_301.asl
-    └── write/
-        └── misa_301.asl
-```
-
-*2. Implement the Read Logic (`read/misa_301.asl`)*
-
-Add the CSR read logic to `csr/read/misa_301.asl`. This code snippet will become
-the body of the `Read_MISA()` function.
-```asl
-// This logic assumes only rv32i is supported. The I-bit is controlled
-// by the 'misa_i' register, and all other non-MXL bits are read-only-zero.
-
-// machine xlen is read-only 32;
-let MXL : bits(2) = '01';
-let MISA_EXTS : bits(26) = [
-  // Z-N
-  Zeros(13),
-  // M
-  '1',
-  // LJKI
-  '0001',
-  // HGFE
-  '0010',
-  // DCBA
-  '0101'
-];
-
-let misa : bits(32) = [
-  MXL,
-  Zeros(4),
-  MISA_EXTS
-];
-
-return misa;
-```
-
-*3. Implement the Write Logic (`write/misa_301.asl`)*
-
-Add the corresponding logic to `csr/write/misa_301.asl`. This becomes the body of
-the `Write_MISA(value: bits(32))` function.
+The `Step` function, defined in `handwritten/step.asl`, serves as the primary
+entry point for driving the model. It processes instructions sequentially, one
+at a time. Below is a simplified pseudo-code representation of this function:
 
 ```asl
-return Retired();
-```
-
-*4. Final Generated Code*
-
-After running `codegen` CLI, the tool will take your `.asl` snippets and
-produce the following complete, callable functions:
-
-```asl
-func Read_MISA() => Result
+// pseudo example code
+func Step() => StepResult
 begin
-  // machine xlen is read-only 32;
-  let MXL : bits(2) = '01';
-  let MISA_EXTS : bits(26) = [
-    // Z-N
-    Zeros(13),
-    // M
-    '1',
-    // LJKI
-    '0001',
-    // HGFE
-    '0010',
-    // DCBA
-    '0101'
-  ];
+  if HasInterrupt() then
+    return INTERRUPT;
+  end
 
-  let misa : bits(32) = [
-    MXL,
-    Zeros(4),
-    MISA_EXTS
-  ];
-
-  return OK(misa);
-end
-
-func Write_MISA(value : bits(32)) => Result
-begin
-  return Retired();
+  let instruction = FFI_instruction_fetch(PC);
+  let result = DecodeAndExecute(instruction);
+  if result.is_ok then
+    return COMMITTED;
+  else
+    return EXCEPTION;
+  end
 end
 ```
 
-= Architecture States
+We will discuss how the Foreign Function Interface (FFI) interoperates with the
+model in @asl-ffi. For now, treat any function with the `FFI_` prefix as a
+black box that performs the necessary external operations.
 
-All architectural states for current ISA model, from general-purpose registers
-to Control and Status Registers, are defined in the `states.asl` file. To
-optimize the model, we only define the specific bits necessary for the
-supported ISA features.
+In each execution of Step, the model fetches a single instruction using the
+external FFI function. The `PC` (Program Counter) is a global architectural
+state variable (32-bit) representing the physical memory address of the current
+instruction. This `PC` value is passed to `FFI_instruction_fetch` to retrieve
+the instruction data at that specific address.
 
-This section serves as a reference for all architectural states maintained by
-the model.
+The execution flow is as follows:
 
-== Architecture State vs. CSR Implementation
++ Instruction is fetched through the `FFI_instruction_fetch()` function.
++ The instruction data is passed to `DecodeAndExecute` (implemented in
+  @asl-instruction-decode) to obtain the execution result.
++ If the result indicates success (no exceptions), a signal is use as response
+  to indicate instruction is committed.
++ If an exception is raised, an exception signal is returned.
 
+Note that the actual `Step` implementation handles significantly more
+complexity than shown above, including Compressed Instructions (the RISC-V "C"
+extension) and detailed exception logic. Please refer to `handwritten/step.asl`
+for the complete source code.
+
+== Error Handling and Result Type <asl-error-handling>
+
+Due to ASL's limited support for polymorphic types and our preference to avoid
+standard `try...catch` mechanisms, we define a custom `Result` type to
+encapsulate operation status and error details:
+
+```asl
+record Result {
+  is_ok : boolean;
+  cause : integer{0..31};
+  payload : bits(XLEN);
+};
+
+type CsrReadResult of record {
+  data: bits(XLEN),
+  result: Result
+};
+```
+
+The `Result` structure indicates whether an operation triggered an exception.
+
+- When `is_ok` is `TRUE`, the operation was successful.
+- When `is_ok` is `FALSE`, the operation failed, and the structure contains
+  necessary exception details (such as the `cause`).
+
+If an exception does not require a `payload`, the field is typically set to
+zero. However, developers should treat the `payload` as undefined in these
+cases and ignore it.
+
+We provide helper APIs to construct `Result` instances (undefined fields should
+be ignored), see `model/handwritten/exception.asl` for details.
+
+== Architecture States <asl-arch-states>
+
+We have established the main logic for driving the model to process instructions
+sequentially. However, instructions rarely execute in isolation; they often
+exhibit *data dependencies*, where the current instruction requires the
+result of a previous one.
+
+To manage this, the model requires persistent internal storage to hold these
+results between steps. This collection of information is known as the
+*Architectural State*.
+
+These states are defined in file `handwritten/states.asl` and
+`handwritten/states_v.asl`.
+
+== CSR (Control and Status Register)
+
+=== CSR vs Architecture States <csr-vs-arch-states>
 The relationship between an *Architectural State* and a *Control and Status
 Register (CSR)* is that of implementation versus interface.
 
@@ -665,8 +533,8 @@ example of separating the public-facing CSR from its underlying architectural
 states.
 
 The `mtvec` CSR is composed of two architectural states:
-- `BASE`: A 30-bit field for the trap address.
-- `MODE`: A 2-bit field for the trap mode.
+- `MTVEC_BASE`: A 30-bit field for the trap address.
+- `MTVEC_MODE`: A 2-bit field for the trap mode.
 
 The key distinction lies in how writes are handled:
 
@@ -683,617 +551,243 @@ The key distinction lies in how writes are handled:
   fails, it signals a critical bug in the CSR's write-handling or some explicit
   write logic that must be fixed.
 
-== General Propose Register (GPRs)
-
-This model supports the `I` extension, providing 32 general-purpose registers (`x0`
-through `x31`). Because the `x0` register is a special case (hardwired to zero),
-our implementation only declares a 31-element array to store the state for
-registers `x1` through `x31`.
-
-```asl
-// Internal General Propose Register
-var __GPR : array[31] of bits(32)
-```
-
-The `__GPR` variable is an internal architecture states. Access to the GPRs is
-managed by a global array-like variable `X`. This provide a clean interface
-using ASL's getter and setter keyword, allows developers to use standard array
-indexing (`X[i]`) while the underlying logic handles the special case of `x0`.
-
-```asl
-getter X[i : integer{0..31}] => bits(32)
-begin
-  if i == 0 then
-    // Always return a 32-bit zero vector for X[0]
-    return Zeros(32);
-  else
-    // Adjust index to access the correct element for GPRs 1-31
-    return __GPR[i - 1];
-end
-
-setter X[i : integer{0..31}] = value : bit(32)
-begin
-  // Only perform a write if the destination is not X[0]
-  if i > 0 then
-    __GPR[i - 1] = value;
-
-  // Writes to GPR[0] are silently discarded
-end
-```
-
-When `X[0]` is read, the getter intercepts the call and returns a 32-bit zero
-vector, without accessing the `__GPR` array. A write to `x0` is silently
-ignored by the setter logic, preserving its hardwired-zero behavior.
-
-When any other register (`X[1]`-`X[31]`) is accessed, the getter adjusts the
-index by `-1` and returns the corresponding value from the `__GPR` array.
-A write to any register from `x1` through `x31` updates its value in the `__GPR`
-array.
-
-All access to `X` has a integer constraint check declare by `integer{0..31}`,
-which allows only integer from 0 to 31. This constraints are checked by ASLi
-when `--check-constraints` flag is provided. Developer should also ensure
-`--runtime-check` flag is provided to avoid invalid type cast.
-
-== Control and Status Register (CSRs) <architecture-states-csr>
-
-This sections contains CSRs behavior in current model.
-If a CSR address not contains in this section get read or write,
-the dispatcher will raise illegal instruction exception.
-
-=== Read only zeros CSRs
-
-Registers covered in this section are always read-only zero. Any write to these
-registers will return a illegal instruction exception. Also no architecture states
-will be allocated for these CSRs.
-
-- `mvendorid`
-- `marchid`
-- `mimpid`
-- `mhartid`
-- `mconfigptr`
-
-=== Machine ISA (misa) Register
-
-Switching extension supports at runtime is not supported by this model. The
-`misa` register is implemented as a read-only CSR register. A read to `misa`
-register always return a static bit vector indicating current enabled
-extensions. Any writes to `misa` register will return illegal instruction
-exception.
-
-```asl
-// machine xlen is read-only 32;
-let MXL : bits(2) = '01';
-let MISA_EXTS : bits(26) = [
-  // Z-N
-  Zeros(13),
-  // M
-  '1',
-  // LJKI
-  '0001',
-  // HGFE
-  '0010',
-  // DCBA
-  '0101'
-];
-
-let misa : bits(32) = [
-  MXL,
-  Zeros(4),
-  MISA_EXTS
-];
-
-return misa;
-```
-
-Our implementation will now return support for `rv32imafc`, 'x' is not enabled for now.
-
-Since `misa` is a read-only value, no states will be allocated in current model.
-
-=== Machine status (mstatus) Register
-
-Current model focus on machine mode only, supervisor and user mode are not implemented.
-So for `mstatus` register, model only provide following fields for `mstatus` register:
-
-- `mie`: global interrupt-enable bit for machine mode
-- `mpie`: the interrupt-enable bit active prior to the trap
-- `mpp[1:0]`: previous privilege level
-
-The `mstatush` register is also not required since we only implement M-mode.
-Any write to `mstatush` is a no-op, and read will get zeros.
-
-The above bit fields will be declare as individual register in `states.asl` file.
-
-```asl
-var MSTATUS_MIE : bit;
-var MSTATUS_MPIE : bit;
-var MSTATUS_MPP : PRIVILEGE_LEVEL;
-```
-
-Variables `MSTATUS_MIE` and `MSTATUS_MPIE` are of one bit type, and there are by default
-containing valid value, so no constraints added to them.
-
-Variable `MSTATUS_MPP` only holds one valid value (M mode) but should it have two bits,
-so a new enumeration type `PRIVILEGE_LEVEL` is added to limit the value.
-
-```asl
-enumeration PRIVILEGE_LEVEL {
-  PRIV_MACHINE_MODE
-};
-```
-
-Field `PRIV_MACHINE_MODE` will be converted to bits vector value `0b11`, and convert from
-bits vector `0b11`. Any other value convert into type `PRIVILEGE_LEVEL` will be seen as
-internal model bug:
-
-```asl
-func __PrivLevelToBits(priv : PRIVILEGE_LEVEL, N: integer) => bits(N)
-begin
-  case priv of
-    when PRIV_MACHINE_MODE => return ZeroExtend('11', N);
-  end
-end
-
-func __BitsToPrivLevel(value : bits(N)) => PRIVILEGE_LEVEL
-begin
-  let mode : integer = UInt(value);
-  case mode of
-    when 3 => return PRIV_MACHINE_MODE;
-    otherwise => assert FALSE;
-  end
-end
-```
-
-An example read/write operation to `mstatus` register looks like following:
-
-```asl
-func Read_MSTATUS()
-begin
-  return [
-    // SD[31], WPRI[30:25], SDT[24], SPELP[23], TSR[22], TW[21], TVM[20]
-    // MXR[19], SUM[18], MPRV[17], XS[16:15], FS[14:13]
-    Zeros(19),
-    // MPP[12:11]
-    MSTATUS_MPP_BITS,
-    // VS[10:9], SPP
-    '000',
-    // MPIE
-    MSTATUS_MPIE,
-    // UBE, SPIE, WPRI
-    '000',
-    MSTATUS_MIE,
-    // WPRI, SIE, WPRI
-    '000'
-  ];
-end
-
-func Write_MSTATUS(value : bits(32))
-begin
-  MSTATUS_MIE = value[3];
-  MSTATUS_MPIE = value[7];
-
-  if value[12:11] == '11' then
-    MSTATUS_MPP_BITS = value[12:11];
-  end
-
-  return Retired();
-end
-```
-
-=== Machine Cause (mcause) Register
-
-The `mcause` register is store in two states: a `Interrupt` bit register
-and a 31 bits length exception code register:
-
-```asl
-var MCAUSE_IS_INTERRUPT : boolean;
-var MCAUSE_XCPT_CODE : bits(31);
-```
-
-A read to the `mcause` CSR register will have a concatenated 32-bit value
-from above register, with the interrupt bit at top, exception code value
-at bottom.
-
-```asl
-function Read_MCAUSE()
-begin
-  return [MCAUSE_IS_INTERRUPT_BIT, MCAUSE_EXCEPTION_CODE];
-end
-```
-
-Since `mcause` CSR is a WLRL register, we don't validate the value, it is up to
-software to verify the correctness of CSR value.
-
-```asl
-function Write_MCAUSE(value : bits(32))
-begin
-  MCAUSE_IS_INTERRUPT_BIT = value[31];
-  MCAUSE_XCPT_CODE = value[30:0];
-
-  return Retired();
-end
-```
-
-=== Machine Interrupt (mip and mie) Registers
-
-We have only M-mode support in current implementation, so LCOFIP, supervisor
-interrupt bits and software interrupt bit (MSIP/MSIE) are not allocated and
-are read-only zero.
-
-External interrupt pending bit (MEIP) and Timer interrupt pending bit (MTIP)
-is controlled by external controller at semantic. We use FFI functions
-`FFI_machine_external_interrupt_pending` and `FFI_machine_time_interrupt_pending`
-to get the value, and no states will be allocated for these two bits.
-Any CSR write to `mip` will raise illegal instruction exception.
-
-```asl
-function Read_MIP() => bits(32)
-begin
-  var tmp : bits(32) = Zeros(32);
-  tmp[7] = MTIP;
-  tmp[11] = MEIP;
-  return tmp;
-end
-
-func Write_MIP(value : bits(32)) => Result
-begin
-  return Exception(CAUSE_ILLEGAL_INSTRUCTION, Zeros(32));
-end
-```
-
-External interrupt enable (MEIE) and timer interrupt enable (MTIE) are single
-bit register. They contains only two value and thus no constraints will be imposed
-on these bits.
-
-```asl
-var MEIE : bit;
-var MTIE : bit;
-
-func Write_MIE(value : bits(32)) => Result
-begin
-  MTIE = value[7];
-  MEIE = value[11];
-
-  return Retired();
-end
-
-func Read_MIE() => bits(32)
-begin
-  var tmp : bits(32) = Zeros(32);
-  tmp[7] = MTIE;
-  tmp[11] = MEIE;
-  return tmp;
-end
-```
-
-=== Machine Trap Vector (mtvec) Register
-
-Register `mtvec` holds address to the trap handler.
-It is implemented with two states:
-
-- `MTVEC_MODE`: enumeration that contains only "direct" and "vectored" mode;
-- `MTVEC_BASE`: 28 bits size bit vector holds the base address;
-
-In current implementation, `MTVEC_MODE` only store two mode. A write with
-`value[1:0]` larger or equals to 2 is considered as implementation bug.
-
-```asl
-enumeration MTVEC_MODE_TYPE {
-  MTVEC_DIRECT_MODE,
-  MTVEC_VECTORED_MODE
-};
-
-var MTVEC_MODE : MTVEC_MODE_TYPE;
-
-getter MTVEC_MODE_BITS => bits(2)
-begin
-  case MTVEC_MODE of
-    when MTVEC_DIRECT_MODE => return '00';
-    when MTVEC_VECTORED_MODE => return '01';
-  end
-end
-
-setter MTVEC_MODE_BITS = value : bits(2)
-begin
-  case value of
-    when '00' => MTVEC_MODE = MTVEC_DIRECT_MODE;
-    when '01' => MTVEC_MODE = MTVEC_VECTORED_MODE;
-    otherwise => assert FALSE;
-  end
-end
-```
-
-In definition, `MTVEC_BASE` inherently valid. Thus there is no constraint
-at architecture states `MTVEC_BASE`.
-
-```asl
-func Read_MTVEC() => bits(32)
-begin
-  return [MTVEC_BASE, MTVEC_MODE_BITS];
-end
-
-func Write_MTVEC(value : bits(32)) => Result
-begin
-  // write to 00 and 01 is valid, write to 10 and 11 is no-op
-  if value[1] == '0' then
-    MTVEC_MODE_BITS = value[1:0];
-  end
-
-  MTVEC_BASE = value[31:2];
-
-  return Retired();
-end
-```
-
-== Machine Trap Value (mtval) Register
-
-CSR `mtval` will have full 32-bits state register `MTVAL` to store value.
-Read and write this architecture states have no constraints.
-
-```asl
-var MTVAL : bits(32);
-
-func Write_MTVAL(value : bits(32)) => Result
-begin
-  MTVAL = value;
-
-  return Retired();
-end
-
-func Read_MTVAL() => bits(32)
-begin
-  return MTVAL;
-end
-```
-
-== Machine Exception Program Counter (mepc) Register
-
-CSR `mepc` have full 32-bits states register `MEPC` to store value.
-Any write to the `MEPC` states must be 32-bits align. (We don't have C extension support now).
-
-```asl
-var __MEPC : bits(32);
-getter MEPC => bits(32)
-begin
-  return __MEPC;
-end
-
-setter MEPC = pc : bits(32)
-begin
-  assert pc[0] == '0';
-  __MEPC = pc;
-end
-```
-
-Thus developer should verify address before writing to `mepc`.
-
-```asl
-func Write_MEPC(value : bits(32)) => Result
-begin
-  MEPC = [ value[31:1], '0' ];
-
-  return Retired();
-end
-```
-
-= Trap Handling <trap-handling>
-
-#notes[We use the term exception to refer to an unusual condition occurring at
-  run time associated with an instruction in the current RISC-V hart. We use
-  the term interrupt to refer to an external asynchronous event that may cause
-  a RISC-V hart to experience an unexpected transfer of control. We use the
-  term trap to refer to the transfer of control to a trap handler caused by
-  either an exception or an interrupt.]
-
-== Exception
-
-Each execution may return a failed `Result`, but the result should continuously
-transfer to upper level, and finally get trapped at `Step` function. A trap
-exception will update corresponding `mstatus`, `mip`... CSR, and set `PC` to
-the address stored in `mtvec` CSR.
-
-```asl
-func TrapException(cause : integer, trap_value : bits(32))
-begin
-  // mepc
-  MEPC = PC;
-
-  // mcause
-  MCAUSE_IS_INTERRUPT = FALSE;
-  // convert integer to 31bits length bit vector
-  MCAUSE_XCPT_CODE = asl_cvt_int_bits(cause, 31);
-
-  // mstatus
-  MSTATUS_MPIE = MSTATUS_MIE;
-  MSTATUS_MIE = '0';
-  MSTATUS_MPP = CURRENT_PRIVILEGE;
-
-  // mtval
-  MTVAL = trap_value;
-
-  PC = [ MTVEC_BASE, '00' ];
-end
-```
-
-== Interrupt
-
-Interrupt is check before starting to decode an instruction.
-A `CheckInterrupt` function will read corresponding pending and enable bit to
-determine if model should trap into the interrupt handler or not.
-If there is an interrupt, the `Step` function will directly return instead of
-continuing decode and execute.
-
-```asl
-func CheckInterrupt() => boolean
-begin
-  // if machine mode interrupt bit is not enabled, just return
-  if MSTATUS_MIE == '0' then
-    return FALSE;
-  end
-
-  let machine_trap_timer : bit = MTIP AND MTIE;
-  if machine_trap_timer == '1' then
-    TrapInterrupt(MACHINE_TIMER_INTERRUPT);
-    return TRUE;
-  end
-
-  let machine_trap_external : bit = MEIP AND MEIE;
-  if machine_trap_external == '1' then
-    TrapInterrupt(MACHINE_EXTERNAL_INTERRUPT);
-    return TRUE;
-  end
-
-  return FALSE;
-end
-
-
-func Step()
-begin
-  let has_interrupt : boolean = CheckInterrupt();
-  if has_interrupt then
-    return;
-  end
-// ...
-end
-```
-
-Handling trap for interrupt has similar logic as handling trap for exception,
-but interrupt specific information will be written into CSR, and PC is handled
-by least significant bits of `mtvec`.
-
-```asl
-func TrapInterrupt(interrupt_code : integer{3,7,11})
-begin
-
-  // save current context
-  MSTATUS_MPIE = MSTATUS_MIE;
-  MSTATUS_MIE = '0';
-  MSTATUS_MPP = CURRENT_PRIVILEGE;
-  MEPC = PC;
-
-  CURRENT_PRIVILEGE = PRIV_MACHINE_MODE;
-
-  MCAUSE_IS_INTERRUPT = TRUE;
-  MCAUSE_XCPT_CODE = asl_cvt_int_bits(interrupt_code, 31);
-
-  if MTVEC_MODE == MTVEC_DIRECT_MODE then
-    PC = [ MTVEC_BASE, '00' ];
-  else
-    PC = [ MTVEC_BASE, '00' ] + (4 * interrupt_code);
-  end
-end
-```
-
-= Codegen CLI
-
-== Update Codegen CLI Scala Dependency
-
-```bash
-$ cd pokedex/codegen
-$ nix run ".#pokedex.codegen-cli.bump"
-```
-
-== Setup Development Environment
-
-```bash
-$ nix develop .#pokedex.codegen-cli.shell -L
-```
-
-= Rust Simulator <rust-simulator>
-
-The ASL model itself is designed as a passive library. Its sole responsibility
-is to define the RISC-V instruction set architecture, including instruction
-semantics and architecture states. The ASL code does not contain an entry point
-(main function), an event loop, or memory management. It only describes the
-core logic of the processor.
-
-The execution environment is provided by a simulator written in Rust. This
-component acts as the driver for the ASL model and is responsible for all
-runtime operations, including loading executable file into memory, maintaining
-memory state, driving the model to consume instructions and recording each
-change happens in model architecture states.
-
-== File Structures
-
-```txt
-model/simulator/
-    ├── difftest
-    │   ├── assets
-    │   ├── src
-    │   │   ├── main.rs            -- difftest CLI entry
-    │   │   ├── pokedex.rs         -- parser for pokedex simulator event
-    │   │   └── spike.rs           -- parser for spike event
-    │   └── Cargo.toml
-    ├── pokedex
-    │   ├── src
-    │   │   ├── bin
-    │   │   │   └── pokedex.rs     -- pokedex CLI entry
-    │   │   ├── ffi.rs             -- FFI functions implementation
-    │   │   ├── lib.rs
-    │   │   ├── model.rs           -- ASL model function and variable wrapper
-    │   │   └── simulator.rs       -- Simulator logic and states
-    │   ├── asl_export.h           -- wrapper for ASL exported header
-    │   ├── build.rs
-    │   └── Cargo.toml
-    ├── Cargo.lock
-    └── Cargo.toml
-```
-
-== Simulator States
-
-We maintain following states at Rust side
-
-```rust
-pub struct SimulatorState {
-    pc: u32,
-    bus_bridge: BusBridge,
-    ic_handle: ICHandle,
-    exception: Option<SimulationException>,
-    statistic: Statistic,
-
-    last_instruction_met_count: u8,
-    max_same_instruction: u8,
+Document for CSR R/W handler can be founded in @model-reference.
+
+== FFI and the Platform <asl-ffi>
+The model, as presented so far, is a collection of standalone functions and
+variables, lacking any command-line interface (CLI) handling, ELF file parsing,
+or even a main function. This is by design. The model's sole responsibility is
+to implement the ISA specification. It acts as a core component that is driven
+externally, exposing its inputs and requesting data from other modules,
+analogous to hardware wiring. These connections are implemented using a C
+Foreign Function Interface (FFI).
+
+=== Export API from Model
+All ASL code is compiled into C using the `asl2c` tool. Since `asl2c` does not
+namespace the compiled symbols, an additional C layer,
+`csrc/pokedex_interface.c`, is used to manage the Application Binary Interface
+(ABI). By default, symbols are hidden using the GNU GCC compile flag
+`-fvisibility=hidden` (see `dylib_cflags` in `scripts/buildgen.py`).
+The sole exposed symbol, `EXPORT_pokedex_get_model_export()`, returns a
+reference to the `model_export` variable shown as follow.
+
+#pagebreak(weak: true)
+
+```c
+static const struct pokedex_model_export model_export = {
+    .abi_version = POKEDEX_ABI_VERSION,
+    .create = model_create,
+    // Other Constructor
+
+    .step = model_step_trace,
+    // Other Executor
+
+    .get_pc = model_read_pc,
+    // Other Accessor
+}
+
+__attribute__((visibility("default")))
+const struct pokedex_model_export* EXPORT_pokedex_get_model_export() {
+  return &model_export;
 }
 ```
 
-=== Shadowed Program Counter
-The `pc` field holds the address of the instruction currently being executed. Its
-primary purpose is to ensure accurate logging for differential testing against
-Spike.
+The `model_export` variable is a `pokedex_model_export` struct that serves as
+the central access point for all exported functions. Developers can obtain its
+address to invoke the corresponding APIs for driving the model or accessing
+architectural states stored within the ASL model.
 
-In our ASL model, the program counter is updated immediately during an
-instruction's execution; there is no `nextPC` state. This architectural choice
-creates a logging challenge for instructions like `jalr`, which both modify a
-register and jump to a new address.
+Document of exported API can be found at `model/handwritten/external.asl`.
 
-If we logged the register write after `PC` was updated, the log would
-incorrectly show the write occurring at the jump *destination* address, not at
-the address of the `jalr` instruction itself. This would cause a mismatch when
-comparing our execution trace with Spike's.
+=== Required API for Model
+To function, the ASL model relies on external functions for operations such as
+requesting data from the system memory bus or sending status updates to a debug
+channel. These external requirements are grouped into three categories:
 
-To solve this, the simulator's `pc` field is updated after the model executes
-the instruction. This field provides a stable record of the instruction's own
-address. When logging state changes, such as a register write, we use this
-value to ensure the log entry is correctly associated with the instruction that
-caused it, guaranteeing an accurate comparison with the reference log from
-Spike.
+- Memory APIs: For fetching data from an external memory implementation.
+- Debugging APIs: For printing debugging messages.
+- Architectural State Post-Write Hooks: For recording changes to the architectural state.
 
-=== Interconnection
-`bus_bridge` represents the primary system bus. It manages connections to
-multiple slave devices, such as SRAM and MMIO, by mapping them to specific
-ranges in the physical address space.
+All required APIs are declared in `handwritten/external.asl`, containing only
+their function signatures. These APIs are then compiled into C header
+declarations, with the suffix `_0` appended to each function name. Developers can
+implement these API functions by including the generated C header.
+
+== Floating Point Arithmetic <asl-fp>
+
+Intel Lab's compiler runtime does not include built-in support for floating-point arithmetic.
+Consequently, all floating-point arithmetic within the ASL model is delegated to the Berkeley
+Softfloat project (see https://github.com/ucb-bar/berkeley-softfloat-3).
+
+The Softfloat project is compiled into a standalone C library, and our
+`csrc/softfloat_wrapper.c` file provides an FFI glue layer. This wrapper
+implements the floating-point functions declared in the ASL model. It works by
+converting data types, calling the corresponding Softfloat API, and returning
+the result.
+
+The result of floating-point arithmetic is wrapped in a `F32_Flags` struct. This
+struct includes a FLEN `value` field, which stores the operation's result, and
+an `fflags` field, which stores any associated exception flags.
+
+```asl
+type F32_Flags of record {
+  value: bits(32),
+  fflags: bits(5)
+};
+```
+
+Each floating-point instruction calls its corresponding arithmetic API. The
+returned value is then stored in the floating-point register, and the `fflags`
+are used to update the FCSR state.
+
+= Simulator
+
+Thanks to the stable C ABI, the platform language can be chosen based on
+developer preference. We selected Rust for its robust type system and extensive
+community support. The platform-specific code resides in the `simulator`
+directory.
+
+== Interact with Model
+
+The aspect of the project that likely holds the most interest for readers is
+the interaction between the simulator and the model. Before diving into the
+complexities of the FFI, the following diagram illustrates the basic flow of
+this interaction.
+
+#let blob(pos, label, tint: white, ..args) = node(
+  pos,
+  align(center, label),
+  width: 25mm,
+  fill: if darkmode_enable { tint.darken(50%) } else { tint.lighten(60%) },
+  stroke: 1pt + tint.darken(20%),
+  corner-radius: 5pt,
+  ..args,
+)
+
+#let ffi-interaction = diagram(
+  spacing: 12mm,
+  cell-size: (8mm, 10mm),
+  edge-stroke: 1pt + theme.fg,
+  edge-corner-radius: 5pt,
+  mark-scale: 70%,
+
+  blob((0, 2), [Global Accessor]),
+  blob((1, 2), [Export Function]),
+  edge((0, 2), (1, 2), `&addr`, "--|>", bend: -60deg),
+
+  blob((0.5, 0), [ASL_model.so], tint: green, shape: house),
+  edge((0.5, 0), (0, 0.5), (0, 2)),
+  edge((0.5, 0), (1, 0.5), (1, 2)),
+
+  blob((2, 0), [Rust Simulator], tint: blue, shape: house),
+  edge((0.5, 0), (2, 0), `dl-load`, "-->"),
+  edge((2, 0), (1, 2), bend: 50deg, `call`, "--|>"),
+  edge((1, 2), (2, 0), bend: 10deg, `&addr`, "--|>"),
+)
+
+#align(center, [#figure(ffi-interaction, caption: [Simulator Interaction w/ Model]) <ffi-interaction-diagram>])
+
+As shown in @asl-ffi, the simulator obtains the API wrapper by calling
+`EXPORT_pokedex_get_model_export()`. The simulator uses `libc::dlopen` to
+load the shared object file, locates the exported C symbol, and transmutes the
+function pointer into a Rust function. Finally, it invokes this function to
+initialize the API wrapper, facilitating data transfer across the language
+boundary.
+
+Memory access from the ASL model follows a reverse pattern to @asl-ffi: the simulator
+exposes its memory APIs via a C vtable wrapper, `struct pokedex_mem_callback_vtable`.
+This structure contains function pointers that map to the underlying Rust
+implementations. A global instance of this vtable is declared in
+`pokedex_interface.c` and initialized by the simulator, making it accessible to
+the ASL model.
+
+For example, when the ASL model requires a 32-bit memory read, the process
+proceeds as follows:
+
+1. ASL Call: The model calls the ASL function `FFI_read_physical_memory_32bits`.
+2. C Binding: This compiles to the C header declaration: `FFI_read_physical_memory_32bits_0`.
+3. Vtable Delegation: Implementation in `pokedex_interface.c` delegate this request to vtable.
+
+```c
+static const struct pokedex_mem_callback_vtable* mem_cb_vtable = NULL;
+
+FFI_ReadResult_N_32 FFI_read_physical_memory_32bits_0(uint32_t addr) {
+    uint32_t data = 0;
+    int ret = mem_cb_vtable->read_mem_4(mem_cb_data, addr, &data);
+    FFI_ReadResult_N_32 value = {
+        .success = !ret,
+        .data = data,
+    };
+    return value;
+}
+```
+
+The `mem_cb_vtable` has a static address after linking, which is used by the
+simulator to initializes a new instance of `pokedex_mem_callback_vtable` type
+at that address:
+
+```c
+struct pokedex_mem_callback_vtable {
+    int (*read_mem_4)(void* cb_data, uint32_t addr, uint32_t* ret);
+    // ... Other memory APIs ...
+};
+```
+
+On the Rust side, the simulator implements the `read_mem_4` function. It casts
+the opaque `bus` pointer back to a mutable Bus reference and performs the read
+operation.
 
 ```rust
-pub struct BusBridge {
+unsafe extern "C" fn read_mem_4(bus: *mut c_void, addr: u32, ret: *mut u32) -> c_int {
+    let bus = unsafe { &mut *(bus as *mut T) };
+    bus.read_mem_u32(addr).as_int_ret(ret)
+}
+```
+
+Finally, the Bus implementation handles all the byte-level access:
+
+```rust
+impl Bus {
+    fn read_mem_u32(&mut self, addr: u32) -> BusResult<u32> {
+        assert!(addr % 4 == 0);
+
+        let mut data = [0; 4];
+        self.bus
+            .read(addr, &mut data)
+            .map(|_| u32::from_le_bytes(data))
+    }
+}
+```
+
+For further details on the internal Bus implementation, please refer to the
+following section.
+
+== Execution
+
+Upon launch, the simulator initializes the system memory bus. It reads the ELF
+file from the path specified in the CLI arguments and loads it into memory.
+
+After loading, the simulator identifies the ELF entry address and sets the
+model's `PC` state to this address using the `model_export.reset()` C API.
+
+Finally, the simulator enters its main execution loop. It repeatedly calls the
+`model.step()` C API until the model throws an error or writes an exit code to
+a specific bus device.
+
+== Device Bus
+
+Memory components (such as SRAM) and other MMIO devices are abstracted as
+address spaces paired with corresponding handlers. When a request falls within
+a specific address space, the bus routes it to the corresponding device.
+
+```rust
+pub struct Bus {
     address_space: Vec<(Range<u32>, Box<dyn Addressable>)>,
 }
 ```
 
-The `address_space` field contains a vector of tuples, where each tuple maps a
-physical address range (`Range<u32>`) to a device (`Box<dyn Addressable>`). To
-support different type of devices, device-specific information is abstractd
-using the `Addressable` trait. Any device connected to the bus must implement
-the `Addressable` trait.
+The `Addressable` trait defines the interface for bus-compatible devices.
+Implementing types must handle both read and write operations.
 
 ```rust
 pub trait Addressable: Send {
@@ -1302,393 +796,424 @@ pub trait Addressable: Send {
 }
 ```
 
-A key design principle is that devices are unaware of their absolute physical address
-on SoC. Instead, the bus provides a translated `offset` relative to the device's own
-base address.
+- Reads: The device populates the mutable `dest` buffer.
+- Writes: The device consumes the input `data` slice.
 
-- `do_bus_read`: device perform a read at the given `offset`. The data is written into
-the `dest` slice, and numbers of bytes to read is determined by the slice's length.
-- `do_bus_write`: device perform a write at given `offset` using the provided `data` slice.
+As shown in the trait definition, devices receive a relative `offset` rather
+than the absolute physical address. The Bus calculates this offset relative to
+the device's base address before delegating the request. The original address
+is transparent to the device.
 
-For example, consider an SRAM with a base address of `0x8000_0000`. If a core requests
-a read at physical address `0x8000_FC00`, the `BusBridge` will call the `SRAM`'s
-`do_bus_read` method with `offset` of `0xFC00`. The SRAM device only needs to handle
-this local offset and does not need to aware of the full 32-bit address space.
+For example, if a device is mapped to `0x8000_0000` and a request targets
+`0x8000_0044`, the device receives an offset of `0x44`.
 
-Device mappings are configured using a KDL file. This file specifies each device's
-base address, the length of its address space and other device-specific parameters.
+=== The Main Memory
 
-```kdl
-sram "naive" base=0x80000000 length=0x20000000
-
-mmio base=0x40000000 length=0x1000 {
-  mmap "exit" offset=0x4
-}
-```
-
-In this example:
-- An SRAM device named "naive" is mapped at base address `0x8000_0000` and occupies
-  a `0x2000_0000` bytes (512MB) address range on system bus.
-- An MMIO device is mapped at base address `0x4000_0000` and occupies `0x1000` bytes
-  (4KB) range. It also contains an internal `exit` interrupt controller at local offset
-  of `0x4`.
-
-#notes[The `length` parameter in the configuration defines a size of the address range
-  that the `BusBridge` maps to a device. This is distinct from the device's internal
-  storage capacity. A device can implement its own address translation logic, allowing
-  its actual capacity to be smaller or larger than its mapped address space.]
-
-The simulator provides high-level methods to interact with the bus:
-
-- `req_bus_read<const N: usize>(addr: u32) -> Result<[u8; N], BusError>`
-- `req_bus_write<const N: usize>(addr: u32, data: &[u8]) -> Result<(), BusError>`
-
-When these functions are called, the `BusBridge` finds the device mapped at the
-specified `addr`, translates it to a device-local offset, and dispatches the
-request to the device's Addressable implementation. If no device is mapped at
-the address, a `BusError::DecodeError` is returned.
-
-=== MMIO and External Interrupt
-
-In our simulator's design, peripheral devices can't directly contact the CPU
-core. So, we need a mechanism for them to signal events or request actions,
-like indicating that a task is complete or that the simulation should
-terminate.
-
-This is achieved using a system of interrupt controllers. Devices write to
-their associated controllers to update a *shared* state. After each instruction
-cycle, the SoC polls these controllers and acts on any pending signals.
-
-Any component that needs to signal the SoC must implement the
-`InterruptController` trait. This ensures a standard interface for the SoC to
-interact with.
+The simulator implements a basic SRAM model called `NaiveMemory`, which serves as
+the main memory component. Internally, it wraps a raw byte vector.
 
 ```rust
-pub enum InterruptType {
-  // ...
-}
-
-pub trait InterruptController: Sync + Send {
-    fn get_id(&self) -> InterruptType;
-    fn is_enabled(&self) -> bool;
-    fn set_enable(&mut self);
-    fn get_value(&self) -> [u8; 4];
-    fn set_value(&mut self, val: [u8; 4]);
+pub struct NaiveMemory {
+    memory: Vec<u8>,
 }
 ```
 
-- `get_id`: Returns a unique `InterruptType` to identify the interrupt's source.
-- `is_enabled`: Returns `true` if an interrupt is pending. The SoC only acts on `enabled` interrupts.
-- `set_enabled`: Marks the interrupt as pending for the SoC to handle.
-- `get_value`: get a 4-byte value associated with the interrupt controller
-- `set_value`: set a 4-byte value associated with the interrupt controller
+`NaiveMemory` is initialized as a zero-filled buffer. Its implementation of the
+`Addressable` trait handles data transfer and safety checks:
 
-#notes[The trait requires both `Sync` and `Send` because controllers are shared resources.]
+#pagebreak(weak: true)
+```rust
+impl Addressable for NaiveMemory {
+    fn do_bus_read(&mut self, offset: u32, dest: &mut [u8]) -> Result<(), BusError> {
+        let length = self.memory.len() as u32;
+        if offset >= length || offset + dest.len() as u32 > length {
+            return Err(BusError::DeviceError {
+                id: "NaiveMemoryRead",
+            });
+        }
 
-The `ICHandle` is a simple helper struct that centrally manages all registered
-interrupt controllers in the system.
+        dest.copy_from_slice(&self.memory[offset as usize..offset as usize + dest.len()]);
+
+        Ok(())
+    }
+
+    fn do_bus_write(&mut self, offset: u32, data: &[u8]) -> Result<(), BusError> {
+        let length = self.memory.len() as u32;
+        if offset >= length || offset + data.len() as u32 > length {
+            return Err(BusError::DeviceError {
+                id: "NaiveMemoryWrite",
+            });
+        }
+
+        self.memory[offset as usize..offset as usize + data.len()].copy_from_slice(data);
+
+        Ok(())
+    }
+}
+```
+
+- Bounds Checking: Both read and write operations first verify that the
+  requested address range is valid. If the range exceeds the memory size, a
+  `BusError` is returned.
+- Read: Copies data from the internal `memory` vector at the specified `offset`
+  into the `dest` buffer.
+- Write: Copies data from the input `data` slice into the internal `memory` vector
+  at the specified `offset`.
+
+=== MMIO Registers
+
+MMIO registers consist of pairs mapping a memory offset to a specific handler.
+In this RV32I architecture, every MMIO register stores a 32-bit value, each
+occupies one byte address space.
+
+The `MMIOAddrDecoder` handles request from the bus using the following logic:
 
 ```rust
-struct ICHandle(Vec<Box<dyn InterruptController>>);
-impl ICHandle {
-    fn new() -> Self {
-        Self(Vec::new())
+pub struct MMIOAddrDecoder {
+    // offset, type
+    regs: Vec<(u32, MmioRegs)>,
+}
+
+impl Addressable for MMIOAddrDecoder {
+    fn do_bus_write(&mut self, offset: u32, data: &[u8]) -> Result<(), BusError> {
+        // a non 32-bit write is consider as implementation bug and should be immediately bail out
+        let new_val = u32::from_le_bytes(data.try_into().unwrap());
+        let index = self.regs.binary_search_by(|(reg, _)| reg.cmp(&offset));
+
+        if let Ok(i) = index {
+            self.regs[i].1.store(new_val);
+
+            Ok(())
+        } else {
+            debug!("unhandle MMIO write to offset={offset} with value {new_val}");
+            Err(BusError::DeviceError { id: "MMIOWrite" })
+        }
     }
 
-    fn add<T: InterruptController + 'static>(&mut self, ic: T) {
-        self.0.push(Box::new(ic))
-    }
+    fn do_bus_read(&mut self, offset: u32, dest: &mut [u8]) -> Result<(), BusError> {
+        let index = self.regs.binary_search_by(|(reg, _)| reg.cmp(&offset));
 
-    fn get_enabled_ic(&self) -> Option<&Box<dyn InterruptController>> {
-        self.0.iter().find(|ic| ic.is_enabled())
+        if let Ok(i) = index {
+            // a non 32-bit read is consider as implementation bug and should be immediately bail out
+            dest.copy_from_slice(&self.regs[i].1.load().to_le_bytes());
+
+            Ok(())
+        } else {
+            debug!("unhandle MMIO read to offset={offset}");
+            Err(BusError::DeviceError { id: "MMIORead" })
+        }
     }
 }
 ```
 
-When the simulator starts, this handle is created. As devices are initialized,
-they create their specific interrupt controllers, which are then added to the
-`ICHandle`. The SoC holds onto this handle to check for pending interrupts during
-execution.
+- Lookup: The decoder performs a search to check if an MMIO register
+  exists at the requested offset.
+- Read: If found, the handler loads the 32-bit value from the register,
+  converts it to Little Endian bytes, and copies it to the `dest` buffer.
+- Write: If found, the handler converts the input `data` (Little Endian bytes)
+  into a 32-bit integer and stores it in the register.
 
-==== Example: The `ExitController`
-Here is a complete walkthrough of how a MMIO write can trigger simulation to exit.
-
-First, we define a controller specifically for the exit signal. It uses atomic
-types to safely manage the state across threads.
-
-The `ExitController` wraps two atomic values: an `AtomicBool` to flag if the
-interrupt is enabled and an `AtomicI32` to store the exit code.
-
-```Rust
-#[derive(Debug, Clone, Default)]
-pub struct ExitController(Arc<AtomicBool>, Arc<AtomicI32>);
-impl InterruptController for ExitController {
-    fn get_id(&self) -> InterruptType {
-        InterruptType::Exit
-    }
-
-    fn is_enabled(&self) -> bool {
-        self.0.load(Ordering::Acquire)
-    }
-
-    fn set_enable(&mut self) {
-        self.0.store(true, Ordering::Release);
-    }
-
-    fn set_value(&mut self, val: [u8; 4]) {
-        let v = i32::from_le_bytes(val);
-        self.1.store(v, Ordering::Release);
-    }
-
-    fn get_value(&self) -> [u8; 4] {
-        let v = self.1.load(Ordering::Acquire);
-        v.to_le_bytes()
-    }
-}
-
-```
-
-Then we need to connect the controller to a MMIO device.
-
-When the simulated program writes to the address of the `Exit` MMIO register, its
-`store` method is called, this updates the `ExitController` value with exit code
-and flag the interrupt.
+The `MmioRegs` `enum` defines the supported types of MMIO registers. The
+following implementation demonstrates how these registers interact with the
+system platform.
 
 ```rust
-pub enum MMIO {
-    Exit(ExitController),
+pub enum MmioRegs {
+    Exit(Syscon),
 }
-impl MMIO {
-    fn load(&self) -> u32 {/*...*/}
 
-    // when a MMIO write to the Exit register, we update the Exit Interrupt Controller
+impl MmioRegs {
+    fn load(&self) -> u32 {
+        match self {
+            Self::Exit(_) => {
+                panic!("unexpected read from exit MMIO device");
+            }
+        }
+    }
+
     fn store(&mut self, v: u32) {
         match self {
             Self::Exit(eic) => {
-                eic.set_value(v.to_le_bytes());
-                eic.set_enable();
+                eic.0.store(v, Ordering::Release);
             }
         }
     }
 }
 ```
 
-Finaly, the SoC's main execution loop checks for pending interrupts after each instruction.
-The loop calls `get_enabled_ic()`. If it finds the now-enabled `ExitController`, it
-retrieves the exit code and terminates the simulation by returning an error.
+In this example, the `Exit` variant act as a write-only register. Writing to it
+updates its internal `Syscon` state.
+
+`Syscon` wraps an atomic value that is shared between the Bus and the system
+controller. This allows the system to detect state changes (such as a shutdown
+request) triggered by the emulated device.
+
 ```rust
-// In main `step` function
-  if let Some(ic) = self.state.ic_handle.get_enabled_ic() {
-      match ic.get_id() {
-          InterruptType::Exit => {
-              let value = ic.get_value();
-              let exit_code = i32::from_le_bytes(value);
-              return Err(SimulationException::Exited(exit_code));
-          }
-      }
+pub struct Syscon(Arc<AtomicU64>);
+
+fn try_build_from(config: &[(String, u32)]) -> anyhow::Result<(Self, ExitStateRef)> {
+    let mut regs = Vec::new();
+    let mut exit_state = None;
+    for (name, offset) in config {
+        match name.as_str() {
+            "exit" => {
+                let s = Arc::new(AtomicU64::new(0));
+                let exit_rc = Syscon::new(s.clone());
+                exit_state = Some(s);
+                regs.push((*offset, MmioRegs::Exit(exit_rc)))
+            }
+            name => bail!("unsupported MMIO device {name}"),
+        }
+    }
+
+    Ok((Self { regs }, exit_state.unwrap()))
+}
+```
+
+When the MMIO mapping is initialized via `try_build_from`:
+
+- A new `Syscon` (wrapping an `AtomicU64`) is created.
+- One clone of the atomic reference is stored inside the `MmioRegs::Exit`
+  variant.
+- Another clone is returned to the system controller (`ExitStateRef`).
+
+This architecture allows the system controller to inspect the status of the
+device externally via the shared reference.
+
+== Commit Events
+
+To facilitate debugging and verification, the simulator records architectural
+state changes in a JSON log. This is achieved by interacting with a global
+trace buffer defined in `pokedex_interface.c`.
+
+The logging lifecycle operates at the instruction boundary:
+
+- Pre-execution: The trace buffer is cleared to ensure it only captures side
+  effects from the current instruction.
+- Execution: As the instruction executes, state modifications are recorded in
+  the C trace buffer.
+- Post-execution: The simulator retrieves the data via FFI, parses the changes,
+  and serializes them into the JSON log.
+
+The simulator produces four types of log entries:
+
+- Reset: Indicates the ASL model has been reset (includes the reset PC).
+- Exit: Indicates an exit signal was received (includes the software exit code).
+- Commit: Indicates an instruction completed execution (includes modified states).
+- Exception: Indicates a hardware exception occurred (includes modified states).
+
+A Commit log entry contains the following metadata:
+
+```rust
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CommitLog {
+    pub pc: u32,
+    pub is_compressed: bool,
+    pub instruction: u32,
+    pub states_changed: Vec<StateWrite>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "dest", rename_all = "lowercase")]
+pub enum StateWrite {
+    Xrf { rd: u8, value: u32 },
+    Frf { rd: u8, value: u32 },
+    Vrf { rd: u8, value: Vec<u8> },
+    Csr { name: String, value: u32 },
+}
+```
+
+- `pc`: The program counter of the committed instruction.
+- `is_compressed`: Boolean flag indicating if the instruction is compressed (16-bit).
+- `instruction`: The raw 32-bit representation of the instruction.
+- `states_changed`: A list of architectural state changes caused by this instruction.
+  - `Xrf`: Write to a _General Purpose Register_, (includes register index `rd` and new `value`).
+  - `Frf`: Write to a _Floating Point Register_, (includes register index `rd` and new `value`).
+  - `Vrf`: Write to a _Vector Register_, (includes register index `rd` and the raw byte vector `value`).
+  - `Csr`: Write to a _Control and Status Register_, (includes the CSR `name` and the new `value`).
+
+== Configurations
+
+The simulator features a flexible bus configuration system powered by the
+#link("https://kdl.dev/")[KDL Document Language]. KDL was selected for its
+readability and XML-like hierarchical structure. A typical configuration file
+is shown below:
+
+#pagebreak(weak:true)
+```kdl
+sram {
+  base 0x80000000
+  length 0x20000000
+}
+
+mmio {
+  base 0x40000000
+  length 0x1000
+
+  mmap "exit" offset=0x4
+}
+```
+
+The parser interprets each top-level block as a distinct address space, where
+the block name (e.g., `sram`, `mmio`) determines the component type.
+
+Required Nodes:
+
+- `base`: Specifies the starting address of the component.
+- `length`: Specifies the size of the address space.
+
+Additional Nodes:
+
+- `mmap` (MMIO only): Configures individual registers within the MMIO block. In
+  the example above, an "exit" register is mapped to offset 0x4.
+
+= Differential Test
+
+Implementing a complex ISA based solely on textual specifications is prone to
+human error and ambiguity. To ensure correctness, we validate our
+implementation against the Spike simulator, which serves as the
+industry-standard RISC-V reference model.
+
+We have designed a differential testing framework to automate this
+verification. This framework executes the same instruction stream on both
+simulators and compares their architectural states at the per-instruction level
+to detect discrepancies immediately.
+
+== Interfaces
+
+To avoid coupling the verification process directly to Spike, we designed a
+flexible Differential Testing Framework. Instead of comparing raw internal
+states, we abstract the comparison logic through the `DiffBackend` trait.
+
+```rust
+pub trait DiffBackend {
+    fn description(&self) -> String;
+
+    fn diff_reset(&mut self, pc: u32) -> anyhow::Result<()>;
+    fn diff_step(&mut self) -> anyhow::Result<Status>;
+
+    fn state(&self) -> &CpuState;
+}
+```
+
+Any simulator integrating with this framework must implement `DiffBackend`. This
+allows the framework to verify correctness using a unified interface,
+regardless of the underlying simulator implementation.
+
+=== Shadow State Construction
+The framework reconstructs the architectural state by replaying execution logs
+provided by the simulators. Rather than comparing the logs directly, the
+framework updates a canonical CpuState (a "shadow state") and performs
+comparisons on this structure.
+
+```rust
+pub struct CpuState {
+    pub gpr: [u32; 32],
+    pub fpr: [u32; 32],
+    pub vregs: Vec<u8>,
+
+    pub pc: u32,
+
+    pub csr: CsrState,
+
+    pub(crate) is_reset: bool,
+    pub(crate) reset_vector: u32,
+    pub(crate) is_poweroff: bool,
+}
+```
+
+During execution, if a simulator commit log indicates a state change, a
+`DiffRecord` is produced to update the _shadow state_. The comparison tool then
+verifies that the `CpuState` of the simulator matches the Golden
+Model.
+
+=== CSR Comparison
+CSRs require special handling because many values are implementation-defined or
+updated implicitly (side effects). By default, the framework compares the full
+CSR state to ensure accuracy. However, to optimize performance, the comparison
+scope is narrowed in specific scenarios. For example, during Floating-Point
+operations, we may strictly compare relevant registers (such as `fcsr` and
+`fflags`) rather than the entire CSR set.
+
+== Spike Hacks
+
+To ensure compatibility with the differential testing framework, Spike must be
+invoked with specific command-line arguments. These settings align Spike's
+behavior and memory layout with the Pokedex simulator.
+
+```bash
+spike --isa=rv32imafc_zvl256b_zve32x_zifencei \
+  --priv=m --log-commits -p1 --hartids=0 --triggers=0 \
+  -m0x80000000:0x20000000,0x40000000:0x1000 \
+  --log=commits.log \
+  "$casePath"
+```
+
+- `--isa`: Restricts the Instruction Set Architecture to the specific extensions supported by Pokedex.
+- `--priv=m`: Restricts execution to Machine (M) mode.
+- `--log-commits`, `--log`: Enables execution logging and specifies the output file
+- `-p1`, `--hartid=0`: Configures Spike for single-core execution assigned to Hart ID 0.
+- `--triggers=0`: Disables hardware debug triggers.
+- `-m`: Replicates the Pokedex memory layout (SRAM and MMIO regions) within Spike.
+
+= Model Reference <model-reference>
+#if in_release {
+  let doc_comments = yaml("doc-comments.yml").doc-comments
+  let csr_ref_blocks = ()
+  let inst_ref_blocks = ()
+  for block in doc_comments {
+    if block.at("csr", default: "None") != "None" {
+      csr_ref_blocks.push(block)
+    } else if block.at("inst", default: "None") != "None" {
+      inst_ref_blocks.push(block)
+    } else {
+      assert(true, message: "Unexpected block found in doc-comments")
+    }
   }
-```
-=== Exception
-The simulator includes an `exception` field designed to capture events that occur
-within the guest executable and are caught by the host simulator. This field
-is used for recoverable or expected events originating from the code being
-simulated, including infinite loop, executable notify a power off signal...etc.
 
-#notes[It is critical to distinguish between exceptions that occur within the guest
-  executable versus runtime errors that originate in the simulator itself. For
-  example, an unaligned read/write should be treat as guest exception. However a
-  memory operation requested with an address size that cannot fit into unsigned
-  32-bit integer represents a fundamental flaw and should be immediately rejected
-  with fatal error, not considered recoverable.]
+  assert((csr_ref_blocks.len() > 0), message: "No CSR comment found")
+  assert((inst_ref_blocks.len() > 0), message: "No instruction comment found")
 
-=== Statistic
-To avoid spamming the terminal during an infinite exception loop—a common issue
-for those familiar with Spike—this simulator includes a mechanism to detect and
-halt prolonged instruction repetition. This feature helps diagnose potential
-infinite loops by tracking if the same instruction is executed too many times
-consecutively. It is controlled by the following fields:
+  // How do we deal with this file needs to be discussed
+  let arg_lut_db = json("arg_lut.json")
+  let argLut(key) = {
+    let entry = arg_lut_db.at(lower(key), default: "None")
+    if entry != "None" {
+      key + "(" + entry.desc + ")"
+    } else {
+      key
+    }
+  }
 
-- `last_instruction`: Stores the opcode of the most recently executed instruction.
-- `last_instruction_met_count`: A counter that increments each time the current
-  instruction's opcode matches last_instruction. It resets if a different
-  instruction is executed.
-- `max_same_instruction`: A configurable limit. If `last_instruction_met_count`
-  exceeds this value, the simulator will halt execution and report an infinite
-  loop exception.
+  [== Instruction Reference <instruction-reference>]
+  for inst_ref in inst_ref_blocks {
+    [
+      #heading(depth: 3, upper(inst_ref.inst))
+      #label("inst-doc-" + inst_ref.inst)
 
-The `statistic` field contains counters to record runtime information that will
-be reported after simulation end.
+      - *Bit Pattern*: #raw(inst_ref.encoding)
+      - *Extension Set*: #raw(inst_ref.extension)
+    ]
 
-== FFI functions
+    eval(inst_ref.body, mode: "markup", scope: (argLut: argLut))
+  }
 
-Following are FFI functions required from ASL model that developers should
-implemented on Rust side. These function are explicitly declare at
-`external.asl` file.
+  [== CSR Reference <csr-reference>]
+  for csr_ref in csr_ref_blocks {
+    [
+      #heading(depth: 3, upper(csr_ref.csr))
+      #label("csr-doc-" + csr_ref.csr)
 
-#notes[Due to monomorphic optimization, generated C functions will be suffix
-  with unique ID and data size. Developers need to make sure that a correct
-  function symbol is declared. They can check final function signatures at
-  `*_types.h` header file after ASLi generated C files.]
+      - *Bit Pattern*: #raw(csr_ref.bin)
+      - *Mode*: #raw(csr_ref.mode)
+      - *Number*: #raw(str(csr_ref.id))
+    ]
 
-=== Memory Read Write APIs
+    markup(csr_ref.body)
+  }
+}
 
-All the memory API have following return type:
-
-```asl
-record FFI_ReadResult(N) {
-  success : boolean;
-  data    : bits(N);
-};
-```
-
-After monomorphic transformation, this record type will became following C `struct`:
-
-```c
-// FFI_ReadResult(32)
-typedef struct {
-    bool success;
-    uint32_t data;
-} FFI_ReadResult_N_32;
-
-// FFI_ReadResult(16)
-typedef struct {
-    bool success;
-    uint16_t data;
-} FFI_ReadResult_N_16;
-```
-
-For memory read, model required following platform implementation:
-
-```asl
-func FFI_instruction_fetch(pc : bits(32)) => FFI_ReadResult(32);
-
-func FFI_read_physical_memory_8bits(addr : bits(32)) => FFI_ReadResult(8);
-func FFI_read_physical_memory_16bits(addr : bits(32)) => FFI_ReadResult(16);
-func FFI_read_physical_memory_32bits(addr : bits(32)) => FFI_ReadResult(32);
-```
-
-Which will be translated into following C code:
-
-```c
-FFI_ReadResult_N_32 FFI_instruction_fetch_0(uint32_t pc);
-
-FFI_ReadResult_N_8 FFI_read_physical_memory_8bits_0(uint32_t addr);
-FFI_ReadResult_N_16 FFI_read_physical_memory_16bits_0(uint32_t addr);
-FFI_ReadResult_N_32 FFI_read_physical_memory_32bits_0(uint32_t addr);
-```
-
-For memory write, model required following platform implementation:
-
-```asl
-func FFI_write_physical_memory_8bits(addr : bits(32), data : bits(8)) => boolean;
-func FFI_write_physical_memory_16bits(addr : bits(32), data : bits(16)) => boolean;
-func FFI_write_physical_memory_32bits(addr : bits(32), data : bits(32)) => boolean;
-```
-
-Platform should return `false` when a write violate platform memory to indicate
-an access fault.
-
-In current platform implementation, there is no memory protection, and any
-memory violation will be capture and raise an memory load store fault exception
-back to model. Unaligned read/write is not supported at memory platform side
-and is also thrown as exception.
-
-== Hook APIs
-
-Model required following hooks from platform to notify real time info of model current behavior.
-
-```asl
-// Execute when executing fence instruction
-func FFI_emulator_do_fence();
-// Execute when GPR get written
-func FFI_write_GPR_hook(reg_idx: integer{0..31}, data: bits(32));
-```
-
-== Trap APIs
-
-Model required platform provide following functions for exception/interrupt trap supports.
-
-```asl
-func FFI_machine_external_interrupt_pending() => bit;
-func FFI_machine_time_interrupt_pending() => bit;
-func FFI_ebreak();
-func FFI_ecall();
-```
-
-== Debug APIs
-
-Model required platform provide following functions implementation to debug model.
-
-```asl
-func FFI_print_str(s: string);
-func FFI_print_bits_hex(v: bits(32));
-```
-
-= Build Instruction
-
-== Debug generated code
-Developers can run following commands to get full source code prepare for ASLi to compile.
-
-```txt
-$ cd pokedex/model
-$ nix develop ".#pokedex.sim-lib" -c make project
-$ ls ./build/1-rvcore
-arg_lut.asl  asl2c.prj  csr_op.asl  execute.asl  external.asl  project.json  states.asl  step.asl
-```
-
-The `project` target will run `codegen` CLI and copy manually implemented
-architecture states ASL implementation into one folder, with the `asl2c.prj`
-lowering script and `project.json` configuration.
-
-File `asl2c.prj` contains a list of optimization and lowering pass ASLi needs to run.
-Lowering pass used in `asl2c.prj` is documented at chapter #link(<appendix-a>, "Appendix A").
-
-File `project.json` record all the functions used for FFI.
-The `imports` field records unimplemented function that needs to be linked from other sources.
-The `exports` field records all the functions that is required by outside library.
-
-Developers can run following commands to get ASLi generated C code:
-
-```txt
-$ cd pokedex/model
-$ nix develop ".#pokedex.sim-lib" -c make asl2c
-$ ls ./build/2-cgen
-dumps/  pokedex-sim_exceptions.c  pokedex-sim_exceptions.h  pokedex-sim_funs.c  pokedex-sim_types.h  pokedex-sim_vars.c  pokedex-sim_vars.h
-```
-
-The `dumps/` directory collect ASL code dumps after each lowering pass, developers can debug the
-optimization by inspect those dump file.
-
-== Get archived ASL library
-
-Developers can get the archive file with following commands
-
-```console
-$ cd pokedex/model
-$ nix develop ".#pokedex.sim-lib" -c make install
-$ ls ./build/simlib
-include/  lib/
-```
-
-Generated headers are placed under the `include/` directory, and the ASL model code is packaged under `lib/` directory.
-
-== Compile final simulator
-
-Developer can get binary with following command:
-```console
-$ nix build '.#pokedex.simulator'
-$ ls ./result/bin
-```
-
-Or build the emulator by invoking cargo manually:
-
-```console
-$ nix develop '.#pokedex.simulator.dev'
-$ cd pokedex/simulator
-$ cargo build
-```
-
-= Appendix A: `ASLi` commands for lowering <appendix-a>
+= ASLc Compiler Passes
 
 == Filter unreachable code from exports
 
@@ -1710,7 +1235,7 @@ missing functions after optimization.
 
 == Eliminate bit and int arithmetic operation
 
-Eliminate bit,int arithmetic operations like "'000' + 3".
+Eliminate bit,int arithmetic operations like `'000' + 3`.
 
 ```asl
 :xform_desugar
@@ -1718,7 +1243,7 @@ Eliminate bit,int arithmetic operations like "'000' + 3".
 
 == Eliminate bit vector concatenate
 
-Eliminate bit-tuples like "[x,y] = z;" and "x[7:0, 15:8]".
+Eliminate bit-tuples like `[x,y] = z;` and `x[7:0, 15:8]`.
 
 ```asl
 :xform_bittuples
@@ -1726,7 +1251,7 @@ Eliminate bit-tuples like "[x,y] = z;" and "x[7:0, 15:8]".
 
 == Convert bit-slice operation
 
-Convert all bit-slice operations to use the +: syntax, e.g., "x[7:0]" --> "x[0 +: 8]".
+Convert all bit-slice operations to use the +: syntax, e.g., `x[7:0]` --> `x[0 +: 8]`.
 
 ```asl
 :xform_lower
@@ -1855,122 +1380,87 @@ of the tree (and therefore are the ones that you need to fix).
 :check_monomorphization --fatal --verbose
 ```
 
-= Appendix B: Coding convention
+= How to build this document
 
-To ensure consistency and readability across the project, please adhere to the
-following conventions when writing ASL code.
+== Doc Comment
 
-== Use Explicit Type Declarations
+Most implementation details are extracted directly from ASL *doc comments*. We
+define a "doc comment" as any comment block where each line begins with two
+forward slashes and a bang (`//!`).
 
-Always provide a type annotation when declaring a variable with `let` or `var`.
-This practice improves code clarity and helps prevent type-related errors.
-
-Recommended:
-
+For example:
 ```asl
-let i : integer = 0x1;
+// This is a normal comment and is ignored by the documentation generator.
+
+//! This is a doc comment and must follow the documenting rules.
 ```
 
-Avoid:
+To structure the generated documentation, we adopt the frontmatter convention
+commonly used by Markdown static site generators. Each doc comment block
+requires two components:
 
-```asl
-let i = 0x1;
-```
+- Frontmatter: A metadata block written in YAML, located at the very beginning
+  of the comment. It is enclosed by triple hyphens (`---`).
+- Content: The main body of the documentation, written in Typst.
 
-== Avoid Deeply Nested Operations
+A valid ASL doc comment follows this structure:
 
-Instead of nesting multiple function calls or operations in a single statement,
-use intermediate variables to store the results of each step. This makes the
-logic easier to read, understand, and debug.
-
-Recommended:
-
-```asl
-let a_ext : bits(32) = ZeroExtend(GPR[1]);
-let not_a : bits(32) = NOT(a_ext);
-```
-
-Avoid:
-
-```asl
-let not_a : bits(32) = NOT(ZeroExtend(GPR[1]));
-```
-
-== Declare architecture states with UPPERCASE
-
-Architecture states reads like global variable in normal code, thus we
-prefer using UPPERCASE for the states variable name.
-
-Recommended:
-
-```asl
-var MPP : bits(2)
-```
-
-Avoid:
-
-```asl
-var mpp : bits(2)
-```
-
-
-== Pad Literal Bit Vectors for Clarity
-
-In the ASL specification, single quotes are used to define literal bit vectors
-(e.g., `'1'`). However, this syntax can be confusing for developers familiar
-with other languages, where single quotes often denote a character or string.
-
-To improve code clarity and avoid ambiguity, we recommend zero-padding all
-literal bit vectors to a minimum width of 4 bits.
-
-Recommended:
-
-```asl
-GPR[rd] = ZeroExtend('0001');
-```
-
-Avoid:
-
-```asl
-GPR[rd] = ZeroExtend('1');
-```
-
-== Declare local variable with lower_case
-
-Function local variable should be declared in "lower_case".
-
-Recommended:
-
-```asl
-func a(rs1 : bits(5))
+#raw(
+  block: true,
+  lang: "asl",
+  "//! ---
+//! section: instruction
+//! label: rv32-andi
+//! title: RV32 ANDI
+//! ---
+//! ANDI extract RD, RS1 and IMM from the 32bits instruction, do logical
+//! and operation to the 32-bits value store in X register RS1 and the
+//! sign extended 32-bits immediate value, store the result in X register RD.
+//!
+//! Formulated as
+//! ```text
+//! X[RD] = X[RS1] `AND` SExt(IMM)
+//! ```
+//!
+//! See @arg-luts for args extraction.
+func Execute_ANDI(instruction: bits(32)) => Result
 begin
-  let shift_amount : integer = UInt(X[rs1]);
-end
+{{- arith_imm_instruction_body(\"andi\", \"riscv_and\") -}}
+end",
+)
+
+In the example above, the YAML block serves as the frontmatter. Developers can
+define custom context fields, but the following three fields are mandatory:
+
+- `section`: Defines the document type, allowing the Typst compiler to anchor this
+  comment correctly in the final document.
+- `label`: A valid Typst #link("https://typst.app/docs/reference/foundations/label/")[label]
+  used for cross-referencing this section from other components.
+- `title`: Declares the heading for the section (each doc comment is treated as
+  an individual section).
+
+The generated documentation for the example above will appear as follows:
+
+#raw(
+  block: true,
+  lang: "typst",
+  "### RV32 ANDI <rv32-andi>
+
+(Defined in `extensions/rv_im_zifencei/addi.asl.j2:39`)
+
+ANDI extracts RD, RS1, and IMM from the 32-bit instruction. It performs a
+bitwise AND operation on the value stored in register X[RS1] and the
+sign-extended immediate value, then stores the result in register X[RD].
+
+Formulated as:
+```text
+X[RD] = X[RS1] `AND` SExt(IMM)
 ```
 
-Avoid:
+See @arg-luts for argument extraction details.
+",
+)
 
-```asl
-func a(rs1 : bits(5))
-begin
-  let shiftAmount : integer = UInt(X[rs1]);
-  let ShiftAmount : integer = UInt(X[rs1]);
-  let SHIFT_AMOUNT : integer = UInt(X[rs1]);
-end
-```
+== Extracting Doc Comment
 
-== Use double underscore to indicate private value
-
-Function, value binding that should only be used in current file should be prefixed
-with double underscore.
-
-Recommended:
-
-```asl
-val __MyPrivateValue : bits(32);
-
-func __HandleMyPrivateValue()
-begin
-end
-```
-
+Run script `model/scripts/docomment.py`.

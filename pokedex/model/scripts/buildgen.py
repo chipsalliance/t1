@@ -17,6 +17,7 @@ from . import datagen
 class Model(TypedDict):
     enabled_extensions: list[str]
 
+
 class Config(TypedDict):
     model: Model
 
@@ -271,10 +272,23 @@ class CustomWriter(ninja_syntax.Writer):
 
         return cmodel_files, clib, cdylib
 
+    def generate_doc_files(w) -> list[str]:
+        DOC_COMMENT = "build/docs/doc-comments.yml"
+        w.rule(
+            "doccomment",
+            "python -m scripts.doccomment -d . -e .asl -e .aslj2 -o $out",
+            description="generate doc-comments.yml",
+        )
+        w.build(DOC_COMMENT, rule="doccomment")
+        w.newline()
+        return [DOC_COMMENT]
+
     def generate(w):
         w.generate_header()
 
         w.rule_self_rebuild()
+
+        DOC_FILES = w.generate_doc_files()
 
         GENASL_SRCS = w.generate_adhoc_asl()
         GENNEW_SRCS = w.generate_new_asl()
@@ -287,7 +301,8 @@ class CustomWriter(ninja_syntax.Writer):
         w.build("cmodel", "phony", CMODEL_FILES)
         w.build("clib", "phony", CLIB_FILE)
         w.build("cdylib", "phony", CDYLIB_FILE)
-        w.default(["cmodel", "clib", "cdylib"])
+        w.build("docs", "phony", DOC_FILES)
+        w.default(["cmodel", "clib", "cdylib", "docs"])
 
 
 # run as "python -m scripts.buildgen"
@@ -316,7 +331,9 @@ if __name__ == "__main__":
 
     if not no_check:
         try:
-            datagen.run_all(is_check=True, enable_exts=config["model"]["enabled_extensions"])
+            datagen.run_all(
+                is_check=True, enable_exts=config["model"]["enabled_extensions"]
+            )
         except Exception as e:
             e.add_note(
                 'ERROR: datagen check failed, may run "python -m scripts.datagen" to update'

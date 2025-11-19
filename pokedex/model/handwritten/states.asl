@@ -118,6 +118,25 @@ enumeration MtvecMode {
 //// Access Helpers ////
 ////////////////////////
 
+/// The *Program Counter (PC)* is a fundamental architectural state that stores
+/// the address of the current instruction. It is defined as a 32-bit variable.
+///
+/// To access the program counter, developers should utilize the public `PC`
+/// interface rather than the internal `__PC` variable. The `PC` setter enforces
+/// validity checks, ensuring that every address stored remains properly aligned
+/// (specifically, asserting that the least significant bit is zero).
+///
+/// *Example:*
+///
+/// ```asl
+/// // Read is always OK
+/// let result = FFI_fetch_instruction(PC);
+///
+/// // Write OK
+/// PC = 0x8000_0000[31:0];
+/// // Write Panic
+/// PC = 0x8000_0003[31:0];
+/// ```
 getter PC => bits(32) begin return __PC; end
 
 setter PC = npc : bits(32)
@@ -126,6 +145,29 @@ begin
   __PC = npc;
 end
 
+/// The ASL Model currently supports the *RV32I* ISA. This defines 32 General
+/// Purpose Registers (GPRs), each 32 bits wide (`XLEN=32`). Since register `x0`
+/// is hardwired to `0` by definition, we optimize storage by allocating only 31
+/// registers (`x1` through `x31`) within the model.
+///
+/// Registers is stored in an array of 31 32-bits elements by an internal variable
+/// `__GPR`. Developers should exclusively use the public `X[i]` interface rather
+/// than accessing the `__GPR` variable directly.
+///
+/// The `X[i]` interface performs three critical tasks:
+///
+/// - It handles the index offset (mapping logical register `x1` to array index `0`).
+/// - It enforces the hardwired zero behavior for `x0`.
+/// - It signals the FFI hook whenever a write operation occurs.
+///
+/// *Example:*
+///
+/// ```asl
+/// assert(X[0] == Zeros(32));
+///
+/// X[5] = 0x8000_0000[31:0];
+/// assert(X[5] == '10000000000000000000000000000000');
+/// ```
 getter X[i: XRegIdx] => bits(32)
 begin
   if i == 0 then
