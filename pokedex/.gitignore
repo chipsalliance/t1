@@ -1,6 +1,5 @@
 asl_history
 build
-docs/doc.pdf
 *.jsonl
 result
 install
