@@ -1,6 +1,11 @@
-use std::iter::Peekable;
 use std::num::ParseIntError;
 use std::slice::Iter;
+use std::{iter::Peekable, path::Path};
+
+use anyhow::{Context as _, bail};
+
+use crate::difftest::replay::{CpuState, DiffRecord};
+use crate::difftest::{DiffBackend, Status};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token<'a> {
@@ -30,8 +35,102 @@ fn is_hex(s: &str) -> bool {
     s.starts_with("0x") && !s[2..].is_empty() && s[2..].chars().all(|c| c.is_ascii_hexdigit())
 }
 
+pub struct SpikeLogBackend {
+    index: usize,
+    logs: Vec<Commit>,
+
+    state: CpuState,
+}
+
+impl SpikeLogBackend {
+    pub fn new(logs: Vec<Commit>) -> Self {
+        Self {
+            index: 0,
+            logs,
+            state: CpuState::new(),
+        }
+    }
+}
+
+impl DiffBackend for SpikeLogBackend {
+    fn description(&self) -> String {
+        "spike-log".into()
+    }
+
+    fn diff_reset(&mut self, expected_pc: u32) -> anyhow::Result<()> {
+        // Spike always reset at its own bootrom.
+        // We skip instructions in bootrom, until the real entry of testcase.
+        const MAX_SKIP: usize = 16;
+
+        for _ in 0..MAX_SKIP {
+            match self.logs.get(self.index) {
+                None => bail!("unexpected eof in finding pc={expected_pc:#10x}"),
+                Some(commit) => {
+                    if commit.pc == expected_pc as u64 {
+                        return Ok(());
+                    }
+
+                    self.index += 1;
+                }
+            }
+        }
+
+        anyhow::bail!("not found pc={expected_pc:#10x} in following {MAX_SKIP} instructions")
+    }
+
+    fn diff_step(&mut self) -> anyhow::Result<Status> {
+        match self.logs.get(self.index) {
+            None => {
+                // Our testcases won't teminate normally in spike,
+                // instead it will enter an infinite loop when pass.
+                // Therefore, spike shouldn't end before pokedex in difftest,
+                // here use u32::MAX to denote something "unusual" happens.
+                Ok(Status::Exit { code: u32::MAX })
+            }
+            Some(commit) => {
+                let dr = update_cpu_state(&mut self.state, commit);
+
+                self.index += 1;
+                Ok(Status::Running(dr))
+            }
+        }
+    }
+
+    fn state(&self) -> &CpuState {
+        &self.state
+    }
+}
+
+pub fn backend_from_log(path: &Path) -> anyhow::Result<SpikeLogBackend> {
+    // FIXME: parse in stream
+
+    let raw_str =
+        std::fs::read_to_string(path).with_context(|| format!("reading spike log {path:?}"))?;
+
+    let mut spike_log = vec![];
+    for (line_number, line_str) in raw_str.lines().enumerate() {
+        let tokens = tokenize_spike_log_line(line_str);
+
+        // Check for any Unknown tokens before starting.
+        for token in &tokens {
+            if let Token::Unknown { raw_token } = token {
+                bail!(
+                    "fail parse spike log {path:?}, line {line_number}: unknown token `{raw_token}`"
+                );
+            }
+        }
+
+        let commit = parse_single_commit(&tokens)
+            .with_context(|| format!("fail parse spike log {path:?}, line {line_number}"))?;
+
+        spike_log.push(commit);
+    }
+
+    Ok(SpikeLogBackend::new(spike_log))
+}
+
 /// Tokenizes a raw string from a Spike commit log.
-pub fn tokenize_spike_log_line(line: &str) -> Vec<Token<'_>> {
+fn tokenize_spike_log_line(line: &str) -> Vec<Token<'_>> {
     fn str_to_token(raw_token: &str) -> Token<'_> {
         match raw_token {
             "core" => Token::CoreLiteral,
@@ -124,62 +223,56 @@ pub struct Commit {
     pub state_changes: Vec<Modification>,
 }
 
-impl crate::replay::IsInsnCommit for Commit {
-    fn get_pc(&self) -> u32 {
-        self.pc as u32
-    }
+fn update_cpu_state(state: &mut CpuState, commit: &Commit) -> DiffRecord {
+    state.pc = commit.pc as u32;
 
-    fn write_cpu_state(&self, state: &mut crate::replay::CpuState) -> crate::replay::DiffRecord {
-        state.pc = self.pc as u32;
+    let mut dr = DiffRecord::default();
 
-        let mut dr = crate::replay::DiffRecord::default();
+    for write in &commit.state_changes {
+        use Modification::*;
 
-        for write in &self.state_changes {
-            use Modification::*;
+        match write {
+            &WriteXReg { rd, bits } => {
+                state.write_gpr(rd as usize, bits as u32, &mut dr);
+            }
+            &WriteFReg { rd, bits } => {
+                state.write_fpr(rd as usize, bits as u32, &mut dr);
+            }
+            &WriteCSR { rd, ref name, bits } => {
+                let bits = bits as u32;
 
-            match write {
-                &WriteXReg { rd, bits } => {
-                    state.write_gpr(rd as usize, bits as u32, &mut dr);
-                }
-                &WriteFReg { rd, bits } => {
-                    state.write_fpr(rd as usize, bits as u32, &mut dr);
-                }
-                &WriteCSR { rd, ref name, bits } => {
-                    let bits = bits as u32;
+                // TODO: check rd/name correspondence
 
-                    // TODO: check rd/name correspondence
+                // FIXME: error handling
+                state
+                    .write_csr(name, bits)
+                    .unwrap_or_else(|_| panic!("spike replay error: CSR {name} = {bits:#010x}"));
+            }
 
-                    // FIXME: error handling
-                    state.write_csr(name, bits).unwrap_or_else(|_| {
-                        panic!("spike replay error: CSR {name} = {bits:#010x}")
-                    });
-                }
+            WriteVecCtx { .. } => {
+                // TODO
+            }
+            &WriteVReg { idx, ref bytes } => {
+                state.write_vreg(idx as usize, bytes, &mut dr);
+            }
 
-                WriteVecCtx { .. } => {
-                    // TODO
-                }
-                &WriteVReg { idx, ref bytes } => {
-                    state.write_vreg(idx as usize, bytes, &mut dr);
-                }
-
-                Load { .. } | Store { .. } => {
-                    // here only replay core events
-                    // memory events are intentionally ignored
-                }
+            Load { .. } | Store { .. } => {
+                // here only replay core events
+                // memory events are intentionally ignored
             }
         }
-
-        dr
     }
+
+    dr
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum ParseError<'a> {
+pub enum ParseError {
     #[error("Unexpected token at position {pos}: expected {expected}, found {found:?}")]
     UnexpectedToken {
         pos: usize,
         expected: &'static str,
-        found: Option<Token<'a>>,
+        found: Option<String>,
     },
     #[error("Invalid value at position {pos} for {kind}: '{value}'. Reason: {reason}")]
     InvalidValue {
@@ -213,7 +306,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     // Expect a specific kind of token, returning an error if it's not found
-    fn expect<F, T>(&mut self, expected_str: &'static str, f: F) -> Result<T, ParseError<'a>>
+    fn expect<F, T>(&mut self, expected_str: &'static str, f: F) -> Result<T, ParseError>
     where
         F: FnOnce(&'a Token<'a>) -> Option<T>,
     {
@@ -230,14 +323,14 @@ impl<'a, 'b> Parser<'a, 'b> {
             Err(ParseError::UnexpectedToken {
                 pos: self.cursor,
                 expected: expected_str,
-                found: Some(token.clone()),
+                found: Some(format!("{token:?}")),
             })
         }
     }
 }
 
 /// Parses a single line of tokens into a Commit struct.
-pub fn parse_single_commit<'a>(tokens: &'a [Token<'_>]) -> Result<Commit, ParseError<'a>> {
+pub fn parse_single_commit(tokens: &[Token<'_>]) -> Result<Commit, ParseError> {
     let mut token_iter = tokens.iter().peekable();
     let mut p = Parser::new(&mut token_iter);
 
@@ -517,10 +610,8 @@ pub fn parse_single_commit<'a>(tokens: &'a [Token<'_>]) -> Result<Commit, ParseE
 mod tests {
     use super::*;
 
-    fn get_test_log() -> String {
-        let mut d = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        d.push("assets/example.spike.log");
-        std::fs::read_to_string(d).unwrap()
+    fn get_test_log() -> &'static str {
+        include_str!("assets/example.spike.log")
     }
 
     fn tokenize_spike_log(raw_str: &str) -> Vec<Vec<Token<'_>>> {

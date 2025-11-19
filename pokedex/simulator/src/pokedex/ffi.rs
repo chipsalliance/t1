@@ -6,8 +6,9 @@ use std::{
 };
 use tracing::{error, info};
 
-use crate::{bus::AtomicOp, simulator::Inst};
+use super::{bus::AtomicOp, simulator::Inst};
 
+#[allow(nonstandard_style)]
 mod raw {
     include!(concat!(env!("OUT_DIR"), "/pokedex_vtable.rs"));
 }

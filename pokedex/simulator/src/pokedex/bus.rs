@@ -6,6 +6,7 @@ use std::{
     },
 };
 
+use anyhow::{bail, ensure};
 use tracing::debug;
 
 // pub struct AccessFault;
@@ -62,7 +63,7 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn try_from_config(configuration: &[AddressSpaceDescNode]) -> miette::Result<Self> {
+    pub fn try_from_config(configuration: &[AddressSpaceDescNode]) -> anyhow::Result<Self> {
         let mut segments = Vec::new();
         let mut exit_state = None;
         for node in configuration {
@@ -98,7 +99,7 @@ impl Bus {
         }
 
         if let Some(range) = overlapped_segment {
-            miette::bail!(
+            bail!(
                 "Address space with offset={:#010x} length={:#010x} overlapped previous address space",
                 range.start,
                 range.end - range.start
@@ -252,7 +253,7 @@ pub struct MMIOAddrDecoder {
 }
 
 impl MMIOAddrDecoder {
-    fn try_build_from(config: &[(String, u32)]) -> Result<(Self, ExitStateRef), miette::Error> {
+    fn try_build_from(config: &[(String, u32)]) -> anyhow::Result<(Self, ExitStateRef)> {
         let mut regs = Vec::new();
         let mut exit_state = None;
         for (name, offset) in config {
@@ -263,13 +264,11 @@ impl MMIOAddrDecoder {
                     exit_state = Some(s);
                     regs.push((*offset, MmioRegs::Exit(exit_rc)))
                 }
-                name => miette::bail!("unsupported MMIO device {name}"),
+                name => bail!("unsupported MMIO device {name}"),
             }
         }
 
-        if regs.is_empty() {
-            miette::bail!("no mmio node found");
-        }
+        ensure!(!regs.is_empty(), "no mmio node found");
 
         regs.sort_unstable_by_key(|(offset, _)| *offset);
 

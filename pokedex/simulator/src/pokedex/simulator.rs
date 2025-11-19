@@ -2,8 +2,10 @@ use std::ffi::CStr;
 
 use tracing::debug;
 
-use crate::bus::{AtomicOp, Bus, BusError, BusResult};
-use crate::ffi;
+use crate::common::StateWrite;
+
+use crate::pokedex::bus::{AtomicOp, Bus, BusError, BusResult};
+use crate::pokedex::ffi;
 
 pub struct Config {
     pub max_same_instruction: u32,
@@ -328,19 +330,6 @@ impl Statistic {
     pub fn new() -> Self {
         Self::default()
     }
-}
-
-#[derive(Debug, PartialEq, Eq, serde::Serialize)]
-#[serde(tag = "dest", rename_all = "lowercase")]
-pub enum StateWrite {
-    Xrf { rd: u8, value: u32 },
-    Frf { rd: u8, value: u32 },
-    Vrf { rd: u8, value: Vec<u8> },
-    Csr { name: String, value: u32 },
-    // TODO : record load/store
-
-    // Load { addr: u32 },
-    // Store { addr: u32, data: Vec<u8> },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

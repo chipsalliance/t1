@@ -1,12 +1,16 @@
-[workspace]
-resolver = "2"
-members = [ "pokedex", "difftest" ]
-
-[workspace.package]
+[package]
+name = "pokedex"
 version = "0.1.0"
 edition = "2024"
 
-[workspace.dependencies]
+[features]
+bundled-model-lib = []
+
+[build-dependencies]
+bindgen = "0.71.0"
+
+[dependencies]
+libc = "0.2.177"
 hex = "0.4.3"
 thiserror = "2"
 tracing = "0.1.41"
@@ -16,5 +20,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1"
 knuffel = "3.2.0"
-miette = { version = "5.10.0", features = ["fancy-no-backtrace"] }
 zerocopy = "0.8"
+xmas-elf = "0.9.1"
+num = "0.4.3"

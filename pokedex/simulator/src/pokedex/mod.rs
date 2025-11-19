@@ -5,16 +5,17 @@ use std::{
     process::ExitCode,
 };
 
+use anyhow::Context;
 use clap::Parser;
-use miette::IntoDiagnostic;
-use serde::Serialize;
 use tracing::{Level, error, event, info};
 use tracing_subscriber::{EnvFilter, prelude::*};
 
-use crate::{
+use crate::common::{CommitLog, PokedexLog, StateWrite};
+
+use self::{
     bus::{AddressSpaceDescNode, Bus},
     ffi::VTable,
-    simulator::{Inst, NoopTracer, Simulator, StateWrite, StepResult, Tracer, XcptInfo},
+    simulator::{Inst, NoopTracer, Simulator, StepResult, Tracer, XcptInfo},
 };
 
 mod bus;
@@ -24,7 +25,7 @@ mod simulator;
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-struct Args {
+pub struct RunArgs {
     /// Path to the RISC-V ELF for pokedex to execute
     elf_path: PathBuf,
 
@@ -117,9 +118,7 @@ struct PokedexConfig {
     sram: SramConfig,
 }
 
-fn main() -> miette::Result<ExitCode> {
-    let args = Args::parse();
-
+pub fn run_subcommand(args: &RunArgs) -> anyhow::Result<ExitCode> {
     setup_logging(args.verbose);
 
     let vtable = match std::env::var("POKEDEX_MODEL_DYLIB") {
@@ -141,7 +140,9 @@ fn main() -> miette::Result<ExitCode> {
     };
 
     let mut tracer_ = match &args.output_log_path {
-        Some(path) => AppTracer::json_log(path).into_diagnostic()?,
+        Some(path) => {
+            AppTracer::json_log(path).with_context(|| format!("failed to open {path:?}"))?
+        }
         None => {
             if args.stdout {
                 AppTracer::stdout()
@@ -152,7 +153,8 @@ fn main() -> miette::Result<ExitCode> {
     };
     let tracer = tracer_.as_tracer();
 
-    let config_content = std::fs::read_to_string(&args.config_path).into_diagnostic()?;
+    let config_content = std::fs::read_to_string(&args.config_path)
+        .with_context(|| format!("failed to read {:?}", args.config_path))?;
     let config: PokedexConfig = knuffel::parse(&args.config_path, config_content.as_str())?;
 
     let bus = Bus::try_from_config(&[
@@ -343,33 +345,19 @@ impl JsonFileTracer {
         }
     }
 
-    fn write_json_line(&mut self, value: &impl Serialize) {
+    fn write_json_line(&mut self, value: &PokedexLog) {
         serde_json::to_writer(&mut self.writer, value).expect("json log serialize failed");
         self.writer.write_all(b"\n").unwrap();
     }
 }
 
-// Aux struct for json serialize.
-// serde_json::json! does not perserve order by default.
-#[derive(serde::Serialize)]
-struct JsonLogInst<'a> {
-    pc: u32,
-    instruction: u32,
-    is_compressed: bool,
-    states_changed: &'a [StateWrite],
-}
-
 impl Tracer for JsonFileTracer {
     fn trace_reset(&mut self, pc: u32) {
-        // FIMXE : dirty hack to make difftest happy
-        writeln!(self.writer, r#"{{"instruction":0,"is_compressed":false,"pc":0,"states_changed":[{{"dest":"resetvector","pc":{pc}}}]}}"#)
-        .expect("json log write failed");
+        self.write_json_line(&PokedexLog::Reset { pc });
     }
 
     fn trace_exit(&mut self, exit_code: u32) {
-        // FIXME: dirty hack to make difftest happy
-        writeln!(self.writer, r#"{{"instruction":0,"is_compressed":false,"pc":0,"states_changed":[{{"dest":"poweroff","exit_code":{exit_code}}}]}}"#)
-        .expect("json log write failed");
+        self.write_json_line(&PokedexLog::Exit { code: exit_code });
     }
 
     fn trace_commit(&mut self, pc: u32, inst: Inst, writes: &[StateWrite]) {
@@ -377,12 +365,12 @@ impl Tracer for JsonFileTracer {
             Inst::NC(inst) => (inst, false),
             Inst::C(inst) => (inst as u32, true),
         };
-        let json = JsonLogInst {
+        let json = PokedexLog::Commit(CommitLog {
             pc,
             instruction,
             is_compressed,
-            states_changed: writes,
-        };
+            states_changed: writes.to_vec(),
+        });
         self.write_json_line(&json);
     }
 
@@ -397,12 +385,12 @@ impl Tracer for JsonFileTracer {
             Inst::NC(inst) => (inst, false),
             Inst::C(inst) => (inst as u32, true),
         };
-        let json = JsonLogInst {
+        let json = PokedexLog::Exception(CommitLog {
             pc,
             instruction,
             is_compressed,
-            states_changed: writes,
-        };
+            states_changed: writes.to_vec(),
+        });
         self.write_json_line(&json);
     }
 
