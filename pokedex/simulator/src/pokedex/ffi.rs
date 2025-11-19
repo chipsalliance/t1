@@ -2,9 +2,13 @@ use std::{
     ffi::{CStr, CString, c_char, c_int, c_void},
     marker::PhantomData,
     ptr::NonNull,
-    slice::from_raw_parts,
 };
 use tracing::{error, info};
+
+use crate::{
+    pokedex::simulator::{StepCode, StepDetail},
+    util::Bitmap32,
+};
 
 use super::{bus::AtomicOp, simulator::Inst};
 
@@ -28,25 +32,7 @@ pub trait PokedexCallbackMem {
     -> Result<u32, Self::CbMemError>;
 }
 
-// See include/pokedex_interface.h for more
-pub trait PokedexCallbackTrace {
-    fn log_inst_issue(&mut self, pc: u32, inst: Inst);
-    fn log_inst_commit(&mut self);
-    fn log_inst_xcpt(&mut self, xcause: u32, xtval: u32);
-
-    fn log_write_xreg(&mut self, rd: u8, value: u32);
-    fn log_write_freg(&mut self, fd: u8, value: u32);
-    fn log_write_vreg(&mut self, vd: u8, value: &[u8]);
-    fn log_write_csr(&mut self, name: &str, value: u32);
-
-    // informational only
-    fn debug_write(&mut self, message: &CStr);
-}
-
-pub trait PokedexCallback: PokedexCallbackMem + PokedexCallbackTrace + 'static {}
-impl<T: PokedexCallbackMem + PokedexCallbackTrace + 'static> PokedexCallback for T {}
-
-struct MakeVTable<T: PokedexCallbackMem + PokedexCallbackTrace + 'static>(PhantomData<T>);
+struct MakeVTable<T: PokedexCallbackMem>(PhantomData<T>);
 
 trait ResultExt1 {
     fn as_int(self) -> c_int;
@@ -78,7 +64,7 @@ impl<E, T: Copy> ResultExt2<T> for Result<T, E> {
     }
 }
 
-impl<T: PokedexCallbackMem + PokedexCallbackTrace + 'static> MakeVTable<T> {
+impl<T: PokedexCallbackMem> MakeVTable<T> {
     unsafe extern "C" fn inst_fetch_2(model: *mut c_void, addr: u32, ret: *mut u16) -> c_int {
         let model = unsafe { &mut *(model as *mut T) };
         model.inst_fetch_2(addr).as_int_ret(ret)
@@ -142,53 +128,7 @@ impl<T: PokedexCallbackMem + PokedexCallbackTrace + 'static> MakeVTable<T> {
         let _model = unsafe { &mut *(model as *mut T) };
         todo!("SC instruction not implemented")
     }
-    unsafe extern "C" fn log_inst_issue(model: *mut c_void, pc: u32, inst: u32) {
-        let model = unsafe { &mut *(model as *mut T) };
-        model.log_inst_issue(pc, Inst::NC(inst));
-    }
-    unsafe extern "C" fn log_inst_issue_c(model: *mut c_void, pc: u32, inst: u16) {
-        let model = unsafe { &mut *(model as *mut T) };
-        model.log_inst_issue(pc, Inst::C(inst));
-    }
-    unsafe extern "C" fn log_inst_commit(model: *mut c_void) {
-        let model = unsafe { &mut *(model as *mut T) };
-        model.log_inst_commit();
-    }
-    unsafe extern "C" fn log_inst_xcpt(model: *mut c_void, xcause: u32, xtval: u32) {
-        let model = unsafe { &mut *(model as *mut T) };
-        model.log_inst_xcpt(xcause, xtval);
-    }
-    unsafe extern "C" fn log_intr_taken(_model: *mut c_void, xepc: u32, intr_code: u32) {
-        todo!("log_intr_taken, xepc={xepc:#010x}, intr_code={intr_code}");
-    }
-    unsafe extern "C" fn log_write_xreg(model: *mut c_void, rd: u8, value: u32) {
-        let model = unsafe { &mut *(model as *mut T) };
-        model.log_write_xreg(rd, value);
-    }
-    unsafe extern "C" fn log_write_freg(model: *mut c_void, fd: u8, value: u32) {
-        let model = unsafe { &mut *(model as *mut T) };
-        model.log_write_freg(fd, value);
-    }
-    unsafe extern "C" fn log_write_vreg(
-        model: *mut c_void,
-        vd: u8,
-        value: *const u8,
-        byte_len: usize,
-    ) {
-        let model = unsafe { &mut *(model as *mut T) };
-        let value = unsafe { from_raw_parts(value, byte_len) };
-        model.log_write_vreg(vd, value);
-    }
-    unsafe extern "C" fn log_write_csr(model: *mut c_void, name: *const c_char, value: u32) {
-        let model = unsafe { &mut *(model as *mut T) };
-        let name = unsafe { CStr::from_ptr(name) }.to_str().unwrap();
-        model.log_write_csr(name, value);
-    }
-    unsafe extern "C" fn debug_print(model: *mut c_void, message: *const c_char) {
-        let model = unsafe { &mut *(model as *mut T) };
-        model.debug_write(unsafe { CStr::from_ptr(message) });
-    }
-    const VTABLE: &raw::pokedex_callback_vtable = &raw::pokedex_callback_vtable {
+    const VTABLE: &raw::pokedex_mem_callback_vtable = &raw::pokedex_mem_callback_vtable {
         inst_fetch_2: Some(Self::inst_fetch_2),
         read_mem_1: Some(Self::read_mem_1),
         read_mem_2: Some(Self::read_mem_2),
@@ -199,32 +139,22 @@ impl<T: PokedexCallbackMem + PokedexCallbackTrace + 'static> MakeVTable<T> {
         amo_mem_4: Some(Self::amo_mem_4),
         lr_mem_4: Some(Self::lr_mem_4),
         sc_mem_4: Some(Self::sc_mem_4),
-        log_inst_issue: Some(Self::log_inst_issue),
-        log_inst_issue_c: Some(Self::log_inst_issue_c),
-        log_inst_commit: Some(Self::log_inst_commit),
-        log_inst_xcpt: Some(Self::log_inst_xcpt),
-        log_intr_taken: Some(Self::log_intr_taken),
-        log_write_xreg: Some(Self::log_write_xreg),
-        log_write_freg: Some(Self::log_write_freg),
-        log_write_vreg: Some(Self::log_write_vreg),
-        log_write_csr: Some(Self::log_write_csr),
-        debug_print: Some(Self::debug_print),
     };
 }
 
 #[derive(Clone, Copy)]
 pub struct VTable {
     // invariant: ABI version already checked
-    data: &'static raw::pokedex_vtable,
+    data: &'static raw::pokedex_model_export,
 }
 
-fn assert_abi_version(vtable: &'static raw::pokedex_vtable) {
+fn assert_abi_version(vtable: &'static raw::pokedex_model_export) {
     // FIXME: it should be a direct CStr after bindgen generate_cstr issue fixed
     let abi_exe = CStr::from_bytes_with_nul(raw::POKEDEX_ABI_VERSION).unwrap();
     let abi_lib = unsafe { CStr::from_ptr(vtable.abi_version) };
     assert!(
         abi_exe == abi_lib,
-        "ABI version mismatch, abi_exe=\"{abi_exe:?}\", abi_lib=\"{abi_lib:?}\""
+        "ABI version mismatch, abi_exe={abi_exe:?}, abi_lib={abi_lib:?}"
     );
 }
 
@@ -240,13 +170,13 @@ impl VTable {
 
         info!("MODEL LIB using dylib: {so_path}");
 
-        let entry_name = c"EXPORT_ASL_MODEL_get_pokedex_vtable";
+        let entry_name = c"EXPORT_pokedex_get_model_export";
 
         let entry = unsafe { libc::dlsym(so_lib, entry_name.as_ptr()) };
-        let entry: raw::get_pokedex_vtable_t = unsafe { std::mem::transmute(entry) };
+        let entry: raw::pokedex_get_model_export_t = unsafe { std::mem::transmute(entry) };
 
         let entry = entry.unwrap_or_else(|| panic!("dlsym failed: {entry_name:?} not found"));
-        let vtable: &'static raw::pokedex_vtable = unsafe { &*entry() };
+        let vtable: &'static raw::pokedex_model_export = unsafe { &*entry() };
 
         assert_abi_version(vtable);
 
@@ -260,7 +190,7 @@ impl VTable {
         info!("MODEL LIB using statically-linked version");
 
         unsafe extern "C" {
-            #[link_name = "EXPORT_ASL_MODEL_get_pokedex_vtable"]
+            #[link_name = "EXPORT_pokedex_get_model_export"]
             fn get_pokedex_vtable() -> *const raw::pokedex_vtable;
         }
 
@@ -276,25 +206,37 @@ impl VTable {
     }
 }
 
-// ModelRawHandle behaves like a raw pointer rather than an RAII wrapper
-#[derive(Clone, Copy)]
-pub struct ModelRawHandle {
+pub struct ModelHandle {
     data: NonNull<c_void>,
-    vtable: &'static raw::pokedex_vtable,
+    vtable: &'static raw::pokedex_model_export,
 }
 
-impl ModelRawHandle {
-    pub unsafe fn new<C: PokedexCallback>(vtable: VTable, callback: &mut C) -> Self {
+impl Drop for ModelHandle {
+    fn drop(&mut self) {
+        unsafe {
+            (self.vtable.destroy.unwrap())(self.data.as_ptr());
+        }
+    }
+}
+
+unsafe extern "C" fn model_debug_log(message: *const c_char) {
+    let message = unsafe { CStr::from_ptr(message) };
+    tracing::debug!("ASL model: {message:?}");
+}
+
+impl ModelHandle {
+    pub unsafe fn new(vtable: VTable) -> Self {
         let vtable = vtable.data;
 
         // ABI version check is already done in constructor
         // vtable.check_abi_version()
 
-        let mut err_buf = [0u8; 256];
         let create_info = raw::pokedex_create_info {
-            callback_data: callback as *mut C as *mut c_void,
-            callback_vtable: MakeVTable::<C>::VTABLE,
+            debug_log: Some(model_debug_log),
+            debug_inst_issue: 0,
         };
+
+        let mut err_buf = [0u8; 256];
         let data = unsafe {
             (vtable.create.unwrap())(
                 &create_info,
@@ -324,28 +266,159 @@ fn cstr_span(buf: &[u8]) -> &[u8] {
     }
 }
 
-impl ModelRawHandle {
-    // ModelHandle intentionally not implement Drop,
-    // High level abstractions can precisely control drop order.
-    //
-    // SAFETY: After destroy, the handle is no longer valid
-    pub unsafe fn destroy(self) {
+fn code_from_raw(code: u8) -> StepCode {
+    use StepCode::*;
+    match code as u32 {
+        raw::POKEDEX_STEP_RESULT_INTERRUPT => Interrupt,
+        raw::POKEDEX_STEP_RESULT_FETCH_XCPT
+        | raw::POKEDEX_STEP_RESULT_INST_EXCEPTION
+        | raw::POKEDEX_STEP_RESULT_INST_C_EXCEPTION => Exception,
+        raw::POKEDEX_STEP_RESULT_INST_COMMIT | raw::POKEDEX_STEP_RESULT_INST_C_COMMIT => Committed,
+        _ => unreachable!("unexpected step return value ({code})"),
+    }
+}
+
+fn detail_from_raw(code: u8, inst: u32) -> (StepCode, Option<Inst>) {
+    use StepCode::*;
+    match code as u32 {
+        raw::POKEDEX_STEP_RESULT_INTERRUPT => (Interrupt, None),
+        raw::POKEDEX_STEP_RESULT_FETCH_XCPT => (Exception, None),
+        raw::POKEDEX_STEP_RESULT_INST_EXCEPTION => (Exception, Some(Inst::NC(inst))),
+        raw::POKEDEX_STEP_RESULT_INST_C_EXCEPTION => (Exception, Some(Inst::C(inst as u16))),
+        raw::POKEDEX_STEP_RESULT_INST_COMMIT => (Committed, Some(Inst::NC(inst))),
+        raw::POKEDEX_STEP_RESULT_INST_C_COMMIT => (Committed, Some(Inst::C(inst as u16))),
+        _ => unreachable!("unexpected step return value ({code})"),
+    }
+}
+
+impl ModelHandle {
+    pub fn read_pc(&self) -> u32 {
+        let mut pc: u64 = 0;
         unsafe {
-            (self.vtable.destroy.unwrap())(self.data.as_ptr());
+            (self.vtable.get_pc.unwrap())(self.data.as_ptr(), &mut pc);
+        }
+        pc as u32
+    }
+    pub fn read_xreg(&self, idx: u8) -> u32 {
+        let mut value = 0;
+        unsafe {
+            (self.vtable.get_xreg.unwrap())(self.data.as_ptr(), idx, &mut value);
+        }
+        value as u32
+    }
+    pub fn read_freg(&self, idx: u8) -> u32 {
+        let mut value: u64 = 0;
+        unsafe {
+            (self.vtable.get_freg.unwrap())(self.data.as_ptr(), idx, &mut value);
+        }
+        value as u32
+    }
+    pub fn read_vreg(&self, idx: u8, value: &mut [u8]) {
+        unsafe {
+            (self.vtable.get_vreg.unwrap())(
+                self.data.as_ptr(),
+                idx,
+                value.as_mut_ptr(),
+                value.len(),
+            );
         }
     }
+    pub fn read_csr(&self, idx: u16) -> u32 {
+        let mut value: u64 = 0;
+        unsafe {
+            (self.vtable.get_csr.unwrap())(self.data.as_ptr(), idx, &mut value);
+        }
+        value as u32
+    }
+}
 
-    // SAFETY: callback_data is implicity borrowed
-    pub unsafe fn reset(self, initial_pc: u32) {
+impl ModelHandle {
+    pub fn reset(&mut self, initial_pc: u32) {
         unsafe {
             (self.vtable.reset.unwrap())(self.data.as_ptr(), initial_pc);
         }
     }
 
-    // SAFETY: callback_data is implicity borrowed
-    pub unsafe fn step(self) {
-        unsafe {
-            (self.vtable.step.unwrap())(self.data.as_ptr());
+    pub fn step<Mem: PokedexCallbackMem>(&mut self, mem: &mut Mem) -> StepCode {
+        let code = unsafe {
+            (self.vtable.step.unwrap())(
+                self.data.as_ptr(),
+                MakeVTable::<Mem>::VTABLE,
+                mem as *mut Mem as *mut c_void,
+            )
+        };
+        code_from_raw(code)
+    }
+
+    pub fn step_trace<Mem: PokedexCallbackMem>(&mut self, mem: &mut Mem) -> StepDetail<'_> {
+        let code = unsafe {
+            (self.vtable.step.unwrap())(
+                self.data.as_ptr(),
+                MakeVTable::<Mem>::VTABLE,
+                mem as *mut Mem as *mut c_void,
+            )
+        };
+        let tb = unsafe { &*(self.vtable.get_trace_buffer.unwrap())(self.data.as_ptr()) };
+
+        assert_eq!(code, tb.step_status);
+        // x0 should be modified
+        assert!(tb.xreg_mask & 1 == 0);
+        assert!((tb.csr_count as u32) < raw::POKEDEX_MAX_CSR_WRITE);
+        let (code, inst) = detail_from_raw(code, tb.inst);
+        StepDetail {
+            code,
+            pc: tb.pc,
+            inst,
+            changes: CoreChange { core: self, tb },
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct CoreChange<'a> {
+    pub core: &'a ModelHandle,
+    tb: &'a raw::pokedex_trace_buffer,
+}
+
+impl CoreChange<'_> {
+    pub fn xreg_change_indices(self) -> impl Iterator<Item = u8> {
+        Bitmap32::from_mask(self.tb.xreg_mask)
+            .indices()
+            .map(|x| x as u8)
+    }
+    pub fn freg_change_indices(self) -> impl Iterator<Item = u8> {
+        Bitmap32::from_mask(self.tb.freg_mask)
+            .indices()
+            .map(|x| x as u8)
+    }
+    pub fn vreg_change_indices(self) -> impl Iterator<Item = u8> {
+        Bitmap32::from_mask(self.tb.vreg_mask)
+            .indices()
+            .map(|x| x as u8)
+    }
+    pub fn csr_change_indices(self) -> impl Iterator<Item = u16> {
+        self.tb.csr_indices[..self.tb.csr_count as usize]
+            .iter()
+            .copied()
+    }
+
+    pub fn xreg_changes(self) -> impl Iterator<Item = (u8, u32)> {
+        let core = self.core;
+        self.xreg_change_indices().map(|x| (x, core.read_xreg(x)))
+    }
+
+    pub fn freg_changes(self) -> impl Iterator<Item = (u8, u32)> {
+        let core = self.core;
+        self.freg_change_indices().map(|x| (x, core.read_freg(x)))
+    }
+
+    pub fn csr_changes(self) -> impl Iterator<Item = (u16, u32)> {
+        let core = self.core;
+        self.csr_change_indices().map(|x| (x, core.read_csr(x)))
+    }
+
+    pub fn is_empty_changes(self) -> bool {
+        let tb = self.tb;
+        tb.xreg_mask == 0 && tb.freg_mask == 0 && tb.vreg_mask == 0 && tb.csr_count == 0
     }
 }
