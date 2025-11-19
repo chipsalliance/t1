@@ -7,6 +7,11 @@ begin
   return CsrReadOk(MEPC);
 end
 
+func GetRaw_MEPC() => bits(XLEN)
+begin
+  return MEPC;
+end
+
 func Write_MEPC(value: bits(32)) => Result
 begin
   if !IsPrivAtLeast_M() then
@@ -26,5 +31,5 @@ end
 
 func logWrite_MEPC()
 begin
-  FFI_write_CSR_hook("mepc", MEPC);
+  FFI_write_CSR_hook(CSR_MEPC);
 end

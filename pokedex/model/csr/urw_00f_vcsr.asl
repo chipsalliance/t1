@@ -7,6 +7,15 @@ begin
   return CsrReadOk(GetRaw_VCSR());
 end
 
+func GetRaw_VCSR() => bits(32)
+begin
+  return [
+    Zeros(29),
+    VXRM,   // [2:1]
+    VXSAT   // [0]
+  ];
+end
+
 func Write_VCSR(value: bits(32)) => Result
 begin
   if !isEnabled_VS() then
@@ -27,16 +36,7 @@ end
 
 // utility functions
 
-func GetRaw_VCSR() => bits(32)
-begin
-  return [
-    Zeros(29),
-    VXRM,   // [2:1]
-    VXSAT   // [0]
-  ];
-end
-
 func logWrite_VCSR()
 begin
-  FFI_write_CSR_hook("vcsr", GetRaw_VCSR());
+  FFI_write_CSR_hook(CSR_VCSR);
 end

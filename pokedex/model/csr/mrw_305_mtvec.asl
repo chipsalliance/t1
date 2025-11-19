@@ -4,10 +4,15 @@ begin
     return CsrReadIllegalInstruction();
   end
 
-  return CsrReadOk([
+  return CsrReadOk(GetRaw_MTVEC());
+end
+
+func GetRaw_MTVEC() => bits(XLEN)
+begin
+  return [
     MTVEC_BASE,       // [31:2]
     MTVEC_MODE_BITS   // [1:0]
-  ]);
+  ];
 end
 
 func Write_MTVEC(value: bits(32)) => Result
@@ -26,7 +31,7 @@ begin
     MTVEC_MODE_BITS = value[1:0];
 
     // This is the only place that modifies mtvec
-    FFI_write_CSR_hook("mtvec", value);
+    FFI_write_CSR_hook(CSR_MTVEC);
   end
 
   return Retired();

@@ -4,7 +4,10 @@ begin
     return CsrReadIllegalInstruction();
   end
 
-  let vlenb = VLEN DIV 8;
+  return CsrReadOk(GetRaw_VLENB());
+end
 
-  return CsrReadOk(vlenb[31:0]);
+func GetRaw_VLENB() => bits(XLEN)
+begin
+  return (VLEN DIV 8)[31:0];
 end

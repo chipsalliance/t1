@@ -33,5 +33,5 @@ end
 
 func logWrite_MIE()
 begin
-  FFI_write_CSR_hook("mie", GetRaw_MIE());
+  FFI_write_CSR_hook(CSR_MIE);
 end

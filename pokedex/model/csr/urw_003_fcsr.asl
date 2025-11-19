@@ -38,5 +38,5 @@ end
 
 func logWrite_FCSR()
 begin
-  FFI_write_CSR_hook("fcsr", GetRaw_FCSR());
+  FFI_write_CSR_hook(CSR_FCSR);
 end

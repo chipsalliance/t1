@@ -6,3 +6,8 @@ begin
 
   return CsrReadOk(CFG_MVENDORID);
 end
+
+func GetRaw_MVENDORID() => bits(XLEN)
+begin
+  return CFG_MVENDORID;
+end

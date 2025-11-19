@@ -47,6 +47,6 @@ end
 
 func logWrite_VTYPE_VL()
 begin
-  FFI_write_CSR_hook("vtype", GetRaw_VTYPE());
-  FFI_write_CSR_hook("vl", VL[31:0]);
+  FFI_write_CSR_hook(CSR_VTYPE);
+  FFI_write_CSR_hook(CSR_VL);
 end
