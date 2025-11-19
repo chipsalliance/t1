@@ -7,6 +7,11 @@ begin
   return CsrReadOk(MCAUSE);
 end
 
+func GetRaw_MCAUSE() => bits(XLEN)
+begin
+  return MCAUSE;
+end
+
 func Write_MCAUSE(value: bits(32)) => Result
 begin
   if !IsPrivAtLeast_M() then
@@ -29,5 +34,5 @@ end
 
 func logWrite_MCAUSE()
 begin
-  FFI_write_CSR_hook("mcause", MCAUSE);
+  FFI_write_CSR_hook(CSR_MCAUSE);
 end

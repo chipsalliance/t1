@@ -474,13 +474,19 @@ end
 
 func logWrite_VREG_1(vd: VRegIdx)
 begin
-  FFI_write_VREG_hook(vd, __VRF[vd * VLEN  +: VLEN]);
+  var vd_mask = Zeros(32);
+  vd_mask[vd] = '1';
+  FFI_write_VREG_hook(vd_mask);
 end
 
 // to support segmented load, elmul is not restricted to 1,2,4,8
 func logWrite_VREG_elmul(vd: VRegIdx, elmul: integer{1..8})
 begin
+  assert vd + elmul <= 32;
+
+  var vd_mask = Zeros(32);
   for i = 0 to elmul - 1 do
-    logWrite_VREG_1((vd + i) as VRegIdx);
+    vd_mask[vd + i] = '1';
   end
+  FFI_write_VREG_hook(vd_mask);
 end

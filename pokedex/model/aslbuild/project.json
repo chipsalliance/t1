@@ -24,7 +24,12 @@
   "exports": [
     "ASL_Step",
     "ASL_ResetConfigAndState",
-    "ASL_ResetState"
+    "ASL_ResetState",
+    "ASL_read_PC",
+    "ASL_read_XREG",
+    "ASL_read_FREG",
+    "ASL_read_VREG",
+    "ASL_read_CSR"
   ],
 
   "split_state": {

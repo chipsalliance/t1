@@ -6,3 +6,8 @@ begin
 
   return CsrReadOk(VL[31:0]);
 end
+
+func GetRaw_VL() => bits(XLEN)
+begin
+  return VL[31:0];
+end

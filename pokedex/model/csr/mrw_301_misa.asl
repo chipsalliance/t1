@@ -4,6 +4,11 @@ begin
     return CsrReadIllegalInstruction();
   end
 
+  return CsrReadOk(GetRaw_MISA());
+end
+
+func GetRaw_MISA() => bits(XLEN)
+begin
   // machine xlen is read-only 32;
   let MXL : bits(2) = '01';
   let MISA_EXTS : bits(26) = [
@@ -19,13 +24,11 @@ begin
     '0101'
   ];
 
-  let misa : bits(32) = [
+  return [
     MXL,
     Zeros(4),
     MISA_EXTS
   ];
-
-  return CsrReadOk(misa);
 end
 
 func Write_MISA(value: bits(32)) => Result
