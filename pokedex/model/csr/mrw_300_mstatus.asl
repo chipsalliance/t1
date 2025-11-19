@@ -64,7 +64,7 @@ end
 
 func logWrite_MSTATUS()
 begin
-  FFI_write_CSR_hook("mstatus", GetRaw_MSTATUS());
+  FFI_write_CSR_hook(CSR_MSTATUS);
 end
 
 func isEnabled_FS() => boolean

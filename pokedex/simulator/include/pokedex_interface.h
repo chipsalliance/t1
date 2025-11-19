@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-#define POKEDEX_ABI_VERSION "2025-11-12"
+#define POKEDEX_ABI_VERSION "2025-11-21"
 
 #define POKEDEX_AMO_SWAP 0
 #define POKEDEX_AMO_ADD 1
@@ -19,22 +19,57 @@ extern "C" {
 #define POKEDEX_AMO_MAX 5
 #define POKEDEX_AMO_MIN 6
 #define POKEDEX_AMO_MAXU 7
-#define POKEDEX_AMO_MINU 8
+#define POKEDEX_AMO_MINU 8 
 
-struct pokedex_callback_vtable;
+// exception during instruction fetch 
+#define POKEDEX_STEP_RESULT_FETCH_XCPT 1
+
+// exception in decoding/excuting a non-compressed instruction
+#define POKEDEX_STEP_RESULT_INST_EXCEPTION 2
+
+// non-compressed instruction commits
+#define POKEDEX_STEP_RESULT_INST_COMMIT 4 
+
+// exception in decoding/excuting a compressed instruction
+#define POKEDEX_STEP_RESULT_INST_C_EXCEPTION 10
+
+// exception in decoding/excuting a compressed instruction
+#define POKEDEX_STEP_RESULT_INST_C_COMMIT 12
+
+// interrupt happens
+#define POKEDEX_STEP_RESULT_INTERRUPT 16
+
+struct pokedex_mem_callback_vtable;
 
 struct pokedex_create_info {
-    void* callback_data;
-    const struct pokedex_callback_vtable* callback_vtable;
+    // print some diagnotic-only meesage
+    // if it is NULL, debug log will be silently ignored
+    void (*debug_log)(const char* message);
+
+    // following debug options only effectful if debug_log is not NULL
+
+    uint8_t debug_inst_issue;
 };
 
-struct pokedex_vtable {
+struct pokedex_model_description {
+    // informationaly only
+    const char* model_isa;
+
+    // valid value: 32, 64
+    uint32_t xlen;
+
+    // valid value: 0, 32, 64
+    uint32_t flen;
+
+    // 0 means V is not supported
+    uint32_t vlen;
+
+    // TODO: supported CSRs
+};
+
+struct pokedex_model_export {
     // abi_version must be the first field
     const char* abi_version;
-
-    // a non-null string to describe the isa
-    // currently it is informational only
-    const char* model_isa;
 
     // Parameter"info" must be non-null 
     //
@@ -48,11 +83,65 @@ struct pokedex_vtable {
 
     // Following methods require non-null model pointer
 
+    const struct pokedex_model_description* (*get_description)(void* model);
+
+    // This is a mutable operation.
     void (*reset)(void* model, uint32_t intitial_pc);
-    void (*step)(void* model);
+    
+    // This is a mutable operation.
+    // See POKEDEX_STEP_RESULT_XXX macros for its return value.
+    // It may or may not record state write traces.
+    // NOTE: step_trace is always an valid implementation of step
+    uint8_t (*step)(
+        void* model,
+        const struct pokedex_mem_callback_vtable* mem_callback_vtable,
+        void* mem_callback_data
+    );
+
+    // This is a mutable operation.
+    // It always record state write traces,
+    // which may be accessed by get_trace_buffer.
+    uint8_t (*step_trace)(
+        void* model,
+        const struct pokedex_mem_callback_vtable* mem_callback_vtable,
+        void* mem_callback_data
+    );
+
+    // Returns a pointer to valid trace buffer if and only if
+    // the last operation is an step_trace (or a step actually traces).
+    // Otherwise, returns either NULL or invalid.
+    //
+    // The lifetime of trace buffer is managed by the model.
+    // Any mutation operation will invalidate all existing trace buffer pointers.
+    // NOTE: precisely "fn get_trace_buffer<'a>(&'a self) -> Option<&'a TraceBuffer>" in Rust
+    const struct pokedex_trace_buffer* (*get_trace_buffer)(void* model);
+
+    // Following methods are debugger accessors.
+    // They guarantee do not have any side effects
+    // The caller is responsible to provide valid arugments,
+    // by probing features through get_description
+
+    // when XLEN=32, upper bits of ret are unspecified
+    void (*get_pc)(void* model, uint64_t* ret);
+
+    // 0 <= xs <= 31
+    // when XLEN=32, upper bits of ret are unspecified
+    void (*get_xreg)(void* model, uint8_t xs, uint64_t* ret);
+
+    // 0 <= fs <= 31, only callable when FLEN > 0
+    // when FLEN=32, upper bits of ret are unspecified
+    void (*get_freg)(void* model, uint8_t fs, uint64_t* ret);
+
+    // 0 <= vs <= 31, only callable when VLEN > 0
+    // buflen must be precisely VLEN/8
+    void (*get_vreg)(void* model, uint8_t vs, uint8_t* buf, size_t buflen);
+
+    // 0 <= csr <= 0xFFF, and csr must be an supported csr
+    // when XLEN=32, upper bits of ret are unspecifieds
+    void (*get_csr)(void* model, uint16_t csr, uint64_t* ret);
 };
 
-struct pokedex_callback_vtable {
+struct pokedex_mem_callback_vtable {
     // All memory operations return 0 in sucess, return non-zero in failure.
     // currently we only return 1 for access fault in failure.
     //
@@ -69,59 +158,41 @@ struct pokedex_callback_vtable {
     int (*amo_mem_4)(void* cb_data, uint32_t addr, uint8_t amo_op, uint32_t value, uint32_t* ret);
     int (*lr_mem_4)(void* cb_data, uint32_t addr, uint32_t* ret);
     int (*sc_mem_4)(void* cb_data, uint32_t addr, uint32_t value, uint32_t* ret);
-
-    // inst_issue must be terminated with eaxtly one of inst_commit or inst_xcpt.
-    // All state-write logs must happen between inst_issue and its pairing inst_commit/inst_xcpt
-    void (*log_inst_issue)(void* cb_data, uint32_t issue, uint32_t inst);
-
-    // Same as inst_issue but for compressed instruction
-    void (*log_inst_issue_c)(void* cb_data, uint32_t issue, uint16_t inst);
-
-    // Must pair with the previous inst_issue
-    void (*log_inst_commit)(void* cb_data);
-
-    // Must pair with the previous inst_issue
-    void (*log_inst_xcpt)(void* cb_data, uint32_t xcause, uint32_t xtval);
-
-    // Indicate an interrupt is taken.
-    // intr_taken can not appear inside the paring of issue and inst_commit/inst_xcpt
-    //
-    // xepc: records where it takes, coincides with the value written to xepc
-    // intr_code: interrupt number, exactly xcause with leading bit cleared.
-    void (*log_intr_taken)(void* cb_data, uint32_t xepc, uint32_t intr_code);
-
-    // 1 <= rd <= 31, written to x0 must be filtered out by caller
-    //
-    // In case of XLEN < 8 * sizeof(value)
-    // - the callee must treat upper bits as unspecfied
-    // - the caller is recommended to sign-extend the value, following RISC-V convention
-    void (*log_write_xreg)(void* data, uint8_t rd, uint32_t value);
-
-    // 0 <= fd <= 31
-    //
-    // In case of XLEN < 8 * sizeof(value)
-    // - the callee must treat upper bits as unspecfied
-    // - the caller is recommended to sign-extend the value, following RISC-V convention
-    void (*log_write_freg)(void* data, uint8_t fd, uint32_t value);
-
-    // 0 <= vd <= 31
-    //
-    // value should contain the whole register, byte_len should equal to vlenb csr
-    void (*log_write_vreg)(void* data, uint8_t vd, const uint8_t* value, size_t byte_len);
-
-    void (*log_write_csr)(void* data, const char* name, uint32_t value);
-
-    // print some diagnotic-only meesage
-    void (*debug_print)(void* data, const char* message);
 };
 
-typedef const struct pokedex_vtable* (*get_pokedex_vtable_t)();
+#define POKEDEX_MAX_CSR_WRITE 16
+
+// Record which registers may be written during step_trace.
+// The record is conservative, it may contain registers whose value actually does not change.
+// It does not record the written values, use get_xxx to retrieve them.
+struct pokedex_trace_buffer {
+    uint8_t valid;
+
+    // return value of last step
+    uint8_t step_status;
+
+    uint8_t csr_count;
+    uint8_t reserved;
+
+    // pc at the start of last step
+    uint32_t pc;
+
+    // issued instruction of last step
+    // NOTE: step_status will tell you whether is compressed
+    uint32_t inst;
+
+    uint32_t xreg_mask;
+    uint32_t freg_mask;
+    uint32_t vreg_mask;
+    uint16_t csr_indices[POKEDEX_MAX_CSR_WRITE];
+};
+
+typedef const struct pokedex_model_export* (*pokedex_get_model_export_t)();
 
 // Example:
 //
-// static struct pokedex_vtable asl_pokedex_vtable = {
+// static const struct pokedex_model_export model_export = {
 //     .abi_version = POKEDEX_ABI_VERSION,
-//     .model_isa = "...",
 //     .create = ...,
 //     .destroy = ...,
 //
@@ -129,8 +200,8 @@ typedef const struct pokedex_vtable* (*get_pokedex_vtable_t)();
 // };
 // 
 // // This is the only required export symbol
-// const struct pokedex_vtable* ASL_MODEL_get_pokedex_vtable() {
-//   return &asl_pokedex_vtable;
+// const struct pokedex_model_export* EXPORT_pokedex_get_model_export() {
+//   return &model_export;
 // }
 
 #ifdef __cplusplus

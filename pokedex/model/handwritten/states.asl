@@ -145,7 +145,7 @@ begin
     __GPR[i - 1] = value;
 
     // notify emulator that a write to GPR occur
-    FFI_write_GPR_hook(i, value);
+    FFI_write_GPR_hook(i as bits(5));
   end
 end
 
@@ -155,12 +155,12 @@ begin
 end
 
 // Instruction should use the `F` getter to update value, eg. `F[5] = Zeros(32);`
-setter F[i : freg_index] = value : bits(32)
+setter F[i : FRegIdx] = value : bits(32)
 begin
   __FPR[i] = value;
 
   // notify emulator that a write to FPR occur
-  FFI_write_FPR_hook(i, value);
+  FFI_write_FPR_hook(i as bits(5));
 
   makeDirty_FS();
 end

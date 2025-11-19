@@ -6,3 +6,8 @@ begin
 
   return CsrReadOk(CFG_MHARTID);
 end
+
+func GetRaw_MHARTID() => bits(XLEN)
+begin
+  return CFG_MHARTID;
+end

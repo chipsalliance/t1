@@ -10,6 +10,11 @@ begin
   ]);
 end
 
+func GetRaw_FRM() => bits(XLEN)
+begin
+  return [Zeros(29), FRM];
+end
+
 func Write_FRM(value: bits(32)) => Result
 begin
   if !isEnabled_FS() then

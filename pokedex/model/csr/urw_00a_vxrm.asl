@@ -7,6 +7,11 @@ begin
   return CsrReadOk([Zeros(30), VXRM]);
 end
 
+func GetRaw_VXRM() => bits(XLEN)
+begin
+  return [Zeros(30), VXRM];
+end
+
 func Write_VXRM(value: bits(32)) => Result
 begin
   if !isEnabled_VS() then

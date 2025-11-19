@@ -6,3 +6,8 @@ begin
 
   return CsrReadOk(CFG_MARCHID);
 end
+
+func GetRaw_MARCHID() => bits(XLEN)
+begin
+  return CFG_MARCHID;
+end
