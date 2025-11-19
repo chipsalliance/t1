@@ -166,6 +166,5 @@ rec {
 
   pokedex = final.callPackage ../pokedex {
     riscv-opcodes-src = t1.submodules.sources.riscv-opcodes.src;
-    ivy-rvdecoderdb = t1.submodules.ivy-rvdecoderdb3;
   };
 }
