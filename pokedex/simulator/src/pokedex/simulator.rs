@@ -1,9 +1,3 @@
-use std::ffi::CStr;
-
-use tracing::debug;
-
-use crate::common::StateWrite;
-
 use crate::pokedex::bus::{AtomicOp, Bus, BusError, BusResult};
 use crate::pokedex::ffi;
 
@@ -12,26 +6,9 @@ pub struct Config {
 }
 
 pub struct Simulator {
-    core: ffi::ModelRawHandle,
+    core: ffi::ModelHandle,
 
-    // represent states not in ASL side
-    //
-    // NOTE: It's actually a Box.
-    //       Use Box to have stable address.
-    //       Use raw pointer to prevent potential aliasing issues.
-    global: *mut Global,
-}
-
-impl Drop for Simulator {
-    fn drop(&mut self) {
-        unsafe {
-            self.core.destroy();
-
-            // In case of core.destroy() invokes callbacks,
-            // we drop the global after the core.
-            _ = Box::from_raw(self.global);
-        }
-    }
+    pub(crate) global: Global,
 }
 
 impl Simulator {
@@ -40,45 +17,15 @@ impl Simulator {
             bus,
 
             stats: Statistic::new(),
-
-            trace_state: TraceState::None,
-            trace_issue: None,
-            trace_xcpt: None,
-            trace_writes: vec![],
         };
 
-        let mut global_box = Box::new(global);
+        let core = unsafe { ffi::ModelHandle::new(vtable) };
 
-        let core = unsafe { ffi::ModelRawHandle::new(vtable, global_box.as_mut()) };
-
-        Simulator {
-            core,
-            global: Box::leak(global_box),
-        }
-    }
-}
-
-impl Simulator {
-    fn core_reset(&mut self, pc: u32) {
-        // core.step() borrows global implicitly through potential callbacks
-        unsafe {
-            self.core.reset(pc);
-        }
+        Simulator { core, global }
     }
 
-    fn core_step(&mut self) {
-        // core.step() borrows global implicitly through potential callbacks
-        unsafe {
-            self.core.step();
-        }
-    }
-
-    pub fn global(&self) -> &Global {
-        unsafe { &*self.global }
-    }
-
-    pub fn global_mut(&mut self) -> &mut Global {
-        unsafe { &mut *self.global }
+    pub fn stats(&self) -> &Statistic {
+        &self.global.stats
     }
 }
 
@@ -88,113 +35,35 @@ pub enum StepResult {
 }
 
 impl Simulator {
-    pub fn reset_core(&mut self, pc: u32, tracer: &mut dyn Tracer) {
-        assert_eq!(self.global().trace_state, TraceState::None);
-
+    pub fn reset_core(&mut self, pc: u32) {
         // may uncomment to debug issue inside model reset
         // debug!("reset core with pc={pc:#010x}");
 
-        self.core_reset(pc);
-        tracer.trace_reset(pc);
+        self.core.reset(pc);
     }
 
-    pub fn step(&mut self, tracer: &mut dyn Tracer) -> Result<(), StepResult> {
-        {
-            // pre-step book keeping
-            let global = self.global_mut();
+    pub fn step(&mut self) -> StepCode {
+        // pre-step book keeping
+        self.global.stats.step_count += 1;
 
-            assert_eq!(global.trace_state, TraceState::None);
-            global.trace_state = TraceState::Start;
-
-            global.trace_issue = None;
-            global.trace_writes.clear();
-
-            global.stats.step_count += 1;
-        }
-
-        self.core_step();
-
-        {
-            // post-step book keeping
-            let global = self.global_mut();
-
-            match global.trace_state {
-                TraceState::Committed => {
-                    // committed must happen after issue, so the unwrap is safe
-                    let (pc, inst) = global.trace_issue.unwrap();
-
-                    tracer.trace_commit(pc, inst, &global.trace_writes);
-                }
-                TraceState::Xcpt => {
-                    let xcpt_info = global.trace_xcpt.unwrap();
-
-                    if let Some((pc, inst)) = global.trace_issue {
-                        // Issue -> Xcpt: exceptions in inst execution
-
-                        tracer.trace_inst_xcpt(pc, inst, xcpt_info, &global.trace_writes);
-                    } else {
-                        // Start -> Xcpt: exceptions in inst fetch
-                        assert!(
-                            global.trace_writes.is_empty(),
-                            "exceptions in fetch should not have state writes"
-                        );
-
-                        tracer.trace_fetch_xcpt(xcpt_info);
-                    }
-                }
-                TraceState::Intr => {
-                    todo!("trace interrupt");
-                }
-                _ => unreachable!(
-                    "unexpected trace state `{:?}` in post step",
-                    global.trace_state
-                ),
-            }
-            global.trace_state = TraceState::None;
-
-            if let Some(code) = global.bus.try_get_exit_code() {
-                return Err(StepResult::Exit { code });
-            }
-        }
-
-        Ok(())
+        self.core.step(&mut self.global)
     }
-}
 
-// Represents trace state for each instruction
-//
-// State transition rules:
-//   reset:       None -> None
-//
-//   pre-step:    None -> Start
-//   issue:       Start -> Issued
-//   commit:      Issued -> Committed
-//   xcpt:        Start | Issued -> Xcpt
-//   intr:        Start -> Intr
-//   post-step:   Commited | Xcpt | Intr -> None
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TraceState {
-    None,
-    Start,
-    Issued,
-    Committed,
-    Xcpt,
-    Intr,
+    pub fn step_trace(&mut self) -> StepDetail<'_> {
+        // pre-step book keeping
+        self.global.stats.step_count += 1;
+
+        self.core.step_trace(&mut self.global)
+    }
+
+    pub fn is_exited(&self) -> Option<u32> {
+        self.global.bus.try_get_exit_code()
+    }
 }
 
 pub struct Global {
     pub(crate) bus: Bus,
     pub(crate) stats: Statistic,
-
-    trace_state: TraceState,
-
-    // (pc, inst), written in log_issue
-    trace_issue: Option<(u32, Inst)>,
-
-    // written in log_inst_xcpt
-    trace_xcpt: Option<XcptInfo>,
-
-    trace_writes: Vec<StateWrite>,
 }
 
 impl ffi::PokedexCallbackMem for Global {
@@ -263,63 +132,6 @@ impl ffi::PokedexCallbackMem for Global {
     }
 }
 
-impl ffi::PokedexCallbackTrace for Global {
-    fn log_inst_issue(&mut self, pc: u32, inst: Inst) {
-        assert_eq!(self.trace_state, TraceState::Start);
-        self.trace_state = TraceState::Issued;
-        self.trace_issue = Some((pc, inst));
-
-        // may uncomment to debug panics inside model step
-        // match inst {
-        //     Inst::NC(inst) => debug!("inst issue: pc={pc:#010x}, inst={inst:#010x}"),
-        //     Inst::C(inst) => debug!("inst issue: pc={pc:#010x}, inst={inst:#06x}, compressed"),
-        // }
-    }
-
-    fn log_inst_commit(&mut self) {
-        assert_eq!(self.trace_state, TraceState::Issued);
-        self.trace_state = TraceState::Committed;
-    }
-
-    fn log_inst_xcpt(&mut self, xcause: u32, xtval: u32) {
-        assert!(matches!(
-            self.trace_state,
-            TraceState::Start | TraceState::Issued
-        ));
-        self.trace_state = TraceState::Xcpt;
-        self.trace_xcpt = Some(XcptInfo { xcause, xtval });
-    }
-
-    fn log_write_xreg(&mut self, rd: u8, value: u32) {
-        assert!(1 <= rd && rd <= 31);
-        self.trace_writes.push(StateWrite::Xrf { rd, value });
-    }
-
-    fn log_write_freg(&mut self, rd: u8, value: u32) {
-        assert!(rd <= 31);
-        self.trace_writes.push(StateWrite::Frf { rd, value });
-    }
-
-    fn log_write_vreg(&mut self, rd: u8, value: &[u8]) {
-        assert!(rd <= 31);
-        self.trace_writes.push(StateWrite::Vrf {
-            rd,
-            value: value.into(),
-        });
-    }
-
-    fn log_write_csr(&mut self, name: &str, value: u32) {
-        self.trace_writes.push(StateWrite::Csr {
-            name: name.into(),
-            value,
-        });
-    }
-
-    fn debug_write(&mut self, message: &CStr) {
-        debug!("ASL MODEL: {message:?}");
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct Statistic {
     pub fetch_count: u64,
@@ -332,50 +144,22 @@ impl Statistic {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct XcptInfo {
-    pub xcause: u32,
-    pub xtval: u32,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Inst {
     NC(u32),
     C(u16),
 }
 
-pub trait Tracer {
-    fn trace_reset(&mut self, pc: u32);
-
-    fn trace_exit(&mut self, exit_code: u32);
-
-    // An instruction commits
-    fn trace_commit(&mut self, pc: u32, inst: Inst, writes: &[StateWrite]);
-
-    // Exceptions happens during instruction decoding/execution
-    fn trace_inst_xcpt(&mut self, pc: u32, inst: Inst, xcpt_info: XcptInfo, writes: &[StateWrite]);
-
-    // Exceptions happens during instruction fetch
-    // TODO: add more information? e.g. pc
-    fn trace_fetch_xcpt(&mut self, xcpt_info: XcptInfo);
-
-    fn flush(&mut self);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepCode {
+    Interrupt,
+    Exception,
+    Committed,
 }
 
-pub struct NoopTracer;
-
-impl Tracer for NoopTracer {
-    fn trace_reset(&mut self, _pc: u32) {}
-    fn trace_exit(&mut self, _exit_code: u32) {}
-    fn trace_commit(&mut self, _pc: u32, _inst: Inst, _writes: &[StateWrite]) {}
-    fn trace_inst_xcpt(
-        &mut self,
-        _pc: u32,
-        _inst: Inst,
-        _xcpt_info: XcptInfo,
-        _writes: &[StateWrite],
-    ) {
-    }
-    fn trace_fetch_xcpt(&mut self, _xcpt_info: XcptInfo) {}
-    fn flush(&mut self) {}
+pub struct StepDetail<'a> {
+    pub code: StepCode,
+    pub pc: u32,
+    pub inst: Option<Inst>,
+    pub changes: ffi::CoreChange<'a>,
 }

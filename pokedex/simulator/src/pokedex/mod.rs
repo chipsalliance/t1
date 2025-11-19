@@ -10,12 +10,15 @@ use clap::Parser;
 use tracing::{Level, error, event, info};
 use tracing_subscriber::{EnvFilter, prelude::*};
 
-use crate::common::{CommitLog, PokedexLog, StateWrite};
+use crate::{
+    common::{CommitLog, PokedexLog, StateWrite},
+    pokedex::simulator::StepDetail,
+};
 
 use self::{
     bus::{AddressSpaceDescNode, Bus},
     ffi::VTable,
-    simulator::{Inst, NoopTracer, Simulator, StepResult, Tracer, XcptInfo},
+    simulator::{Inst, Simulator},
 };
 
 mod bus;
@@ -183,37 +186,35 @@ pub fn run_subcommand(args: &RunArgs) -> anyhow::Result<ExitCode> {
         },
     );
 
-    let elf_entry = load_elf(&mut sim.global_mut().bus, &args.elf_path);
+    info!("running case: {:?}", args.elf_path);
+    let elf_entry = load_elf(&mut sim.global.bus, &args.elf_path);
 
     // if config defines reset vector, use it, otherwise use ELF entrypoint
     let reset_vector = config.reset_vector.unwrap_or(elf_entry);
-    sim.reset_core(reset_vector, tracer);
+    sim.reset_core(reset_vector);
+    tracer.trace_reset(reset_vector);
 
     let exit_code;
     loop {
-        let step_result = sim.step(tracer);
-        match step_result {
-            Ok(()) => {}
-            Err(StepResult::Exit { code }) => {
-                if code == 0 {
-                    info!("simulation exit with exit code {code}");
-                } else {
-                    error!("simulation exit with exit code {code}");
-                }
-                exit_code = code;
-                tracer.trace_exit(code);
-                break;
+        if let Some(code) = sim.is_exited() {
+            if code == 0 {
+                info!("simulation exit with exit code {code}");
+            } else {
+                error!("simulation exit with exit code {code}");
             }
+            exit_code = code;
+            tracer.trace_exit(code);
+            break;
         }
+        let step_result = sim.step_trace();
+        tracer.trace_step(step_result);
 
-        if config.slow_motion_ms > 0 {
-            std::thread::sleep(std::time::Duration::from_millis(config.slow_motion_ms));
-        }
+        // std::thread::sleep(std::time::Duration::from_millis(1000));
     }
 
     tracer.flush();
 
-    let stats = &sim.global().stats;
+    let stats = sim.stats();
     event!(Level::INFO, ?stats);
 
     if let Some(log_path) = &args.output_log_path {
@@ -294,6 +295,22 @@ impl AppTracer {
     }
 }
 
+pub trait Tracer {
+    fn trace_reset(&mut self, pc: u32);
+    fn trace_exit(&mut self, exit_code: u32);
+    fn trace_step(&mut self, detail: StepDetail);
+    fn flush(&mut self);
+}
+
+pub struct NoopTracer;
+
+impl Tracer for NoopTracer {
+    fn trace_reset(&mut self, _pc: u32) {}
+    fn trace_exit(&mut self, _exit_code: u32) {}
+    fn trace_step(&mut self, _detail: StepDetail) {}
+    fn flush(&mut self) {}
+}
+
 pub struct StdoutTracer;
 
 impl StdoutTracer {
@@ -309,21 +326,7 @@ impl Tracer for StdoutTracer {
         todo!()
     }
 
-    fn trace_commit(&mut self, _pc: u32, _inst: Inst, _writes: &[StateWrite]) {
-        todo!()
-    }
-
-    fn trace_inst_xcpt(
-        &mut self,
-        _pc: u32,
-        _inst: Inst,
-        _xcpt_info: XcptInfo,
-        _writes: &[StateWrite],
-    ) {
-        todo!()
-    }
-
-    fn trace_fetch_xcpt(&mut self, _xcpt_info: XcptInfo) {
+    fn trace_step(&mut self, _detail: StepDetail) {
         todo!()
     }
 
@@ -360,45 +363,83 @@ impl Tracer for JsonFileTracer {
         self.write_json_line(&PokedexLog::Exit { code: exit_code });
     }
 
-    fn trace_commit(&mut self, pc: u32, inst: Inst, writes: &[StateWrite]) {
-        let (instruction, is_compressed) = match inst {
-            Inst::NC(inst) => (inst, false),
-            Inst::C(inst) => (inst as u32, true),
-        };
-        let json = PokedexLog::Commit(CommitLog {
-            pc,
-            instruction,
-            is_compressed,
-            states_changed: writes.to_vec(),
-        });
-        self.write_json_line(&json);
-    }
-
-    fn trace_inst_xcpt(
-        &mut self,
-        pc: u32,
-        inst: Inst,
-        _xcpt_info: XcptInfo,
-        writes: &[StateWrite],
-    ) {
-        let (instruction, is_compressed) = match inst {
-            Inst::NC(inst) => (inst, false),
-            Inst::C(inst) => (inst as u32, true),
-        };
-        let json = PokedexLog::Exception(CommitLog {
-            pc,
-            instruction,
-            is_compressed,
-            states_changed: writes.to_vec(),
-        });
-        self.write_json_line(&json);
-    }
-
-    fn trace_fetch_xcpt(&mut self, _xcpt_info: XcptInfo) {
-        // TODO : we only care about state changes now
+    fn trace_step(&mut self, detail: StepDetail) {
+        if let Some(inst) = detail.inst {
+            let (instruction, is_compressed) = match inst {
+                Inst::NC(inst) => (inst, false),
+                Inst::C(inst) => (inst as u32, true),
+            };
+            let mut writes = vec![];
+            for (rd, value) in detail.changes.xreg_changes() {
+                writes.push(StateWrite::Xrf { rd, value });
+            }
+            for (rd, value) in detail.changes.freg_changes() {
+                writes.push(StateWrite::Frf { rd, value });
+            }
+            for rd in detail.changes.vreg_change_indices() {
+                let mut value = vec![0; 32];
+                detail.changes.core.read_vreg(rd, &mut value);
+                writes.push(StateWrite::Vrf { rd, value });
+            }
+            for csr in detail.changes.csr_change_indices() {
+                writes.push(StateWrite::Csr {
+                    name: name_of_csr(csr).into(),
+                    value: detail.changes.core.read_csr(csr),
+                });
+            }
+            let json = PokedexLog::Commit(CommitLog {
+                pc: detail.pc,
+                instruction,
+                is_compressed,
+                states_changed: writes,
+            });
+            self.write_json_line(&json);
+        } else {
+            assert!(detail.changes.is_empty_changes())
+        }
     }
 
     fn flush(&mut self) {
         self.writer.flush().expect("json log flush failed");
+    }
+}
+
+fn name_of_csr(csr: u16) -> &'static str {
+    assert!(csr <= 0xFFF);
+
+    match csr {
+        // urw
+        0x001 => "fflags",
+        0x002 => "frm",
+        0x003 => "fcsr",
+        0x008 => "vstart",
+        0x009 => "vxsat",
+        0x00a => "vxrm",
+        0x00f => "vcsr",
+
+        // uro
+        0xc20 => "vl",
+        0xc21 => "vtype",
+        0xc22 => "vlenb",
+
+        // mrw
+        0x300 => "mstatus",
+        0x301 => "misa",
+        0x304 => "mie",
+        0x305 => "mtvec",
+        0x310 => "mstatush",
+        0x340 => "mscratch",
+        0x341 => "mepc",
+        0x342 => "mcause",
+        0x344 => "mip",
+
+        // mro
+        0xf11 => "mvendorid",
+        0xf12 => "marchid",
+        0xf13 => "mimpid",
+        0xf14 => "mhartid",
+        0xf15 => "mconfigptr",
+
+        _ => panic!("unknown csr {csr:#05x}"),
     }
 }
