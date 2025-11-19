@@ -2,7 +2,6 @@
   lib,
   stdenv,
   fetchFromGitHub,
-  rvopcode-cli,
   riscv-opcodes-src,
   asl-interpreter,
   python3,
@@ -58,7 +57,6 @@ stdenv.mkDerivation {
     };
 
   nativeBuildInputs = [
-    rvopcode-cli
     asl-interpreter
     python3
     ninja
