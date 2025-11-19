@@ -191,56 +191,97 @@ class MaskUnit(val parameter: T1Parameter)
   // Calculate the write of slide
   // 1. Normal type, Directly determined by vl & v0, Include slide1 slide down
   // 1. slide up, slide up, Directly determined by vl & v0 & slideSize
-  val baseV0:               UInt      = Mux(instReq.bits.maskType, v0.asUInt, -1.S(parameter.vLen.W).asUInt)
-  val vlCorrection:         UInt      = (scanRightOr(UIntToOH(instReq.bits.vl)) >> 1).asUInt
-  val shifterValidSize:     UInt      = changeUIntSize(instReq.bits.readFromScala, parameter.laneParam.vlMaxBits)
-  val shifterSizeOverlap:   Bool      = (instReq.bits.readFromScala >> parameter.laneParam.vlMaxBits).asUInt.orR
-  val upCorrection:         UInt      = Mux(
+  val baseV0:               UInt = Mux(instReq.bits.maskType, v0.asUInt, -1.S(parameter.vLen.W).asUInt)
+  val vlCorrection:         UInt = (scanRightOr(UIntToOH(instReq.bits.vl)) >> 1).asUInt
+  val shifterValidSize:     UInt = changeUIntSize(instReq.bits.readFromScala, parameter.laneParam.vlMaxBits)
+  val shifterSizeOverlap:   Bool = (instReq.bits.readFromScala >> parameter.laneParam.vlMaxBits).asUInt.orR
+  val upCorrection:         UInt = Mux(
     slideScalar && slideUp && slide,
     scanLeftOr(UIntToOH(shifterValidSize)) & Fill(parameter.vLen, !shifterSizeOverlap),
     -1.S(parameter.vLen.W).asUInt
   )
-  val writeMaskForMaskPipe: UInt      = changeUIntSize(baseV0 & vlCorrection & upCorrection, parameter.vLen)
-  val writeCountForSlide:   Vec[UInt] = VecInit(Seq(4, 2, 1).map { singleSize =>
-    val groupSize = singleSize * (parameter.datapathWidth / parameter.eLen)
-    cutUInt(writeMaskForMaskPipe, groupSize)
-      .grouped(parameter.laneNumber)
-      .toSeq
-      .transpose
-      .map(seq => PopCount(VecInit(seq).asUInt))
-  }.transpose.map(a => Mux1H(sew1HForMaskPipe, a)))
+  val writeMaskForMaskPipe: UInt = changeUIntSize(baseV0 & vlCorrection & upCorrection, parameter.vLen)
 
-  val sew1HForExtend:      UInt      = (sew1HForMaskPipe << instReq.bits.decodeResult(Decoder.crossWrite)).asUInt
-  val writeCountForExtend: Vec[UInt] = VecInit(Seq(4, 2, 1).map { singleSize =>
-    val groupSize = singleSize * (parameter.datapathWidth / parameter.eLen)
-    cutUInt(writeMaskForMaskPipe, groupSize)
-      .grouped(parameter.laneNumber)
-      .toSeq
-      .transpose
-      .map(seq => PopCount(VecInit(seq.map(_.orR)).asUInt))
-  }.transpose.map(a => Mux1H(sew1HForExtend, a)))
-  val typeVec = Seq(
-    slide || gather,
-    extend
+  val sew1HForExtend: UInt = (sew1HForMaskPipe << instReq.bits.decodeResult(Decoder.crossWrite)).asUInt
+
+  class WriteCountPipe0 extends Bundle {
+    val instructionIndex:     UInt = UInt(parameter.instructionIndexBits.W)
+    val writeMaskForMaskPipe: UInt = UInt(parameter.vLen.W)
+    val sew1HForExtend:       UInt = UInt(3.W)
+    val sew1HForMaskPipe:     UInt = UInt(3.W)
+    val typeVec:              UInt = UInt(2.W)
+  }
+
+  val writeCountPipeWire0: WriteCountPipe0 = Wire(new WriteCountPipe0)
+  writeCountPipeWire0.instructionIndex     := io.instReq.bits.instructionIndex
+  writeCountPipeWire0.writeMaskForMaskPipe := writeMaskForMaskPipe
+  writeCountPipeWire0.sew1HForExtend       := sew1HForExtend
+  writeCountPipeWire0.sew1HForMaskPipe     := sew1HForMaskPipe
+  writeCountPipeWire0.typeVec              := VecInit(
+    Seq(
+      slide || gather,
+      extend
+    )
+  ).asUInt
+
+  val writeCountPipe0: Valid[WriteCountPipe0] = Pipe(io.maskPipeReq.valid, writeCountPipeWire0, 1)
+
+  val writeBitMaskForSlide: Vec[UInt] = VecInit(
+    Seq(4, 2, 1).map { singleSize =>
+      val groupSize = singleSize * (parameter.datapathWidth / parameter.eLen)
+      cutUInt(writeCountPipe0.bits.writeMaskForMaskPipe, groupSize)
+        .grouped(parameter.laneNumber)
+        .toSeq
+        .transpose
+        .map(seq => VecInit(seq).asUInt)
+    }.transpose.map(a =>
+      changeUIntSize(Mux1H(writeCountPipe0.bits.sew1HForMaskPipe, a), parameter.vLen / parameter.laneNumber)
+    )
   )
-  val countVec      = Seq(
-    writeCountForSlide,
-    writeCountForExtend
+
+  val writeBitMaskForExtend: Vec[UInt] = VecInit(
+    Seq(4, 2, 1).map { singleSize =>
+      val groupSize = singleSize * (parameter.datapathWidth / parameter.eLen)
+      cutUInt(writeCountPipe0.bits.writeMaskForMaskPipe, groupSize)
+        .grouped(parameter.laneNumber)
+        .toSeq
+        .transpose
+        .map(seq => VecInit(seq.map(_.orR)).asUInt)
+    }.transpose.map(a =>
+      changeUIntSize(Mux1H(writeCountPipe0.bits.sew1HForExtend, a), parameter.vLen / parameter.laneNumber)
+    )
   )
-  val maxCountWidth = countVec.map(_.head.getWidth).max
-  val writeCountEnq:             Vec[UInt] = Mux1H(
-    typeVec,
-    countVec.map(c => VecInit(c.map(changeUIntSize(_, maxCountWidth))))
+
+  class WriteCountPipe1 extends Bundle {
+    val writeBitMask:     Vec[UInt] = Vec(parameter.laneNumber, UInt((parameter.vLen / parameter.laneNumber).W))
+    val instructionIndex: UInt      = UInt(parameter.instructionIndexBits.W)
+  }
+
+  val writeCountPipeWire1: WriteCountPipe1 = Wire(new WriteCountPipe1)
+  writeCountPipeWire1.instructionIndex := writeCountPipe0.bits.instructionIndex
+  writeCountPipeWire1.writeBitMask     := Mux1H(
+    writeCountPipe0.bits.typeVec,
+    Seq(
+      writeBitMaskForSlide,
+      writeBitMaskForExtend
+    )
   )
-  val writeCountForMaskStageReg: Vec[UInt] =
-    RegEnable(writeCountEnq, 0.U.asTypeOf(writeCountEnq), io.maskPipeReq.valid)
-  val writeCountReport:          Bool      = RegNext(io.maskPipeReq.valid, false.B)
-  val indexPipe:                 UInt      = RegNext(io.instReq.bits.instructionIndex, false.B)
+  val writeCountPipe1: Valid[WriteCountPipe1] = Pipe(writeCountPipe0.valid, writeCountPipeWire1, 1)
+
+  class WriteCountPipe2 extends Bundle {
+    val writeCount:       Vec[UInt] = Vec(parameter.laneNumber, UInt(log2Ceil(parameter.vLen / parameter.laneNumber).W))
+    val instructionIndex: UInt      = UInt(parameter.instructionIndexBits.W)
+  }
+
+  val writeCountPipeWire2: WriteCountPipe2 = Wire(new WriteCountPipe2)
+  writeCountPipeWire2.instructionIndex := writeCountPipe1.bits.instructionIndex
+  writeCountPipeWire2.writeCount       := VecInit(writeCountPipe1.bits.writeBitMask.map(PopCount(_)))
+  val writeCountPipe2: Valid[WriteCountPipe2] = Pipe(writeCountPipe1.valid, writeCountPipeWire2, 1)
 
   io.writeCountVec.zipWithIndex.foreach { case (req, index) =>
-    req.valid                 := writeCountReport
-    req.bits.count            := writeCountForMaskStageReg(index)
-    req.bits.instructionIndex := indexPipe
+    req.valid                 := writeCountPipe2.valid
+    req.bits.count            := writeCountPipe2.bits.writeCount(index)
+    req.bits.instructionIndex := writeCountPipe2.bits.instructionIndex
   }
   io.maskE0 := v0(0)(0)
 
