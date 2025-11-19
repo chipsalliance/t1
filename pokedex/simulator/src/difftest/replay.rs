@@ -1,7 +1,4 @@
-use std::iter::Peekable;
-use std::slice::Iter;
-
-use crate::util::Bitmap32;
+use crate::util::{self, Bitmap32};
 
 const VLEN: usize = 256;
 const VLEN_BYTE: usize = VLEN / 8;
@@ -170,6 +167,9 @@ pub fn pretty_print_diff(
     gold: &CpuState,
     dut: &CpuState,
 ) -> std::fmt::Result {
+    if gold.pc != dut.pc {
+        writeln!(f, "pc        : {:010x} <-> {:010x}", gold.pc, dut.pc)?;
+    }
     // compare GPR
     for i in 0..32 {
         let (goldv, dutv) = (gold.gpr[i], dut.gpr[i]);
@@ -258,6 +258,10 @@ impl CpuState {
         writeln!(f, "{}", "-".repeat(80))?;
 
         Ok(())
+    }
+
+    pub fn pretty_print_string(&self) -> String {
+        util::fn_to_string(|f| self.pretty_print(f))
     }
 }
 
@@ -396,52 +400,3 @@ impl CpuState {
 }
 
 pub struct CsrValueError;
-
-pub trait IsInsnCommit {
-    fn get_pc(&self) -> u32;
-    fn write_cpu_state(&self, state: &mut CpuState) -> DiffRecord;
-}
-
-pub struct CommitCassette<'a, 'b, T>
-where
-    T: IsInsnCommit,
-{
-    commit_cursor: &'a mut Peekable<Iter<'b, T>>,
-    state: CpuState,
-}
-
-impl<'a, 'b, T> CommitCassette<'a, 'b, T>
-where
-    T: IsInsnCommit + std::fmt::Debug,
-{
-    pub fn new(commit_cursor: &'a mut Peekable<Iter<'b, T>>) -> Self {
-        Self {
-            state: CpuState::new(),
-            commit_cursor,
-        }
-    }
-
-    /// Roll the commit until PC match, return true if current commit indeed has given PC
-    pub fn roll_until(&mut self, pc: u32) -> bool {
-        for commit in self.commit_cursor.by_ref() {
-            if commit.get_pc() == pc {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn roll(&mut self) -> Option<DiffRecord> {
-        let check_ty = self
-            .commit_cursor
-            .peek()
-            .map(|commit| commit.write_cpu_state(&mut self.state));
-        let _ = self.commit_cursor.next();
-        check_ty
-    }
-
-    pub fn get_state(&self) -> &CpuState {
-        &self.state
-    }
-}
