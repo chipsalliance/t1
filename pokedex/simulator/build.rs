@@ -5,8 +5,8 @@ fn main() {
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     // FIXME : generate_cstr makes generated code badly formatted, investigate it later
-    let pokedex_vtable = bindgen::Builder::default()
-        .header("include/pokedex_vtable.h")
+    let pokedex_interface = bindgen::Builder::default()
+        .header("include/pokedex_interface.h")
         .allowlist_item(".*POKEDEX.*")
         .allowlist_item(".*pokedex.*")
         // .generate_cstr(true)
@@ -14,10 +14,10 @@ fn main() {
         .generate()
         .expect("unable to generate bindinds for pokdex_vtable.h");
 
-    // Write the bindings to the $OUT_DIR/pokedex_vtable.rs file.
-    pokedex_vtable
-        .write_to_file(out_path.join("pokedex_vtable.rs"))
-        .expect("can not write to pokedex_vtable.rs");
+    // Write the bindings to the $OUT_DIR/pokedex_interface.rs file.
+    pokedex_interface
+        .write_to_file(out_path.join("pokedex_interface.rs"))
+        .expect("can not write to pokedex_interface.rs");
 
     if std::env::var("CARGO_FEATURE_BUNDLED_MODEL_LIB").is_ok() {
         let env_name = "POKEDEX_MODEL_LIB";

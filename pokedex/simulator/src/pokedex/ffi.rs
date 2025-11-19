@@ -10,10 +10,10 @@ use super::{bus::AtomicOp, simulator::Inst};
 
 #[allow(nonstandard_style)]
 mod raw {
-    include!(concat!(env!("OUT_DIR"), "/pokedex_vtable.rs"));
+    include!(concat!(env!("OUT_DIR"), "/pokedex_interface.rs"));
 }
 
-// See include/pokedex_vtable.h for more
+// See include/pokedex_interface.h for more
 pub trait PokedexCallbackMem {
     type CbMemError;
 
@@ -28,7 +28,7 @@ pub trait PokedexCallbackMem {
     -> Result<u32, Self::CbMemError>;
 }
 
-// See include/pokedex_vtable.h for more
+// See include/pokedex_interface.h for more
 pub trait PokedexCallbackTrace {
     fn log_inst_issue(&mut self, pc: u32, inst: Inst);
     fn log_inst_commit(&mut self);

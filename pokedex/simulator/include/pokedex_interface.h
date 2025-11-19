@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _POKEDEX_VTABLE_H
-#define _POKEDEX_VTABLE_H
+#ifndef _POKEDEX_INTERFACE_H
+#define _POKEDEX_INTERFACE_H
 
 #include <stddef.h>
 #include <stdint.h>
