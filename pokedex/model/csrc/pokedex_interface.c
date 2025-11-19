@@ -2,7 +2,7 @@
 #include <pokedex-sim_vars.h>
 #include <pokedex-sim_exceptions.h>
 
-#include <pokedex_vtable.h>
+#include <pokedex_interface.h>
 
 #include <stdio.h>
 #include <string.h>
