@@ -1,0 +1,46 @@
+{%- macro fop2_body(name, op) %}
+  if !isEnabled_FS() then
+    return IllegalInstruction();
+  end
+
+  let fd: FRegIdx = UInt(GetRD(instruction));
+  let fs1: FRegIdx = UInt(GetRS1(instruction));
+  let fs2: FRegIdx = UInt(GetRS2(instruction));
+
+  let (rm: RM, valid: boolean) = resolveFrmDynamic(GetRM(instruction));
+  if !valid then
+    return IllegalInstruction();
+  end
+
+  let src1: bits(32) = F[fs1];
+  let src2: bits(32) = F[fs2];
+
+  let res: F32_Flags = {{ op }}(rm, src1, src2);
+
+  F[fd] = res.value;
+  accureFFlags(res.fflags);
+
+  makeDirty_FS();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_FADD_S(instruction: bits(32)) => Result
+begin
+{{- fop2_body("fadd_s", "riscv_f32_add") -}}
+end
+
+func Execute_FSUB_S(instruction: bits(32)) => Result
+begin
+{{- fop2_body("fsub_s", "riscv_f32_sub") -}}
+end
+
+func Execute_FMUL_S(instruction: bits(32)) => Result
+begin
+{{- fop2_body("fmul_s", "riscv_f32_mul") -}}
+end
+
+func Execute_FDIV_S(instruction: bits(32)) => Result
+begin
+{{- fop2_body("fdiv_s", "riscv_f32_div") -}}
+end

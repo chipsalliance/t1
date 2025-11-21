@@ -1,4 +1,7 @@
+#include <assert.h>
 #include <softfloat.h>
+
+#include <pokedex-sim_types.h>
 
 // ASL interpreter will suffix all the function with "_N" suffix. For
 // non-polymorphic function, it is always "_0". Even for external function, ASLi
@@ -6,179 +9,179 @@
 // the function name in one place.
 #define ASL_FN(fn) fn##_0
 
-// `set_rounding_mode` set the current softfloat global rounding mode to
-// `rm`.
-void set_rounding_mode(uint_fast8_t rm) { softfloat_roundingMode = rm; }
+// NOTE: we may replace it with a rm_to_softfloat function once it breaks.
+//       It lokks like quite hacky.
+static_assert((int)softfloat_round_near_even == (int)RM_RNE);
+static_assert((int)softfloat_round_minMag == (int)RM_RTZ);
+static_assert((int)softfloat_round_min == (int)RM_RDN);
+static_assert((int)softfloat_round_max == (int)RM_RUP);
+static_assert((int)softfloat_round_near_maxMag == (int)RM_RMM);
 
-// `asl_bits32_to_f32` pack the 32-bit ASL bit vector to softfloat `float32_t` type
-inline float32_t asl_bits32_to_f32(uint_fast32_t bits) { return (float32_t){bits}; }
+// Ensure softfloat's representation of exception flags
+// is the same with RISCV's
+static_assert((int)softfloat_flag_inexact == 1);
+static_assert((int)softfloat_flag_underflow == 2);
+static_assert((int)softfloat_flag_overflow == 4);
+static_assert((int)softfloat_flag_infinite == 8);
+static_assert((int)softfloat_flag_invalid == 16);
 
-// `ffi_get_softfloat_exception_flags` returns the current exception flags in softfloat global namespace
-uint_fast8_t ASL_FN(ffi_yield_softfloat_exception_flags)() {
-  uint_fast8_t xcpt = softfloat_exceptionFlags;
+static void set_rounding_mode_clear_fflags(RM rm) {
+  softfloat_roundingMode = rm;
   softfloat_exceptionFlags = 0;
-  return xcpt;
 }
 
-// `ffi_f32_add` convert two ASL `bits(32)` value to softfloat `float32_t`
-// type and do "add" calculation. Returning bit representation of the "add"
-// result.
-uint_fast32_t ASL_FN(ffi_f32_add)(uint_fast32_t rs1, uint_fast32_t rs2, uint_fast8_t rm) {
-  set_rounding_mode(rm);
+static void clear_fflags() {
+  // Defensive programming,
+  // we clear roundingMode even if the operation does not depend on it.
+  softfloat_roundingMode = softfloat_round_near_even;
 
-  float32_t s1 = asl_bits32_to_f32(rs1);
-  float32_t s2 = asl_bits32_to_f32(rs2);
-
-  float32_t result = f32_add(s1, s2);
-
-  return result.v;
+  softfloat_exceptionFlags = 0;
 }
 
-// `ffi_f32_sub` convert two ASL `bits(32)` value to softfloat `float32_t`
-// type and do "sub" calculation. Returning bit representation of the "sub"
-// result.
-uint_fast32_t ASL_FN(ffi_f32_sub)(uint_fast32_t rs1, uint_fast32_t rs2, uint_fast8_t rm) {
-  set_rounding_mode(rm);
+F32_Flags ASL_FN(riscv_f32_add)(RM rm, uint32_t x, uint32_t y) {
+  set_rounding_mode_clear_fflags(rm);
 
-  float32_t s1 = asl_bits32_to_f32(rs1);
-  float32_t s2 = asl_bits32_to_f32(rs2);
+  float32_t xx = { .v = x };
+  float32_t yy = { .v = y };
 
-  float32_t result = f32_sub(s1, s2);
-
-  return result.v;
+  F32_Flags res;
+  res.value = f32_add(xx, yy).v;
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_f32_mul` convert two ASL `bits(32)` value to softfloat `float32_t`
-// type and do "sub" calculation. Returning bit representation of the "sub"
-// result.
-uint_fast32_t ASL_FN(ffi_f32_mul)(uint_fast32_t rs1, uint_fast32_t rs2, uint_fast8_t rm) {
-  set_rounding_mode(rm);
+F32_Flags ASL_FN(riscv_f32_sub)(RM rm, uint32_t x, uint32_t y) {
+  set_rounding_mode_clear_fflags(rm);
 
-  float32_t s1 = asl_bits32_to_f32(rs1);
-  float32_t s2 = asl_bits32_to_f32(rs2);
+  float32_t xx = { .v = x };
+  float32_t yy = { .v = y };
 
-  float32_t result = f32_mul(s1, s2);
-
-  return result.v;
+  F32_Flags res;
+  res.value = f32_sub(xx, yy).v;
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_f32_div` convert two ASL `bits(32)` value to softfloat `float32_t`
-// type and do "sub" calculation. Returning bit representation of the "sub"
-// result.
-uint_fast32_t ASL_FN(ffi_f32_div)(uint_fast32_t rs1, uint_fast32_t rs2, uint_fast8_t rm) {
-  set_rounding_mode(rm);
+F32_Flags ASL_FN(riscv_f32_mul)(RM rm, uint32_t x, uint32_t y) {
+  set_rounding_mode_clear_fflags(rm);
 
-  float32_t s1 = asl_bits32_to_f32(rs1);
-  float32_t s2 = asl_bits32_to_f32(rs2);
+  float32_t xx = { .v = x };
+  float32_t yy = { .v = y };
 
-  float32_t result = f32_div(s1, s2);
-
-  return result.v;
+  F32_Flags res;
+  res.value = f32_mul(xx, yy).v;
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_f32_sqrt` convert two ASL `bits(32)` value to softfloat `float32_t`
-// type and do "sub" calculation. Returning bit representation of the "sub"
-// result.
-uint_fast32_t ASL_FN(ffi_f32_sqrt)(uint_fast32_t src, uint_fast8_t rm) {
-  set_rounding_mode(rm);
+F32_Flags ASL_FN(riscv_f32_div)(RM rm, uint32_t x, uint32_t y) {
+  set_rounding_mode_clear_fflags(rm);
 
-  float32_t operand = asl_bits32_to_f32(src);
+  float32_t xx = { .v = x };
+  float32_t yy = { .v = y };
 
-  float32_t result = f32_sqrt(operand);
-
-  return result.v;
+  F32_Flags res;
+  res.value = f32_div(xx, yy).v;
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_f32_lt` compare the two operand and return boolean value of first one is less than second one.
-// When either of the input is NaN, invalid flag will be set, and less than operation is consider fail and false is return.
-bool ASL_FN(ffi_f32_lt)(uint_fast32_t rs1, uint_fast32_t rs2) {
-  float32_t s1 = asl_bits32_to_f32(rs1);
-  float32_t s2 = asl_bits32_to_f32(rs2);
+F32_Flags ASL_FN(riscv_f32_sqrt)(RM rm, uint32_t x) {
+  set_rounding_mode_clear_fflags(rm);
 
-  return f32_lt(s1, s2);
+  float32_t xx = { .v = x };
+
+  F32_Flags res;
+  res.value = f32_sqrt(xx).v;
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_f32_le` compare the two operand and return boolean value of first one is less or equal with second one.
-// When either of the input is NaN, invalid flag will be set, and less than operation is consider fail and false is return.
-bool ASL_FN(ffi_f32_le)(uint_fast32_t rs1, uint_fast32_t rs2) {
-  float32_t s1 = asl_bits32_to_f32(rs1);
-  float32_t s2 = asl_bits32_to_f32(rs2);
+F32_Flags ASL_FN(riscv_f32_mulAdd)(RM rm, uint32_t x, uint32_t y, uint32_t z) {
+  set_rounding_mode_clear_fflags(rm);
 
-  return f32_le(s1, s2);
+  float32_t xx = { .v = x };
+  float32_t yy = { .v = y };
+  float32_t zz = { .v = z };
+
+  F32_Flags res;
+  res.value = f32_mulAdd(xx, yy, zz).v;
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_f32_lt_quiet` compare the two operand and return boolean value of first one is less than second one
-bool ASL_FN(ffi_f32_lt_quiet)(uint_fast32_t rs1, uint_fast32_t rs2) {
-  float32_t s1 = asl_bits32_to_f32(rs1);
-  float32_t s2 = asl_bits32_to_f32(rs2);
+Bool_Flags ASL_FN(riscv_f32_eqQuiet)(uint32_t x, uint32_t y) {
+  clear_fflags();
 
-  return f32_lt_quiet(s1, s2);
+  float32_t xx = { .v = x };
+  float32_t yy = { .v = y };
+
+  Bool_Flags res;
+  res.value = f32_eq(xx, yy);
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_f32_eq` compare the two operand and return boolean value of their are equal
-bool ASL_FN(ffi_f32_eq)(uint_fast32_t rs1, uint_fast32_t rs2) {
-  float32_t s1 = asl_bits32_to_f32(rs1);
-  float32_t s2 = asl_bits32_to_f32(rs2);
+Bool_Flags ASL_FN(riscv_f32_ltSignaling)(uint32_t x, uint32_t y) {
+  clear_fflags();
 
-  return f32_eq(s1, s2);
+  float32_t xx = { .v = x };
+  float32_t yy = { .v = y };
+
+  Bool_Flags res;
+  res.value = f32_lt(xx, yy);
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_f32_mulAdd` calculate (f32(rs1) * f32(rs2)) + f32(rs3) and return bit representation of the result
-uint_fast32_t ASL_FN(ffi_f32_mulAdd)(uint_fast32_t rs1, uint_fast32_t rs2, uint_fast32_t rs3, uint_fast8_t rm) {
-  set_rounding_mode(rm);
+Bool_Flags ASL_FN(riscv_f32_leSignaling)(uint32_t x, uint32_t y) {
+  clear_fflags();
 
-  float32_t s1 = asl_bits32_to_f32(rs1);
-  float32_t s2 = asl_bits32_to_f32(rs2);
-  float32_t s3 = asl_bits32_to_f32(rs3);
+  float32_t xx = { .v = x };
+  float32_t yy = { .v = y };
 
-  float32_t rd = f32_mulAdd(s1, s2, s3);
-
-  return rd.v;
+  Bool_Flags res;
+  res.value = f32_le(xx, yy);
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_f32_to_i32` convert inputs from floating point number to signed integer
-int_fast32_t ASL_FN(ffi_f32_to_i32)(uint_fast32_t src, uint_fast8_t rm) {
-  set_rounding_mode(rm);
+F32_Flags ASL_FN(riscv_f32_fromSInt32)(RM rm, uint32_t x) {
+  set_rounding_mode_clear_fflags(rm);
 
-  float32_t s1 = asl_bits32_to_f32(src);
-
-  // all fp conversion set inexact flag
-  return f32_to_i32(s1, /*rounding mode*/ rm, /*exact*/ true);
+  F32_Flags res;
+  res.value = i32_to_f32((int32_t)x).v;
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_f32_to_u32` convert inputs from floating point number to unsigned integer
-uint_fast32_t ASL_FN(ffi_f32_to_ui32)(uint_fast32_t src, uint_fast8_t rm) {
-  set_rounding_mode(rm);
+F32_Flags ASL_FN(riscv_f32_fromUInt32)(RM rm, uint32_t x) {
+  set_rounding_mode_clear_fflags(rm);
 
-  float32_t s1 = asl_bits32_to_f32(src);
-
-  // all fp conversion set inexact flag
-  return f32_to_ui32(s1, /*rounding mode*/ rm, /*exact*/ true);
+  F32_Flags res;
+  res.value = ui32_to_f32(x).v;
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_i32_to_f32` convert signed int 32 bit number to floating point number
-uint_fast32_t ASL_FN(ffi_i32_to_f32)(uint_fast32_t src, uint_fast8_t rm) {
-  set_rounding_mode(rm);
+Bits32_Flags ASL_FN(riscv_f32_toSInt32)(RM rm, uint32_t x) {
+  clear_fflags();
 
-  // convert bit representation to sign number
-  int_fast32_t s1 = (int_fast32_t)src;
+  float32_t xx = { .v = x };
 
-  float32_t rd = i32_to_f32(s1);
-
-  return rd.v;
+  Bits32_Flags res;
+  res.value = (uint32_t)f32_to_i32(xx, rm, true);
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
 
-// `ffi_u32_to_f32` convert unsigned int 32 bit number to floating point number
-uint_fast32_t ASL_FN(ffi_ui32_to_f32)(uint_fast32_t src, uint_fast8_t rm) {
-  set_rounding_mode(rm);
+Bits32_Flags ASL_FN(riscv_f32_toUInt32)(RM rm, uint32_t x) {
+  clear_fflags();
 
-  float32_t rd = ui32_to_f32(src);
+  float32_t xx = { .v = x };
 
-  return rd.v;
-}
-
-// `ffi_f32_isSignalingNaN` return true if given float number is signaling NaN
-uint_fast32_t ASL_FN(ffi_f32_isSignalingNaN)(uint_fast32_t src) {
-  float32_t s1 = asl_bits32_to_f32(src);
-  return f32_isSignalingNaN(s1);
+  Bits32_Flags res;
+  res.value = f32_to_ui32(xx, rm, true);
+  res.fflags = softfloat_exceptionFlags;
+  return res;
 }
