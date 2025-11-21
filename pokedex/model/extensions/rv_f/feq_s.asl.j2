@@ -1,0 +1,41 @@
+{%- macro fcmp_body(name, op) %}
+  if !isEnabled_FS() then
+    return IllegalInstruction();
+  end
+
+  let rd: XRegIdx = UInt(GetRD(instruction));
+  let fs1: FRegIdx = UInt(GetRS1(instruction));
+  let fs2: FRegIdx = UInt(GetRS2(instruction));
+
+  let (rm: RM, valid: boolean) = resolveFrmDynamic(GetRM(instruction));
+  if !valid then
+    return IllegalInstruction();
+  end
+
+  var src1: bits(32) = F[fs1];
+  var src2: bits(32) = F[fs2];
+
+  var res: Bool_Flags = {{ op }}(src1, src2);
+
+  X[rd] = ZeroExtend((res.value) as bit, XLEN);
+  accureFFlags(res.fflags);
+
+  makeDirty_FS();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_FEQ_S(instruction: bits(32)) => Result
+begin
+{{- fcmp_body("feq_s", "riscv_f32_eqQuiet") -}}
+end
+
+func Execute_FLT_S(instruction: bits(32)) => Result
+begin
+{{- fcmp_body("fLT_s", "riscv_f32_ltSignaling") -}}
+end
+
+func Execute_FLE_S(instruction: bits(32)) => Result
+begin
+{{- fcmp_body("fle_s", "riscv_f32_leSignaling") -}}
+end

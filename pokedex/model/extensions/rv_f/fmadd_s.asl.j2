@@ -1,0 +1,48 @@
+{%- macro fmadd_body(name, inv_prod, inv_rs3) %}
+  if !isEnabled_FS() then
+    return IllegalInstruction();
+  end
+
+  let fd: FRegIdx = UInt(GetRD(instruction));
+  let fs1: FRegIdx = UInt(GetRS1(instruction));
+  let fs2: FRegIdx = UInt(GetRS2(instruction));
+  let fs3: FRegIdx = UInt(GetRS3(instruction));
+
+  let (rm: RM, valid: boolean) = resolveFrmDynamic(GetRM(instruction));
+  if !valid then
+    return IllegalInstruction();
+  end
+
+  var src1: bits(32) = F[fs1];
+  var src2: bits(32) = F[fs2];
+  var src3: bits(32) = F[fs3];
+
+  var res: F32_Flags = riscv_f32_mulAddGeneric(rm, src1, src2, src3, {{ inv_prod }}, {{ inv_rs3 }});
+
+  F[fd] = res.value;
+  accureFFlags(res.fflags);
+
+  makeDirty_FS();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_FMADD_S(instruction: bits(32)) => Result
+begin
+{{- fmadd_body("fmadd_s", inv_prod="FALSE", inv_rs3="FALSE") -}}
+end
+
+func Execute_FMSUB_S(instruction: bits(32)) => Result
+begin
+{{- fmadd_body("fmsub_s", inv_prod="FALSE", inv_rs3="TRUE") -}}
+end
+
+func Execute_FNMSUB_S(instruction: bits(32)) => Result
+begin
+{{- fmadd_body("fnmsub_s", inv_prod="TRUE", inv_rs3="FALSE") -}}
+end
+
+func Execute_FNMADD_S(instruction: bits(32)) => Result
+begin
+{{- fmadd_body("fnmadd_s", inv_prod="TRUE", inv_rs3="TRUE") -}}
+end

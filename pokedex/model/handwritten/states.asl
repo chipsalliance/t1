@@ -241,43 +241,53 @@ record RM_Result {
 
 // Decode three bits to `RM` rounding mode enumeration.
 // '111' is treated as an invalid mode
-func decodeFrmStatic(rm_bits: bits(3)) => RM_Result
+func decodeFrmStatic(rm_bits: bits(3)) => (RM, boolean)
 begin
-  var result = RM_Result {
-    mode = RM_RNE,
-    valid = TRUE
-  };
-
   case rm_bits of
-    when '000' => result.mode = RM_RNE;
-    when '001' => result.mode = RM_RTZ;
-    when '010' => result.mode = RM_RDN;
-    when '011' => result.mode = RM_RUP;
-    when '100' => result.mode = RM_RMM;
+    when '000' => return (RM_RNE, TRUE);
+    when '001' => return (RM_RTZ, TRUE);
+    when '010' => return (RM_RDN, TRUE);
+    when '011' => return (RM_RUP, TRUE);
+    when '100' => return (RM_RMM, TRUE);
 
-    otherwise => result.valid = FALSE;
+    otherwise => return (RM_RNE, FALSE);
   end
-
-  return result;
 end
 
 // Decode three bits to `RM` rounding mode enumeration.
 // '111' is treated as an invalid mode
-func resolveFrmDynamic(rm_bits : bits(3)) => RM_Result
+func resolveFrmDynamic(rm_bits : bits(3)) => (RM, boolean)
 begin
   if rm_bits == '111' then
-    return decodeFrmStatic(FRM);
+    let (rm, valid) = decodeFrmStatic(FRM);
+    return (rm, valid);
   else
-    return decodeFrmStatic(rm_bits);
+    let (rm, valid) = decodeFrmStatic(rm_bits);
+    return (rm, valid);
   end
 end
 
 // TODO : deprecated, use resolveFrmDynamic instead
 func RM_from_bits(rm_bits : bits(3)) => RM_Result
 begin
-  return resolveFrmDynamic(rm_bits);
+  let (rm, valid) = resolveFrmDynamic(rm_bits);
+  return RM_Result {
+    mode = rm,
+    valid = valid
+  };
 end
 
+// accure fflags to FFLAGS 
+func accureFFlags(fflags: bits(5))
+begin
+  FFLAGS = FFLAGS OR fflags;
+
+  if !IsZero(fflags) then
+    logWrite_FCSR();
+  end
+end
+
+// deprecated
 // set fflags base on the softfloat global exception flag
 func set_fflags_from_softfloat(softfloat_xcpt : integer)
 begin
