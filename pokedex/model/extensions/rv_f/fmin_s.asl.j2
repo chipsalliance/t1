@@ -1,0 +1,31 @@
+{%- macro fminmax_body(name, op) %}
+  if !isEnabled_FS() then
+    return IllegalInstruction();
+  end
+
+  let fd: FRegIdx = UInt(GetRD(instruction));
+  let fs1: FRegIdx = UInt(GetRS1(instruction));
+  let fs2: FRegIdx = UInt(GetRS2(instruction));
+
+  var src1: bits(32) = F[fs1];
+  var src2: bits(32) = F[fs2];
+
+  var res: F32_Flags = {{ op }}(src1, src2);
+
+  F[fd] = res.value;
+  accureFFlags(res.fflags);
+
+  makeDirty_FS();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_FMIN_S(instruction: bits(32)) => Result
+begin
+{{- fminmax_body("fmin_s", "riscv_f32_minNum") -}}
+end
+
+func Execute_FMAX_S(instruction: bits(32)) => Result
+begin
+{{- fminmax_body("fmax_s", "riscv_f32_maxNum") -}}
+end

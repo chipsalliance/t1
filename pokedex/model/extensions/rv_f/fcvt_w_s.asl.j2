@@ -1,0 +1,34 @@
+{%- macro fp_to_int_body(name, op) %}
+  if !isEnabled_FS() then
+    return IllegalInstruction();
+  end
+
+  let rd: XRegIdx = UInt(GetRD(instruction));
+  let fs1: FRegIdx = UInt(GetRS1(instruction));
+
+  let (rm: RM, valid: boolean) = resolveFrmDynamic(GetRM(instruction));
+  if !valid then
+    return IllegalInstruction();
+  end
+
+  let src1: bits(32) = F[fs1];
+
+  let res: Bits32_Flags = {{ op }}(rm, src1);
+
+  X[rd] = res.value;
+  accureFFlags(res.fflags);  
+
+  makeDirty_FS();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_FCVT_W_S(instruction: bits(32)) => Result
+begin
+{{- fp_to_int_body("fcvt_w_s", "riscv_f32_toSInt32") -}}
+end
+
+func Execute_FCVT_WU_S(instruction: bits(32)) => Result
+begin
+{{- fp_to_int_body("fcvt_wu_s", "riscv_f32_toUInt32") -}}
+end
