@@ -51,3 +51,25 @@ begin
             return IllegalInstruction();
     end
 end
+
+// exported debugger asscessor
+func ASL_read_CSR(csr: bits(12)) => bits(32)
+begin
+    case csr of
+        {%- for data in csr_metadata %}
+
+        when '{{ data.bin_addr }}' =>
+            return GetRaw_{{ data.name | upper() }}();
+        {%- endfor %}
+
+        otherwise => begin
+            FFI_debug_unsupported_csr(csr);
+            Unreachable();
+        end
+    end
+end
+
+
+{% for data in csr_metadata -%}
+constant CSR_{{ data.name | upper() }}: bits(12) = '{{ data.bin_addr }}';
+{% endfor %}

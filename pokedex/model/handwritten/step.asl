@@ -1,9 +1,12 @@
-func Step()
+func Step() => FFI_StepResult
 begin
   let has_interrupt : boolean = CheckInterrupt();
   if has_interrupt then
     // interrupt alreay handled in checkInterrupt
-    return;
+    return FFI_StepResult {
+      code = FFI_STEPCODE_INTERRUPT,
+      inst = Zeros(32)
+    };
   end
 
   let current_pc = PC;
@@ -17,7 +20,10 @@ begin
       XCPT_CODE_FETCH_ACCESS,
       current_pc
     );
-    return;
+    return FFI_StepResult {
+      code = FFI_STEPCODE_FETCH_XCPT,
+      inst = Zeros(32)
+    };
   end
 
   var exec_result : Result;
@@ -33,16 +39,22 @@ begin
         XCPT_CODE_FETCH_ACCESS,
         current_pc + 2    // MTVAL points to the portion of fetch
       );
-      return;
+      return FFI_StepResult {
+        code = FFI_STEPCODE_FETCH_XCPT,
+        inst = Zeros(32)
+      };
     end
 
     let instruction : bits(32) = [most_significant_half.data, least_significant_half.data];
 
-    FFI_inst_issue(PC, instruction);
+    FFI_debug_issue(PC, instruction);
     exec_result = DecodeAndExecute(instruction);
 
     if exec_result.is_ok then
-      FFI_inst_commit();
+      return FFI_StepResult {
+        code = FFI_STEPCODE_INST_COMMIT,
+        inst = instruction
+      };
     else
       // if the inst is not commited, PC should not be modified
       assert(current_pc == PC);
@@ -53,16 +65,23 @@ begin
         exec_result.cause,
         exec_result.payload
       );
+      return FFI_StepResult {
+        code = FFI_STEPCODE_INST_XCPT,
+        inst = instruction
+      };
     end
   else
     // execute compressed instruction
 
     let instruction: bits(16) = least_significant_half.data;
-    FFI_inst_issue_c(PC, instruction);
+    FFI_debug_issue_c(PC, instruction);
     exec_result = DecodeAndExecute_CEXT(instruction);
 
     if exec_result.is_ok then
-      FFI_inst_commit();
+      return FFI_StepResult {
+        code = FFI_STEPCODE_INST_C_COMMIT,
+        inst = ZeroExtend(instruction, 32)
+      };
     else
       // if the inst is not commited, PC should not be modified
       assert(current_pc == PC);
@@ -73,6 +92,10 @@ begin
         exec_result.cause,
         exec_result.payload
       );
+      return FFI_StepResult {
+        code = FFI_STEPCODE_INST_C_XCPT,
+        inst = ZeroExtend(instruction, 32)
+      };
     end
   end
 end
@@ -121,8 +144,6 @@ begin
   CURRENT_PRIVILEGE = PRIV_MODE_M;
 
   PC = [MTVEC_BASE, '00'];
-
-  FFI_inst_xcpt(mcause, mtval);
 end
 
 func checkInterrupt() => boolean
@@ -172,7 +193,19 @@ begin
 end
 
 // export
-func ASL_Step()
+func ASL_Step() => FFI_StepResult
 begin
-  Step();
+  return Step();
 end
+
+record FFI_StepResult {
+  code: bits(8);
+  inst: bits(32);
+};
+
+let FFI_STEPCODE_FETCH_XCPT = 1[7:0];
+let FFI_STEPCODE_INST_XCPT = 2[7:0];
+let FFI_STEPCODE_INST_COMMIT = 4[7:0];
+let FFI_STEPCODE_INST_C_XCPT = 10[7:0];
+let FFI_STEPCODE_INST_C_COMMIT = 12[7:0];
+let FFI_STEPCODE_INTERRUPT = 16[7:0];

@@ -90,8 +90,8 @@ fn run_diff(
 
         match (&status1, &status2) {
             (Status::Running(dr1), Status::Running(dr2)) => {
-                let state1 = source2.state();
-                let state2 = source1.state();
+                let state1 = source1.state();
+                let state2 = source2.state();
 
                 let combined_dr = DiffRecord::combine(dr1, dr2);
 

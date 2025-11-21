@@ -6,3 +6,8 @@ begin
 
   return CsrReadOk(CFG_MIMPID);
 end
+
+func GetRaw_MIMPID() => bits(XLEN)
+begin
+  return CFG_MIMPID;
+end

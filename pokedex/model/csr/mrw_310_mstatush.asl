@@ -7,6 +7,11 @@ begin
   return CsrReadOk(Zeros(32));
 end
 
+func GetRaw_MSTATUSH() => bits(XLEN)
+begin
+  return Zeros(32);
+end
+
 func Write_MSTATUSH(value: bits(32)) => Result
 begin
   if !IsPrivAtLeast_M() then

@@ -10,6 +10,11 @@ begin
   ]);
 end
 
+func GetRaw_FFLAGS() => bits(XLEN)
+begin
+  return [Zeros(27), FFLAGS];
+end
+
 func Write_FFLAGS(value: bits(32)) => Result
 begin
   if !isEnabled_FS() then

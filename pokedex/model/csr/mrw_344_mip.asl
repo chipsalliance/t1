@@ -10,6 +10,12 @@ begin
   return CsrReadOk(value);
 end
 
+func GetRaw_MIP() => bits(XLEN)
+begin
+  // TODO: the exact semantics should be discussed later
+  return Zeros(32);
+end
+
 func Write_MIP(value : bits(32)) => Result
 begin
   if !IsPrivAtLeast_M() then

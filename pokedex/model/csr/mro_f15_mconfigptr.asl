@@ -6,3 +6,8 @@ begin
 
   return CsrReadOk(CFG_MCONFIGPTR);
 end
+
+func GetRaw_MCONFIGPTR() => bits(XLEN)
+begin
+  return CFG_MCONFIGPTR;
+end

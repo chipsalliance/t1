@@ -7,6 +7,11 @@ begin
   return CsrReadOk([Zeros(31), VXSAT]);
 end
 
+func GetRaw_VXSAT() => bits(XLEN)
+begin
+  return [Zeros(31), VXSAT];
+end
+
 func Write_VXSAT(value: bits(32)) => Result
 begin
   if !isEnabled_VS() then
