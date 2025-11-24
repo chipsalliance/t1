@@ -1,0 +1,29 @@
+{%- macro c_sr_body(name, compute) %}
+  let rd: XRegIdx = UInt(GetCB_RS1(instruction)) + 8;
+  let shamt: bits(6) = GetC_SHAMT(instruction);
+
+  if shamt[5] != '0' then
+    return IllegalInstruction();
+  end
+
+  // NOTE hint: when shamt == 0, it is a hint
+
+  let src: bits(XLEN) = X[rd];
+
+  let res: bits(XLEN) = {{ compute }};
+
+  X[rd] = res;
+
+  PC = PC + 2;
+  return Retired();
+{% endmacro -%}
+
+func Execute_C_SRLI(instruction: bits(16)) => Result
+begin
+{{- c_sr_body("c_srli", "ShiftRightLogical(src, UInt(shamt))") -}}
+end
+
+func Execute_C_SRAI(instruction: bits(16)) => Result
+begin
+{{- c_sr_body("c_srai", "ShiftRightArithmetic(src, UInt(shamt))") -}}
+end

@@ -1,0 +1,34 @@
+{%- macro c_arith_body(name, op) %}
+  let rd  : XRegIdx = UInt(GetCA_RS1(instruction)) + 8;
+  let rs2 : XRegIdx = UInt(GetCA_RS2(instruction)) + 8;
+
+  let src1 : bits(XLEN) = X[rd];
+  let src2 : bits(XLEN) = X[rs2];
+
+  let value : bits(XLEN) = {{op}}(src1, src2);
+
+  X[rd] = value;
+
+  PC = PC + 2;
+  return Retired();
+{% endmacro -%}
+
+func Execute_C_SUB(instruction: bits(16)) => Result
+begin
+{{- c_arith_body("c_sub", "riscv_sub") -}}
+end
+
+func Execute_C_XOR(instruction: bits(16)) => Result
+begin
+{{- c_arith_body("c_xor", "riscv_xor") -}}
+end
+
+func Execute_C_OR(instruction: bits(16)) => Result
+begin
+{{- c_arith_body("c_or", "riscv_or") -}}
+end
+
+func Execute_C_AND(instruction: bits(16)) => Result
+begin
+{{- c_arith_body("c_and", "riscv_and") -}}
+end
