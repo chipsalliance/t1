@@ -2,8 +2,11 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 
+mod bus;
 mod common;
 mod difftest;
+mod gdb;
+mod model;
 mod pokedex;
 mod util;
 
@@ -16,6 +19,7 @@ struct Args {
 #[derive(Subcommand)]
 enum Commands {
     Run(pokedex::RunArgs),
+    Debug(gdb::GdbArgs),
     Difftest(difftest::DiffTestArgs),
 }
 
@@ -24,6 +28,7 @@ fn main() -> anyhow::Result<ExitCode> {
 
     match &args.command {
         Commands::Run(args) => pokedex::run_subcommand(args),
+        Commands::Debug(args) => gdb::run_subcommand(args),
         Commands::Difftest(args) => difftest::run_subcommand(args),
     }
 }

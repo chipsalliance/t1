@@ -1,17 +1,3 @@
-// Exit when same instruction occurs 50 times
-max-same-instruction 50
-
-// Wait 0ms after a instruction executed
-slow-motion-ms 0
-
-// Dump register when any of the PC met
-dump {
-  // Comment following note to disable dump functionality
-  on
-
-  before-pc 0x800000FC 0x80000250 0x80000100
-}
-
 // SRAM configuration. We have no multiple sram support for now
 sram {
   base 0x80000000

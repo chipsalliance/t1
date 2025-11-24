@@ -11,19 +11,14 @@ use tracing::{Level, error, event, info};
 use tracing_subscriber::{EnvFilter, prelude::*};
 
 use crate::{
+    bus::Bus,
     common::{CommitLog, PokedexLog, StateWrite},
-    pokedex::simulator::StepDetail,
+    model::{Inst, StepDetail},
 };
 
-use self::{
-    bus::{AddressSpaceDescNode, Bus},
-    ffi::VTable,
-    simulator::{Inst, Simulator},
-};
+use self::simulator::Simulator;
 
-mod bus;
-mod ffi;
-mod simulator;
+pub mod simulator;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -34,7 +29,7 @@ pub struct RunArgs {
 
     /// Path to KDL configuration file
     #[arg(short = 'c', long)]
-    config_path: String,
+    config_path: PathBuf,
 
     /// Control verbosity of pokedex output
     #[arg(short, long, action = clap::ArgAction::Count)]
@@ -69,78 +64,12 @@ fn setup_logging(verbose: u8) {
     registry.init();
 }
 
-#[derive(Debug, knuffel::Decode)]
-struct DumpConfig {
-    #[knuffel(child)]
-    on: bool,
-    #[knuffel(child)]
-    off: bool,
-    #[knuffel(child, unwrap(arguments))]
-    before_pc: Option<Vec<u32>>,
-}
-
-#[derive(Debug, knuffel::Decode)]
-struct MmapConfig {
-    #[knuffel(argument)]
-    name: String,
-    #[knuffel(property)]
-    offset: u32,
-}
-
-#[derive(Debug, knuffel::Decode)]
-struct MmioConfig {
-    #[knuffel(child, unwrap(argument))]
-    base: u32,
-    #[knuffel(child, unwrap(argument))]
-    length: u32,
-    #[knuffel(children(name = "mmap"))]
-    mmaps: Vec<MmapConfig>,
-}
-
-#[derive(Debug, knuffel::Decode)]
-struct SramConfig {
-    #[knuffel(child, unwrap(argument))]
-    base: u32,
-    #[knuffel(child, unwrap(argument))]
-    length: u32,
-}
-
-#[derive(Debug, knuffel::Decode)]
-struct PokedexConfig {
-    #[knuffel(child, unwrap(argument))]
-    max_same_instruction: u32,
-    #[knuffel(child, unwrap(argument))]
-    slow_motion_ms: u64,
-    #[knuffel(child, unwrap(argument))]
-    reset_vector: Option<u32>,
-    #[knuffel(child)]
-    dump: DumpConfig,
-    #[knuffel(child)]
-    mmio: MmioConfig,
-    #[knuffel(child)]
-    sram: SramConfig,
-}
-
 pub fn run_subcommand(args: &RunArgs) -> anyhow::Result<ExitCode> {
     setup_logging(args.verbose);
 
-    let vtable = match std::env::var("POKEDEX_MODEL_DYLIB") {
-        Ok(so_path) => VTable::from_dylib(&so_path),
-        Err(_) => {
-            #[cfg(not(feature = "bundled-model-lib"))]
-            {
-                error!("env POKEDEX_MODEL_DYLIB not set");
-                error!("pokedex is not compiled with a bundled model lib");
-                return Ok(ExitCode::FAILURE);
-            }
-
-            #[cfg(feature = "bundled-model-lib")]
-            {
-                info!("env POKEDEX_MODEL_DYLIB not set, using bundled version");
-                VTable::bundled()
-            }
-        }
-    };
+    let model_loader = crate::model::get_loader()?;
+    let bus = Bus::load_from_config(&args.config_path)?;
+    let config_reset_vector = bus.reset_vector();
 
     let mut tracer_ = match &args.output_log_path {
         Some(path) => {
@@ -156,41 +85,14 @@ pub fn run_subcommand(args: &RunArgs) -> anyhow::Result<ExitCode> {
     };
     let tracer = tracer_.as_tracer();
 
-    let config_content = std::fs::read_to_string(&args.config_path)
-        .with_context(|| format!("failed to read {:?}", args.config_path))?;
-    let config: PokedexConfig = knuffel::parse(&args.config_path, config_content.as_str())?;
-
-    let bus = Bus::try_from_config(&[
-        AddressSpaceDescNode::Sram {
-            name: "single-naive-memory".to_string(),
-            base: config.sram.base,
-            length: config.sram.length,
-        },
-        AddressSpaceDescNode::Mmio {
-            base: config.mmio.base,
-            length: config.mmio.length,
-            mmap: config
-                .mmio
-                .mmaps
-                .iter()
-                .map(|mmap| (mmap.name.to_string(), mmap.offset))
-                .collect(),
-        },
-    ])?;
-
-    let mut sim = Simulator::new(
-        vtable,
-        bus,
-        simulator::Config {
-            max_same_instruction: config.max_same_instruction,
-        },
-    );
+    let mut sim = Simulator::new(model_loader, bus);
 
     info!("running case: {:?}", args.elf_path);
-    let elf_entry = load_elf(&mut sim.global.bus, &args.elf_path);
+    let elf_entry = sim.global.bus.load_elf(&args.elf_path)?;
 
     // if config defines reset vector, use it, otherwise use ELF entrypoint
-    let reset_vector = config.reset_vector.unwrap_or(elf_entry);
+    let reset_vector = config_reset_vector.unwrap_or(elf_entry);
+
     sim.reset_core(reset_vector);
     tracer.trace_reset(reset_vector);
 
@@ -226,47 +128,6 @@ pub fn run_subcommand(args: &RunArgs) -> anyhow::Result<ExitCode> {
     } else {
         Ok(ExitCode::FAILURE)
     }
-}
-
-// return the ELF entrypoint if success
-fn load_elf(bus: &mut bus::Bus, elf_path: &Path) -> u32 {
-    use xmas_elf::{
-        ElfFile, header,
-        program::{ProgramHeader, Type},
-    };
-
-    let buffer = std::fs::read(elf_path)
-        .expect("fail reading elf file to memory, maybe a broken file system or file too large");
-
-    let elf_file =
-        ElfFile::new(&buffer).unwrap_or_else(|err| panic!("fail serializing ELF file: {err}"));
-
-    let header = elf_file.header;
-    if header.pt2.machine().as_machine() != header::Machine::RISC_V {
-        panic!("ELF is not built for RISC-V")
-    }
-
-    for ph in elf_file.program_iter() {
-        if let ProgramHeader::Ph32(ph) = ph {
-            if ph.get_type() == Ok(Type::Load) {
-                let offset = ph.offset as usize;
-                let size = ph.file_size as usize;
-                let addr = ph.virtual_addr;
-
-                let slice = &buffer[offset..offset + size];
-
-                if let Err(err) = bus.write(addr, slice) {
-                    panic!("fail loading elf to memory: {err:?}, addr={addr:#x}, size={size:#x}");
-                };
-            }
-        }
-    }
-
-    header
-        .pt2
-        .entry_point()
-        .try_into()
-        .expect("return ELF address should be in u32 range")
 }
 
 pub enum AppTracer {

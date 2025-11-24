@@ -1,13 +1,3 @@
-max-same-instruction 20
-
-slow-motion-ms 0
-
-dump {
-  off
-
-  //before-pc 0x80000142
-}
-
 sram {
   base 0x80000000
   length 0x20000000
