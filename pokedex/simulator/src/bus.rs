@@ -1,5 +1,6 @@
 use std::{
     ops::Range,
+    path::Path,
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering},
@@ -9,9 +10,8 @@ use std::{
 use anyhow::{bail, ensure};
 use tracing::debug;
 
-// pub struct AccessFault;
-
-// pub type MemResult<T> = Result<T, AccessFault>;
+mod elf;
+mod loader;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AtomicOp {
@@ -60,56 +60,28 @@ pub enum AddressSpaceDescNode {
 pub struct Bus {
     address_space: Vec<(Range<u32>, Box<dyn Addressable>)>,
     exit_state: Arc<AtomicU64>,
+    reset_vector: Option<u32>,
 }
 
 impl Bus {
-    pub fn try_from_config(configuration: &[AddressSpaceDescNode]) -> anyhow::Result<Self> {
-        let mut segments = Vec::new();
-        let mut exit_state = None;
-        for node in configuration {
-            match node {
-                AddressSpaceDescNode::Sram {
-                    name: _,
-                    base,
-                    length,
-                } => {
-                    let naive_memory = NaiveMemory::new(*length as usize);
-                    let boxed: Box<dyn Addressable> = Box::new(naive_memory);
-                    segments.push(((*base..(base + length)), boxed))
-                }
-                AddressSpaceDescNode::Mmio { base, length, mmap } => {
-                    let (mmio_decoder, controllers) = MMIOAddrDecoder::try_build_from(mmap)?;
-                    exit_state = Some(controllers);
-                    let boxed: Box<dyn Addressable> = Box::new(mmio_decoder);
-                    segments.push(((*base..base + length), boxed))
-                }
-            }
-        }
+    pub fn load_from_config(config_path: &Path) -> anyhow::Result<Self> {
+        loader::load_from_config_path(config_path)
+    }
 
-        let mut overlapped_segment = None;
-        let mut unchecked_index: Vec<Range<u32>> =
-            segments.iter().map(|(index, _)| index.clone()).collect();
-        unchecked_index.sort_by_key(|range| range.start);
-        for window in unchecked_index.windows(2) {
-            let addr1 = &window[0];
-            let addr2 = &window[1];
-            if addr2.start < addr1.end {
-                overlapped_segment = Some(&window[1]);
-            }
-        }
+    pub fn load_from_default_config() -> Self {
+        let default_config_content = include_str!("../assets/configs.kdl");
+        loader::load_from_config_str("embedded-default-config.kdl", default_config_content)
+            .expect("error in parsing default bus config")
+    }
 
-        if let Some(range) = overlapped_segment {
-            bail!(
-                "Address space with offset={:#010x} length={:#010x} overlapped previous address space",
-                range.start,
-                range.end - range.start
-            )
-        }
+    // return ELF entrypoint if success
+    pub fn load_elf(&mut self, elf_path: &Path) -> anyhow::Result<u32> {
+        elf::load_elf(self, elf_path)
+    }
 
-        Ok(Self {
-            address_space: segments,
-            exit_state: exit_state.unwrap(),
-        })
+    // get the platform preset reset vector
+    pub fn reset_vector(&self) -> Option<u32> {
+        self.reset_vector
     }
 
     // None indicates it still runs
@@ -153,6 +125,21 @@ impl Bus {
 
         device.do_bus_write(offset, data)
     }
+
+    pub fn debugger_read(&self, addr: u32, data: &mut [u8]) -> usize {
+        let result = self
+            .address_space
+            .iter()
+            .find(|(addr_space, _)| addr_space.contains(&addr));
+
+        let Some((addr_space, device)) = result else {
+            return 0;
+        };
+
+        let offset = addr - addr_space.start;
+
+        device.do_debugger_read(offset, data)
+    }
 }
 
 type ExitStateRef = Arc<AtomicU64>;
@@ -178,6 +165,12 @@ pub type BusResult<T> = Result<T, BusError>;
 pub trait Addressable: Send {
     fn do_bus_read(&mut self, offset: u32, dest: &mut [u8]) -> Result<(), BusError>;
     fn do_bus_write(&mut self, offset: u32, data: &[u8]) -> Result<(), BusError>;
+
+    // return the size of read data
+    fn do_debugger_read(&self, offset: u32, dest: &mut [u8]) -> usize {
+        let _ = (offset, dest);
+        0
+    }
 }
 
 #[derive(Debug)]
@@ -220,6 +213,17 @@ impl Addressable for NaiveMemory {
         self.memory[offset as usize..offset as usize + data.len()].copy_from_slice(data);
 
         Ok(())
+    }
+
+    fn do_debugger_read(&self, offset: u32, dest: &mut [u8]) -> usize {
+        if (offset as usize) >= self.memory.len() {
+            return 0;
+        }
+
+        let data = &self.memory[offset as usize..];
+        let len = data.len().min(dest.len());
+        dest[..len].copy_from_slice(&data[..len]);
+        len
     }
 }
 

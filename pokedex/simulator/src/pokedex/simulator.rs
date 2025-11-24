@@ -1,25 +1,21 @@
-use crate::pokedex::bus::{AtomicOp, Bus, BusError, BusResult};
-use crate::pokedex::ffi;
-
-pub struct Config {
-    pub max_same_instruction: u32,
-}
+use crate::bus::{AtomicOp, Bus, BusError, BusResult};
+use crate::model::{Loader, ModelHandle, PokedexCallbackMem, StepCode, StepDetail};
 
 pub struct Simulator {
-    core: ffi::ModelHandle,
+    core: ModelHandle,
 
     pub(crate) global: Global,
 }
 
 impl Simulator {
-    pub fn new(vtable: ffi::VTable, bus: Bus, config: Config) -> Self {
+    pub fn new(model_loader: Loader, bus: Bus) -> Self {
         let global = Global {
             bus,
 
             stats: Statistic::new(),
         };
 
-        let core = unsafe { ffi::ModelHandle::new(vtable) };
+        let core = ModelHandle::new(model_loader);
 
         Simulator { core, global }
     }
@@ -27,11 +23,6 @@ impl Simulator {
     pub fn stats(&self) -> &Statistic {
         &self.global.stats
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum StepResult {
-    Exit { code: u32 },
 }
 
 impl Simulator {
@@ -59,6 +50,10 @@ impl Simulator {
     pub fn is_exited(&self) -> Option<u32> {
         self.global.bus.try_get_exit_code()
     }
+
+    pub fn core(&self) -> &ModelHandle {
+        &self.core
+    }
 }
 
 pub struct Global {
@@ -66,7 +61,7 @@ pub struct Global {
     pub(crate) stats: Statistic,
 }
 
-impl ffi::PokedexCallbackMem for Global {
+impl PokedexCallbackMem for Global {
     type CbMemError = BusError;
 
     fn inst_fetch_2(&mut self, addr: u32) -> BusResult<u16> {
@@ -142,24 +137,4 @@ impl Statistic {
     pub fn new() -> Self {
         Self::default()
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Inst {
-    NC(u32),
-    C(u16),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StepCode {
-    Interrupt,
-    Exception,
-    Committed,
-}
-
-pub struct StepDetail<'a> {
-    pub code: StepCode,
-    pub pc: u32,
-    pub inst: Option<Inst>,
-    pub changes: ffi::CoreChange<'a>,
 }
