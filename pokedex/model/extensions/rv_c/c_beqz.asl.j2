@@ -1,0 +1,27 @@
+{%- macro c_branch_body(name, compute) %}
+  let rs1: XRegIdx = UInt(GetCB_RS1(instruction)) + 8;
+  let imm: bits(8) = GetCB_IMM(instruction);
+  let offset: bits(XLEN) = SignExtend([imm, '0'], XLEN);
+
+  let src1: bits(XLEN) = X[rs1];
+
+  let taken: boolean = {{compute}};
+
+  if taken then
+    PC = PC + offset;
+  else
+    PC = PC + 2;
+  end
+
+  return Retired();
+{% endmacro -%}
+
+func Execute_C_BEQZ(instruction: bits(16)) => Result
+begin
+{{- c_branch_body("c_beqz", "IsZero(src1)") -}}
+end
+
+func Execute_C_BNEZ(instruction: bits(16)) => Result
+begin
+{{- c_branch_body("c_bnez", "!IsZero(src1)") -}}
+end
