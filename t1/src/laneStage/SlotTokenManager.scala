@@ -103,10 +103,14 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
   }
 
   @public
-  val writePipeEnqReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+  val writePipeEnqReport = Seq.tabulate(parameter.vrfWritePort) { _ =>
+    IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+  }
 
   @public
-  val writePipeDeqReport: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+  val writePipeDeqReport = Seq.tabulate(parameter.vrfWritePort) { _ =>
+    IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
+  }
 
   @public
   val topWriteEnq: ValidIO[UInt] = IO(Flipped(Valid(UInt(parameter.instructionIndexBits.W))))
@@ -149,6 +153,18 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
       val d      = deqWire(i)
       val change = changeUIntSize(e, tokenWith) - changeUIntSize(d.asUInt, tokenWith)
       when(e.orR || d) {
+        t := t + change
+      }
+    }
+    VecInit(tokenData.map(_ =/= 0.U)).asUInt
+  }
+
+  def tokenUpdate(tokenData: Seq[UInt], enqWire: Seq[UInt], deqWire: Seq[UInt]): UInt = {
+    tokenData.zipWithIndex.foreach { case (t, i) =>
+      val e      = PopCount(VecInit(enqWire.map(d => d(i))).asUInt)
+      val d      = PopCount(VecInit(deqWire.map(d => d(i))).asUInt)
+      val change = changeUIntSize(e, tokenWith) - changeUIntSize(d.asUInt, tokenWith)
+      when(e =/= d) {
         t := t + change
       }
     }
@@ -213,9 +229,9 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
             writeCountState.needWrite      := writeCountForToken.bits.count
           }
 
-          val writeHit = writePipeDeqReport.bits === indexU
-          when(writePipeDeqReport.fire && writeHit) {
-            writeCountState.finishWrite := writeCountState.finishWrite + 1.U
+          val writeHit = VecInit(writePipeDeqReport.map(w => w.bits === indexU && w.fire)).asUInt
+          when(writeHit.orR) {
+            writeCountState.finishWrite := writeCountState.finishWrite + PopCount(writeHit)
           }
 
           val slideWriteClear = writeCountState.pendingMaskStageWrite && writeCountState.getCountReport &&
@@ -284,10 +300,12 @@ class SlotTokenManager(parameter: LaneParameter) extends Module {
 
   // write pipe token
   val writePipeToken: Seq[UInt] = Seq.tabulate(parameter.chaining1HBits)(_ => RegInit(0.U(tokenWith.W)))
-  val writePipeEnq:   UInt      =
-    maskAnd(writePipeEnqReport.valid, indexToOH(writePipeEnqReport.bits, parameter.chainingSize)).asUInt
-  val writePipeDeq:   UInt      =
-    maskAnd(writePipeDeqReport.valid, indexToOH(writePipeDeqReport.bits, parameter.chainingSize)).asUInt
+  val writePipeEnq = writePipeEnqReport.map { req =>
+    maskAnd(req.valid, indexToOH(req.bits, parameter.chainingSize)).asUInt
+  }
+  val writePipeDeq = writePipeDeqReport.map { req =>
+    maskAnd(req.valid, indexToOH(req.bits, parameter.chainingSize)).asUInt
+  }
 
   val instructionInWritePipe: UInt = tokenUpdate(writePipeToken, writePipeEnq, writePipeDeq)
 

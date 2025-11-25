@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
-import org.chipsalliance.dwbb.stdlib.queue.Queue
+import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 import org.chipsalliance.t1.rtl.decoder.{Decoder, TableGenerator}
 import org.chipsalliance.t1.rtl.lane.Distributor
 
@@ -524,5 +524,41 @@ package object rtl {
       counter := counter + counterChange
     }
     counter
+  }
+
+  def conditionalCrossBar[T <: Data](
+    allocateDeq: Seq[Int] = Seq.empty[Int],
+    condition:   Option[T => Bool] = None
+  )(enqVec:      Vec[DecoupledIO[T]],
+    deqVec:      Vec[DecoupledIO[T]]
+  ): Seq[DecoupledIO[T]] = {
+    if (allocateDeq.nonEmpty) {
+      require(condition.isDefined)
+    }
+    allocateDeq.foreach(i => require(i < deqVec.size))
+
+    val queueVec:      Seq[QueueIO[T]] = Seq.tabulate(deqVec.size) { _ =>
+      Queue.io(chiselTypeOf(deqVec.head.bits), entries = 1, pipe = true)
+    }
+    // enq only connect with allocateDeq
+    val allocateCheck: UInt            =
+      condition.map(f => VecInit(enqVec.map(e => f(e.bits))).asUInt).getOrElse(0.U(enqVec.size.W))
+
+    val readyVec = Wire(Vec(deqVec.size, UInt(enqVec.size.W)))
+    deqVec.zipWithIndex.foldLeft(VecInit(enqVec.map(_.valid)).asUInt) { case (remainder, (deq, index)) =>
+      val queue           = queueVec(index)
+      val allocateAll     = allocateDeq.contains(index)
+      val reallyRemainder = if (allocateAll) remainder else remainder & (~allocateCheck).asUInt
+      val firstRemainder  = ffo(reallyRemainder)
+      queue.enq.valid := reallyRemainder.orR
+      queue.enq.bits  := Mux1H(firstRemainder, enqVec.map(_.bits))
+      readyVec(index) := maskAnd(queue.enq.ready, firstRemainder)
+      deq <> queue.deq
+      remainder & (~firstRemainder).asUInt
+    }
+    enqVec.zipWithIndex.foreach { case (enq, index) =>
+      enq.ready := readyVec.map(_(index)).reduce(_ || _)
+    }
+    queueVec.map(_.enq)
   }
 }

@@ -69,6 +69,7 @@ case class T1RocketTileParameter(
   chainingSize:            Int,
   vrfBankSize:             Int,
   vrfRamType:              RamType,
+  vrfWritePort:            Int,
   vfuInstantiateParameter: VFUInstantiateParameter,
   matrixAluRowSize:        Option[Int],
   matrixAluColSize:        Option[Int])
@@ -376,6 +377,7 @@ case class T1RocketTileParameter(
     },
     vrfBankSize = vrfBankSize,
     vrfRamType = vrfRamType,
+    vrfWritePort = vrfWritePort,
     vfuInstantiateParameter = vfuInstantiateParameter,
     matrixAluRowSize = matrixAluRowSize,
     matrixAluColSize = matrixAluColSize
