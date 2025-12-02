@@ -168,9 +168,9 @@ pub fn pretty_print_diff(
     dut: &CpuState,
 ) -> std::fmt::Result {
     if gold.pc != dut.pc {
-        writeln!(f, "pc        : {:010x} <-> {:010x}", gold.pc, dut.pc)?;
+        writeln!(f, "pc         : {:#010x} <-> {:#010x}", gold.pc, dut.pc)?;
     } else {
-        writeln!(f, "pc        : {:010x}", gold.pc)?;
+        writeln!(f, "pc         : {:#010x}", gold.pc)?;
     }
 
     // compare GPR

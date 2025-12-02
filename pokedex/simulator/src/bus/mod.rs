@@ -69,7 +69,7 @@ impl Bus {
     }
 
     pub fn load_from_default_config() -> Self {
-        let default_config_content = include_str!("../assets/configs.kdl");
+        let default_config_content = include_str!("../../assets/configs.kdl");
         loader::load_from_config_str("embedded-default-config.kdl", default_config_content)
             .expect("error in parsing default bus config")
     }
