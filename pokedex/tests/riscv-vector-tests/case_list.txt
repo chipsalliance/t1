@@ -244,10 +244,10 @@ vrem.vv
 vrem.vx
 vremu.vv
 vremu.vx
-# vrgather.vi
-# vrgather.vv
-# vrgather.vx
-# vrgatherei16.vv
+vrgather.vi
+vrgather.vv
+vrgather.vx
+vrgatherei16.vv
 vrsub.vi
 vrsub.vx
 vs1r.v
@@ -270,12 +270,12 @@ vsetvl
 vsetvli
 # vsext.vf2
 # vsext.vf4
-# vslide1down.vx
-# vslide1up.vx
-# vslidedown.vi
-# vslidedown.vx
-# vslideup.vi
-# vslideup.vx
+vslide1down.vx
+vslide1up.vx
+vslidedown.vi
+vslidedown.vx
+vslideup.vi
+vslideup.vx
 vsll.vi
 vsll.vv
 vsll.vx
