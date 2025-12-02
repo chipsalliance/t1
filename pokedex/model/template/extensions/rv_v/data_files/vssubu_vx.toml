@@ -1,4 +1,0 @@
-template = "vsop_vx_novxrm"
-
-op_func = "__op_ssub_u"
-function_description = "compute unsigned saturating substraction, set VXSAT when saturationg, optionally masked by vm"

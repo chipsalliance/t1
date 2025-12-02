@@ -1,4 +1,0 @@
-template = "vsop_vv_novxrm"
-
-op_func = "__op_sadd_s"
-function_description = "compute signed saturating addition, set VXSAT when saturationg, optionally masked by vm"

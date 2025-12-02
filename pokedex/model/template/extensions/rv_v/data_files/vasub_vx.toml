@@ -1,4 +1,0 @@
-template = "vaop_vx"
-
-op_func = "__op_asub_s"
-function_description="compute signed subtraction average, round accroding to vxrm, optionally masked by vm"

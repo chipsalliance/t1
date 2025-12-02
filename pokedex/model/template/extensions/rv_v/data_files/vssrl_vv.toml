@@ -1,4 +1,0 @@
-template = "vsop_vv_nosat"
-
-op_func = "__op_ssrlv"
-function_description="compute logical right shift, round accroding to vxrm, optionally masked by vm"

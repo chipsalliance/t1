@@ -1,4 +1,0 @@
-template = "vsop_vv"
-
-op_func = "__op_vsmul_s"
-function_description="compute signed multiplication then right shift, round accroding to vxrm, saturate to vxsat, optionally masked by vm"

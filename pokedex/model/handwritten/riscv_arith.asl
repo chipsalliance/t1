@@ -322,3 +322,196 @@ func riscv_widenMul_us{N}(x: bits(N), y: bits(N)) => bits(2*N)
 begin
   return (UInt(x) * SInt(y))[2*N-1:0];
 end
+
+// wrapping signed average, rounding according to vxrm, ignore overflow in rounding.
+// e.g. vaadd.vv
+func riscv_averageAdd_s{N}(x: bits(N), y: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  let res: bits(N) = ((SInt(x) + SInt(y)) DIVRM 2)[N-1:0];
+  if x[0] != y[0] then
+    return __vxrm_average_round(res, vxrm);
+  else
+    return res;
+  end
+end
+
+// wrapping unsigned average, rounding according to vxrm, ignore overflow in rounding.
+// e.g. vaaddu.vv
+func riscv_averageAdd_u{N}(x: bits(N), y: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  let res: bits(N) = ((UInt(x) + UInt(y)) DIVRM 2)[N-1:0];
+  if x[0] != y[0] then
+    return __vxrm_average_round(res, vxrm);
+  else
+    return res;
+  end
+end
+
+// wrapping signed average substraction, rounding according to vxrm, ignore overflow in rounding.
+// e.g. vasub.vv
+func riscv_averageSub_s{N}(x: bits(N), y: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  let res: bits(N) = ((SInt(x) - SInt(y)) DIVRM 2)[N-1:0];
+  if x[0] != y[0] then
+    return __vxrm_average_round(res, vxrm);
+  else
+    return res;
+  end
+end
+
+// wrapping unsigned average substraction, rounding according to vxrm, ignore overflow in rounding.
+// e.g. vasubu.vv
+func riscv_averageSub_u{N}(x: bits(N), y: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  let res: bits(N) = ((UInt(x) - UInt(y)) DIVRM 2)[N-1:0];
+  if x[0] != y[0] then
+    return __vxrm_average_round(res, vxrm);
+  else
+    return res;
+  end
+end
+
+func __vxrm_average_round{N}(x: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  case vxrm of
+    when VXRM_RNU => return x + 1;
+    when VXRM_RNE => return x + ZeroExtend(x[0], N);
+    when VXRM_RDN => return x;
+    when VXRM_ROD => return [x[N-1:1], '1'];
+  end
+end
+
+func __vxrm_round(N: integer, x: bits(N+2), vxrm: bits(2)) => bits(N)
+begin
+  case vxrm of
+    when VXRM_RNU => return x[N+1:2] + ZeroExtend(x[1], N);
+    when VXRM_RNE => return x[N+1:2] + ZeroExtend(__round_to_even_addent(x[2:0]), N);
+    when VXRM_RDN => return x[N+1:2];
+    when VXRM_ROD => return [x[N+1:3], x[2] OR x[1] OR x[0]];
+  end
+end
+
+func __round_to_even_addent(x: bits(3)) => bit
+begin
+  case x of
+    when '000' => return '0';
+    when '001' => return '0';
+    when '010' => return '0';
+    when '011' => return '1';
+    when '100' => return '0';
+    when '101' => return '0';
+    when '110' => return '1';
+    when '111' => return '1';
+  end
+end
+
+// saturated signed addition, e.g. vsadd.vv
+func riscv_saturateAdd_s{N}(x: bits(N), y: bits(N)) => (bits(N), boolean)
+begin
+  let res = SInt(x) + SInt(y);
+    
+  if res > UInt(Ones(N-1)) then
+    return (['0', Ones(N-1)], TRUE);
+  end
+  if res < SInt(['1', Zeros(N-1)]) then
+    return (['1', Zeros(N-1)], TRUE);
+  end
+  return (res[N-1:0], FALSE);
+end
+
+// saturated unsigned addition, e.g. vsadd.vv
+func riscv_saturateAdd_u{N}(x: bits(N), y: bits(N)) => (bits(N), boolean)
+begin
+  let res = x + y;
+
+  if UInt(res) < UInt(x) then
+    return (Ones(N), TRUE);
+  end
+
+  return (res, FALSE);
+end
+
+// saturated signed substraction, e.g. vsadd.vv
+func riscv_saturateSub_s{N}(x: bits(N), y: bits(N)) => (bits(N), boolean)
+begin
+  let res = SInt(x) - SInt(y);
+    
+  if res > UInt(Ones(N-1)) then
+    return (['0', Ones(N-1)], TRUE);
+  end
+  if res < SInt(['1', Zeros(N-1)]) then
+    return (['1', Zeros(N-1)], TRUE);
+  end
+  return (res[N-1:0], FALSE);
+end
+
+// saturated unsigned substraction, e.g. vsadd.vv
+func riscv_saturateSub_u{N}(x: bits(N), y: bits(N)) => (bits(N), boolean)
+begin
+  if UInt(x) < UInt(y) then
+    return (Zeros(N), TRUE);
+  end
+
+  return (x - y, FALSE);
+end
+
+func riscv_saturateSrl{N}(x: bits(N), y: integer{0..N-1}, vxrm: bits(2)) => bits(N)
+begin
+  var shifted_odd: bits(N+2) = ShiftRightLogical([x, '00'], y);
+  if ShiftLeft(shifted_odd, y) != [x, '00'] then
+    shifted_odd[0] = '1';
+  end
+  return __vxrm_round(N, shifted_odd, vxrm);
+end
+
+func riscv_saturateSra{N}(x: bits(N), y: integer{0..N-1}, vxrm: bits(2)) => bits(N)
+begin
+  var shifted_odd: bits(N+2) = ShiftRightArithmetic([x, '00'], y);
+  if ShiftLeft(shifted_odd, y) != [x, '00'] then
+    shifted_odd[0] = '1';
+  end
+  return __vxrm_round(N, shifted_odd, vxrm);
+end
+
+// rounding logical shift right, only lower bits of y is used, e.g. vssrl.vv
+func riscv_saturateSrl_var{N}(x: bits(N), y: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  case N of
+    when 8 => return riscv_saturateSrl(x, UInt(y[2:0]) as integer{0..N-1}, vxrm);
+    when 16 => return riscv_saturateSrl(x, UInt(y[3:0]) as integer{0..N-1}, vxrm);
+    when 32 => return riscv_saturateSrl(x, UInt(y[4:0]) as integer{0..N-1}, vxrm);
+    when 64 => return riscv_saturateSrl(x, UInt(y[5:0]) as integer{0..N-1}, vxrm);
+    otherwise => Unreachable();
+  end
+end
+
+// rounding arithmetic shift right, only lower bits of y is used, e.g. vssra.vv
+func riscv_saturateSra_var{N}(x: bits(N), y: bits(N), vxrm: bits(2)) => bits(N)
+begin
+  case N of
+    when 8 => return riscv_saturateSra(x, UInt(y[2:0]) as integer{0..N-1}, vxrm);
+    when 16 => return riscv_saturateSra(x, UInt(y[3:0]) as integer{0..N-1}, vxrm);
+    when 32 => return riscv_saturateSra(x, UInt(y[4:0]) as integer{0..N-1}, vxrm);
+    when 64 => return riscv_saturateSra(x, UInt(y[5:0]) as integer{0..N-1}, vxrm);
+    otherwise => Unreachable();
+  end
+end
+
+// rounding shifted signed multiplication, the shift width is (N-1), e.g. vsmul.vv
+func riscv_saturateMul_ss{N}(x: bits(N), y: bits(N), vxrm: bits(2)) => (bits(N), boolean)
+begin
+  if x == ['1', Zeros(N-1)] && y == ['1', Zeros(N-1)] then
+    // x == y == sN::MIN will overflow.
+    // This is the only case overflow will happen
+    return (['0', Ones(N-1)], TRUE);
+  end
+
+  let prod: bits(2*N) = SignExtend(x, 2*N) * SignExtend(y, 2*N);
+
+  var prod_shifted_odd: bits(N+2) = prod[2*N-2:N-3];
+  if !IsZero(prod[0 +: N-3]) then
+    prod_shifted_odd[0] = '1';
+  end
+
+  return (__vxrm_round(N, prod_shifted_odd, vxrm), FALSE);
+end

@@ -1,12 +1,14 @@
 {#-
   inst vd, vs2, imm, vm; vm mask is optional
 
-  eew(vd, vs2) = sew, w(imm) = sew extended from imm5
+  eew(vd, vs2) = sew, w(imm) = sew, src1 is extended from imm5
   
-  By default imm5 uses sign extension.
-  However, shift operations use zero extension.
+  NOTE: this instruction uses VXRM.
+  NOTE: this instruction does not touch VXSAT.
+
+  Shift operations use zero extension.
 -#}
-{%- macro vop_vi_body(name, op, imm_extend="SignExtend") %}
+{%- macro vsop_novxrm_vi_body(name, op, imm_extend) %}
   if !isEnabled_VS() then
     return IllegalInstruction();
   end
@@ -25,6 +27,7 @@
   let vl: integer = VL;
   let sew: integer{8, 16, 32, 64} = VTYPE.sew;
   let vreg_align: integer{1, 2, 4, 8} = getAlign(VTYPE);
+  let vxrm: bits(2) = VXRM;
 
   if vm == '0' && vd == 0 then
     // overlap with mask
@@ -41,35 +44,36 @@
 
   case sew of
     when 8 => begin
-      let imm : bits(8) = {{imm_extend}}(imm5, 8);
+      let src1 : bits(8) = {{imm_extend}}(imm5, 8);
 
       for idx = 0 to vl - 1 do
         if vm != '0' || V0_MASK[idx] then
           let src2 : bits(8) = VRF_8[vs2, idx];
-          let res : bits(8) = {{op}}(src2, imm);
+          let res : bits(8) = {{op}}(src2, src1, vxrm);
           VRF_8[vd, idx] = res;
         end
       end
     end
 
     when 16 => begin
-      let imm : bits(16) = {{imm_extend}}(imm5, 16);
+      let src1 : bits(16) = {{imm_extend}}(imm5, 16);
 
       for idx = 0 to vl - 1 do
         if vm != '0' || V0_MASK[idx] then
           let src2 : bits(16) = VRF_16[vs2, idx];
-          let res : bits(16) = {{op}}(src2, imm);
+          let res : bits(16) = {{op}}(src2, src1, vxrm);
           VRF_16[vd, idx] = res;
         end
       end
     end
 
     when 32 => begin
-      let imm : bits(32) = {{imm_extend}}(imm5, 32);
+      let src1 : bits(32) = {{imm_extend}}(imm5, 32);
+
       for idx = 0 to vl - 1 do
         if vm != '0' || V0_MASK[idx] then
           let src2 : bits(32) = VRF_32[vs2, idx];
-          let res : bits(32) = {{op}}(src2, imm);
+          let res : bits(32) = {{op}}(src2, src1, vxrm);
           VRF_32[vd, idx] = res;
         end
       end
@@ -88,49 +92,12 @@
   return Retired();
 {% endmacro -%}
 
-func Execute_VADD_VI(instruction: bits(32)) => Result
+func Execute_VSSRL_VI(instruction: bits(32)) => Result
 begin
-{{- vop_vi_body("vadd_vi", "riscv_add") -}}
+{{- vsop_novxrm_vi_body("vssrl_vi", "riscv_saturateSrl_var", imm_extend="ZeroExtend") -}}
 end
 
-func Execute_VSUB_VI(instruction: bits(32)) => Result
+func Execute_VSSRA_VI(instruction: bits(32)) => Result
 begin
-{{- vop_vi_body("vsub_vi", "riscv_sub") -}}
-end
-
-func Execute_VRSUB_VI(instruction: bits(32)) => Result
-begin
-{{- vop_vi_body("vrsub_vi", "riscv_reverseSub") -}}
-end
-
-func Execute_VAND_VI(instruction: bits(32)) => Result
-begin
-{{- vop_vi_body("vand_vi", "riscv_and") -}}
-end
-
-func Execute_VOR_VI(instruction: bits(32)) => Result
-begin
-{{- vop_vi_body("vor_vi", "riscv_or") -}}
-end
-
-func Execute_VXOR_VI(instruction: bits(32)) => Result
-begin
-{{- vop_vi_body("vxor_vi", "riscv_xor") -}}
-end
-
-// shift operations use uimm
-
-func Execute_VSLL_VI(instruction: bits(32)) => Result
-begin
-{{- vop_vi_body("vsll_vi", "riscv_sll_var", imm_extend="ZeroExtend") -}}
-end
-
-func Execute_VSRL_VI(instruction: bits(32)) => Result
-begin
-{{- vop_vi_body("vsrl_vi", "riscv_srl_var", imm_extend="ZeroExtend") -}}
-end
-
-func Execute_VSRA_VI(instruction: bits(32)) => Result
-begin
-{{- vop_vi_body("vsra_vi", "riscv_sra_var", imm_extend="ZeroExtend") -}}
+{{- vsop_novxrm_vi_body("vssra_vi", "riscv_saturateSra_var", imm_extend="ZeroExtend") -}}
 end
