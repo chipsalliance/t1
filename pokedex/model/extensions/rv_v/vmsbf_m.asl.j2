@@ -1,0 +1,75 @@
+{#-
+  vmsbf.m/vmsif.m/vmsof.m vd, vs2, vm
+  eew(vd, vs2) = 1, vd and vs2 are masks, optionally masked by vm
+  
+  before, exact, after : either "0" or "1"
+-#}
+{%- macro vms_m_body(name, before, exact, after) %}
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+  if !IsZero(VSTART) then
+    // explicitly required by the instruction
+    return IllegalInstruction();
+  end
+
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let vs2: VRegIdx = UInt(GetRS2(instruction));
+  let vm: bit = GetVM(instruction);
+
+  if vm == '0' && vd == 0 then
+    // the spec says vd must not overlap with vm
+    return IllegalInstruction();
+  end
+  if vd == vs2 then
+    // the spec says vd must not overlap with vm
+    return IllegalInstruction();
+  end
+
+  let vl: integer = VL;
+
+  var before_first = TRUE;
+  for idx = 0 to vl - 1 do
+    if vm != '0' || V0_MASK[idx] then
+      var is_set: bit;
+
+      if before_first then
+        if !((VRF_MASK[vs2, idx]) as boolean) then
+          is_set = '{{before}}'; // before first one
+        else
+          before_first = FALSE;
+          is_set = '{{exact}}'; // the exact first one
+        end
+      else
+        is_set = '{{after}}'; // after frist one
+      end
+
+      VRF_MASK[vd, idx] = is_set;
+    end
+  end
+
+  logWrite_VREG_1(vd);
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_VMSBF_M(instruction: bits(32)) => Result
+begin
+{{- vms_m_body("vmsbf_m", before="1", exact="0", after="0") -}}
+end
+
+func Execute_VMSIF_M(instruction: bits(32)) => Result
+begin
+{{- vms_m_body("vmsif_m", before="1", exact="1", after="0") -}}
+end
+
+func Execute_VMSOF_M(instruction: bits(32)) => Result
+begin
+{{- vms_m_body("vmsof_m", before="0", exact="1", after="0") -}}
+end

@@ -17,15 +17,15 @@ vand.vx
 # vasub.vx
 # vasubu.vv
 # vasubu.vx
-# vcompress.vm
-# vcpop.m
+vcompress.vm
+vcpop.m
 vdiv.vv
 vdiv.vx
 vdivu.vv
 vdivu.vx
-# vfirst.m
-# vid.v
-# viota.m
+vfirst.m
+vid.v
+viota.m
 vl1re16.v
 vl1re32.v
 vl1re8.v
@@ -154,9 +154,9 @@ vmax.vv
 vmax.vx
 vmaxu.vv
 vmaxu.vx
-# vmerge.vim
-# vmerge.vvm
-# vmerge.vxm
+vmerge.vim
+vmerge.vvm
+vmerge.vxm
 vmin.vv
 vmin.vx
 vminu.vv
@@ -169,7 +169,7 @@ vmsbc.vv
 vmsbc.vvm
 vmsbc.vx
 vmsbc.vxm
-# vmsbf.m
+vmsbf.m
 vmseq.vi
 vmseq.vv
 vmseq.vx
@@ -179,7 +179,7 @@ vmsgt.vx
 vmsgtu.vi
 vmsgtu.vv
 vmsgtu.vx
-# vmsif.m
+vmsif.m
 vmsle.vi
 vmsle.vv
 vmsle.vx
@@ -193,7 +193,7 @@ vmsltu.vx
 vmsne.vi
 vmsne.vv
 vmsne.vx
-# vmsof.m
+vmsof.m
 vmul.vv
 vmul.vx
 vmulh.vv
@@ -202,11 +202,11 @@ vmulhsu.vv
 vmulhsu.vx
 vmulhu.vv
 vmulhu.vx
-# vmv.s.x
-# vmv.v.i
-# vmv.v.v
-# vmv.v.x
-# vmv.x.s
+vmv.s.x
+vmv.v.i
+vmv.v.v
+vmv.v.x
+vmv.x.s
 vmv1r.v
 vmv2r.v
 vmv4r.v
