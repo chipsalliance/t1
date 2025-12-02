@@ -123,7 +123,6 @@
     "vsext_vf2",
     "vsext_vf4",
     "vsext_vf8",
-    "vsmul_vx",
     "vsoxei64_v",
     "vsse64_v",
     "vsuxei64_v",
