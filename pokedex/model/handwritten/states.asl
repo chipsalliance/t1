@@ -282,16 +282,3 @@ end
 // MSIP and MSIE is not implemented since we have support only one hart.
 let MACHINE_TIMER_INTERRUPT = 7;
 let MACHINE_EXTERNAL_INTERRUPT = 11;
-
-// export to simulator
-func ASL_ResetConfigAndState()
-begin
-  initConfigDefault();
-  resetArchStateDefault();
-end
-
-// export to simulator
-func ASL_ResetState()
-begin
-  resetArchStateDefault();
-end
