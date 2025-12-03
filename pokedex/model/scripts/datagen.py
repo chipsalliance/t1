@@ -6,8 +6,20 @@ import json
 import re
 import os
 from pathlib import Path
+import tomllib
+import typing
+from typing import TypedDict
 
 from .riscv_opcodes import RiscvOpcodes
+
+
+class Model(TypedDict):
+    enabled_extensions: list[str]
+
+
+class Config(TypedDict):
+    model: Model
+
 
 def read_file(path):
     with open(path) as f:
@@ -88,26 +100,11 @@ def gen_csr(is_check: bool):
         print(f"write to file: {CSR_DATA_FILE}")
         write_file_json(CSR_DATA_FILE, csr_json)
 
-def gen_instructions(db: RiscvOpcodes, is_check: bool):
+
+def gen_instructions(db: RiscvOpcodes, is_check: bool, extensions: list[str]):
     INSTR_DATA_FILE = "data_files/inst_encoding.json"
 
-    # FIXME: read from config.toml
-    EXTENSIONS = [
-        'rv_i',
-        'rv_m',
-        'rv_a',
-        'rv_c',
-        'rv_f',
-        'rv_v',
-        'rv_zicsr', 
-        'rv_zifencei',
-        'rv32_i',
-        'rv32_c',
-        'rv32_c_f',
-        'rv_system',
-    ]
-
-    rvopcode_instrs = db.parse_instructions(EXTENSIONS)
+    rvopcode_instrs = db.parse_instructions(extensions)
 
     inst_encoding = []
     cinst_encoding = []
@@ -149,13 +146,14 @@ def gen_instructions(db: RiscvOpcodes, is_check: bool):
 
 def run_all(
     is_check: bool,
-    riscv_opcodes_src: str | None = None
+    enable_exts: list[str] = [],
+    riscv_opcodes_src: str | None = None,
 ):
     db = RiscvOpcodes(riscv_opcodes_src)
 
     gen_causes(db, is_check)
     gen_csr(is_check)
-    gen_instructions(db, is_check)
+    gen_instructions(db, is_check, extensions=enable_exts)
 
 # run as "python -m scripts.datagen"
 if __name__ == "__main__":
@@ -166,10 +164,10 @@ if __name__ == "__main__":
         help="run in check mode",
     )
     parser.add_argument(
-        "--sentinel",
-        required=False,
-        help=""
+        "--config",
+        help="Path to the global config file",
     )
+    parser.add_argument("--sentinel", required=False, help="")
     parser.add_argument(
         "--riscv_opcodes_src",
         required=False,
@@ -178,8 +176,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    config_path = Path(args.config)
+    if not config_path.exists():
+        raise CheckFailError(f"{args.config} not found")
+    config: Config
+    with open(config_path, "rb") as f:
+        config = typing.cast(Config, tomllib.load(f))
+
     run_all(
         is_check=args.check,
+        enable_exts=config["model"]["enabled_extensions"],
         riscv_opcodes_src=args.riscv_opcodes_src,
     )
 
