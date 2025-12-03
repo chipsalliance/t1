@@ -254,6 +254,30 @@ end
 // RVV operations //
 ////////////////////
 
+// narrow logical shift right, only lower log2(2*N) bits of y is used,
+// the result is then truncated. e.g. vnsrl.wx
+func riscv_narrowSrl_var{N}(x: bits(2*N), y: bits(N)) => bits(N)
+begin
+  case N of
+    when 8 => return riscv_srl(x, UInt(y[3:0]) as integer{0..2*N-1})[N-1:0];
+    when 16 => return riscv_srl(x, UInt(y[4:0]) as integer{0..2*N-1})[N-1:0];
+    when 32 => return riscv_srl(x, UInt(y[5:0]) as integer{0..2*N-1})[N-1:0];
+    otherwise => Unreachable();
+  end
+end
+
+// narrow arithmetic shift right, only lower log2(2*N) bits of y is used,
+// the result is then truncated. e.g. vnsra.wx
+func riscv_narrowSra_var{N}(x: bits(2*N), y: bits(N)) => bits(N)
+begin
+  case N of
+    when 8 => return riscv_sra(x, UInt(y[3:0]) as integer{0..2*N-1})[N-1:0];
+    when 16 => return riscv_sra(x, UInt(y[4:0]) as integer{0..2*N-1})[N-1:0];
+    when 32 => return riscv_sra(x, UInt(y[5:0]) as integer{0..2*N-1})[N-1:0];
+    otherwise => Unreachable();
+  end
+end
+
 // add with carry, e.g. vadc.vvm
 func riscv_carryAdd{N}(x: bits(N), y: bits(N), carry: bit) => (bits(N), bit)
 begin
@@ -494,6 +518,54 @@ begin
     when 32 => return riscv_saturateSra(x, UInt(y[4:0]) as integer{0..N-1}, vxrm);
     when 64 => return riscv_saturateSra(x, UInt(y[5:0]) as integer{0..N-1}, vxrm);
     otherwise => Unreachable();
+  end
+end
+
+// rounding logical shift right, only lower log2(2*N) bits of y is used,
+// the result is then clipped as unsigned. e.g. vnclipu.wv
+func riscv_clipSaturateSrl_var{N}(x: bits(2*N), y: bits(N), vxrm: bits(2)) => (bits(N), boolean)
+begin
+  var shifted: bits(2*N);
+  case N of
+    when 8 => shifted = riscv_saturateSrl(x, UInt(y[3:0]) as integer{0..2*N-1}, vxrm);
+    when 16 => shifted = riscv_saturateSrl(x, UInt(y[4:0]) as integer{0..2*N-1}, vxrm);
+    when 32 => shifted = riscv_saturateSrl(x, UInt(y[5:0]) as integer{0..2*N-1}, vxrm);
+    otherwise => Unreachable();
+  end
+
+  if IsZero(shifted[N +: N]) then
+    return (shifted[N-1:0], FALSE);
+  else
+    return (Ones(N), TRUE);
+  end
+end
+
+// rounding arithmetic shift right, only lower log2(2*N) bits of y is used,
+// the result is then clipped as signed. e.g. vnclip.wv
+func riscv_clipSaturateSra_var{N}(x: bits(2*N), y: bits(N), vxrm: bits(2)) => (bits(N), boolean)
+begin
+  var shifted: bits(2*N);
+  case N of
+    when 8 => shifted = riscv_saturateSra(x, UInt(y[3:0]) as integer{0..2*N-1}, vxrm);
+    when 16 => shifted = riscv_saturateSra(x, UInt(y[4:0]) as integer{0..2*N-1}, vxrm);
+    when 32 => shifted = riscv_saturateSra(x, UInt(y[5:0]) as integer{0..2*N-1}, vxrm);
+    otherwise => Unreachable();
+  end
+
+  if shifted[2*N-1] == '1' then
+    // the result is negative
+    if IsOnes(shifted[2*N-1:N-1]) then
+      return (shifted[N-1:0], FALSE);
+    else
+      return (['1', Zeros(N-1)], TRUE);
+    end
+  else
+    // the result is positive/zero
+    if IsZero(shifted[2*N-1:N-1]) then
+      return (shifted[N-1:0], FALSE);
+    else
+      return (['0', Ones(N-1)], TRUE);
+    end
   end
 end
 

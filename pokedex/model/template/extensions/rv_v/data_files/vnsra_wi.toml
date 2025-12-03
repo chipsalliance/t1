@@ -1,4 +1,0 @@
-template = "vnop_wi_uimm"
-
-op_func_narrow_wx = "__op_narrow_srav"
-function_description="compute vd = vs2 u>> uimm, only lower log2(2*sew) bits of uimm is used, optionally masked by vm"

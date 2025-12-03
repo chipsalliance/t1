@@ -213,22 +213,22 @@ vmv4r.v
 vmv8r.v
 vmxnor.mm
 vmxor.mm
-# vnclip.wi
-# vnclip.wv
-# vnclip.wx
-# vnclipu.wi
-# vnclipu.wv
-# vnclipu.wx
+vnclip.wi
+vnclip.wv
+vnclip.wx
+vnclipu.wi
+vnclipu.wv
+vnclipu.wx
 vnmsac.vv
 vnmsac.vx
 vnmsub.vv
 vnmsub.vx
-# vnsra.wi
-# vnsra.wv
-# vnsra.wx
-# vnsrl.wi
-# vnsrl.wv
-# vnsrl.wx
+vnsra.wi
+vnsra.wv
+vnsra.wx
+vnsrl.wi
+vnsrl.wv
+vnsrl.wx
 vor.vi
 vor.vv
 vor.vx
@@ -268,8 +268,8 @@ vse8.v
 vsetivli
 vsetvl
 vsetvli
-# vsext.vf2
-# vsext.vf4
+vsext.vf2
+vsext.vf4
 vslide1down.vx
 vslide1up.vx
 vslidedown.vi
@@ -427,5 +427,5 @@ vwsubu.wx
 vxor.vi
 vxor.vv
 vxor.vx
-# vzext.vf2
-# vzext.vf4
+vzext.vf2
+vzext.vf4
