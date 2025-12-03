@@ -166,6 +166,9 @@ begin
   //   sew = 16 =>  lmul >= 1/4
   //   sew = 32 =>  lmul >= 1/2
   //   sew = 64 =>  lmul >= 1
+  //
+  // Keeping sew/lmul unchanged and then setting a new sew,
+  // lmul may overflow but never underflow.
   if log2_lmul < 0 && sew << (-log2_lmul) > ELEN then
     return VTYPE_ILL;
   end
@@ -302,6 +305,8 @@ begin
   end
 end
 
+// return (-, FALSE) if lmul*2 is too large
+// NOTE: this function does not check sew
 func getAlignWiden(vtype: VType) => (integer{1, 2, 4, 8}, boolean)
 begin
   assert(!vtype.ill);
@@ -314,6 +319,45 @@ begin
     when -1 => return (1, TRUE);
     when -2 => return (1, TRUE);
     when -3 => return (1, TRUE);
+  end
+end
+
+
+// NOTE: this function does not check sew
+//
+// NOTE: impl defined behavior
+//   assuming VType is valid and sew/2 is valid,
+//   lmul/2 will also be valid. See notes in VTYPE_from_bits
+func getAlignNarrow2(vtype: VType) => integer{1, 2, 4, 8}
+begin
+  assert(!vtype.ill);
+  case vtype.lmul of
+    when -3 => return 1;
+    when -2 => return 1;
+    when -1 => return 1;
+    when 0 => return 1;
+    when 1 => return 1;
+    when 2 => return 2;
+    when 3 => return 4;
+  end
+end
+
+// NOTE: this function does not check sew
+//
+// NOTE: impl defined behavior
+//   assuming VType is valid and sew/4 is valid,
+//   lmul/4 will also be valid. See notes in VTYPE_from_bits
+func getAlignNarrow4(vtype: VType) => integer{1, 2, 4, 8}
+begin
+  assert(!vtype.ill);
+  case vtype.lmul of
+    when -3 => return 1;
+    when -2 => return 1;
+    when -1 => return 1;
+    when 0 => return 1;
+    when 1 => return 1;
+    when 2 => return 1;
+    when 3 => return 2;
   end
 end
 

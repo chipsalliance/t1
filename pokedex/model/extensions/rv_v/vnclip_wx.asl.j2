@@ -1,0 +1,108 @@
+{#-
+  inst vd, vs2, imm, vm; vm mask is optional
+
+  NOTE: this instruction uses VXRM.
+  NOTE: this instruction may accure to VXSAT.
+
+  eew(vs2) = 2*sew, eew(vd) = sew, X[rs1] is sext/trauncate to sew bits
+-#}
+{%- macro vsnop_wx_body(name, op, imm_extend) %}
+  if !isEnabled_VS() then
+    return IllegalInstruction();
+  end
+  if VTYPE.ill then
+    return IllegalInstruction();
+  end
+  if !IsZero(VSTART) then
+    return IllegalInstruction();
+  end
+
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let vs2: VRegIdx = UInt(GetRS2(instruction));
+  let rs1: XRegIdx = UInt(GetRS1(instruction));
+  let vm: bit = GetVM(instruction);
+
+  let vl: integer = VL;
+  let sew: integer{8, 16, 32, 64} = VTYPE.sew;
+  let vreg_align: integer{1, 2, 4, 8} = getAlign(VTYPE);
+  let (vreg_w_align: integer{1, 2, 4, 8}, valid: boolean) = getAlignWiden(VTYPE);
+  let vxrm: bits(2) = VXRM;
+
+  if sew >= 64 then
+    // 2*sew is too large
+    return IllegalInstruction();
+  end
+  if !valid then
+    // 2*lmul is too large
+    return IllegalInstruction();
+  end
+  if vm == '0' && vd == 0 then
+    // overlap with mask
+    return IllegalInstruction();
+  end
+  if vd MOD vreg_align != 0 then
+    // vd is not aligned with lmul group
+    return IllegalInstruction();
+  end
+  if vs2 MOD vreg_w_align != 0 then
+    // vs2 is not aligned with 2*lmul group
+    return IllegalInstruction();
+  end
+  if vs2 < vd && vd < vs2 + vreg_w_align then
+    // vd is illegally overlapped with vs1
+    // NOTE: vd == vs2 is a case of legal overlap
+    return IllegalInstruction();
+  end
+
+  case sew of
+    when 8 => begin
+      let src1: bits(8) = SInt(X[rs1])[7:0];
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2: bits(16) = VRF_16[vs2, idx];
+          let (res: bits(8), sat: boolean) = {{op}}(src2, src1, vxrm);
+          VRF_8[vd, idx] = res;
+          if sat then
+            VXSAT = '1';
+          end
+        end
+      end
+    end
+
+    when 16 => begin
+      let src1: bits(16) = SInt(X[rs1])[15:0];
+      for idx = 0 to vl - 1 do
+        if vm != '0' || V0_MASK[idx] then
+          let src2: bits(32) = VRF_32[vs2, idx];
+          let (res: bits(16), sat: boolean) = {{op}}(src2, src1, vxrm);
+          VRF_16[vd, idx] = res;
+          if sat then
+            VXSAT = '1';
+          end
+        end
+      end
+    end
+
+    when 32 => Todo("support sew=64");
+
+    otherwise => Unreachable();
+  end
+
+  logWrite_VCSR();
+  logWrite_VREG_elmul(vd, vreg_align);
+
+  makeDirty_VS();
+  clear_VSTART();
+  PC = PC + 4;
+  return Retired();
+{% endmacro -%}
+
+func Execute_VNCLIP_WX(instruction: bits(32)) => Result
+begin
+{{- vsnop_wx_body("vnclip_wx", "riscv_clipSaturateSra_var") -}}
+end
+
+func Execute_VNCLIPU_WX(instruction: bits(32)) => Result
+begin
+{{- vsnop_wx_body("vnclipu_wx", "riscv_clipSaturateSrl_var") -}}
+end
