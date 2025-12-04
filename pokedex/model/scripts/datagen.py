@@ -1,24 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
-import csv
 import json
-import re
-import os
 from pathlib import Path
 import tomllib
 import typing
-from typing import TypedDict
 
 from .riscv_opcodes import RiscvOpcodes
-
-
-class Model(TypedDict):
-    enabled_extensions: list[str]
-
-
-class Config(TypedDict):
-    model: Model
 
 
 def read_file(path):
@@ -112,6 +100,7 @@ def gen_csr(is_check: bool):
 
 def gen_instructions(db: RiscvOpcodes, is_check: bool, extensions: list[str]):
     INSTR_DATA_FILE = "data_files/inst_encoding.json"
+    print(f"[datagen] Generating for extensions: {", ".join(extensions)}")
 
     rvopcode_instrs = db.parse_instructions(extensions)
 
@@ -184,8 +173,9 @@ if __name__ == "__main__":
         help="run in check mode",
     )
     parser.add_argument(
-        "--config",
-        help="Path to the global config file",
+        "--extensions",
+        nargs="+",
+        help="List of extensions enabled",
     )
     parser.add_argument("--sentinel", required=False, help="")
     parser.add_argument(
@@ -196,16 +186,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    config_path = Path(args.config)
-    if not config_path.exists():
-        raise CheckFailError(f"{args.config} not found")
-    config: Config
-    with open(config_path, "rb") as f:
-        config = typing.cast(Config, tomllib.load(f))
-
     run_all(
         is_check=args.check,
-        enable_exts=config["model"]["enabled_extensions"],
+        enable_exts=args.extensions,
         riscv_opcodes_src=args.riscv_opcodes_src,
     )
 
