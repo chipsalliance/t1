@@ -2,8 +2,6 @@
 lib.makeScope newScope (scope: {
   global-pokedex-config = ./pokedex-config.kdl;
 
-  difftest-meta = scope.callPackage ./difftest-meta.nix { };
-
   riscv-tests = scope.callPackage (
     { fetchFromGitHub }:
     fetchFromGitHub {
