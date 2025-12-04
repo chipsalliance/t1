@@ -62,12 +62,14 @@ imported_regex = re.compile(
 #####   END : inlined constants.py #####
 ########################################
 
+
 class SingleInstr(TypedDict):
     encoding: str
     variable_fields: list[str]
     extension: list[str]
     match: str
     mask: str
+
 
 # Log an error message
 def log_and_exit(message: str) -> NoReturn:
@@ -151,6 +153,7 @@ def process_single_fixed(remaining: str, encoding: list[str], line: str):
         check_overlapping_bits(encoding, lsb, line)
         encoding[31 - lsb] = str(value)
 
+
 # Update encoding args with variables
 def update_encoding_args(encoding_args: list[str], arg: str, msb: int, lsb: int):
     """Update encoding arguments and ensure no overlapping."""
@@ -165,9 +168,6 @@ def convert_encoding_to_match_mask(encoding: list[str]) -> tuple[str, str]:
     match = "".join(encoding).replace("-", "0")
     mask = "".join(encoding).replace("0", "1").replace("-", "0")
     return hex(int(match, 2)), hex(int(mask, 2))
-
-
-
 
 
 # Processing main function for a line in the encoding file
@@ -314,7 +314,9 @@ def update_with_expanded_instructions(
 
 
 # Process instructions, expanding segmented ones and updating the dictionary
-def add_segmented_vls_insn(instr_dict: dict[str, SingleInstr]) -> dict[str, SingleInstr]:
+def add_segmented_vls_insn(
+    instr_dict: dict[str, SingleInstr],
+) -> dict[str, SingleInstr]:
     """Processes instructions, expanding segmented ones and updating the dictionary."""
     # Use dictionary comprehension for efficiency
     return dict(

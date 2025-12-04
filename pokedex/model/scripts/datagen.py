@@ -25,18 +25,22 @@ def read_file(path):
     with open(path) as f:
         return f.read()
 
+
 def read_file_json(path):
     with open(path) as f:
         return json.load(f)
 
+
 def write_file_json(path, object, indent=2):
-    with open(path, 'w') as f:
+    with open(path, "w") as f:
         json.dump(object, f, indent=indent)
         f.write("\n")
+
 
 class CheckFailError(Exception):
     def __init__(self, message: str):
         super().__init__(message)
+
 
 def gen_causes(db: RiscvOpcodes, is_check: bool):
     CAUSE_DATA_FILE = "data_files/causes.json"
@@ -54,7 +58,9 @@ def gen_causes(db: RiscvOpcodes, is_check: bool):
             if code not in rvopcode_causes:
                 raise CheckFailError(f"exception code {code} not defined in causes.csv")
             if name != rvopcode_causes[code]:
-                raise CheckFailError(f"exception code {code} name mismatch: '{name}' in causes.json(our); {rvopcode_causes[code]} in causes.csv")
+                raise CheckFailError(
+                    f"exception code {code} name mismatch: '{name}' in causes.json(our); {rvopcode_causes[code]} in causes.csv"
+                )
     else:
         # update mode
         cause_json = {
@@ -69,22 +75,25 @@ def gen_causes(db: RiscvOpcodes, is_check: bool):
         print(f"write to file: {CAUSE_DATA_FILE}")
         write_file_json(CAUSE_DATA_FILE, cause_json)
 
+
 def gen_csr(is_check: bool):
     CSR_DATA_FILE = "data_files/csr.json"
 
     # TODO: cross check with riscv opcodes
 
     csr_list = []
-    for x in Path('csr').glob('*.asl'):
-        mode, addr_str, name = x.stem.split('_')
+    for x in Path("csr").glob("*.asl"):
+        mode, addr_str, name = x.stem.split("_")
         addr = int(addr_str, base=16)
-        csr_list.append({
-            "name": name,
-            "mode": mode,
-            "addr": addr,
-            "bin_addr": format(addr, "012b"),
-            "read_write": not mode.endswith("ro"),
-        })
+        csr_list.append(
+            {
+                "name": name,
+                "mode": mode,
+                "addr": addr,
+                "bin_addr": format(addr, "012b"),
+                "read_write": not mode.endswith("ro"),
+            }
+        )
     csr_list.sort(key=lambda x: x["addr"])
 
     if is_check:
@@ -111,20 +120,27 @@ def gen_instructions(db: RiscvOpcodes, is_check: bool, extensions: list[str]):
     for name, data in rvopcode_instrs.items():
         match data["encoding"][30:32]:
             case "11":
-                inst_encoding.append({
-                    "name": name,
-                    "encoding": data["encoding"],
-                    "extension": ",".join(data["extension"])
-                })
+                inst_encoding.append(
+                    {
+                        "name": name,
+                        "encoding": data["encoding"],
+                        "extension": ",".join(data["extension"]),
+                    }
+                )
             case "00" | "01" | "10":
                 # the C inst encoding in riscv opcodes is wired ...
                 assert data["encoding"].startswith("-" * 16)
-                cinst_encoding.append({
-                    "name": name,
-                    "encoding": data["encoding"][16:32],
-                    "extension": ",".join(data["extension"])
-                })
-            case _: raise CheckFailError(f"riscv opcodes: fail to parse inst '{name}' with encoding {data["encoding"]}")
+                cinst_encoding.append(
+                    {
+                        "name": name,
+                        "encoding": data["encoding"][16:32],
+                        "extension": ",".join(data["extension"]),
+                    }
+                )
+            case _:
+                raise CheckFailError(
+                    f"riscv opcodes: fail to parse inst '{name}' with encoding {data["encoding"]}"
+                )
     inst_encoding.sort(key=lambda x: x["name"])
     cinst_encoding.sort(key=lambda x: x["name"])
 
@@ -144,6 +160,7 @@ def gen_instructions(db: RiscvOpcodes, is_check: bool, extensions: list[str]):
         print(f"write to file: {INSTR_DATA_FILE}")
         write_file_json(INSTR_DATA_FILE, csr_json)
 
+
 def run_all(
     is_check: bool,
     enable_exts: list[str] = [],
@@ -155,9 +172,12 @@ def run_all(
     gen_csr(is_check)
     gen_instructions(db, is_check, extensions=enable_exts)
 
+
 # run as "python -m scripts.datagen"
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="generate various data files under data_files/")
+    parser = argparse.ArgumentParser(
+        description="generate various data files under data_files/"
+    )
     parser.add_argument(
         "--check",
         action="store_true",
@@ -190,5 +210,5 @@ if __name__ == "__main__":
     )
 
     if args.sentinel is not None:
-        with open(args.sentinel, 'w'):
+        with open(args.sentinel, "w"):
             pass

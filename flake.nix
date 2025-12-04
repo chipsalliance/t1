@@ -83,6 +83,7 @@
             programs = {
               nixfmt.enable = true;
               scalafmt.enable = true;
+              black.enable = true;
 
               # treefmt-nix can not determine edition automatically,
               # unlike 'cargo fmt' which reads from Cargo.toml.
@@ -94,6 +95,9 @@
               scalafmt.includes = [
                 "*.sc"
                 "*.mill"
+              ];
+              black.excludes = [
+                "pokedex/model/scripts/ninja_syntax.py"
               ];
             };
           };

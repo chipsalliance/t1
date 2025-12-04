@@ -5,9 +5,11 @@ from torch._inductor.decomposition import decompositions as inductor_decomp
 from buddy.compiler.frontend import DynamoCompiler
 from buddy.compiler.ops import tosa
 
+
 # Define the target function or model.
 def foo(x, y):
     return x * y + x
+
 
 def main():
     # Define the input data.
@@ -20,14 +22,15 @@ def main():
         aot_autograd_decomposition=inductor_decomp,
     )
 
-    # Pass the function and input data to the dynamo compiler's importer, the 
-    # importer will first build a graph. Then, lower the graph to top-level IR. 
+    # Pass the function and input data to the dynamo compiler's importer, the
+    # importer will first build a graph. Then, lower the graph to top-level IR.
     # (tosa, linalg, etc.). Finally, accepts the generated module and weight parameters.
     graphs = dynamo_compiler.importer(foo, *(float32_in1, float32_in2))
     graph = graphs[0]
     graph.lower_to_top_level_ir()
 
     print(graph._imported_module)
+
 
 if __name__ == "__main__":
     main()
