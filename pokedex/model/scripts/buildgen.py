@@ -143,43 +143,6 @@ class CustomWriter(ninja_syntax.Writer):
 
         return outputs
 
-    def generate_old_asl(w) -> list[str]:
-        w.comment("generate old asl implementations")
-        outputs = [
-            w.build_jinja(
-                f"build/1-genold/{x.name}",
-                template="template/old_expand.asl.j2",
-                defines = {
-                    "inst": x.stem,
-                    "inst_width": "16" if x.stem.startswith("c_") else "32",
-                    "include_path": str(x.relative_to("template")),
-                },
-                implicit=str(x),
-            )
-            for x in Path("template/extensions").glob("**/*.asl")
-        ]
-        w.newline()
-
-        return outputs
-
-    def generate_old_rvv_asl(w) -> list[str]:
-        w.comment("generate deprecated toml based rvv implementations")
-        outputs = [
-            w.build_jinja(
-                f"build/1-genoldrvv/{x.stem}.asl",
-                "template/rvv_inst.asl.j2",
-                data_sources=[str(x)],
-                defines={
-                    "inst": x.stem,
-                },
-                flavor="toml",
-            )
-            for x in Path("template/extensions/rv_v").glob("**/*.toml")
-        ]
-        w.newline()
-
-        return outputs
-
     def generate_new_asl(w) -> list[str]:
         w.comment("expand template instruction implementations")
         outputs = [
@@ -301,13 +264,9 @@ class CustomWriter(ninja_syntax.Writer):
 
         GENASL_SRCS = w.generate_adhoc_asl()
         GENNEW_SRCS = w.generate_new_asl()
-        GENOLD_SRCS = w.generate_old_asl()
-        GENOLDRVV_SRCS = w.generate_old_rvv_asl()
         HANDWRITTEN_SRCS = w.scan_handwritten_asl()
 
         ALL_ASL_SRCS = GENASL_SRCS + \
-            GENOLD_SRCS + \
-            GENOLDRVV_SRCS + \
             GENNEW_SRCS + \
             HANDWRITTEN_SRCS
 

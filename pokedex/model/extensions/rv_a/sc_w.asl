@@ -9,7 +9,7 @@ begin
   // NOTE: impl defined behavior
   // we do not emulate misaligned LR/SC, thus we raise access fault exception
   if addr[1:0] != '00' then
-    return Exception(CAUSE_STORE_ACCESS, addr);
+    return ExceptionMemory(CAUSE_STORE_ACCESS, addr);
   end
 
   var value : bits(XLEN);

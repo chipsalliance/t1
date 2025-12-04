@@ -31,7 +31,7 @@ begin
 
   logWrite_VTYPE_VL();
 
-  ClearVSTART();
+  clear_VSTART();
   PC = PC + 4;
   return Retired();
 end

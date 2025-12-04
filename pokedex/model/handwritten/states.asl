@@ -105,10 +105,6 @@ end
 type XRegIdx of integer{0..31};
 type FRegIdx of integer{0..31};
 
-// TODO : remove deprecated aliases
-type XREG_TYPE of integer{0..31};
-type freg_index of integer{0..31};
-
 enumeration PrivMode {
   PRIV_MODE_M
 };
@@ -130,7 +126,7 @@ begin
   __PC = npc;
 end
 
-getter X[i : XREG_TYPE] => bits(32)
+getter X[i: XRegIdx] => bits(32)
 begin
   if i == 0 then
     return Zeros(32);
@@ -139,7 +135,7 @@ begin
   end
 end
 
-setter X[i : XREG_TYPE] = value : bits(32)
+setter X[i: XRegIdx] = value : bits(32)
 begin
   if i > 0 then
     __GPR[i - 1] = value;
@@ -149,13 +145,13 @@ begin
   end
 end
 
-getter F[i : freg_index] => bits(32)
+getter F[i: FRegIdx] => bits(32)
 begin
   return __FPR[i];
 end
 
 // Instruction should use the `F` getter to update value, eg. `F[5] = Zeros(32);`
-setter F[i : FRegIdx] = value : bits(32)
+setter F[i: FRegIdx] = value : bits(32)
 begin
   __FPR[i] = value;
 
@@ -267,16 +263,6 @@ begin
   end
 end
 
-// TODO : deprecated, use resolveFrmDynamic instead
-func RM_from_bits(rm_bits : bits(3)) => RM_Result
-begin
-  let (rm, valid) = resolveFrmDynamic(rm_bits);
-  return RM_Result {
-    mode = rm,
-    valid = valid
-  };
-end
-
 // accure fflags to FFLAGS 
 func accureFFlags(fflags: bits(5))
 begin
@@ -286,20 +272,6 @@ begin
     logWrite_FCSR();
   end
 end
-
-// deprecated
-// set fflags base on the softfloat global exception flag
-func set_fflags_from_softfloat(softfloat_xcpt : integer)
-begin
-  if softfloat_xcpt == 0 then
-    return;
-  end
-
-  FFLAGS = FFLAGS OR softfloat_xcpt[4:0];
-
-  logWrite_FCSR();
-end
-
 
 func is_valid_privilege(value : bits(2)) => boolean
 begin

@@ -37,9 +37,3 @@ begin
 
   VSTART = Zeros(LOG2_VLEN);
 end
-
-// TODO: deprecated, use clear_VSTART instead
-func ClearVSTART()
-begin
-  clear_VSTART();
-end

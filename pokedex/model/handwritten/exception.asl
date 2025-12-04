@@ -17,17 +17,6 @@ let OK: Result = Result {
 };
 
 // Keep compatibility for old code.
-// trap_value smaller than 32-bits will be zero extended to 32 bits.
-func Exception(cause : integer{0..31}, payload : bits(N)) => Result
-begin
-  return Result {
-    is_ok = FALSE,
-    cause = cause,
-    payload = ZeroExtend(payload, XLEN)
-  };
-end
-
-// Keep compatibility for old code.
 func Retired() => Result
 begin
   return OK;
@@ -39,6 +28,15 @@ begin
     is_ok = FALSE,
     cause = XCPT_CODE_ILLEGAL_INSTRUCTION,
     payload = Zeros(XLEN)
+  };
+end
+
+func ExceptionMemory(cause : integer{0..31}, addr : bits(XLEN)) => Result
+begin
+  return Result {
+    is_ok = FALSE,
+    cause = cause,
+    payload = addr
   };
 end
 

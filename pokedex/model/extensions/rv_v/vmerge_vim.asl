@@ -13,8 +13,8 @@ begin
     return IllegalInstruction();
   end
 
-  let vd: VREG_TYPE = UInt(GetRD(instruction));
-  let vs2: VREG_TYPE = UInt(GetRS2(instruction));
+  let vd: VRegIdx = UInt(GetRD(instruction));
+  let vs2: VRegIdx = UInt(GetRS2(instruction));
   let imm5: bits(5) = GetRS1(instruction);
 
   let vl: integer = VL;
