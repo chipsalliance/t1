@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .riscv_opcodes_util import SingleInstr, create_inst_dict
 
+
 class RiscvOpcodes:
     root_dir: Path
 
@@ -25,7 +26,9 @@ class RiscvOpcodes:
             file_str = f.read()
         for line in file_str.splitlines():
             match = pat.fullmatch(line)
-            assert match is not None, f"failed to parse riscv opcodes cause.csv, line = '{line}'"
+            assert (
+                match is not None
+            ), f"failed to parse riscv opcodes cause.csv, line = '{line}'"
 
             code_str, name = match.groups()
             code = int(code_str, 0)
@@ -38,4 +41,3 @@ class RiscvOpcodes:
     def parse_instructions(self, extensions: list[str]) -> dict[str, SingleInstr]:
         extensions = sorted(extensions)
         return create_inst_dict(self.root_dir, file_filter=extensions)
-

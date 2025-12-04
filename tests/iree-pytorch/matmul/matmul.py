@@ -18,4 +18,4 @@ example_inputs = (
 )
 
 exported = aot.export(model, *example_inputs)
-exported.save_mlir('matmul.mlir')
+exported.save_mlir("matmul.mlir")
