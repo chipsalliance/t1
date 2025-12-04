@@ -55,33 +55,6 @@ func FFI_amo(
   value : bits(32)
 ) => FFI_ReadResult(32);
 
-// func logWrite_X(rd: XRegIdx)
-// begin
-//   FFI_write_GPR_hook(rd as bits(5));
-// end
-
-// func logWrite_F(fd: FRegIdx)
-// begin
-//   FFI_write_FPR_hook(fd as bits(5));
-// end
-
-func ffi_yield_softfloat_exception_flags() => integer;
-func ffi_f32_add(rs1 : bits(32), rs2 : bits(32), rm: bits(3)) => bits(32);
-func ffi_f32_sub(rs1 : bits(32), rs2 : bits(32), rm: bits(3)) => bits(32);
-func ffi_f32_mul(rs1 : bits(32), rs2 : bits(32), rm: bits(3)) => bits(32);
-func ffi_f32_div(rs1 : bits(32), rs2 : bits(32), rm: bits(3)) => bits(32);
-func ffi_f32_sqrt(src : bits(32), rm: bits(3)) => bits(32);
-func ffi_f32_lt(s1 : bits(32), s2 : bits(32)) => boolean;
-func ffi_f32_le(s1 : bits(32), s2 : bits(32)) => boolean;
-func ffi_f32_lt_quiet(s1 : bits(32), s2 : bits(32)) => boolean;
-func ffi_f32_eq(s1 : bits(32), s2 : bits(32)) => boolean;
-func ffi_f32_mulAdd(s1 : bits(32), s2 : bits(32), s3 : bits(32), rm : bits(3)) => bits(32);
-func ffi_f32_to_i32(src : bits(32), rm : bits(3)) => integer;
-func ffi_f32_to_ui32(src : bits(32), rm : bits(3)) => integer;
-func ffi_i32_to_f32(src : bits(32), rm : bits(3)) => bits(32);
-func ffi_ui32_to_f32(src : bits(32), rm : bits(3)) => bits(32);
-func ffi_f32_isSignalingNaN(src : bits(32)) => boolean;
-
 // following are exported accessors
 
 func ASL_read_PC() => bits(32)
