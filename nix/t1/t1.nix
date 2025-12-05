@@ -71,7 +71,7 @@ forEachConfig (
           "--strip-debug-info"
           "--strip-fir-debug-info"
           "--verification-flavor=sva"
-          "--lowering-options=verifLabels,omitVersionComment,emittedLineLength=240,locationInfoStyle=none"
+          "--lowering-options=verifLabels,omitVersionComment,emittedLineLength=240,locationInfoStyle=none,disallowLocalVariables"
         ];
         enableLayers = [
           "verification"
