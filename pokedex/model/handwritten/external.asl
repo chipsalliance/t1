@@ -5,7 +5,6 @@ record FFI_ReadResult(N) {
 
 
 func FFI_write_GPR_hook(rd: bits(5));
-func FFI_write_FPR_hook(fd: bits(5));
 func FFI_write_CSR_hook(csr: bits(12));
 func FFI_write_VREG_hook(vd_mask: bits(32));
 
@@ -67,12 +66,6 @@ end
 func ASL_read_XREG(xs: bits(5)) => bits(XLEN)
 begin
   return X[UInt(xs)];
-end
-
-/// `ASL_read_FREG(i : bits(5))` return FLEN width floating point register value at given index.
-func ASL_read_FREG(fs: bits(5)) => bits(FLEN)
-begin
-  return F[UInt(fs)];
 end
 
 /// `ASL_read_VREG(vs : bits(5))` return `VLEN` width VRF value started from `vs * VLEN`.
