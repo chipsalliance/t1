@@ -1,4 +1,5 @@
 [profile]
+name = "full"
 # mode: "msu"
 mode = "m"
 march = [

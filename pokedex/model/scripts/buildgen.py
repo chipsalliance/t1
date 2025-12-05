@@ -20,12 +20,13 @@ class Model(TypedDict):
     cflags: list[str]
 
 
-class General(TypedDict):
+class Profile(TypedDict):
+    name: str
     has_fp: bool
 
 
 class Config(TypedDict):
-    general: General
+    profile: Profile
     model: Model
 
 
@@ -139,24 +140,24 @@ class CustomWriter(ninja_syntax.Writer):
         )
         return output
 
-    def generate_adhoc_asl(self) -> list[str]:
+    def generate_adhoc_asl(self, data_dir: str) -> list[str]:
         GENASL_BASE = "build/1-genasl"
 
         outputs = [
             self.build_jinja(
                 f"{GENASL_BASE}/csr_dispatch.asl",
                 template="template/csr_dispatch.asl.j2",
-                data_sources=["data_files/csr.json"],
+                data_sources=[f"data_files/{data_dir}/csr.json"],
             ),
             self.build_jinja(
                 f"{GENASL_BASE}/inst_dispatch.asl",
                 template="template/inst_dispatch.asl.j2",
-                data_sources=[f"data_files/inst_encoding.json"],
+                data_sources=[f"data_files/{data_dir}/inst_encoding.json"],
             ),
             self.build_jinja(
                 f"{GENASL_BASE}/inst_unimplemented.asl",
                 template="template/inst_unimplemented.asl.j2",
-                data_sources=["data_files/unimplemented.json"],
+                data_sources=[f"data_files/{data_dir}/unimplemented.json"],
             ),
         ]
         self.newline()
@@ -305,7 +306,7 @@ class CustomWriter(ninja_syntax.Writer):
 
         DOC_FILES = self.generate_doc_files()
 
-        GENASL_SRCS = self.generate_adhoc_asl()
+        GENASL_SRCS = self.generate_adhoc_asl(config["profile"]["name"])
         IMPORTED_SRCS = self.import_user_asl()
 
         ALL_ASL_SRCS = GENASL_SRCS + IMPORTED_SRCS
@@ -349,9 +350,11 @@ if __name__ == "__main__":
 
     if not no_check:
         try:
-            datagen.run_all(
-                is_check=True, enable_exts=config["model"]["enabled_extensions"]
+            datagen = datagen.DataGenerator(
+                root=Path("data_files/" + config["profile"]["name"]),
+                enable_exts=config["model"]["enabled_extensions"],
             )
+            datagen.run_all(is_check=True)
         except Exception as e:
             e.add_note(
                 'ERROR: datagen check failed, may run "python -m scripts.datagen" to update'
