@@ -8,6 +8,7 @@
   ninja,
   minijinja,
   aslref,
+  pokedex-configs,
 }:
 let
   softfloat-riscv = stdenv.mkDerivation {
@@ -52,7 +53,6 @@ stdenv.mkDerivation {
         ./handwritten
         ./scripts
         ./template
-        ./config.toml
       ];
     };
 
@@ -74,6 +74,8 @@ stdenv.mkDerivation {
     # Do not let model depend on other parts of pokedex in nix build,
     # therefore directly pull the include directory.
     POKEDEX_INCLUDE = "${../simulator/include}";
+
+    POKEDEX_CONFIG = "${pokedex-configs.src}";
   };
 
   passthru = {

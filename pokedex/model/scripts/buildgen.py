@@ -4,11 +4,11 @@ from typing import Optional, TypedDict, cast, List, Tuple
 
 from pathlib import Path
 import argparse
-import itertools
 import tomllib
 import io
 import os
 import sys
+import glob
 
 from . import ninja_syntax
 from . import datagen
@@ -16,9 +16,16 @@ from . import datagen
 
 class Model(TypedDict):
     enabled_extensions: list[str]
+    sources: list[str]
+    cflags: list[str]
+
+
+class General(TypedDict):
+    has_fp: bool
 
 
 class Config(TypedDict):
+    general: General
     model: Model
 
 
@@ -87,7 +94,7 @@ class CustomWriter(ninja_syntax.Writer):
         self.build(
             "build.ninja",
             rule="buildgen",
-            implicit=["scripts/buildgen.py", "config.toml"],
+            implicit=["scripts/buildgen.py"],
         )
         self.newline()
 
@@ -156,24 +163,30 @@ class CustomWriter(ninja_syntax.Writer):
 
         return outputs
 
-    def generate_new_asl(self) -> list[str]:
-        self.comment("expand template instruction implementations")
+    def import_user_asl(self) -> list[str]:
+        w.comment("import or expand sources from config")
+
+        paths: list[Path] = []
+        for pat in self.config["model"]["sources"]:
+            pat_valid = False
+            for fp in glob.glob(pat):
+                pat_valid = True
+                paths.append(Path(fp))
+            if not pat_valid:
+                raise RuntimeError(f"Pattern '{pat}' doesn't match any file")
+
         outputs = [
-            self.build_jinja(f"build/1-gennew/{x.stem}", str(x))
-            for x in Path("extensions").glob("**/*.asl.j2")
+            (
+                w.build_jinja(f"build/1-gennew/{x.stem}", str(x))
+                if x.suffix == ".j2"
+                else str(x)
+            )
+            for x in paths
         ]
+
         self.newline()
 
         return outputs
-
-    def scan_handwritten_asl(self) -> list[str]:
-        path_list = itertools.chain(
-            Path("handwritten").glob("*.asl"),
-            Path("csr").glob("*.asl"),
-            Path("extensions").glob("**/*.asl"),
-        )
-
-        return [str(x) for x in path_list]
 
     def generate_asl2c(
         self, asl_sources: list[str], basename="pokedex-sim"
@@ -256,7 +269,7 @@ class CustomWriter(ninja_syntax.Writer):
             "-fvisibility=hidden",
             "-Wl,--exclude-libs,ALL",
             "-Wl,--no-undefined",
-        ]
+        ] + self.config["model"]["cflags"]
         self.build(
             cdylib,
             rule="cc_shared",
@@ -293,10 +306,9 @@ class CustomWriter(ninja_syntax.Writer):
         DOC_FILES = self.generate_doc_files()
 
         GENASL_SRCS = self.generate_adhoc_asl()
-        GENNEW_SRCS = self.generate_new_asl()
-        HANDWRITTEN_SRCS = self.scan_handwritten_asl()
+        IMPORTED_SRCS = self.import_user_asl()
 
-        ALL_ASL_SRCS = GENASL_SRCS + GENNEW_SRCS + HANDWRITTEN_SRCS
+        ALL_ASL_SRCS = GENASL_SRCS + IMPORTED_SRCS
 
         CMODEL_FILES, CLIB_FILE, CDYLIB_FILE = self.generate_asl2c(ALL_ASL_SRCS)
 
@@ -318,7 +330,10 @@ if __name__ == "__main__":
         help="print build.ninja to stdout",
     )
     parser.add_argument(
-        "--config", default="config.toml", help="override config toml path"
+        "--config",
+        default=None,
+        required=False,
+        help="override config toml path",
     )
 
     args = parser.parse_args()
@@ -327,8 +342,9 @@ if __name__ == "__main__":
         os.environ["BUILDGEN_NO_CHECK"] == "1"
     )
 
+    cfg_path = args.config or os.environ.get("POKEDEX_CONFIG") or "config.toml"
     config: Config
-    with open(args.config, "rb") as f:
+    with open(cfg_path, "rb") as f:
         config = cast(Config, tomllib.load(f))
 
     if not no_check:
