@@ -1,0 +1,79 @@
+[profile]
+name = "integer"
+# mode = "MSU"
+mode = "M"
+ext.i = true
+ext.m = true
+ext.a = true
+ext.c = true
+ext.zifencei = true
+ext.zicsr = true
+ext.zve32x = true
+ext.zvl256b = true
+# Extract useful part to help downstream do less parsing job
+march = "rv32imac_zifencei_zicsr_zve32x_zvl256b"
+abi = "ilp32"
+xlen = 32
+vlen = 256
+flen = 0
+
+[model]
+# TODO: we shouldn't need this after removing riscv-opcodes
+enabled_extensions = [
+    'rv_i',
+    'rv_m',
+    'rv_a',
+    'rv_c',
+    'rv_v',
+    'rv_zicsr',
+    'rv_zifencei',
+    'rv32_i',
+    'rv32_c',
+    'rv_system',
+]
+# Control optional import source from extensions and CSR
+sources = [
+    "handwritten/args.asl",
+    "handwritten/causes.asl",
+    "handwritten/exception.asl",
+    "handwritten/external.asl",
+    "handwritten/memory.asl",
+    "handwritten/riscv_arith.asl",
+    "handwritten/states.asl",
+    "handwritten/states_v.asl",
+    "handwritten/step.asl",
+    "handwritten/trap.asl",
+    "handwritten/util.asl",
+
+    "handwritten/non_fp_compact.asl",
+
+    "extensions/rv_a/*.asl*",
+    "extensions/rv_c/*.asl*",
+    "extensions/rv_im_zifencei/*.asl*",
+    "extensions/rv_priv/*.asl*",
+    "extensions/rv_v/*.asl*",
+    "extensions/rv_vmem/*.asl*",
+    "extensions/rv_zicsr/*.asl*",
+
+    "csr/mro_f11_mvendorid.asl",
+    "csr/mro_f12_marchid.asl",
+    "csr/mro_f13_mimpid.asl",
+    "csr/mro_f14_mhartid.asl",
+    "csr/mro_f15_mconfigptr.asl",
+    "csr/mrw_300_mstatus.asl",
+    "csr/mrw_301_misa.asl",
+    "csr/mrw_304_mie.asl",
+    "csr/mrw_305_mtvec.asl",
+    "csr/mrw_310_mstatush.asl",
+    "csr/mrw_340_mscratch.asl",
+    "csr/mrw_341_mepc.asl",
+    "csr/mrw_342_mcause.asl",
+    "csr/mrw_344_mip.asl",
+    "csr/uro_c20_vl.asl",
+    "csr/uro_c21_vtype.asl",
+    "csr/uro_c22_vlenb.asl",
+    "csr/urw_00a_vxrm.asl",
+    "csr/urw_00f_vcsr.asl",
+    "csr/urw_008_vstart.asl",
+    "csr/urw_009_vxsat.asl",
+]

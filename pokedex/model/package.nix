@@ -8,6 +8,7 @@
   ninja,
   minijinja,
   aslref,
+  pokedex-configs,
 }:
 let
   softfloat-riscv = stdenv.mkDerivation {
@@ -52,7 +53,6 @@ stdenv.mkDerivation {
         ./handwritten
         ./scripts
         ./template
-        ./config.toml
       ];
     };
 
@@ -64,17 +64,25 @@ stdenv.mkDerivation {
     aslref
   ];
 
-  env = {
-    RISCV_OPCODES_SRC = "${riscv-opcodes-src}";
+  env =
+    {
+      RISCV_OPCODES_SRC = "${riscv-opcodes-src}";
 
-    SOFTFLOAT_RISCV_INCLUDE = "${softfloat-riscv}/include";
+      SOFTFLOAT_RISCV_INCLUDE = "${softfloat-riscv}/include";
 
-    SOFTFLOAT_RISCV_LIB = "${softfloat-riscv}/lib/libsoftfloat.a";
+      SOFTFLOAT_RISCV_LIB = "${softfloat-riscv}/lib/libsoftfloat.a";
 
-    # Do not let model depend on other parts of pokedex in nix build,
-    # therefore directly pull the include directory.
-    POKEDEX_INCLUDE = "${../simulator/include}";
-  };
+      # Do not let model depend on other parts of pokedex in nix build,
+      # therefore directly pull the include directory.
+      POKEDEX_INCLUDE = "${../simulator/include}";
+
+      POKEDEX_CONFIG = "${pokedex-configs.src}";
+
+    }
+    // lib.optionalAttrs (!(pokedex-configs.profile.ext ? f && pokedex-configs.profile.ext ? zve32f)) {
+      # Disable instruction opcode check because rv_v have both fp and non-fp instruction
+      BUILDGEN_NO_CHECK = "1";
+    };
 
   passthru = {
     inherit softfloat-riscv;

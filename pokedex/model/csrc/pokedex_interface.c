@@ -1,3 +1,4 @@
+#include <pokedex_config.h>
 #include <pokedex-sim_types.h>
 #include <pokedex-sim_vars.h>
 #include <pokedex-sim_exceptions.h>
@@ -142,11 +143,6 @@ void FFI_write_GPR_hook_0(unsigned _BitInt(5) rd) {
     trace_buffer.xreg_mask |= 1 << rd;
 }
 
-void FFI_write_FPR_hook_0(unsigned _BitInt(5) fd) {
-    assert(trace_buffer.valid);
-    trace_buffer.freg_mask |= 1 << fd;
-}
-
 void FFI_write_VREG_hook_0(uint32_t vd_mask) {
     assert(trace_buffer.valid);
     trace_buffer.vreg_mask |= vd_mask;
@@ -281,10 +277,6 @@ static uint64_t sext(uint32_t x) {
     return (uint64_t)(int64_t)(int32_t)x;
 }
 
-static uint64_t nanbox(uint32_t x) {
-    return 0xFFFFFFFF00000000 | x;
-}
-
 static void model_read_pc(void* _model, uint64_t* ret){
     (void)(_model);
 
@@ -297,22 +289,32 @@ static void model_read_xreg(void* _model, uint8_t xs, uint64_t* ret){
     *ret = sext(ASL_read_XREG_0(xs));
 }
 
+static uint64_t nanbox(uint32_t x) {
+    return 0xFFFFFFFF00000000 | x;
+}
+
+#ifdef POKEDEX_CONFIG_EXT_F
+
 static void model_read_freg(void* _model, uint8_t fs, uint64_t* ret){
     (void)(_model);
 
     *ret = nanbox(ASL_read_FREG_0(fs));
 }
 
+void FFI_write_FPR_hook_0(unsigned _BitInt(5) fd) {
+    assert(trace_buffer.valid);
+    trace_buffer.freg_mask |= 1 << fd;
+}
+
+#endif // POKEDEX_CONFIG_EXT_F
+
 static void model_read_vreg(void* _model, uint8_t vs, uint8_t* buf, size_t buflen) {
     (void)(_model);
 
-    // FIXME: get VLEN from ASL side instead of hard-coding
-    const int VLEN = 256;
-
-    assert(buflen == VLEN / 8);
+    assert(buflen == POKEDEX_CONFIG_VLEN / 8);
 
     unsigned _BitInt(256) vreg = ASL_read_VREG_0(vs);
-    memcpy(buf, &vreg, VLEN / 8);
+    memcpy(buf, &vreg, POKEDEX_CONFIG_VLEN / 8);
 }
 
 static void model_read_csr(void* _model, uint16_t csr, uint64_t* ret){
@@ -323,10 +325,11 @@ static void model_read_csr(void* _model, uint16_t csr, uint64_t* ret){
 }
 
 static const struct pokedex_model_description model_desc = {
-    .model_isa = "rv32imacf_zve32_zvl256",
-    .xlen = 32,
-    .flen = 32,
-    .vlen = 256,
+    .model_isa = POKEDEX_CONFIG_ISA,
+    .model_priv = POKEDEX_CONFIG_PRIV,
+    .xlen = POKEDEX_CONFIG_XLEN,
+    .flen = POKEDEX_CONFIG_FLEN,
+    .vlen = POKEDEX_CONFIG_VLEN,
 };
 
 const struct pokedex_model_description* model_get_description(void* _model) {
@@ -349,7 +352,11 @@ static const struct pokedex_model_export model_export = {
 
     .get_pc = model_read_pc,
     .get_xreg = model_read_xreg,
+#ifdef POKEDEX_CONFIG_EXT_F
     .get_freg = model_read_freg,
+#else
+    .get_freg = NULL,
+#endif
     .get_vreg = model_read_vreg,
     .get_csr = model_read_csr,
 };
