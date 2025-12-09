@@ -1,7 +1,7 @@
 #import "@preview/fletcher:0.5.8" as fletcher: diagram, edge, node
 #import fletcher.shapes: hexagon, house
 
-#let in_release = sys.inputs.keys().any(k => k == "release")
+#let release_mode = sys.inputs.keys().any(k => k == "release")
 #let darkmode_enable = sys.inputs.keys().any(k => k == "enable_darkmode")
 
 #let theme = (
@@ -1157,22 +1157,13 @@ spike --isa=rv32imafc_zvl256b_zve32x_zifencei \
 - `-m`: Replicates the Pokedex memory layout (SRAM and MMIO regions) within Spike.
 
 = Model Reference <model-reference>
-#if in_release {
-  let doc_comments = yaml("doc-comments.yml").doc-comments
-  let csr_ref_blocks = ()
-  let inst_ref_blocks = ()
-  for block in doc_comments {
-    if block.at("csr", default: "None") != "None" {
-      csr_ref_blocks.push(block)
-    } else if block.at("inst", default: "None") != "None" {
-      inst_ref_blocks.push(block)
-    } else {
-      assert(true, message: "Unexpected block found in doc-comments")
-    }
-  }
 
-  assert((csr_ref_blocks.len() > 0), message: "No CSR comment found")
-  assert((inst_ref_blocks.len() > 0), message: "No instruction comment found")
+#if release_mode {
+  let inst_meta = yaml("inst-metadata.yml").metadata
+  let csr_meta = yaml("csr-metadata.yml").metadata
+
+  assert((inst_meta.len() > 0), message: "No CSR comment found")
+  assert((csr_meta.len() > 0), message: "No instruction comment found")
 
   // How do we deal with this file needs to be discussed
   let arg_lut_db = json("arg_lut.json")
@@ -1186,7 +1177,7 @@ spike --isa=rv32imafc_zvl256b_zve32x_zifencei \
   }
 
   [== Instruction Reference <instruction-reference>]
-  for inst_ref in inst_ref_blocks {
+  for inst_ref in inst_meta {
     [
       #heading(depth: 3, upper(inst_ref.inst))
       #label("inst-doc-" + inst_ref.inst)
@@ -1195,11 +1186,11 @@ spike --isa=rv32imafc_zvl256b_zve32x_zifencei \
       - *Extension Set*: #raw(inst_ref.extension)
     ]
 
-    eval(inst_ref.body, mode: "markup", scope: (argLut: argLut))
+    eval(inst_ref.desc, mode: "markup", scope: (argLut: argLut))
   }
 
   [== CSR Reference <csr-reference>]
-  for csr_ref in csr_ref_blocks {
+  for csr_ref in csr_meta {
     [
       #heading(depth: 3, upper(csr_ref.csr))
       #label("csr-doc-" + csr_ref.csr)
@@ -1209,7 +1200,7 @@ spike --isa=rv32imafc_zvl256b_zve32x_zifencei \
       - *Number*: #raw(str(csr_ref.id))
     ]
 
-    markup(csr_ref.body)
+    markup(csr_ref.desc)
   }
 }
 
