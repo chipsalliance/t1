@@ -86,8 +86,6 @@ stdenv.mkDerivation {
 
   passthru = {
     inherit softfloat-riscv;
-
-    doc-comments-file = "docs/doc-comments.yml";
   };
 
   configurePhase = ''
