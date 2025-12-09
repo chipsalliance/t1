@@ -65,15 +65,3 @@ rv32ua/amoxor_w.S
 #
 # rv32uc
 rv32uc/rvc.S
-# rv32uf
-rv32uf/fadd.S
-rv32uf/fclass.S
-rv32uf/fcmp.S
-rv32uf/fcvt.S
-rv32uf/fcvt_w.S
-rv32uf/fdiv.S
-rv32uf/fmadd.S
-rv32uf/fmin.S
-rv32uf/ldst.S
-rv32uf/move.S
-rv32uf/recoding.S

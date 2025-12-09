@@ -22,6 +22,7 @@
   model,
   simulator,
   jq,
+  pokedex-configs,
 }:
 
 {
@@ -68,7 +69,7 @@ stdenvNoCC.mkDerivation {
   spikePhase = ''
     runHook preRunSpike
 
-    "$spike" --isa=rv32imafc_zvl256b_zve32x_zifencei \
+    "$spike" --isa=${pokedex-configs.profile.march} \
       --priv=m --log-commits -p1 --hartids=0 --triggers=0 \
       -m0x80000000:0x20000000,0x40000000:0x1000 \
       --log="$spikeLog" \

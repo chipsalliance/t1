@@ -2,6 +2,7 @@
   rv32-stdenv,
   mkDiffEnv,
   pokedex-compile-stubs,
+  pokedex-configs,
 }:
 rv32-stdenv.mkDerivation (finalAttrs: {
   name = "pokedex-smoke-tests";
@@ -11,6 +12,9 @@ rv32-stdenv.mkDerivation (finalAttrs: {
   # Variable that can be reused in nix develop
   env = {
     POKEDEX_COMPILE_STUBS = "${pokedex-compile-stubs}";
+    MARCH = "${pokedex-configs.profile.march}";
+    XLEN = "${toString pokedex-configs.profile.xlen}";
+    ABI = "${pokedex-configs.profile.abi}";
   };
 
   makeFlags = [

@@ -6,7 +6,7 @@ MARCH ?= rv32imafc_zve32x_zvl$(VLEN)b
 ABI ?= ilp32f
 
 RISCV_TESTS_SRC ?=
-CASE_LIST := ./case_list.txt
+CASE_LIST := ./case_list.txt ./fp_case_list.txt
 TESTS_CASES := $(shell grep -v "^#" $(CASE_LIST) | xargs)
 
 BUILD := build
