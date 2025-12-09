@@ -3,8 +3,6 @@
 import argparse
 import json
 from pathlib import Path
-import tomllib
-import typing
 
 from .riscv_opcodes import RiscvOpcodes
 
@@ -30,136 +28,111 @@ class CheckFailError(Exception):
         super().__init__(message)
 
 
-def gen_causes(db: RiscvOpcodes, is_check: bool):
-    CAUSE_DATA_FILE = "data_files/causes.json"
+class DataGenerator:
+    def __init__(
+        self,
+        root: Path,
+        riscv_opcodes_src: str | None = None,
+        enable_exts: list[str] = [],
+    ):
+        self.root = root
+        self.db = RiscvOpcodes(riscv_opcodes_src)
+        self.is_check = False
+        self.enable_exts = enable_exts
 
-    rvopcode_causes = db.parse_causes()
-    # print(rvopcode_causes)
+    def gen_csr(self):
+        CSR_DATA_FILE = self.root / "csr.json"
 
-    if is_check:
-        # check mode
-        cause_json = read_file_json(CAUSE_DATA_FILE)
-        for cause in cause_json["exceptions"]:
-            name = cause["name"]
-            code = cause["code"]
+        # TODO: cross check with riscv opcodes
 
-            if code not in rvopcode_causes:
-                raise CheckFailError(f"exception code {code} not defined in causes.csv")
-            if name != rvopcode_causes[code]:
-                raise CheckFailError(
-                    f"exception code {code} name mismatch: '{name}' in causes.json(our); {rvopcode_causes[code]} in causes.csv"
-                )
-    else:
-        # update mode
-        cause_json = {
-            "exceptions": [
+        csr_list = []
+        for x in Path("csr").glob("*.asl"):
+            mode, addr_str, name = x.stem.split("_")
+            addr = int(addr_str, base=16)
+            csr_list.append(
                 {
                     "name": name,
-                    "code": code,
+                    "mode": mode,
+                    "addr": addr,
+                    "bin_addr": format(addr, "012b"),
+                    "read_write": not mode.endswith("ro"),
                 }
-                for code, name in rvopcode_causes.items()
-            ],
-        }
-        print(f"write to file: {CAUSE_DATA_FILE}")
-        write_file_json(CAUSE_DATA_FILE, cause_json)
+            )
+        csr_list.sort(key=lambda x: x["addr"])
 
-
-def gen_csr(is_check: bool):
-    CSR_DATA_FILE = "data_files/csr.json"
-
-    # TODO: cross check with riscv opcodes
-
-    csr_list = []
-    for x in Path("csr").glob("*.asl"):
-        mode, addr_str, name = x.stem.split("_")
-        addr = int(addr_str, base=16)
-        csr_list.append(
-            {
-                "name": name,
-                "mode": mode,
-                "addr": addr,
-                "bin_addr": format(addr, "012b"),
-                "read_write": not mode.endswith("ro"),
+        if self.is_check:
+            # check mode
+            csr_json = read_file_json(CSR_DATA_FILE)
+            if csr_list != csr_json["csr_metadata"]:
+                raise CheckFailError("csr table misatch, run ./datagen.py to update")
+        else:
+            # update mode
+            csr_json = {
+                "csr_metadata": csr_list,
             }
-        )
-    csr_list.sort(key=lambda x: x["addr"])
+            print(f"write to file: {CSR_DATA_FILE}")
+            write_file_json(CSR_DATA_FILE, csr_json)
 
-    if is_check:
-        # check mode
-        csr_json = read_file_json(CSR_DATA_FILE)
-        if csr_list != csr_json["csr_metadata"]:
-            raise CheckFailError("csr table misatch, run ./datagen.py to update")
-    else:
-        # update mode
-        csr_json = {
-            "csr_metadata": csr_list,
-        }
-        print(f"write to file: {CSR_DATA_FILE}")
-        write_file_json(CSR_DATA_FILE, csr_json)
+    def gen_instructions(self):
+        INSTR_DATA_FILE = self.root / "inst_encoding.json"
+        print(f"[datagen] Generating for extensions: {", ".join(self.enable_exts)}")
 
+        rvopcode_instrs = self.db.parse_instructions(self.enable_exts)
 
-def gen_instructions(db: RiscvOpcodes, is_check: bool, extensions: list[str]):
-    INSTR_DATA_FILE = "data_files/inst_encoding.json"
-    print(f"[datagen] Generating for extensions: {", ".join(extensions)}")
+        inst_encoding = []
+        cinst_encoding = []
+        for name, data in rvopcode_instrs.items():
+            match data["encoding"][30:32]:
+                case "11":
+                    inst_encoding.append(
+                        {
+                            "name": name,
+                            "encoding": data["encoding"],
+                            "extension": ",".join(data["extension"]),
+                        }
+                    )
+                case "00" | "01" | "10":
+                    # the C inst encoding in riscv opcodes is wired ...
+                    assert data["encoding"].startswith("-" * 16)
+                    cinst_encoding.append(
+                        {
+                            "name": name,
+                            "encoding": data["encoding"][16:32],
+                            "extension": ",".join(data["extension"]),
+                        }
+                    )
+                case _:
+                    raise CheckFailError(
+                        f"riscv opcodes: fail to parse inst '{name}' with encoding {data["encoding"]}"
+                    )
+        inst_encoding.sort(key=lambda x: x["name"])
+        cinst_encoding.sort(key=lambda x: x["name"])
 
-    rvopcode_instrs = db.parse_instructions(extensions)
-
-    inst_encoding = []
-    cinst_encoding = []
-    for name, data in rvopcode_instrs.items():
-        match data["encoding"][30:32]:
-            case "11":
-                inst_encoding.append(
-                    {
-                        "name": name,
-                        "encoding": data["encoding"],
-                        "extension": ",".join(data["extension"]),
-                    }
-                )
-            case "00" | "01" | "10":
-                # the C inst encoding in riscv opcodes is wired ...
-                assert data["encoding"].startswith("-" * 16)
-                cinst_encoding.append(
-                    {
-                        "name": name,
-                        "encoding": data["encoding"][16:32],
-                        "extension": ",".join(data["extension"]),
-                    }
-                )
-            case _:
+        if self.is_check:
+            # check mode
+            instr_json = read_file_json(INSTR_DATA_FILE)
+            if inst_encoding != instr_json["inst_encoding"]:
                 raise CheckFailError(
-                    f"riscv opcodes: fail to parse inst '{name}' with encoding {data["encoding"]}"
+                    "inst table misatch, run python3 -m scripts.datagen to update"
                 )
-    inst_encoding.sort(key=lambda x: x["name"])
-    cinst_encoding.sort(key=lambda x: x["name"])
+            if cinst_encoding != instr_json["cinst_encoding"]:
+                raise CheckFailError(
+                    "inst table misatch, run python3 -m scripts.datagen to update"
+                )
+        else:
+            # update mode
+            csr_json = {
+                "inst_encoding": inst_encoding,
+                "cinst_encoding": cinst_encoding,
+            }
+            print(f"write to file: {INSTR_DATA_FILE}")
+            write_file_json(INSTR_DATA_FILE, csr_json)
 
-    if is_check:
-        # check mode
-        instr_json = read_file_json(INSTR_DATA_FILE)
-        if inst_encoding != instr_json["inst_encoding"]:
-            raise CheckFailError("inst table misatch, run ./datagen.py to update")
-        if cinst_encoding != instr_json["cinst_encoding"]:
-            raise CheckFailError("inst table misatch, run ./datagen.py to update")
-    else:
-        # update mode
-        csr_json = {
-            "inst_encoding": inst_encoding,
-            "cinst_encoding": cinst_encoding,
-        }
-        print(f"write to file: {INSTR_DATA_FILE}")
-        write_file_json(INSTR_DATA_FILE, csr_json)
+    def run_all(self, is_check: bool):
+        self.is_check = is_check
 
-
-def run_all(
-    is_check: bool,
-    enable_exts: list[str] = [],
-    riscv_opcodes_src: str | None = None,
-):
-    db = RiscvOpcodes(riscv_opcodes_src)
-
-    gen_causes(db, is_check)
-    gen_csr(is_check)
-    gen_instructions(db, is_check, extensions=enable_exts)
+        self.gen_csr()
+        self.gen_instructions()
 
 
 # run as "python -m scripts.datagen"
@@ -183,14 +156,16 @@ if __name__ == "__main__":
         required=False,
         help="path to riscv opcodes repo, default to env $RISCV_OPCODES_SRC",
     )
+    parser.add_argument("--root", default="data_files", help="root dir to save file")
 
     args = parser.parse_args()
 
-    run_all(
-        is_check=args.check,
-        enable_exts=args.extensions,
+    generator = DataGenerator(
+        root=Path(args.root),
         riscv_opcodes_src=args.riscv_opcodes_src,
+        enable_exts=args.extensions,
     )
+    generator.run_all(is_check=args.check)
 
     if args.sentinel is not None:
         with open(args.sentinel, "w"):

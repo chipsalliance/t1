@@ -1,0 +1,19 @@
+/* Ninja auto-generated configuration header */
+
+#ifndef POKEDEX_CONFIG_H
+#define POKEDEX_CONFIG_H
+
+#define POKEDEX_CONFIG_PRIV "{{ profile.mode | upper }}"
+
+#define POKEDEX_CONFIG_XLEN {{ profile.xlen }}
+#define POKEDEX_CONFIG_FLEN {{ profile.flen }}
+#define POKEDEX_CONFIG_VLEN {{ profile.vlen }}
+#define POKEDEX_CONFIG_ISA "{{ profile.march }}"
+
+{% for ext_name in profile.ext %}
+{%- if profile.ext[ext_name] %}
+#define POKEDEX_CONFIG_EXT_{{ ext_name | upper }} 1
+{%- endif %}
+{%- endfor %}
+
+#endif // POKEDEX_CONFIG_H

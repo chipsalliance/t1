@@ -1,0 +1,1901 @@
+{
+  "inst_encoding": [
+    {
+      "name": "add",
+      "encoding": "0000000----------000-----0110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "addi",
+      "encoding": "-----------------000-----0010011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "amoadd_w",
+      "encoding": "00000------------010-----0101111",
+      "extension": "rv_a"
+    },
+    {
+      "name": "amoand_w",
+      "encoding": "01100------------010-----0101111",
+      "extension": "rv_a"
+    },
+    {
+      "name": "amomax_w",
+      "encoding": "10100------------010-----0101111",
+      "extension": "rv_a"
+    },
+    {
+      "name": "amomaxu_w",
+      "encoding": "11100------------010-----0101111",
+      "extension": "rv_a"
+    },
+    {
+      "name": "amomin_w",
+      "encoding": "10000------------010-----0101111",
+      "extension": "rv_a"
+    },
+    {
+      "name": "amominu_w",
+      "encoding": "11000------------010-----0101111",
+      "extension": "rv_a"
+    },
+    {
+      "name": "amoor_w",
+      "encoding": "01000------------010-----0101111",
+      "extension": "rv_a"
+    },
+    {
+      "name": "amoswap_w",
+      "encoding": "00001------------010-----0101111",
+      "extension": "rv_a"
+    },
+    {
+      "name": "amoxor_w",
+      "encoding": "00100------------010-----0101111",
+      "extension": "rv_a"
+    },
+    {
+      "name": "and",
+      "encoding": "0000000----------111-----0110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "andi",
+      "encoding": "-----------------111-----0010011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "auipc",
+      "encoding": "-------------------------0010111",
+      "extension": "rv_i"
+    },
+    {
+      "name": "beq",
+      "encoding": "-----------------000-----1100011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "bge",
+      "encoding": "-----------------101-----1100011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "bgeu",
+      "encoding": "-----------------111-----1100011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "blt",
+      "encoding": "-----------------100-----1100011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "bltu",
+      "encoding": "-----------------110-----1100011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "bne",
+      "encoding": "-----------------001-----1100011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "csrrc",
+      "encoding": "-----------------011-----1110011",
+      "extension": "rv_zicsr"
+    },
+    {
+      "name": "csrrci",
+      "encoding": "-----------------111-----1110011",
+      "extension": "rv_zicsr"
+    },
+    {
+      "name": "csrrs",
+      "encoding": "-----------------010-----1110011",
+      "extension": "rv_zicsr"
+    },
+    {
+      "name": "csrrsi",
+      "encoding": "-----------------110-----1110011",
+      "extension": "rv_zicsr"
+    },
+    {
+      "name": "csrrw",
+      "encoding": "-----------------001-----1110011",
+      "extension": "rv_zicsr"
+    },
+    {
+      "name": "csrrwi",
+      "encoding": "-----------------101-----1110011",
+      "extension": "rv_zicsr"
+    },
+    {
+      "name": "div",
+      "encoding": "0000001----------100-----0110011",
+      "extension": "rv_m"
+    },
+    {
+      "name": "divu",
+      "encoding": "0000001----------101-----0110011",
+      "extension": "rv_m"
+    },
+    {
+      "name": "ebreak",
+      "encoding": "00000000000100000000000001110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "ecall",
+      "encoding": "00000000000000000000000001110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "fence",
+      "encoding": "-----------------000-----0001111",
+      "extension": "rv_i"
+    },
+    {
+      "name": "fence_i",
+      "encoding": "-----------------001-----0001111",
+      "extension": "rv_zifencei"
+    },
+    {
+      "name": "jal",
+      "encoding": "-------------------------1101111",
+      "extension": "rv_i"
+    },
+    {
+      "name": "jalr",
+      "encoding": "-----------------000-----1100111",
+      "extension": "rv_i"
+    },
+    {
+      "name": "lb",
+      "encoding": "-----------------000-----0000011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "lbu",
+      "encoding": "-----------------100-----0000011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "lh",
+      "encoding": "-----------------001-----0000011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "lhu",
+      "encoding": "-----------------101-----0000011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "lr_w",
+      "encoding": "00010--00000-----010-----0101111",
+      "extension": "rv_a"
+    },
+    {
+      "name": "lui",
+      "encoding": "-------------------------0110111",
+      "extension": "rv_i"
+    },
+    {
+      "name": "lw",
+      "encoding": "-----------------010-----0000011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "mret",
+      "encoding": "00110000001000000000000001110011",
+      "extension": "rv_system"
+    },
+    {
+      "name": "mul",
+      "encoding": "0000001----------000-----0110011",
+      "extension": "rv_m"
+    },
+    {
+      "name": "mulh",
+      "encoding": "0000001----------001-----0110011",
+      "extension": "rv_m"
+    },
+    {
+      "name": "mulhsu",
+      "encoding": "0000001----------010-----0110011",
+      "extension": "rv_m"
+    },
+    {
+      "name": "mulhu",
+      "encoding": "0000001----------011-----0110011",
+      "extension": "rv_m"
+    },
+    {
+      "name": "or",
+      "encoding": "0000000----------110-----0110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "ori",
+      "encoding": "-----------------110-----0010011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "rem",
+      "encoding": "0000001----------110-----0110011",
+      "extension": "rv_m"
+    },
+    {
+      "name": "remu",
+      "encoding": "0000001----------111-----0110011",
+      "extension": "rv_m"
+    },
+    {
+      "name": "sb",
+      "encoding": "-----------------000-----0100011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "sc_w",
+      "encoding": "00011------------010-----0101111",
+      "extension": "rv_a"
+    },
+    {
+      "name": "sh",
+      "encoding": "-----------------001-----0100011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "sll",
+      "encoding": "0000000----------001-----0110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "slli",
+      "encoding": "0000000----------001-----0010011",
+      "extension": "rv32_i"
+    },
+    {
+      "name": "slt",
+      "encoding": "0000000----------010-----0110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "slti",
+      "encoding": "-----------------010-----0010011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "sltiu",
+      "encoding": "-----------------011-----0010011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "sltu",
+      "encoding": "0000000----------011-----0110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "sra",
+      "encoding": "0100000----------101-----0110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "srai",
+      "encoding": "0100000----------101-----0010011",
+      "extension": "rv32_i"
+    },
+    {
+      "name": "srl",
+      "encoding": "0000000----------101-----0110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "srli",
+      "encoding": "0000000----------101-----0010011",
+      "extension": "rv32_i"
+    },
+    {
+      "name": "sub",
+      "encoding": "0100000----------000-----0110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "sw",
+      "encoding": "-----------------010-----0100011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "vaadd_vv",
+      "encoding": "001001-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vaadd_vx",
+      "encoding": "001001-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vaaddu_vv",
+      "encoding": "001000-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vaaddu_vx",
+      "encoding": "001000-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vadc_vim",
+      "encoding": "0100000----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vadc_vvm",
+      "encoding": "0100000----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vadc_vxm",
+      "encoding": "0100000----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vadd_vi",
+      "encoding": "000000-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vadd_vv",
+      "encoding": "000000-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vadd_vx",
+      "encoding": "000000-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vand_vi",
+      "encoding": "001001-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vand_vv",
+      "encoding": "001001-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vand_vx",
+      "encoding": "001001-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vasub_vv",
+      "encoding": "001011-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vasub_vx",
+      "encoding": "001011-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vasubu_vv",
+      "encoding": "001010-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vasubu_vx",
+      "encoding": "001010-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vcompress_vm",
+      "encoding": "0101111----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vcpop_m",
+      "encoding": "010000------10000010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vdiv_vv",
+      "encoding": "100001-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vdiv_vx",
+      "encoding": "100001-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vdivu_vv",
+      "encoding": "100000-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vdivu_vx",
+      "encoding": "100000-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vfirst_m",
+      "encoding": "010000------10001010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vid_v",
+      "encoding": "010100-0000010001010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "viota_m",
+      "encoding": "010100------10000010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl1re16_v",
+      "encoding": "000000101000-----101-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl1re32_v",
+      "encoding": "000000101000-----110-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl1re64_v",
+      "encoding": "000000101000-----111-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl1re8_v",
+      "encoding": "000000101000-----000-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl2re16_v",
+      "encoding": "001000101000-----101-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl2re32_v",
+      "encoding": "001000101000-----110-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl2re64_v",
+      "encoding": "001000101000-----111-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl2re8_v",
+      "encoding": "001000101000-----000-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl4re16_v",
+      "encoding": "011000101000-----101-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl4re32_v",
+      "encoding": "011000101000-----110-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl4re64_v",
+      "encoding": "011000101000-----111-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl4re8_v",
+      "encoding": "011000101000-----000-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl8re16_v",
+      "encoding": "111000101000-----101-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl8re32_v",
+      "encoding": "111000101000-----110-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl8re64_v",
+      "encoding": "111000101000-----111-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vl8re8_v",
+      "encoding": "111000101000-----000-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vle16_v",
+      "encoding": "---000-00000-----101-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vle16ff_v",
+      "encoding": "---000-10000-----101-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vle32_v",
+      "encoding": "---000-00000-----110-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vle32ff_v",
+      "encoding": "---000-10000-----110-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vle64_v",
+      "encoding": "---000-00000-----111-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vle64ff_v",
+      "encoding": "---000-10000-----111-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vle8_v",
+      "encoding": "---000-00000-----000-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vle8ff_v",
+      "encoding": "---000-10000-----000-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vlm_v",
+      "encoding": "000000101011-----000-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vloxei16_v",
+      "encoding": "---011-----------101-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vloxei32_v",
+      "encoding": "---011-----------110-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vloxei64_v",
+      "encoding": "---011-----------111-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vloxei8_v",
+      "encoding": "---011-----------000-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vlse16_v",
+      "encoding": "---010-----------101-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vlse32_v",
+      "encoding": "---010-----------110-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vlse64_v",
+      "encoding": "---010-----------111-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vlse8_v",
+      "encoding": "---010-----------000-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vluxei16_v",
+      "encoding": "---001-----------101-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vluxei32_v",
+      "encoding": "---001-----------110-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vluxei64_v",
+      "encoding": "---001-----------111-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vluxei8_v",
+      "encoding": "---001-----------000-----0000111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmacc_vv",
+      "encoding": "101101-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmacc_vx",
+      "encoding": "101101-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmadc_vi",
+      "encoding": "0100011----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmadc_vim",
+      "encoding": "0100010----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmadc_vv",
+      "encoding": "0100011----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmadc_vvm",
+      "encoding": "0100010----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmadc_vx",
+      "encoding": "0100011----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmadc_vxm",
+      "encoding": "0100010----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmadd_vv",
+      "encoding": "101001-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmadd_vx",
+      "encoding": "101001-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmand_mm",
+      "encoding": "0110011----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmandn_mm",
+      "encoding": "0110001----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmax_vv",
+      "encoding": "000111-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmax_vx",
+      "encoding": "000111-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmaxu_vv",
+      "encoding": "000110-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmaxu_vx",
+      "encoding": "000110-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmerge_vim",
+      "encoding": "0101110----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmerge_vvm",
+      "encoding": "0101110----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmerge_vxm",
+      "encoding": "0101110----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmfeq_vf",
+      "encoding": "011000-----------101-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmfeq_vv",
+      "encoding": "011000-----------001-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmfge_vf",
+      "encoding": "011111-----------101-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmfgt_vf",
+      "encoding": "011101-----------101-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmfle_vf",
+      "encoding": "011001-----------101-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmfle_vv",
+      "encoding": "011001-----------001-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmflt_vf",
+      "encoding": "011011-----------101-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmflt_vv",
+      "encoding": "011011-----------001-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmfne_vf",
+      "encoding": "011100-----------101-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmfne_vv",
+      "encoding": "011100-----------001-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmin_vv",
+      "encoding": "000101-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmin_vx",
+      "encoding": "000101-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vminu_vv",
+      "encoding": "000100-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vminu_vx",
+      "encoding": "000100-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmnand_mm",
+      "encoding": "0111011----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmnor_mm",
+      "encoding": "0111101----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmor_mm",
+      "encoding": "0110101----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmorn_mm",
+      "encoding": "0111001----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsbc_vv",
+      "encoding": "0100111----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsbc_vvm",
+      "encoding": "0100110----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsbc_vx",
+      "encoding": "0100111----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsbc_vxm",
+      "encoding": "0100110----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsbf_m",
+      "encoding": "010100------00001010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmseq_vi",
+      "encoding": "011000-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmseq_vv",
+      "encoding": "011000-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmseq_vx",
+      "encoding": "011000-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsgt_vi",
+      "encoding": "011111-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsgt_vx",
+      "encoding": "011111-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsgtu_vi",
+      "encoding": "011110-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsgtu_vx",
+      "encoding": "011110-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsif_m",
+      "encoding": "010100------00011010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsle_vi",
+      "encoding": "011101-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsle_vv",
+      "encoding": "011101-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsle_vx",
+      "encoding": "011101-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsleu_vi",
+      "encoding": "011100-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsleu_vv",
+      "encoding": "011100-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsleu_vx",
+      "encoding": "011100-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmslt_vv",
+      "encoding": "011011-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmslt_vx",
+      "encoding": "011011-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsltu_vv",
+      "encoding": "011010-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsltu_vx",
+      "encoding": "011010-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsne_vi",
+      "encoding": "011001-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsne_vv",
+      "encoding": "011001-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsne_vx",
+      "encoding": "011001-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmsof_m",
+      "encoding": "010100------00010010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmul_vv",
+      "encoding": "100101-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmul_vx",
+      "encoding": "100101-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmulh_vv",
+      "encoding": "100111-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmulh_vx",
+      "encoding": "100111-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmulhsu_vv",
+      "encoding": "100110-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmulhsu_vx",
+      "encoding": "100110-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmulhu_vv",
+      "encoding": "100100-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmulhu_vx",
+      "encoding": "100100-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmv1r_v",
+      "encoding": "1001111-----00000011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmv2r_v",
+      "encoding": "1001111-----00001011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmv4r_v",
+      "encoding": "1001111-----00011011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmv8r_v",
+      "encoding": "1001111-----00111011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmv_s_x",
+      "encoding": "010000100000-----110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmv_v_i",
+      "encoding": "010111100000-----011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmv_v_v",
+      "encoding": "010111100000-----000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmv_v_x",
+      "encoding": "010111100000-----100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmv_x_s",
+      "encoding": "0100001-----00000010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmxnor_mm",
+      "encoding": "0111111----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vmxor_mm",
+      "encoding": "0110111----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnclip_wi",
+      "encoding": "101111-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnclip_wv",
+      "encoding": "101111-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnclip_wx",
+      "encoding": "101111-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnclipu_wi",
+      "encoding": "101110-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnclipu_wv",
+      "encoding": "101110-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnclipu_wx",
+      "encoding": "101110-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnmsac_vv",
+      "encoding": "101111-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnmsac_vx",
+      "encoding": "101111-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnmsub_vv",
+      "encoding": "101011-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnmsub_vx",
+      "encoding": "101011-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnsra_wi",
+      "encoding": "101101-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnsra_wv",
+      "encoding": "101101-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnsra_wx",
+      "encoding": "101101-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnsrl_wi",
+      "encoding": "101100-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnsrl_wv",
+      "encoding": "101100-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vnsrl_wx",
+      "encoding": "101100-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vor_vi",
+      "encoding": "001010-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vor_vv",
+      "encoding": "001010-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vor_vx",
+      "encoding": "001010-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vredand_vs",
+      "encoding": "000001-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vredmax_vs",
+      "encoding": "000111-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vredmaxu_vs",
+      "encoding": "000110-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vredmin_vs",
+      "encoding": "000101-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vredminu_vs",
+      "encoding": "000100-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vredor_vs",
+      "encoding": "000010-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vredsum_vs",
+      "encoding": "000000-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vredxor_vs",
+      "encoding": "000011-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vrem_vv",
+      "encoding": "100011-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vrem_vx",
+      "encoding": "100011-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vremu_vv",
+      "encoding": "100010-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vremu_vx",
+      "encoding": "100010-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vrgather_vi",
+      "encoding": "001100-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vrgather_vv",
+      "encoding": "001100-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vrgather_vx",
+      "encoding": "001100-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vrgatherei16_vv",
+      "encoding": "001110-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vrsub_vi",
+      "encoding": "000011-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vrsub_vx",
+      "encoding": "000011-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vs1r_v",
+      "encoding": "000000101000-----000-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vs2r_v",
+      "encoding": "001000101000-----000-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vs4r_v",
+      "encoding": "011000101000-----000-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vs8r_v",
+      "encoding": "111000101000-----000-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsadd_vi",
+      "encoding": "100001-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsadd_vv",
+      "encoding": "100001-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsadd_vx",
+      "encoding": "100001-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsaddu_vi",
+      "encoding": "100000-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsaddu_vv",
+      "encoding": "100000-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsaddu_vx",
+      "encoding": "100000-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsbc_vvm",
+      "encoding": "0100100----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsbc_vxm",
+      "encoding": "0100100----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vse16_v",
+      "encoding": "---000-00000-----101-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vse32_v",
+      "encoding": "---000-00000-----110-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vse64_v",
+      "encoding": "---000-00000-----111-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vse8_v",
+      "encoding": "---000-00000-----000-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsetivli",
+      "encoding": "11---------------111-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsetvl",
+      "encoding": "1000000----------111-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsetvli",
+      "encoding": "0----------------111-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsext_vf2",
+      "encoding": "010010------00111010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsext_vf4",
+      "encoding": "010010------00101010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsext_vf8",
+      "encoding": "010010------00011010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vslide1down_vx",
+      "encoding": "001111-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vslide1up_vx",
+      "encoding": "001110-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vslidedown_vi",
+      "encoding": "001111-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vslidedown_vx",
+      "encoding": "001111-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vslideup_vi",
+      "encoding": "001110-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vslideup_vx",
+      "encoding": "001110-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsll_vi",
+      "encoding": "100101-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsll_vv",
+      "encoding": "100101-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsll_vx",
+      "encoding": "100101-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsm_v",
+      "encoding": "000000101011-----000-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsmul_vv",
+      "encoding": "100111-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsmul_vx",
+      "encoding": "100111-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsoxei16_v",
+      "encoding": "---011-----------101-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsoxei32_v",
+      "encoding": "---011-----------110-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsoxei64_v",
+      "encoding": "---011-----------111-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsoxei8_v",
+      "encoding": "---011-----------000-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsra_vi",
+      "encoding": "101001-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsra_vv",
+      "encoding": "101001-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsra_vx",
+      "encoding": "101001-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsrl_vi",
+      "encoding": "101000-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsrl_vv",
+      "encoding": "101000-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsrl_vx",
+      "encoding": "101000-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsse16_v",
+      "encoding": "---010-----------101-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsse32_v",
+      "encoding": "---010-----------110-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsse64_v",
+      "encoding": "---010-----------111-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsse8_v",
+      "encoding": "---010-----------000-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vssra_vi",
+      "encoding": "101011-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vssra_vv",
+      "encoding": "101011-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vssra_vx",
+      "encoding": "101011-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vssrl_vi",
+      "encoding": "101010-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vssrl_vv",
+      "encoding": "101010-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vssrl_vx",
+      "encoding": "101010-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vssub_vv",
+      "encoding": "100011-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vssub_vx",
+      "encoding": "100011-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vssubu_vv",
+      "encoding": "100010-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vssubu_vx",
+      "encoding": "100010-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsub_vv",
+      "encoding": "000010-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsub_vx",
+      "encoding": "000010-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsuxei16_v",
+      "encoding": "---001-----------101-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsuxei32_v",
+      "encoding": "---001-----------110-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsuxei64_v",
+      "encoding": "---001-----------111-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vsuxei8_v",
+      "encoding": "---001-----------000-----0100111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwadd_vv",
+      "encoding": "110001-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwadd_vx",
+      "encoding": "110001-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwadd_wv",
+      "encoding": "110101-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwadd_wx",
+      "encoding": "110101-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwaddu_vv",
+      "encoding": "110000-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwaddu_vx",
+      "encoding": "110000-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwaddu_wv",
+      "encoding": "110100-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwaddu_wx",
+      "encoding": "110100-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmacc_vv",
+      "encoding": "111101-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmacc_vx",
+      "encoding": "111101-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmaccsu_vv",
+      "encoding": "111111-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmaccsu_vx",
+      "encoding": "111111-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmaccu_vv",
+      "encoding": "111100-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmaccu_vx",
+      "encoding": "111100-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmaccus_vx",
+      "encoding": "111110-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmul_vv",
+      "encoding": "111011-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmul_vx",
+      "encoding": "111011-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmulsu_vv",
+      "encoding": "111010-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmulsu_vx",
+      "encoding": "111010-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmulu_vv",
+      "encoding": "111000-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwmulu_vx",
+      "encoding": "111000-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwredsum_vs",
+      "encoding": "110001-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwredsumu_vs",
+      "encoding": "110000-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwsub_vv",
+      "encoding": "110011-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwsub_vx",
+      "encoding": "110011-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwsub_wv",
+      "encoding": "110111-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwsub_wx",
+      "encoding": "110111-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwsubu_vv",
+      "encoding": "110010-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwsubu_vx",
+      "encoding": "110010-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwsubu_wv",
+      "encoding": "110110-----------010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vwsubu_wx",
+      "encoding": "110110-----------110-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vxor_vi",
+      "encoding": "001011-----------011-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vxor_vv",
+      "encoding": "001011-----------000-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vxor_vx",
+      "encoding": "001011-----------100-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vzext_vf2",
+      "encoding": "010010------00110010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vzext_vf4",
+      "encoding": "010010------00100010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "vzext_vf8",
+      "encoding": "010010------00010010-----1010111",
+      "extension": "rv_v"
+    },
+    {
+      "name": "wfi",
+      "encoding": "00010000010100000000000001110011",
+      "extension": "rv_system"
+    },
+    {
+      "name": "xor",
+      "encoding": "0000000----------100-----0110011",
+      "extension": "rv_i"
+    },
+    {
+      "name": "xori",
+      "encoding": "-----------------100-----0010011",
+      "extension": "rv_i"
+    }
+  ],
+  "cinst_encoding": [
+    {
+      "name": "c_add",
+      "encoding": "1001----------10",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_addi",
+      "encoding": "000-----------01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_addi16sp",
+      "encoding": "011-00010-----01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_addi4spn",
+      "encoding": "000-----------00",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_and",
+      "encoding": "100011---11---01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_andi",
+      "encoding": "100-10--------01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_beqz",
+      "encoding": "110-----------01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_bnez",
+      "encoding": "111-----------01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_ebreak",
+      "encoding": "1001000000000010",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_j",
+      "encoding": "101-----------01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_jal",
+      "encoding": "001-----------01",
+      "extension": "rv32_c"
+    },
+    {
+      "name": "c_jalr",
+      "encoding": "1001-----0000010",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_jr",
+      "encoding": "1000-----0000010",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_li",
+      "encoding": "010-----------01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_lui",
+      "encoding": "011-----------01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_lw",
+      "encoding": "010-----------00",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_lwsp",
+      "encoding": "010-----------10",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_mv",
+      "encoding": "1000----------10",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_nop",
+      "encoding": "000-00000-----01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_or",
+      "encoding": "100011---10---01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_slli",
+      "encoding": "0000----------10",
+      "extension": "rv32_c"
+    },
+    {
+      "name": "c_srai",
+      "encoding": "100001--------01",
+      "extension": "rv32_c"
+    },
+    {
+      "name": "c_srli",
+      "encoding": "100000--------01",
+      "extension": "rv32_c"
+    },
+    {
+      "name": "c_sub",
+      "encoding": "100011---00---01",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_sw",
+      "encoding": "110-----------00",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_swsp",
+      "encoding": "110-----------10",
+      "extension": "rv_c"
+    },
+    {
+      "name": "c_xor",
+      "encoding": "100011---01---01",
+      "extension": "rv_c"
+    }
+  ]
+}
