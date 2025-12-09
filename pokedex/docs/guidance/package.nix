@@ -9,6 +9,7 @@ mkTypstEnv {
     root = ./.;
     files = [
       ./main.typ
+      ./lib.typ
       ./arg_lut.json
     ];
   };
