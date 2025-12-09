@@ -1,21 +1,12 @@
 {#- Require structure input like:
 
-```json
-{
-  "csr_metadata": [
-    {
-      "name": "csrname",
-      "bin_addr": "001100000001",
-      "read_write": True
-    }
-  ]
-}
+```yaml
+metadata:
+  - csr: "vxsat"
+    mode: "urw"
+    id: 0x009
+    tag: "vector"
 ```
-
-This file will include following path:
-
-    model/csr/{{ filename }}.asl
-
 #}
 
 // --------------
@@ -24,10 +15,10 @@ This file will include following path:
 func ReadCSR(csr : bits(12)) => CsrReadResult
 begin
     case csr of
-        {%- for data in csr_metadata %}
+        {%- for data in metadata %}
 
-        when '{{ data.bin_addr }}' =>
-            return Read_{{ data.name | upper() }}();
+        when '{{ "{:012b}".format(data.id) }}' =>
+            return Read_{{ data.csr | upper() }}();
 
         {%- endfor %}
 
@@ -39,11 +30,11 @@ end
 func WriteCSR(csr : bits(12), value : bits(32)) => Result
 begin
     case csr of
-        {%- for data in csr_metadata %}
-        {%- if data.read_write %}
+        {%- for data in metadata %}
+        {%- if data.mode is endingwith "rw" %}
 
-        when '{{ data.bin_addr }}' =>
-            return Write_{{ data.name | upper() }}(value);
+        when '{{ "{:012b}".format(data.id) }}' =>
+            return Write_{{ data.csr | upper() }}(value);
         {%- endif %}
         {%- endfor %}
 
@@ -56,10 +47,10 @@ end
 func ASL_read_CSR(csr: bits(12)) => bits(32)
 begin
     case csr of
-        {%- for data in csr_metadata %}
+        {%- for data in metadata %}
 
-        when '{{ data.bin_addr }}' =>
-            return GetRaw_{{ data.name | upper() }}();
+        when '{{ "{:012b}".format(data.id) }}' =>
+            return GetRaw_{{ data.csr | upper() }}();
         {%- endfor %}
 
         otherwise => begin
@@ -70,6 +61,6 @@ begin
 end
 
 
-{% for data in csr_metadata -%}
-constant CSR_{{ data.name | upper() }}: bits(12) = '{{ data.bin_addr }}';
+{% for data in metadata -%}
+constant CSR_{{ data.csr | upper() }}: bits(12) = '{{ "{:012b}".format(data.id) }}';
 {% endfor %}

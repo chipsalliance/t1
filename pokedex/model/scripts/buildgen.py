@@ -17,6 +17,7 @@ from . import datagen
 class Model(TypedDict):
     enabled_extensions: list[str]
     sources: list[str]
+    csr_sources: list[str]
 
 
 class Profile(TypedDict):
@@ -77,13 +78,28 @@ class CustomWriter(ninja_syntax.Writer):
         self.variable("jinja_define_flags", "")
         self.rule(
             "jinja",
-            "minijinja-cli --strict -o $out $jinja_define_flags $in",
+            "minijinja-cli --py-compat --strict -o $out $jinja_define_flags $in",
             description="expand jinja template: $out",
         )
         self.rule(
             "jinja-toml",
-            "minijinja-cli --strict -f toml -o $out $jinja_define_flags $in",
-            description="expand jinja template: $out",
+            "minijinja-cli --py-compat --strict -f toml -o $out $jinja_define_flags $in",
+            description="expand jinja template with TOML data: $out",
+        )
+        self.rule(
+            "jinja-yaml",
+            "minijinja-cli --py-compat --strict -f yaml -o $out $jinja_define_flags $in",
+            description="expand jinja template with YAML data: $out",
+        )
+        self.rule(
+            "doccomment-scan-dir",
+            "python -m scripts.doccomment -d $in -e .asl -e .asl.j2 -o $out",
+            description="Generate metadata by scanning dir",
+        )
+        self.rule(
+            "doccomment-scan-files",
+            "python -m scripts.doccomment -e .asl -e .asl.j2 -o $out $in",
+            description="Generate metadata by scanning files",
         )
         self.newline()
 
@@ -123,6 +139,8 @@ class CustomWriter(ninja_syntax.Writer):
                 ninja_rule = "jinja"
             case "toml":
                 ninja_rule = "jinja-toml"
+            case "yaml":
+                ninja_rule = "jinja-yaml"
             case _:
                 raise RuntimeError(f"unknown jinja flavor `{flavor}`")
 
@@ -149,24 +167,29 @@ class CustomWriter(ninja_syntax.Writer):
         )
         return output
 
-    def generate_adhoc_asl(self, data_dir: str) -> list[str]:
+    def generate_adhoc_asl(self, csr_metadata: list[str]) -> list[str]:
         GENASL_BASE = "build/1-genasl"
 
         outputs = [
             self.build_jinja(
                 f"{GENASL_BASE}/csr_dispatch.asl",
                 template="template/csr_dispatch.asl.j2",
-                data_sources=[f"data_files/{data_dir}/csr.json"],
+                flavor="yaml",
+                data_sources=csr_metadata,
             ),
             self.build_jinja(
                 f"{GENASL_BASE}/inst_dispatch.asl",
                 template="template/inst_dispatch.asl.j2",
-                data_sources=[f"data_files/{data_dir}/inst_encoding.json"],
+                data_sources=[
+                    f"data_files/{config['profile']['name']}/inst_encoding.json"
+                ],
             ),
             self.build_jinja(
                 f"{GENASL_BASE}/inst_unimplemented.asl",
                 template="template/inst_unimplemented.asl.j2",
-                data_sources=[f"data_files/{data_dir}/unimplemented.json"],
+                data_sources=[
+                    f"data_files/{config['profile']['name']}/unimplemented.json"
+                ],
             ),
         ]
         self.newline()
@@ -184,30 +207,34 @@ class CustomWriter(ninja_syntax.Writer):
         )
         return output
 
-    def import_user_asl(self) -> list[str]:
+    def import_user_asl(self) -> Tuple[list[str], list[str]]:
         w.comment("import or expand sources from config")
 
-        paths: list[Path] = []
-        for pat in self.config["model"]["sources"]:
-            pat_valid = False
-            for fp in glob.glob(pat):
-                pat_valid = True
-                paths.append(Path(fp))
-            if not pat_valid:
-                raise RuntimeError(f"Pattern '{pat}' doesn't match any file")
+        def populate_src(patterns: list[str]) -> list[Path]:
+            paths: list[Path] = []
+            for pat in patterns:
+                pat_valid = False
+                for fp in glob.glob(pat):
+                    pat_valid = True
+                    paths.append(Path(fp))
+                if not pat_valid:
+                    raise RuntimeError(f"Pattern '{pat}' doesn't match any file")
+            return paths
 
-        outputs = [
+        other_outputs = [
             (
-                w.build_jinja(f"build/1-gennew/{x.stem}", str(x))
+                w.build_jinja(f"build/1-gennew/{x.with_suffix(".asl")}", str(x))
                 if x.suffix == ".j2"
                 else str(x)
             )
-            for x in paths
+            for x in populate_src(config["model"]["sources"])
         ]
+
+        csr_outputs = [str(x) for x in populate_src(config["model"]["csr_sources"])]
 
         self.newline()
 
-        return outputs
+        return (other_outputs, csr_outputs)
 
     def generate_pokedex_config_h(self) -> str:
         w.comment("generate C configuration")
@@ -327,29 +354,27 @@ class CustomWriter(ninja_syntax.Writer):
 
         return cmodel_files, clib, cdylib
 
-    def generate_doc_files(self) -> list[str]:
-        DOC_COMMENT = "build/docs/doc-comments.yml"
-        self.rule(
-            "doccomment",
-            "python -m scripts.doccomment -d . -e .asl -e .aslj2 -o $out",
-            description="generate doc-comments.yml",
-        )
-        self.build(DOC_COMMENT, rule="doccomment")
+    def generate_doc_comment(self, csr_sources: list[str]) -> Tuple[str, str]:
+        inst_meta = "build/docs/inst-metadata.yml"
+        self.build(inst_meta, rule="doccomment-scan-dir", inputs="extensions")
         self.newline()
-        return [DOC_COMMENT]
+
+        csr_meta = "build/docs/csr-metadata.yml"
+        self.build(csr_meta, rule="doccomment-scan-files", inputs=csr_sources)
+        self.newline()
+        return (inst_meta, csr_meta)
 
     def generate(self):
         self.generate_header()
 
         self.rule_self_rebuild()
 
-        DOC_FILES = self.generate_doc_files()
-
         ASL_CONFIG = self.generate_model_config_asl()
-        GENASL_SRCS = self.generate_adhoc_asl(config["profile"]["name"])
-        IMPORTED_SRCS = self.import_user_asl()
+        (IMPORTED_SRCS, IMPORTED_CSR_SRCS) = self.import_user_asl()
+        (INST_META, CSR_META) = self.generate_doc_comment(csr_sources=IMPORTED_CSR_SRCS)
+        GENASL_SRCS = self.generate_adhoc_asl(csr_metadata=[CSR_META])
 
-        ALL_ASL_SRCS = [ASL_CONFIG] + GENASL_SRCS + IMPORTED_SRCS
+        ALL_ASL_SRCS = [ASL_CONFIG] + GENASL_SRCS + IMPORTED_SRCS + IMPORTED_CSR_SRCS
 
         CONFIG_H = self.generate_pokedex_config_h()
 
@@ -358,7 +383,7 @@ class CustomWriter(ninja_syntax.Writer):
         self.build("cmodel", "phony", CMODEL_FILES)
         self.build("clib", "phony", [CONFIG_H, CLIB_FILE])
         self.build("cdylib", "phony", CDYLIB_FILE)
-        self.build("docs", "phony", DOC_FILES)
+        self.build("docs", "phony", [INST_META, CSR_META])
         self.default(["cmodel", "clib", "cdylib", "docs"])
 
 
