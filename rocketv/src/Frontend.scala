@@ -641,6 +641,6 @@ class Frontend(val parameter: FrontendParameter)
       icache.io.keep_clock_enabled ||       // I$ miss or ITIM access
       s1_valid || s2_valid ||               // some fetch in flight
       !tlb.io.req.ready ||                  // handling TLB miss
-      !fq.io.mask(fq.io.mask.getWidth - 1)  // queue not full
-  } // leaving gated-clock domain
+      !fq.io.mask(fq.io.mask.getWidth - 1) // queue not full
+  }                                         // leaving gated-clock domain
 }

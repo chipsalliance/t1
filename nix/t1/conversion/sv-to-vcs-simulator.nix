@@ -34,52 +34,51 @@ let
   # Enable it by changing line below to 'true'
   enableProfile = false;
 
-  vcsCompileArgs =
-    [
-      "-LDFLAGS"
-      "-Wl,-dynamic-linker=/lib64/ld-linux-x86-64.so.2"
-      "-sverilog"
-      "-full64"
-      "-timescale=1ns/1ps"
-      "-y"
-      "$DWBB_DIR/sim_ver"
-      "+libext+.v"
-      "+define+T1_DEV"
-      "+define+PRINTF_FD=do_not_use_printf"
-      "+define+__CIRCT_LIB_LOGGING"
-    ]
-    # vsrc may define sv packages, put it at the first
-    ++ vsrc
-    ++ [
-      "-F"
-      "${rtl}/filelist.f"
-    ]
-    ++ (rtl.layersDirs |> map (dir: "+incdir+${rtl}/${dir}"))
-    ++ lib.optionals (topModule != null) [
-      "-top"
-      topModule
-    ]
-    ++ lib.optionals enableCover [
-      "-cm"
-      "assert"
-      "-cm_dir"
-      "./cm"
-      "-assert"
-      "enable_hier"
-    ]
-    ++ lib.optionals (!enableCover) [
-      "-assert"
-      "disable_cover"
-    ]
-    ++ lib.optionals enableTrace [
-      "+define+T1_ENABLE_TRACE"
-      "-debug_access+pp+dmptf+thread"
-      "-kdb=common_elab,hgldd_all"
-    ]
-    ++ lib.optionals enableProfile [
-      "-simprofile"
-    ]
-    ++ vcsLinkLibs;
+  vcsCompileArgs = [
+    "-LDFLAGS"
+    "-Wl,-dynamic-linker=/lib64/ld-linux-x86-64.so.2"
+    "-sverilog"
+    "-full64"
+    "-timescale=1ns/1ps"
+    "-y"
+    "$DWBB_DIR/sim_ver"
+    "+libext+.v"
+    "+define+T1_DEV"
+    "+define+PRINTF_FD=do_not_use_printf"
+    "+define+__CIRCT_LIB_LOGGING"
+  ]
+  # vsrc may define sv packages, put it at the first
+  ++ vsrc
+  ++ [
+    "-F"
+    "${rtl}/filelist.f"
+  ]
+  ++ (rtl.layersDirs |> map (dir: "+incdir+${rtl}/${dir}"))
+  ++ lib.optionals (topModule != null) [
+    "-top"
+    topModule
+  ]
+  ++ lib.optionals enableCover [
+    "-cm"
+    "assert"
+    "-cm_dir"
+    "./cm"
+    "-assert"
+    "enable_hier"
+  ]
+  ++ lib.optionals (!enableCover) [
+    "-assert"
+    "disable_cover"
+  ]
+  ++ lib.optionals enableTrace [
+    "+define+T1_ENABLE_TRACE"
+    "-debug_access+pp+dmptf+thread"
+    "-kdb=common_elab,hgldd_all"
+  ]
+  ++ lib.optionals enableProfile [
+    "-simprofile"
+  ]
+  ++ vcsLinkLibs;
 
   vcsRtLinkArgs = lib.optionals (rtLinkDpiLib != null) [
     "-sv_root"
@@ -117,14 +116,15 @@ let
       inherit snps-fhs-env enableTrace enableCover;
 
       emuKind = "vcs";
-      driverWithArgs =
-        [ (lib.getExe self) ]
-        ++ vcsRtLinkArgs
-        ++ [
-          "-exitstatus"
-          "-assert"
-          "global_finish_maxfail=10000"
-        ];
+      driverWithArgs = [
+        (lib.getExe self)
+      ]
+      ++ vcsRtLinkArgs
+      ++ [
+        "-exitstatus"
+        "-assert"
+        "global_finish_maxfail=10000"
+      ];
     };
 
     env = {

@@ -27,7 +27,7 @@ class MaskExtend(parameter: T1Parameter) extends Module {
       Seq(4, 2, 1).map { baseSie =>
         val groupSize = baseSie * (parameter.datapathWidth / parameter.eLen)
         VecInit(sourceDataVec.map { element =>
-          element.asBools       // [x] * 32 eg: sew = 1
+          element.asBools // [x] * 32 eg: sew = 1
             .grouped(groupSize) // [x, x] * 16
             .toSeq
             .map(VecInit(_).asUInt) // [xx] * 16
