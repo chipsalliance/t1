@@ -1,3 +1,19 @@
+//! ---
+//! csr: "misa"
+//! mode: "mrw"
+//! id: 0x301
+//! tag: "m_mode"
+//! ---
+//! The misa (Machine ISA Register) is an MXLEN-bit read/write register accessible
+//! exclusively in Machine Mode. It reports the Instruction Set Architecture (ISA)
+//! extensions supported by the hart.
+//! - Value: The register contains a bitmask indicating the supported
+//!   extensions (bits 0–25) and the machine XLEN (bits MXLEN-1:MXLEN-2).
+//! - Write Behavior: In this implementation, the set of supported extensions is
+//!   static. Writes to misa are ignored and will not change the enabled extensions.
+//! - Exceptions: An Illegal Instruction Exception is raised if the register is
+//!   accessed from a privilege level lower than Machine Mode.
+
 func Read_MISA() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
@@ -9,26 +25,8 @@ end
 
 func GetRaw_MISA() => bits(XLEN)
 begin
-  // machine xlen is read-only 32;
-  let MXL : bits(2) = '01';
-  let MISA_EXTS : bits(26) = [
-    // Z-N
-    Zeros(13),
-    // M
-    '1',
-    // LJKI
-    '0001',
-    // HGFE
-    '0010',
-    // DCBA
-    '0101'
-  ];
-
-  return [
-    MXL,
-    Zeros(4),
-    MISA_EXTS
-  ];
+  // Generated from templates/config.asl.j2
+  return POKEDEX_CONFIG_RAW_MISA;
 end
 
 func Write_MISA(value: bits(32)) => Result

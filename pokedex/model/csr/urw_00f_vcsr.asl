@@ -1,3 +1,19 @@
+//! ---
+//! csr: "vcsr"
+//! mode: "urw"
+//! id: 0x00F
+//! tag: "vector"
+//! ---
+//! The vcsr (Vector Control and Status) register is an XLEN-bit read/write register.
+//!
+//! - Fields:
+//!     - vxrm (bits 2:1): Vector Fixed-Point Rounding Mode.
+//!     - vxsat (bit 0): Vector Fixed-Point Saturation Flag.
+//! - Behavior: Writing to this register sets mstatus.vs to Dirty.
+//! - Exceptions:
+//!     - Illegal Instruction if the Vector extension is disabled (mstatus.vs == 0).
+
+
 func Read_VCSR() => CsrReadResult
 begin
   if !isEnabled_VS() then

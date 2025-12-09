@@ -173,6 +173,17 @@ class CustomWriter(ninja_syntax.Writer):
 
         return outputs
 
+    def generate_model_config_asl(self) -> str:
+        w.comment("generate ASL model configuration")
+        output = "build/1-gennew/config.asl"
+        self.build_jinja(
+            output,
+            template="template/config.asl.j2",
+            data_sources=[self.config_path],
+            flavor="toml",
+        )
+        return output
+
     def import_user_asl(self) -> list[str]:
         w.comment("import or expand sources from config")
 
@@ -334,10 +345,11 @@ class CustomWriter(ninja_syntax.Writer):
 
         DOC_FILES = self.generate_doc_files()
 
+        ASL_CONFIG = self.generate_model_config_asl()
         GENASL_SRCS = self.generate_adhoc_asl(config["profile"]["name"])
         IMPORTED_SRCS = self.import_user_asl()
 
-        ALL_ASL_SRCS = GENASL_SRCS + IMPORTED_SRCS
+        ALL_ASL_SRCS = [ASL_CONFIG] + GENASL_SRCS + IMPORTED_SRCS
 
         CONFIG_H = self.generate_pokedex_config_h()
 

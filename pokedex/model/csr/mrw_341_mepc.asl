@@ -1,3 +1,18 @@
+//! ---
+//! csr: "mepc"
+//! mode: "mrw"
+//! id: 0x341
+//! tag: "m_mode"
+//! ---
+//! The mepc (Machine Exception Program Counter) is an MXLEN-bit read/write register.
+//! When a trap is taken into machine mode, mepc is written with the virtual address of
+//! the instruction that was interrupted or that encountered the exception.
+//!
+//! - Behavior: The C extension is enabled, thus the lowest bit (bit 0) is always zero.
+//! - Exceptions:
+//!     - Illegal Instruction if accessed from a privilege level lower than Machine Mode.
+
+
 func Read_MEPC() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then
