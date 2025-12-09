@@ -1,3 +1,18 @@
+//! ---
+//! csr: "mie"
+//! mode: "mrw"
+//! id: 0x304
+//! tag: "m_mode"
+//! ---
+//! The mie (Machine Interrupt Enable) register is an MXLEN-bit read/write register
+//! containing interrupt enable bits for various interrupt sources.
+//!
+//! - Implemented Fields:
+//!     - MEIE (bit 11): Machine External Interrupt Enable.
+//!     - MTIE (bit 7): Machine Timer Interrupt Enable.
+//! - Exceptions:
+//!     - Illegal Instruction if accessed from a privilege level lower than Machine Mode.
+
 func Read_MIE() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then

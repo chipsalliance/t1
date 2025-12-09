@@ -1,3 +1,22 @@
+//! ---
+//! csr: "mstatus"
+//! mode: "mrw"
+//! id: 0x300
+//! tag: "m_mode"
+//! ---
+//! The mstatus (Machine Status Register) is an MXLEN-bit read/write register
+//! accessible exclusively in Machine Mode.
+//!
+//! - Implemented Fields: The simulator tracks the following status bits. All other
+//!   fields are hardwired to zero or ignored.
+//!     - MPP: Previous Privilege Mode.
+//!     - VS: Vector Extension Status.
+//!     - FS: Floating-Point Extension Status.
+//!     - MPIE: Machine Previous Interrupt Enable (interrupt-enable bit active prior to the trap).
+//!     - MIE: Machine Interrupt Enable.
+//! - Exceptions: An Illegal Instruction Exception is raised if the register is
+//!   accessed from a privilege level lower than Machine Mode.
+
 func Read_MSTATUS() => CsrReadResult
 begin
   if !IsPrivAtLeast_M() then

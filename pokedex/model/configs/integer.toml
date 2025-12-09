@@ -12,6 +12,8 @@ ext.zve32x = true
 ext.zvl256b = true
 # Extract useful part to help downstream do less parsing job
 march = "rv32imac_zifencei_zicsr_zve32x_zvl256b"
+#       32----ZYXWVUTSRQPONMLJKIHGFEDCBA
+misa = "01000000000000000001000100000101"
 abi = "ilp32"
 xlen = 32
 vlen = 256

@@ -1,3 +1,23 @@
+//! ---
+//! csr: "vtype"
+//! mode: "uro"
+//! id: 0xC21
+//! tag: "vector"
+//! ---
+//! The vtype (Vector Type) register is an XLEN-bit read-only register describing
+//! the default vector data type and settings.
+//!
+//! - Fields:
+//!     - vill: Vector Illegal.
+//!     - ma: Mask Agnostic.
+//!     - ta: Tail Agnostic.
+//!     - sew: Selected Element Width.
+//!     - lmul: Vector Register Grouping Multiplier.
+//! - Exceptions:
+//!     - Illegal Instruction if the Vector extension is disabled (mstatus.vs == 0).
+//!     - Illegal Instruction if attempting to write to the register.
+
+
 func Read_VTYPE() => CsrReadResult
 begin
   if !isEnabled_VS() then
