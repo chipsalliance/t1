@@ -4,7 +4,7 @@
   rv32-stdenv,
   pokedex-compile-stubs,
   mkDiffEnv,
-  vlen ? 256,
+  pokedex-configs,
 }:
 rv32-stdenv.mkDerivation (finalAttrs: {
   name = "riscv-tests-bins";
@@ -15,13 +15,23 @@ rv32-stdenv.mkDerivation (finalAttrs: {
   env = {
     POKEDEX_COMPILE_STUBS = "${pokedex-compile-stubs}";
     RISCV_TESTS_SRC = "${riscv-tests}";
-    VLEN = "${toString vlen}";
+    VLEN = "${toString pokedex-configs.profile.vlen}";
+    XLEN = "${toString pokedex-configs.profile.xlen}";
+    MARCH = "${pokedex-configs.profile.march}";
+    ABI = "${pokedex-configs.profile.abi}";
   };
 
-  makeFlags = [
-    "RISCV_PREFIX=${rv32-stdenv.targetPlatform.config}"
-    "PREFIX=${placeholder "out"}"
-  ];
+  makeFlags =
+    [
+      "RISCV_PREFIX=${rv32-stdenv.targetPlatform.config}"
+      "PREFIX=${placeholder "out"}"
+    ]
+    ++ (
+      if pokedex-configs.profile.ext ? "f" then
+        [ "CASE_LIST=./case_list.txt ./fp_case_list.txt" ]
+      else
+        [ "CASE_LIST=./case_list.txt" ]
+    );
 
   enableParallelBuilding = true;
   dontFixup = true;
@@ -39,7 +49,7 @@ rv32-stdenv.mkDerivation (finalAttrs: {
       {
         name = sanitizedName;
         value = mkDiffEnv {
-          caseName = "${finalAttrs.name}+VLEN=${toString vlen}b.${sanitizedName}";
+          caseName = "${finalAttrs.name}+VLEN=${finalAttrs.env.VLEN}b.${sanitizedName}";
           casePath = "${finalAttrs.finalPackage}/bin/${fileName}.elf";
           caseDump = "${finalAttrs.finalPackage}/share/${fileName}.objdump";
         };

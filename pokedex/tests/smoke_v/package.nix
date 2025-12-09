@@ -3,7 +3,7 @@
   rv32-stdenv,
   pokedex-compile-stubs,
   mkDiffEnv,
-  vlen ? 256,
+  pokedex-configs,
 }:
 rv32-stdenv.mkDerivation (finalAttrs: {
   name = "pokedex-smoke-v-tests";
@@ -13,7 +13,10 @@ rv32-stdenv.mkDerivation (finalAttrs: {
   # Variable that can be reused in nix develop
   env = {
     POKEDEX_COMPILE_STUBS = "${pokedex-compile-stubs}";
-    VLEN = "${toString vlen}";
+    VLEN = "${toString pokedex-configs.profile.vlen}";
+    XLEN = "${toString pokedex-configs.profile.xlen}";
+    MARCH = "${pokedex-configs.profile.march}";
+    ABI = "${pokedex-configs.profile.abi}";
   };
 
   makeFlags = [
@@ -32,7 +35,7 @@ rv32-stdenv.mkDerivation (finalAttrs: {
       {
         name = case;
         value = mkDiffEnv {
-          caseName = "${finalAttrs.name}+VLEN=${toString vlen}b.${fileName}";
+          caseName = "${finalAttrs.name}+VLEN=${finalAttrs.env.VLEN}b.${fileName}";
           casePath = "${finalAttrs.finalPackage}/bin/${fileName}.elf";
           caseDump = "${finalAttrs.finalPackage}/share/${fileName}.objdump";
         };

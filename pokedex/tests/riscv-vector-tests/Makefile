@@ -10,7 +10,7 @@ ABI ?= ilp32f
 CODEGEN_CONFIG_DIR := $(CODEGEN_INSTALL_DIR)/configs
 CODEGEN_SINGLE := $(CODEGEN_INSTALL_DIR)/bin/single
 
-CODEGEN_TARGETS_DEFINE := case_list.txt
+CODEGEN_TARGETS_DEFINE := case_list.txt fp_case_list.txt
 CODEGEN_TARGETS := $(shell grep -v "^#" $(CODEGEN_TARGETS_DEFINE) | xargs | sed 's/\./_/g')
 CODEGEN_ELFS := $(addsuffix .elf,$(CODEGEN_TARGETS))
 
