@@ -14,14 +14,14 @@ pub(super) mod raw {
 struct MakeVTable<T: super::PokedexCallbackMem>(PhantomData<T>);
 
 trait ResultExt1 {
-    fn as_int(self) -> c_int;
+    fn to_c_int(self) -> c_int;
 }
 trait ResultExt2<T> {
-    fn as_int_ret(self, ret: *mut T) -> c_int;
+    fn try_write(self, ret: *mut T) -> c_int;
 }
 
 impl<E> ResultExt1 for Result<(), E> {
-    fn as_int(self) -> c_int {
+    fn to_c_int(self) -> c_int {
         match self {
             Ok(()) => 0,
             Err(_e) => 1,
@@ -30,7 +30,7 @@ impl<E> ResultExt1 for Result<(), E> {
 }
 
 impl<E, T: Copy> ResultExt2<T> for Result<T, E> {
-    fn as_int_ret(self, ret: *mut T) -> c_int {
+    fn try_write(self, ret: *mut T) -> c_int {
         match self {
             Ok(value) => {
                 unsafe {
@@ -46,31 +46,31 @@ impl<E, T: Copy> ResultExt2<T> for Result<T, E> {
 impl<T: super::PokedexCallbackMem> MakeVTable<T> {
     unsafe extern "C" fn inst_fetch_2(model: *mut c_void, addr: u32, ret: *mut u16) -> c_int {
         let model = unsafe { &mut *(model as *mut T) };
-        model.inst_fetch_2(addr).as_int_ret(ret)
+        model.inst_fetch_2(addr).try_write(ret)
     }
     unsafe extern "C" fn read_mem_1(model: *mut c_void, addr: u32, ret: *mut u8) -> c_int {
         let model = unsafe { &mut *(model as *mut T) };
-        model.read_mem_u8(addr).as_int_ret(ret)
+        model.read_mem_u8(addr).try_write(ret)
     }
     unsafe extern "C" fn read_mem_2(model: *mut c_void, addr: u32, ret: *mut u16) -> c_int {
         let model = unsafe { &mut *(model as *mut T) };
-        model.read_mem_u16(addr).as_int_ret(ret)
+        model.read_mem_u16(addr).try_write(ret)
     }
     unsafe extern "C" fn read_mem_4(model: *mut c_void, addr: u32, ret: *mut u32) -> c_int {
         let model = unsafe { &mut *(model as *mut T) };
-        model.read_mem_u32(addr).as_int_ret(ret)
+        model.read_mem_u32(addr).try_write(ret)
     }
     unsafe extern "C" fn write_mem_1(model: *mut c_void, addr: u32, value: u8) -> c_int {
         let model = unsafe { &mut *(model as *mut T) };
-        model.write_mem_u8(addr, value).as_int()
+        model.write_mem_u8(addr, value).to_c_int()
     }
     unsafe extern "C" fn write_mem_2(model: *mut c_void, addr: u32, value: u16) -> c_int {
         let model = unsafe { &mut *(model as *mut T) };
-        model.write_mem_u16(addr, value).as_int()
+        model.write_mem_u16(addr, value).to_c_int()
     }
     unsafe extern "C" fn write_mem_4(model: *mut c_void, addr: u32, value: u32) -> c_int {
         let model = unsafe { &mut *(model as *mut T) };
-        model.write_mem_u32(addr, value).as_int()
+        model.write_mem_u32(addr, value).to_c_int()
     }
     unsafe extern "C" fn amo_mem_4(
         model: *mut c_void,
@@ -92,7 +92,7 @@ impl<T: super::PokedexCallbackMem> MakeVTable<T> {
             raw::POKEDEX_AMO_MAXU => AtomicOp::Maxu,
             _ => unreachable!("unknown amo opcode ({amo_op})"),
         };
-        model.amo_mem_u32(addr, op, value).as_int_ret(ret)
+        model.amo_mem_u32(addr, op, value).try_write(ret)
     }
     unsafe extern "C" fn lr_mem_4(model: *mut c_void, _addr: u32, _ret: *mut u32) -> c_int {
         let _model = unsafe { &mut *(model as *mut T) };
@@ -123,7 +123,7 @@ impl<T: super::PokedexCallbackMem> MakeVTable<T> {
 
 pub(super) fn make_mem_vtable<T: super::PokedexCallbackMem>()
 -> &'static raw::pokedex_mem_callback_vtable {
-    &MakeVTable::<T>::VTABLE
+    MakeVTable::<T>::VTABLE
 }
 
 #[derive(Clone, Copy)]

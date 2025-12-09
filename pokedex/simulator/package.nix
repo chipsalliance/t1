@@ -1,7 +1,6 @@
 {
   lib,
   rustPlatform,
-  model,
   rust-analyzer,
   clippy,
 }:
