@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-#define POKEDEX_ABI_VERSION "2025-11-21"
+#define POKEDEX_ABI_VERSION "2025-12-09"
 
 #define POKEDEX_AMO_SWAP 0
 #define POKEDEX_AMO_ADD 1
@@ -54,6 +54,9 @@ struct pokedex_create_info {
 struct pokedex_model_description {
     // informationaly only
     const char* model_isa;
+
+    // supported privilege string.
+    const char* model_priv;
 
     // valid value: 32, 64
     uint32_t xlen;

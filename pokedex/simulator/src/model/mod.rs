@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     ffi::{CStr, c_char, c_void},
     ptr::NonNull,
 };
@@ -25,9 +26,68 @@ pub trait PokedexCallbackMem {
     -> Result<u32, Self::CbMemError>;
 }
 
+#[derive(Debug, Default)]
+pub struct Privileges {
+    machine: bool,
+    supervisor: bool,
+    user: bool,
+}
+
+impl Privileges {
+    pub fn new(p: &str) -> Self {
+        assert!(p.len() <= 3);
+
+        let mut privs = Privileges::default();
+        p.chars().for_each(|c| match c {
+            'M' => privs.machine = true,
+            'S' => privs.supervisor = true,
+            'U' => privs.user = true,
+            _ => panic!("Unknown privilege {c}"),
+        });
+
+        privs
+    }
+}
+
+pub struct ModelDesc {
+    pub privs: Privileges,
+    pub xlen: u8,
+    pub vlen: u16,
+    pub flen: u8,
+    pub isa: &'static CStr,
+}
+
+impl ModelDesc {
+    pub fn from_raw_model_desc(rmd: &ffi::raw::pokedex_model_description) -> Self {
+        assert!(rmd.xlen == 32);
+        assert!(rmd.flen == 0 || rmd.flen == 32);
+        assert!(rmd.vlen % 8 == 0 && rmd.vlen < (u16::MAX as u32));
+
+        let xlen = rmd.xlen as u8;
+        let vlen = rmd.vlen as u16;
+        let flen = rmd.flen as u8;
+        let isa = unsafe { CStr::from_ptr(rmd.model_isa) };
+        let privs_raw = unsafe { CStr::from_ptr(rmd.model_priv).to_string_lossy() };
+        let privs = Privileges::new(&privs_raw);
+
+        Self {
+            privs,
+            xlen,
+            vlen,
+            flen,
+            isa,
+        }
+    }
+
+    pub fn has_scalar_fp(&self) -> bool {
+        self.flen != 0
+    }
+}
+
 pub struct ModelHandle {
     data: NonNull<c_void>,
     vtable: &'static ffi::raw::pokedex_model_export,
+    model_desc: ModelDesc,
 }
 
 impl Drop for ModelHandle {
@@ -74,7 +134,15 @@ impl ModelHandle {
             panic!("ASL model creation failed");
         });
 
-        Self { data, vtable }
+        let desc: &ffi::raw::pokedex_model_description =
+            unsafe { &*(vtable.get_description.unwrap())(data.as_ptr()) };
+        let model_desc = ModelDesc::from_raw_model_desc(desc);
+
+        Self {
+            data,
+            vtable,
+            model_desc,
+        }
     }
 }
 
