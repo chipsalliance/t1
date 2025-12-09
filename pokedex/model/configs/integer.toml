@@ -56,7 +56,8 @@ sources = [
     "extensions/rv_v/*.asl*",
     "extensions/rv_vmem/*.asl*",
     "extensions/rv_zicsr/*.asl*",
-
+]
+csr_sources = [
     "csr/mro_f11_mvendorid.asl",
     "csr/mro_f12_marchid.asl",
     "csr/mro_f13_mimpid.asl",

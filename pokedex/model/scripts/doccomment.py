@@ -20,15 +20,13 @@ class DocComment(TypedDict):
 
 
 def doc_comment_to_yaml(dc: DocComment, writer: TextIO):
-    list_marker = "- "
-
     def indent_write(lvl: int, content: str):
         if lvl > 0:
             writer.write((YAML_TAB * lvl) + content)
         else:
             writer.write(content)
 
-    indent_write(1, list_marker + "body: |\n")
+    indent_write(1, "- desc: |\n")
 
     body: str = ""
     for text in dc["body"]:
@@ -172,7 +170,13 @@ def build_yml_block(file_path: Path, writer: TextIO) -> Optional[str]:
 
 def main():
     parser = argparse.ArgumentParser(description="Scan for doc comment.")
-    parser.add_argument("-d", "--directory", help="The root directory to search")
+    parser.add_argument(
+        "-d",
+        "--directory",
+        required=False,
+        default=None,
+        help="The root directory to search, used when no inputs are found",
+    )
     parser.add_argument(
         "-e",
         "--extensions",
@@ -180,29 +184,43 @@ def main():
         help="File extension to filter (e.g., .asl, .asl.j2)",
     )
     parser.add_argument("-o", "--output", help="File to save all metadata")
+    parser.add_argument(
+        "inputs",
+        nargs="*",
+        default=[],
+        help="List of files to scan, ignore -d option when inputs found",
+    )
 
     args = parser.parse_args()
 
-    root_dir = args.directory
     exts = args.extensions
     output: str = args.output
     if not output.endswith(".yml"):
         output = output + ".yml"
 
-    if not os.path.isdir(root_dir):
-        print(f"Error: Directory '{root_dir}' not found.")
-        return
+    files: list[Path]
+    if len(args.inputs) > 0:
+        files = [Path(p) for p in args.inputs]
+        print(f"Scanning files:\n{"\n".join(args.inputs)}")
+    elif args.directory is not None:
+        root_dir = args.directory
+        if not os.path.isdir(root_dir):
+            print(f"Error: Directory '{root_dir}' not found.")
+            return
 
-    print(f"Scanning '{root_dir}' for extension '{" ".join(exts)}'...\n")
+        print(f"Scanning '{root_dir}' for extension '{" ".join(exts)}'...\n")
 
-    files = find_files(root_dir, exts)
+        files = find_files(root_dir, exts)
+    else:
+        print("No input found and no -d option is given")
+        exit(1)
 
     if not files:
         print(f"No files suffix with '{" ".join(exts)}' found.")
         return
 
     with open(output, "w") as out:
-        out.write("doc-comments: \n")
+        out.write("metadata:\n")
         for file_path in files:
             build_yml_block(file_path, out)
 
