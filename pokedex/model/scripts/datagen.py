@@ -40,39 +40,6 @@ class DataGenerator:
         self.is_check = False
         self.enable_exts = enable_exts
 
-    def gen_csr(self):
-        CSR_DATA_FILE = self.root / "csr.json"
-
-        # TODO: cross check with riscv opcodes
-
-        csr_list = []
-        for x in Path("csr").glob("*.asl"):
-            mode, addr_str, name = x.stem.split("_")
-            addr = int(addr_str, base=16)
-            csr_list.append(
-                {
-                    "name": name,
-                    "mode": mode,
-                    "addr": addr,
-                    "bin_addr": format(addr, "012b"),
-                    "read_write": not mode.endswith("ro"),
-                }
-            )
-        csr_list.sort(key=lambda x: x["addr"])
-
-        if self.is_check:
-            # check mode
-            csr_json = read_file_json(CSR_DATA_FILE)
-            if csr_list != csr_json["csr_metadata"]:
-                raise CheckFailError("csr table misatch, run ./datagen.py to update")
-        else:
-            # update mode
-            csr_json = {
-                "csr_metadata": csr_list,
-            }
-            print(f"write to file: {CSR_DATA_FILE}")
-            write_file_json(CSR_DATA_FILE, csr_json)
-
     def gen_instructions(self):
         INSTR_DATA_FILE = self.root / "inst_encoding.json"
         print(f"[datagen] Generating for extensions: {", ".join(self.enable_exts)}")
@@ -131,7 +98,6 @@ class DataGenerator:
     def run_all(self, is_check: bool):
         self.is_check = is_check
 
-        self.gen_csr()
         self.gen_instructions()
 
 
