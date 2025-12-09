@@ -1,5 +1,6 @@
 #import "@preview/fletcher:0.5.8" as fletcher: diagram, edge, node
 #import fletcher.shapes: hexagon, house
+#import "lib.typ"
 
 #let release_mode = sys.inputs.keys().any(k => k == "release")
 #let darkmode_enable = sys.inputs.keys().any(k => k == "enable_darkmode")
@@ -7,7 +8,7 @@
 #let theme = (
   bg: if darkmode_enable { black } else { white },
   fg: if darkmode_enable { white } else { black },
-  bg_grey: if darkmode_enable { luma(100) } else { luma(240) },
+  bg_grey: if darkmode_enable { luma(100) } else { luma(85%) },
   bg_raw: if darkmode_enable { rgb("#1d2433") } else { luma(240) },
 )
 
@@ -1183,6 +1184,7 @@ spike --isa=rv32imafc_zvl256b_zve32x_zifencei \
       #label("inst-doc-" + inst_ref.inst)
 
       - *Bit Pattern*: #raw(inst_ref.encoding)
+        #lib.draw_instruction(inst_ref, scale-factor: 0.8)
       - *Extension Set*: #raw(inst_ref.extension)
     ]
 
@@ -1191,15 +1193,17 @@ spike --isa=rv32imafc_zvl256b_zve32x_zifencei \
 
   [== CSR Reference <csr-reference>]
   for csr_ref in csr_meta {
+    let csr_bin = lib.to_binary(csr_ref.id, width: 12)
+
     [
       #heading(depth: 3, upper(csr_ref.csr))
       #label("csr-doc-" + csr_ref.csr)
 
-      - *Bit Pattern*: #raw(csr_ref.bin)
+      - *Bit Pattern*: #raw(csr_bin)
+        #lib.draw_bitvector(lib.parse_bits_groups(csr_bin), scale-factor: 1.3)
       - *Mode*: #raw(csr_ref.mode)
-      - *Number*: #raw(str(csr_ref.id))
+      - *Number ID*: #raw(str(csr_ref.id))
     ]
-
     markup(csr_ref.desc)
   }
 }

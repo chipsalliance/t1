@@ -19,6 +19,29 @@
   return Retired();
 {% endmacro -%}
 
+/// ---
+/// inst: "beq"
+/// encoding: "-----------------000-----1100011"
+/// fields:
+///   - bimm: ["[31](bimm[12])", "[30:25](bimm[10:5])", "[11:8](bimm[4:1])", "[7](bimm[11])"]
+///   - rs1: "[19:15]"
+///   - rs2: "[24:20]"
+/// extension: "rv_i"
+/// ---
+/// BEQ take the branch if registers X[RS1] and X[RS2] are equal.
+/// The 12-bit B-immediate encodes signed offsets in multiples of 2 bytes.
+/// The offset is sign-extended and added to the address of the branch
+/// instruction to give the target address.
+///
+/// Formulated as:
+/// ```text
+/// let offset = [BIMM, '0'];
+/// if X[RS1] == X[RS2] then
+///   PC = PC + SExt(offset);
+/// else
+///   PC = PC + 4;
+/// end
+/// ```
 func Execute_BEQ(instruction: bits(32)) => Result
 begin
 {{- branch_body("beq", "src1 == src2") -}}
