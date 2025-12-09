@@ -18,24 +18,23 @@ let
       url = firstUrl;
       recursiveHash = true;
       downloadToTemp = true;
-      postFetch =
-        ''
-          mkdir -p "$out"
-          cp -v "$downloadedFile" "$out/${baseNameOf firstUrl}"
-        ''
-        + concatStringsSep "\n" (
-          map (
-            elem:
-            let
-              filename = baseNameOf elem;
-            in
-            ''
-              downloadedFile=$TMPDIR/${filename}
-              tryDownload ${elem}
-              cp -v "$TMPDIR/${filename}" "$out/"
-            ''
-          ) otherUrls
-        );
+      postFetch = ''
+        mkdir -p "$out"
+        cp -v "$downloadedFile" "$out/${baseNameOf firstUrl}"
+      ''
+      + concatStringsSep "\n" (
+        map (
+          elem:
+          let
+            filename = baseNameOf elem;
+          in
+          ''
+            downloadedFile=$TMPDIR/${filename}
+            tryDownload ${elem}
+            cp -v "$TMPDIR/${filename}" "$out/"
+          ''
+        ) otherUrls
+      );
     };
 in
 {

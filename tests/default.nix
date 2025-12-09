@@ -146,16 +146,15 @@ let
           )
         )
       );
-      script =
-        ''
-          mkdir -p $out/configs
-        ''
-        + (lib.concatMapStringsSep "\n" (caseDrv: ''
-          mkdir -p $out/cases/${caseDrv.pname}
-          cp ${caseDrv}/bin/${caseDrv.pname}.elf $out/cases/${caseDrv.pname}/
-          cp ${caseDrv}/${caseDrv.pname}.json $out/configs/
-          cp ${caseDrv}/${caseDrv.pname}.cover $out/configs/
-        '') allCases);
+      script = ''
+        mkdir -p $out/configs
+      ''
+      + (lib.concatMapStringsSep "\n" (caseDrv: ''
+        mkdir -p $out/cases/${caseDrv.pname}
+        cp ${caseDrv}/bin/${caseDrv.pname}.elf $out/cases/${caseDrv.pname}/
+        cp ${caseDrv}/${caseDrv.pname}.json $out/configs/
+        cp ${caseDrv}/${caseDrv.pname}.cover $out/configs/
+      '') allCases);
     in
     runCommand "build-all-testcases" { } script;
 in

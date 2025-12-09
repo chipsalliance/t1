@@ -119,25 +119,24 @@ let
         # Filter lists, get only CI specify tests run result
         (lib.filter (val: lib.isDerivation val && lib.hasAttr val.caseName testPlan))
       ];
-      script =
-        ''
-          mkdir -p $out
-        ''
-        + (lib.concatMapStringsSep "\n" (caseDrv: ''
-          _caseOutDir=$out/${caseDrv.caseName}
-          mkdir -p "$_caseOutDir"
+      script = ''
+        mkdir -p $out
+      ''
+      + (lib.concatMapStringsSep "\n" (caseDrv: ''
+        _caseOutDir=$out/${caseDrv.caseName}
+        mkdir -p "$_caseOutDir"
 
-          if [ -r ${caseDrv}/sim_result.json ]; then
-            cp -v ${caseDrv}/sim_result.json "$_caseOutDir"/
-          fi
+        if [ -r ${caseDrv}/sim_result.json ]; then
+          cp -v ${caseDrv}/sim_result.json "$_caseOutDir"/
+        fi
 
-          cp -v ${caseDrv}/sim-check-* "$_caseOutDir"/
+        cp -v ${caseDrv}/sim-check-* "$_caseOutDir"/
 
-          if [ -d ${caseDrv}/cm.vdb ]; then
-            cp -vr ${caseDrv}/cm.vdb "$_caseOutDir"/
-          fi
-        '') allCasesResult)
-        + postCopied;
+        if [ -d ${caseDrv}/cm.vdb ]; then
+          cp -vr ${caseDrv}/cm.vdb "$_caseOutDir"/
+        fi
+      '') allCasesResult)
+      + postCopied;
       runCommandArgs = builtins.removeAttrs args [
         "testPlanDir"
         "emuType"

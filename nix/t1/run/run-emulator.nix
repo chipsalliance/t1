@@ -30,18 +30,17 @@ let
     "testCase"
     "waveFileName"
   ];
-  plusargs =
-    [
-      "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
-      "+t1_dev_rtl_event_path=rtl-event.jsonl"
-    ]
-    ++ lib.optionals (waveFileName != null) [
-      "+t1_wave_path=${waveFileName}"
-    ]
-    ++ lib.optionals (topName == "t1rocketemu") [
-      "+t1_dramsim3_cfg=${dramsim3-config}"
-      "+t1_dramsim3_path=dramsim3_out"
-    ];
+  plusargs = [
+    "+t1_elf_file=${testCase}/bin/${testCase.pname}.elf"
+    "+t1_dev_rtl_event_path=rtl-event.jsonl"
+  ]
+  ++ lib.optionals (waveFileName != null) [
+    "+t1_wave_path=${waveFileName}"
+  ]
+  ++ lib.optionals (topName == "t1rocketemu") [
+    "+t1_dramsim3_cfg=${dramsim3-config}"
+    "+t1_dramsim3_path=dramsim3_out"
+  ];
   emuDriverWithArgs = emulator.driverWithArgs ++ plusargs ++ emuExtraArgs;
 in
 stdenvNoCC.mkDerivation (
