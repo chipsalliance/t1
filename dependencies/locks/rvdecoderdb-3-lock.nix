@@ -30,7 +30,7 @@ let
           in
           ''
             downloadedFile=$TMPDIR/${filename}
-            tryDownload ${elem}
+            tryDownload ${elem} "$downloadedFile"
             cp -v "$TMPDIR/${filename}" "$out/"
           ''
         ) otherUrls

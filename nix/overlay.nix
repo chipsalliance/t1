@@ -13,6 +13,18 @@ rec {
     in
     if val == "" then builtins.throw "${key} not set or '--impure' not applied" else val;
 
+  jextract-21 =
+    (prev.jextract-21.override { llvmPackages = final.llvmPackages_20; }).overrideAttrs
+      (old: {
+        version = "unstable-2025-11-12";
+        src = final.fetchFromGitHub {
+          owner = "openjdk";
+          repo = "jextract";
+          rev = "0f87c6cdd5d63a7148deb38e16ed4de1306a4573";
+          hash = "sha256-Bji7I6LNMs70drGo5+75OClCrxhOsoLV2V7Wdct6494=";
+        };
+      });
+
   espresso = final.callPackage ./pkgs/espresso.nix { };
   dramsim3 = final.callPackage ./pkgs/dramsim3.nix { };
   libspike = final.callPackage ./pkgs/libspike.nix { };
@@ -28,7 +40,7 @@ rec {
         rev = "2a725d40de138714db4872dc7405d86457aa17ad";
         hash = "sha256-WWNNjCSzQCtATpCFEijm81NNG1xqlLMVbIzXAiZysbs=";
       };
-      lockedNixpkgs = import pkgSrc { system = final.system; };
+      lockedNixpkgs = import pkgSrc { system = final.stdenv.hostPlatform.system; };
     in
     lockedNixpkgs.callPackage ./pkgs/buddy-mlir.nix { python3 = lockedNixpkgs.python312; };
 
