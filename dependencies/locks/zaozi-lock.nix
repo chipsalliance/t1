@@ -30,7 +30,7 @@ let
           in
           ''
             downloadedFile=$TMPDIR/${filename}
-            tryDownload ${elem}
+            tryDownload ${elem} "$downloadedFile"
             cp -v "$TMPDIR/${filename}" "$out/"
           ''
         ) otherUrls
@@ -1758,4 +1758,4 @@ in
   };
 
 }
-# Project Source Hash:sha256-ZlWxpTtoCoRHEd/Tn7+rc0Oy6EbX/pD9n8OmfriwTpc=
+# Project Source Hash:sha256-KfiPI8boZf349qFnsyARdcpMUma4jWJm6K1nJZoz8Wk=
