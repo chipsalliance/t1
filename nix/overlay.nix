@@ -1,7 +1,7 @@
 final: prev:
 
 let
-  llvmForRVV_attrName = "llvmPackages_rv_xsfmm";
+  llvmForRVV_attrName = "llvmPackages"; # 21.1.2
   rv32_pkgs = final.pkgsCross.riscv32-embedded;
   rv32_buildPkgs = rv32_pkgs.buildPackages;
 in
@@ -79,16 +79,9 @@ rec {
   t1-script = final.callPackage ../script { };
   inherit (t1-script) t1-helper ci-helper;
 
-  llvmPackages_rv_xsfmm =
-    (final.mkLLVMPackages {
-      name = "rv_xsfmm";
-      version = "21.0.0-git-2025-05-22";
-      gitRelease = {
-        rev = "95ba5508e5dca4c9a3dd50c80b89e3f56016a4f3";
-        rev-version = "rv-xsfmm-git-2025-05-22";
-        sha256 = "sha256-CavRVIc7wEUFqISe4OQcRWJ4fxeDNiBsPpXnZypW3q8=";
-      };
-    }).value;
+  rv32-compiler-rt = final.callPackage ./pkgs/llvm-compiler-rt.nix {
+    stdenv = rv32_pkgs.overrideCC rv32_pkgs.stdenv rv32_buildPkgs.llvmPackages.clangNoCompilerRt;
+  };
 
   # stdenv for compiling rvv programs, with ilp32f newlib and clang
   rv32-stdenv = rv32_pkgs.stdenv.override {
@@ -100,15 +93,6 @@ rec {
         # We need to override it with `-mabi=ilp32f`
 
         # compiler-rt requires the compilation flag -fforce-enable-int128, only clang provides that
-        compilerrt =
-          (rv32_pkgs.${llvmForRVV_attrName}.compiler-rt.override {
-            stdenv =
-              rv32_pkgs.overrideCC rv32_pkgs.stdenv
-                rv32_buildPkgs.${llvmForRVV_attrName}.clangNoCompilerRt;
-          }).overrideAttrs
-            (oldAttrs: {
-              env.NIX_CFLAGS_COMPILE = "-march=rv32imacf_zvl128b_zve32f -mabi=ilp32f";
-            });
 
         newlib = rv32_pkgs.stdenv.cc.libc.overrideAttrs (oldAttrs: {
           CFLAGS_FOR_TARGET = "-march=rv32imacf_zvl128b_zve32f -mabi=ilp32f";
@@ -128,8 +112,8 @@ rec {
           mkdir "$rsrc"
           ln -s "${cc.lib}/lib/clang/${major}/include" "$rsrc"
           echo "-resource-dir=$rsrc" >> $out/nix-support/cc-cflags
-          ln -s "${compilerrt}/lib" "$rsrc/lib"
-          ln -s "${compilerrt}/share" "$rsrc/share"
+          ln -s "${rv32-compiler-rt}/lib" "$rsrc/lib"
+          ln -s "${rv32-compiler-rt}/share" "$rsrc/share"
         '';
 
         # link against emurt
