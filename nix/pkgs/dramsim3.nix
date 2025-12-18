@@ -17,4 +17,8 @@ stdenv.mkDerivation rec {
     rev = version;
     sha256 = "sha256-fXhsfmVGpI1Y5qrJcHD7ZD96Wvkf5tDoPhS1cV0fW2A=";
   };
+  # Workaround with cmake 4.0
+  cmakeFlags = [
+    "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+  ];
 }
