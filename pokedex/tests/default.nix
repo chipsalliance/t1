@@ -15,30 +15,36 @@ lib.makeScope newScope (scope: {
     }
   ) { };
 
-  # Group entry, linker script and riscv-test-env header together for easier usage
-  pokedex-compile-stubs = ./compile-stubs;
+  prebuilt-cases = scope.callPackage ./nix/prebuilt-cases.nix { };
 
-  # Builder for running difftest for one test case
-  mkDiffEnv = scope.callPackage ./make-diff-env.nix { };
+  run = scope.callPackage ./nix/run.nix { };
 
-  # Handwritten ASM for driving the simulator
-  # Developer can run `nix build/develop .#pokedex.tests.smoke-tests.diff.<attr>` to test single test binary.
-  smoke-tests = scope.callPackage ./smoke/package.nix { };
-
-  # Handwritten ASM for driving the simulator with Vector extension
-  # Developer can run `nix build/develop .#pokedex.tests.smoke-v-tests.diff.<attr>` to test single test binary.
-  smoke-v-tests = scope.callPackage ./smoke_v/package.nix { };
-
-  # Binaries compiled from riscv-software-src/riscv-tests
-  # Developer can run `nix build/develop .#pokedex.tests.riscv-tests-bins.diff.<attr>` to test single test binary.
-  riscv-tests-bins = scope.callPackage ./riscv-tests/package.nix { };
-
-  # Binaries compiled from chipsalliance/riscv-vector-tests
-  # Developer can run `nix build/develop .#pokedex.tests.riscv-vector-tests-bins.diff.<attr>` to test single test binary.
-  riscv-vector-tests-bins = scope.callPackage ./riscv-vector-tests/package.nix { };
-
-  # An internal helper derivation that run difftest on all the binaries
-  # provided by smoke-tests, smoke-v-tests, riscv-tests-bins,
-  # riscv-vector-tests-bins
-  all-diffs = scope.callPackage ./all-diffs.nix { };
+  env = scope.callPackage (
+    { mkShell, rv32-stdenv }:
+    mkShell {
+      packages = [ rv32-stdenv.cc ];
+      inputsFrom = [
+        scope.prebuilt-cases
+        scope.run
+      ];
+      env = scope.run.env // {
+        # Using mesonFlags accidentally overlap the default key.
+        MESON_FLAGS =
+          (
+            scope.prebuilt-cases.mesonFlags
+            ++ [
+              (lib.mesonEnable "with_tests" true)
+            ]
+          )
+          |> toString;
+      };
+      shellHook = ''
+        cat <<EOF
+        Three commands to do all the jobs
+        1. Configure: meson setup build \$MESON_FLAGS --prefix \$PWD/tests-output
+        2. Test: meson test -C build
+        EOF
+      '';
+    }
+  ) { };
 })
