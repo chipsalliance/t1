@@ -1,5 +1,3 @@
-    .globl _start
-
 // tohost address define in ld
 _poweroff_spike:
     // override a0. Spike have special treatment for value at tohost address.
@@ -29,6 +27,8 @@ _poweroff:
     j .
 
 
+    .section .text.init
+    .globl _start
 _start:
     li a0, 0x2200 # MSTATUS_VS & (MSTATUS_VS >> 1)
     csrs mstatus, a0
