@@ -8,7 +8,12 @@ MEMORY {
 
 SECTIONS {
   . = ORIGIN(SRAM);
-  .text           : { *(.text .text.*) }
+  .text           : {
+    /* Explicitly put out `_start` at the beginning of the SRAM */
+    *(.text.init)
+
+    *(.text .text.*)
+  }
   . = ALIGN(0x1000);
 
   .data           : { *(.data .data.*) }
