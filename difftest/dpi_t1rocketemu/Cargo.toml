@@ -16,7 +16,7 @@ anyhow = { workspace = true }
 hex = "0.4.3"
 elf = "0.7.4"
 png = "0.17.14"
-dramsim3 = "0.2.1"
+dramsim3 = "0.2.2"
 tempfile = "3.16.0"
 
 [features]
