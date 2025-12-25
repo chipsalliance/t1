@@ -10,6 +10,7 @@ import chisel3.util.experimental.BitSet
 import chisel3.util.log2Ceil
 import org.chipsalliance.amba.axi4.bundle.{AXI4BundleParameter, AXI4ROIrrevocable, AXI4RWIrrevocable}
 import org.chipsalliance.rvdecoderdb.Instruction
+import org.chipsalliance.dwbb.stdlib.queue.Queue
 
 object RocketTileParameter {
   implicit def bitSetP: upickle.default.ReadWriter[BitSet] = upickle.default
@@ -419,15 +420,19 @@ class RocketTile(val parameter: RocketTileParameter)
     nmi.rnmi_interrupt_vector := io.nmiInterruptVector.get
     nmi.rnmi_exception_vector := io.nmiIxceptionVector.get
   }
+
   // @todo make it optional
-  rocket.io.buserror         := io.buserror
-  io.wfi                     := rocket.io.wfi
+  rocket.io.buserror := io.buserror
+  io.wfi             := rocket.io.wfi
   io.loadStoreAXI <> hellaCache.io.loadStoreAXI
+  // A queue is needed to break the coupling between id and ready.
+  val rQueue = Queue(io.loadStoreAXI.r, 2)
+  hellaCache.io.loadStoreAXI.r <> rQueue
   io.dtimAXI.zip(hellaCache.io.dtimAXI).foreach { case (io, hellaCache) => io <> hellaCache }
   io.instructionFetchAXI <> frontend.io.instructionFetchAXI
   io.itimAXI.zip(frontend.io.itimAXI).foreach { case (io, frontend) => io <> frontend }
   // design for halt and beu, only use the halt function for now.
-  io.halt                    := Seq(frontend.io.nonDiplomatic.errors.uncorrectable, hellaCache.io.errors.uncorrectable)
+  io.halt := Seq(frontend.io.nonDiplomatic.errors.uncorrectable, hellaCache.io.errors.uncorrectable)
     .flatMap(_.map(_.valid))
     .foldLeft(false.B)(_ || _)
 
