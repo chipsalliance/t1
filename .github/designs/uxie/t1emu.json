@@ -8,6 +8,6 @@
   "asm.mmm": 55537,
   "asm.smoke": 6005,
   "intrinsic.conv2d_less_m2": 2983,
-  "intrinsic.linear_normalization": 2650,
+  "intrinsic.linear_normalization": 2647,
   "intrinsic.softmax": 4684
 }
