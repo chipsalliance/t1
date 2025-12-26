@@ -44,6 +44,11 @@ begin
   MSTATUS_FS = value[14:13];
   MSTATUS_MPIE = value[7];
   MSTATUS_MIE = value[3];
+  SSTATUS_SIE = value[1];
+  SSTATUS_SPIE = value[5];
+  SSTATUS_SPP = value[8];
+  SSTATUS_SUM = value[18];
+  SSTATUS_MXR = value[19];
 
   logWrite_MSTATUS();
 
@@ -65,19 +70,24 @@ begin
     // WPRI[30:25], SDT[24], SPELP[23], TSR[22], TW[21], TVM[20]
     // MXR[19], SUM[18], MPRV[17], XS[16:15]
     Zeros(16),
-    
+
     MSTATUS_FS,         // [14:13]
     MSTATUS_MPP_BITS,   // [12:11]
     MSTATUS_VS,         // [10:9]
-    '0',                // [8] SPP
+    SSTATUS_SPP,        // [8]
     MSTATUS_MPIE,       // [7]
 
     // UBE, SPIE, WPRI
-    '000',
+    '0',
+    SSTATUS_SPIE,       // [5]
+    '0',
 
     MSTATUS_MIE,        // [3]
-    // WPRI, SIE, WPRI
-    '000'
+    // WPRI
+    '0',
+    SSTATUS_SIE,        // [1]
+    // WPRI
+    '0'
   ];
 end
 
