@@ -132,6 +132,7 @@ case class T1Parameter(
   chainingSize:            Int,
   vrfBankSize:             Int,
   vrfRamType:              RamType,
+  vrfWritePort:            Int,
   // TODO: simplify it. this is user-level API.
   vfuInstantiateParameter: VFUInstantiateParameter,
   matrixAluRowSize:        Option[Int],
@@ -349,6 +350,7 @@ case class T1Parameter(
       portFactor = vrfBankSize,
       maskRequestLatency = 2 * maskRequestLatency,
       vrfRamType = vrfRamType,
+      vrfWritePort = vrfWritePort,
       decoderParam = decoderParam,
       vfuInstantiateParameter = vfuInstantiateParameter
     )
@@ -387,7 +389,8 @@ case class T1Parameter(
       } else { 0 }
     )
   )
-  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, vrfRamType)
+  // todo: add vrfWritePort from top param
+  def vrfParam: VRFParam = VRFParam(vLen, laneNumber, datapathWidth, chainingSize, vrfBankSize, 2, vrfRamType)
   def laneIFParam = LaneIFParameter(vLen, eLen, datapathWidth, laneNumber, chainingSize, fpuEnable, decoderParam)
   def seqIFParam  = SequencerIFParameter(vLen, eLen, datapathWidth, laneNumber, chainingSize, fpuEnable, decoderParam)
   def lsuIFParam  = LSUIFParameter(vLen, eLen, datapathWidth, laneNumber, chainingSize, fpuEnable, decoderParam)

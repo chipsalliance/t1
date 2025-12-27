@@ -1,148 +1,148 @@
 # TestChips
 [rookidee]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter small"
 [blastoise]
-cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32f --laneScale 2 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32f --laneScale 2 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter small"
 [uxie]
-cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32f --laneScale 2 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rp1w --vfuInstantiateParameter small"
+cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32f --laneScale 2 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rp1w --vrfWritePort 2 --vfuInstantiateParameter small"
 
 # Physcial Design Benchmark
 ## VLEN from 128 to 64K
 [physical_design_case_0]
-cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_1]
-cmdopt = "--dLen 128 --extensions zvl256b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl256b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_2]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_3]
-cmdopt = "--dLen 128 --extensions zvl1024b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl1024b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_4]
-cmdopt = "--dLen 128 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_5]
-cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_6]
-cmdopt = "--dLen 128 --extensions zvl8192b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl8192b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_7]
-cmdopt = "--dLen 128 --extensions zvl16384b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl16384b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_8]
-cmdopt = "--dLen 128 --extensions zvl32768b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl32768b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_9]
-cmdopt = "--dLen 128 --extensions zvl65536b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl65536b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 ## 4 8 16 32 Lanes floorplan and extra size by Permutation Unit
 [physical_design_case_10]
-cmdopt = "--dLen 128 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_11]
-cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_12]
-cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_13]
-cmdopt = "--dLen 1024 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 1024 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 ## Lane with different VRF bank size
 [physical_design_case_14]
-cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter small"
 [physical_design_case_15]
-cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter small"
 [physical_design_case_16]
-cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter small"
 [physical_design_case_17]
-cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter small"
 [physical_design_case_18]
-cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 16 --vrfRamType p0rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 16 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter small"
 ## Lane with different VRF RAM Type
 [physical_design_case_19]
-cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter small"
 [physical_design_case_20]
-cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rp1w --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rp1w --vrfWritePort 2 --vfuInstantiateParameter small"
 [physical_design_case_21]
-cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter small"
 ## Lane with different VFU
 [physical_design_case_22]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_23]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter small"
 [physical_design_case_24]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter minimal"
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter minimal"
 [physical_design_case_25]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter small"
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter small"
 [physical_design_case_26]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter medium"
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter medium"
 [physical_design_case_27]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter large"
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter large"
 [physical_design_case_28]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 
 [benchmark_dlen128_vlen128]
-cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen256]
-cmdopt = "--dLen 128 --extensions zvl256b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl256b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen512]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen1024]
-cmdopt = "--dLen 128 --extensions zvl1024b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl1024b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen2048]
-cmdopt = "--dLen 128 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 16 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 16 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen4096]
-cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 32 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 32 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen256]
-cmdopt = "--dLen 256 --extensions zvl256b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 256 --extensions zvl256b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen512]
-cmdopt = "--dLen 256 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 256 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen1024]
-cmdopt = "--dLen 256 --extensions zvl1024b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 256 --extensions zvl1024b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen2048]
-cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen4096]
-cmdopt = "--dLen 256 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 16 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 256 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 16 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen512_vlen512]
-cmdopt = "--dLen 512 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 512 --extensions zvl512b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen512_vlen1024]
-cmdopt = "--dLen 512 --extensions zvl1024b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 512 --extensions zvl1024b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen512_vlen2048]
-cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen512_vlen4096]
-cmdopt = "--dLen 512 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 512 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen1024_vlen1024]
-cmdopt = "--dLen 1024 --extensions zvl1024b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 1024 --extensions zvl1024b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen1024_vlen2048]
-cmdopt = "--dLen 1024 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 1024 --extensions zvl2048b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen1024_vlen4096]
-cmdopt = "--dLen 1024 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 1024 --extensions zvl4096b --extensions zve32x --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen128_fp]
-cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl128b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen256_fp]
-cmdopt = "--dLen 128 --extensions zvl256b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl256b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen512_fp]
-cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen1024_fp]
-cmdopt = "--dLen 128 --extensions zvl1024b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl1024b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen2048_fp]
-cmdopt = "--dLen 128 --extensions zvl2048b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 16 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl2048b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 16 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen128_vlen4096_fp]
-cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 32 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 128 --extensions zvl4096b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 32 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen256_fp]
-cmdopt = "--dLen 256 --extensions zvl256b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 256 --extensions zvl256b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen512_fp]
-cmdopt = "--dLen 256 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 256 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen1024_fp]
-cmdopt = "--dLen 256 --extensions zvl1024b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 256 --extensions zvl1024b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen2048_fp]
-cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 256 --extensions zvl2048b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen256_vlen4096_fp]
-cmdopt = "--dLen 256 --extensions zvl4096b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 16 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 256 --extensions zvl4096b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 16 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen512_vlen512_fp]
-cmdopt = "--dLen 512 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 512 --extensions zvl512b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen512_vlen1024_fp]
-cmdopt = "--dLen 512 --extensions zvl1024b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 512 --extensions zvl1024b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen512_vlen2048_fp]
-cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 512 --extensions zvl2048b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen512_vlen4096_fp]
-cmdopt = "--dLen 512 --extensions zvl4096b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 512 --extensions zvl4096b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 8 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen1024_vlen1024_fp]
-cmdopt = "--dLen 1024 --extensions zvl1024b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 1024 --extensions zvl1024b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 1 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen1024_vlen2048_fp]
-cmdopt = "--dLen 1024 --extensions zvl2048b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 1024 --extensions zvl2048b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 2 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 [benchmark_dlen1024_vlen4096_fp]
-cmdopt = "--dLen 1024 --extensions zvl4096b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vfuInstantiateParameter huge"
+cmdopt = "--dLen 1024 --extensions zvl4096b --extensions zve32f --laneScale 1 --chainingSize 4 --vrfBankSize 4 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter huge"
 # Experimental(only for elaboration)
 [experimental_0]
-cmdopt = "--dLen 256 --extensions zvl256b --extensions zve32x --laneScale 1 --chainingSize 4 --extensions zvbb --vrfBankSize 1 --vrfRamType p0rwp1rw --vfuInstantiateParameter zvbb"
+cmdopt = "--dLen 256 --extensions zvl256b --extensions zve32x --laneScale 1 --chainingSize 4 --extensions zvbb --vrfBankSize 1 --vrfRamType p0rwp1rw --vrfWritePort 2 --vfuInstantiateParameter zvbb"

@@ -236,19 +236,21 @@ class TestBench(val parameter: T1RocketTileParameter)
   }
 
   // t1 vrf write
-  laneVrfProbes.zipWithIndex.foreach { case (lane, i) =>
+  laneVrfProbes.zipWithIndex.foreach { case (laneVec, i) =>
     val datapathWidth = parameter.t1Parameter.datapathWidth.U(32.W)
 
-    val vrfOffsetInBytes  = parameter.vLen.U(32.W) / 8.U(32.W) * lane.requestVd
-    val laneOffsetInBytes =
-      parameter.dLen.U(32.W) / 8.U(32.W) * lane.requestOffset + datapathWidth / 8.U(32.W) * i.U(32.W)
+    laneVec.foreach { lane =>
+      val vrfOffsetInBytes  = parameter.vLen.U(32.W) / 8.U(32.W) * lane.requestVd
+      val laneOffsetInBytes =
+        parameter.dLen.U(32.W) / 8.U(32.W) * lane.requestOffset + datapathWidth / 8.U(32.W) * i.U(32.W)
 
-    val vrfIdx = vrfOffsetInBytes + laneOffsetInBytes
-    when(lane.valid)(
-      log.printf(
-        cf"""{"event":"VrfWrite","issue_idx":${lane.requestInstruction},"vrf_idx":${vrfIdx},"mask":"${lane.requestMask}%x","data":"${lane.requestData}%x","cycle":${simulationTime}}\n"""
+      val vrfIdx = vrfOffsetInBytes + laneOffsetInBytes
+      when(lane.valid)(
+        log.printf(
+          cf"""{"event":"VrfWrite","issue_idx":${lane.requestInstruction},"vrf_idx":${vrfIdx},"mask":"${lane.requestMask}%x","data":"${lane.requestData}%x","cycle":${simulationTime}}\n"""
+        )
       )
-    )
+    }
   }
 
   // t1 memory write from store unit
