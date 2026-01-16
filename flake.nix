@@ -7,6 +7,7 @@
     mill-ivy-fetcher.url = "github:Avimitin/mill-ivy-fetcher";
     circt-follow.url = "github:sequencer/zaozi";
     treefmt-nix.url = "github:numtide/treefmt-nix";
+    pokedex.url = "github:xinpian-tech/pokedex";
   };
 
   outputs =
@@ -51,6 +52,7 @@
               mill-ivy-fetcher.overlays.default
               # Follow CIRCT from sequencer/zaozi overlay
               circt-follow.overlays.default
+              inputs.pokedex.overlays.default
               overlay
             ];
           };
@@ -95,9 +97,6 @@
               scalafmt.includes = [
                 "*.sc"
                 "*.mill"
-              ];
-              black.excludes = [
-                "pokedex/model/scripts/ninja_syntax.py"
               ];
             };
           };

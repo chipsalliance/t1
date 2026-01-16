@@ -1,7 +1,0 @@
-asl_history
-build
-*.jsonl
-result
-install
-docs/*.yml
-docs/*.pdf
