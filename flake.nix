@@ -90,6 +90,7 @@
               #
               # rustfmt.enable = true;
             };
+            settings.global.excludes = [ "dependencies/*" ];
             settings.formatter = {
               nixfmt.excludes = [ "*/generated.nix" ];
               scalafmt.includes = [

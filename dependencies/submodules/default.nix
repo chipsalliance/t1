@@ -120,7 +120,7 @@ lib.makeScope newScope (scope: {
 
   ivy-chisel-interface = publishMillJar {
     name = "chiselInterface-snapshot";
-    src = submodules.chisel-interface.src;
+    src = ../chisel-interface;
 
     publishTargets = [
       "jtag[snapshot]"
@@ -137,7 +137,7 @@ lib.makeScope newScope (scope: {
     ];
 
     passthru.bump = writeShellApplication {
-      name = "bump-zaozi-mill-lock";
+      name = "bump-chisel-interface-mill-lock";
 
       runtimeInputs = [
         mill

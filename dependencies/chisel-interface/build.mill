@@ -1,0 +1,94 @@
+package build
+
+import $ivy.`com.lihaoyi::mill-contrib-versionfile:`
+import $ivy.`com.github.lolgab::mill-mima::0.0.23`
+import $ivy.`de.tototec::de.tobiasroeser.mill.vcs.version::0.4.1`
+
+import mill._
+import mill.scalalib._
+import mill.define.{TaskModule, Command}
+import mill.scalalib.publish._
+import mill.scalalib.scalafmt._
+import de.tobiasroeser.mill.vcs.version.VcsVersion
+import com.github.lolgab.mill.mima._
+
+object v {
+  val scala = "2.13.16"
+  val mainargs = ivy"com.lihaoyi::mainargs:0.7.0"
+  val crossChiselVersions = Map(
+    "6.6.0" -> (ivy"org.chipsalliance::chisel:6.6.0", ivy"org.chipsalliance:::chisel-plugin:6.6.0"),
+    "snapshot" -> (ivy"org.chipsalliance::chisel:0.0.0+0-no-vcs-SNAPSHOT", ivy"org.chipsalliance:::chisel-plugin:0.0.0+0-no-vcs-SNAPSHOT"),
+  )
+}
+
+trait ChiselInterfacePublishModule
+    extends PublishModule
+    with ScalafmtModule
+    with Mima {
+
+  // Different artifacts has their own version for fine control of compatibility.
+  def publishVersion: mill.T[String] = VcsVersion
+      .vcsState()
+      .format(
+        countSep = "+",
+        revHashDigits = 8,
+        untaggedSuffix = "-SNAPSHOT",
+      )
+  def pomSettings = T(
+    PomSettings(
+      description = artifactName(),
+      organization = "org.chipsalliance",
+      url = "https://github.com/chipsalliance/chisel-interface",
+      licenses = Seq(License.`Apache-2.0`),
+      versionControl =
+        VersionControl.github("chipsalliance", "chisel-interface"),
+      developers = Seq(
+        Developer("sequencer", "Jiuyang Liu", "https://github.com/sequencer")
+      )
+    )
+  )
+}
+
+trait DWBBPublishModule
+    extends Cross.Module[String]
+    with common.DWBBModule
+    with ChiselInterfacePublishModule {
+  def scalaVersion = T(v.scala)
+  def chiselIvy = Some(v.crossChiselVersions(crossValue)._1)
+  def chiselPluginIvy = Some(v.crossChiselVersions(crossValue)._2)
+  def mainargsIvy = v.mainargs
+}
+object dwbb
+    extends Cross[DWBBPublishModule](v.crossChiselVersions.keys.toSeq) { m =>
+  def millSourcePath = os.pwd / "dwbb"
+}
+
+
+trait AXI4PublishModule
+    extends Cross.Module[String]
+    with common.AXI4Module
+    with ChiselInterfacePublishModule {
+  def scalaVersion = T(v.scala)
+  def chiselIvy = Some(v.crossChiselVersions(crossValue)._1)
+  def chiselPluginIvy = Some(v.crossChiselVersions(crossValue)._2)
+  def mainargsIvy = v.mainargs
+}
+object axi4
+    extends Cross[AXI4PublishModule](v.crossChiselVersions.keys.toSeq) { m =>
+  def millSourcePath = os.pwd / "axi4"
+}
+
+
+trait JTAGPublishModule
+    extends Cross.Module[String]
+    with common.JTAGModule
+    with ChiselInterfacePublishModule {
+  def scalaVersion = T(v.scala)
+  def chiselIvy = Some(v.crossChiselVersions(crossValue)._1)
+  def chiselPluginIvy = Some(v.crossChiselVersions(crossValue)._2)
+  def mainargsIvy = v.mainargs
+}
+object jtag
+    extends Cross[JTAGPublishModule](v.crossChiselVersions.keys.toSeq) { m =>
+  def millSourcePath = os.pwd / "jtag"
+}
