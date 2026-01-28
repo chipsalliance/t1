@@ -60,6 +60,7 @@ let
 
     nativeBuildInputs = [
       mill
+      mill.jre
       circt-install
       mlir-install
       jextract-21
