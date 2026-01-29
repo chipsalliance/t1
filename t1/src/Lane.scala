@@ -1291,9 +1291,10 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.crossRead              := laneRequest.bits.decodeResult(Decoder.crossRead)
   vrf.instructionWriteReport.bits.unalignedReadVs1       := laneRequest.bits.decodeResult(
     Decoder.gather16
-  ) || laneRequest.bits.decodeResult(Decoder.compress)
-  vrf.instructionWriteReport.bits.gather                 := laneRequest.bits.decodeResult(Decoder.gather) &&
-    laneRequest.bits.decodeResult(Decoder.vtype)
+  ) || laneRequest.bits.decodeResult(Decoder.compress) || laneRequest.bits.decodeResult(Decoder.maskDestination)
+  vrf.instructionWriteReport.bits.unalignedReadVs2       := laneRequest.bits.decodeResult(Decoder.gather) &&
+    laneRequest.bits.decodeResult(Decoder.vtype) || laneRequest.bits.decodeResult(Decoder.red) || laneRequest.bits
+      .decodeResult(Decoder.maskDestination)
   // init state
   vrf.instructionWriteReport.bits.state.stFinish         := !laneRequest.bits.loadStore
   // load need wait for write queue clear in lsu write queue
