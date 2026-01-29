@@ -1279,7 +1279,8 @@ class Lane(val parameter: LaneParameter) extends Module with SerializableModule[
   vrf.instructionWriteReport.bits.indexType              := laneRequest.valid && laneRequest.bits.loadStore
   // TODO: move ma to [[V]]
   vrf.instructionWriteReport.bits.ma                     := laneRequest.bits.ma
-  vrf.instructionWriteReport.bits.onlyRead               := laneRequest.bits.decodeResult(Decoder.popCount)
+  vrf.instructionWriteReport.bits.onlyRead               := laneRequest.bits.decodeResult(Decoder.popCount) || laneRequest.bits
+    .decodeResult(Decoder.red) || laneRequest.bits.decodeResult(Decoder.maskDestination)
   // for mask unit
   vrf.instructionWriteReport.bits.slow                   := laneRequest.bits.decodeResult(Decoder.special)
   vrf.instructionWriteReport.bits.oooWrite               :=
