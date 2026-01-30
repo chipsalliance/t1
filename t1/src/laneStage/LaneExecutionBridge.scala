@@ -441,40 +441,46 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     val maxMaskResultSize = parameter.datapathWidth / 8
     val maxMaskResultBits = log2Ceil(maxMaskResultSize)
 
-    /** update value for [[maskFormatResultUpdate]], it comes from ALU.
-      */
-    val elementMaskFormatResult = Mux1H(
-      recordQueue.deq.bits.vSew1H(2, 0),
-      Seq(
-        // 32bit, 4 bit per data group, it will had 8 data groups -> executeIndex1H << 4 * groupCounter(2, 0)
-        maskResult << (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits - 1, 0) ## 0.U(
-          maxMaskResultBits.W
-        )),
-        // 2 bit per data group, it will had 16 data groups -> executeIndex1H << 2 * groupCounter(3, 0)
-        maskResult <<
-          (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits, 0) ## 0.U(
-            (maxMaskResultBits - 1).W
-          )),
-        // 1 bit per data group, it will had 32 data groups -> executeIndex1H << 1 * groupCounter(4, 0)
-        maskResult << (recordQueue.deq.bits.groupCounter(
-          (parameter.datapathWidthBits - maxMaskResultBits + 1).min(parameter.groupNumberBits - 1),
-          0
-        ) ## 0.U((maxMaskResultBits - 2).W))
+    maskFormatResultForGroup.foreach { dataReg =>
+      /** update value for [[maskFormatResultUpdate]], it comes from ALU.
+        */
+      val elementMaskFormatResult = Mux1H(
+        recordQueue.deq.bits.vSew1H(2, 0),
+        Seq(
+          // 32bit, 4 bit per data group, it will had 8 data groups -> executeIndex1H << 4 * groupCounter(2, 0)
+          maskResult << (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits - 1, 0) ## 0
+            .U(
+              maxMaskResultBits.W
+            )),
+          // 2 bit per data group, it will had 16 data groups -> executeIndex1H << 2 * groupCounter(3, 0)
+          maskResult <<
+            (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits, 0) ## 0.U(
+              (maxMaskResultBits - 1).W
+            )),
+          // 1 bit per data group, it will had 32 data groups -> executeIndex1H << 1 * groupCounter(4, 0)
+          maskResult << (recordQueue.deq.bits.groupCounter(
+            (parameter.datapathWidthBits - maxMaskResultBits + 1).min(parameter.groupNumberBits - 1),
+            0
+          ) ## 0.U((maxMaskResultBits - 2).W))
+        )
+      ).asUInt
+
+      val isFirstUpdateForMaskFormat = RegInit(true.B)
+      val baseMaskResultSelect       = Mux(
+        isFirstUpdateForMaskFormat,
+        0.U(parameter.datapathWidth.W),
+        maskFormatResultForGroup.get
       )
-    ).asUInt
 
-    val baseMaskResultSelect = Mux(
-      recordQueue.deq.bits.groupCounter === 0.U,
-      0.U(parameter.datapathWidth.W),
-      maskFormatResultForGroup.get
-    )
+      maskFormatResultUpdate.get := baseMaskResultSelect | elementMaskFormatResult
 
-    maskFormatResultUpdate.get := baseMaskResultSelect | elementMaskFormatResult
-
-    // update `maskFormatResultForGroup`
-    when(dataResponse.valid) {
-      maskFormatResultForGroup.foreach(_ := maskFormatResultUpdate.get)
+      // update `maskFormatResultForGroup`
+      when(dataResponse.valid && recordQueue.deq.bits.decodeResult(Decoder.maskDestination)) {
+        maskFormatResultForGroup.foreach(_ := maskFormatResultUpdate.get)
+        isFirstUpdateForMaskFormat := !recordQueue.deq.bits.sSendResponse.get
+      }
     }
+
     val normalReduceMask = Mux1H(
       recordQueue.deq.bits.vSew1H,
       Seq(
@@ -522,7 +528,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     // update `reduceResult`
     when(dataResponse.valid && recordQueue.deq.bits.decodeResult(Decoder.red)) {
       reduceResult.get := cutUIntBySize(
-        updateReduceResult.get,
+        Mux(recordQueue.deq.bits.sSendResponse.get, updateReduceResult.get, 0.U),
         parameter.datapathWidth / parameter.eLen
       )
     }
