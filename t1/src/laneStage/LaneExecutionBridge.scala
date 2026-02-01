@@ -515,7 +515,7 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       Mux(recordQueue.deq.bits.decodeResult(Decoder.widenReduce), widenReduceMask, normalReduceMask)
 
     val baseReduceResultSelect = Mux(
-      recordQueue.deq.bits.groupCounter === 0.U,
+      recordQueue.deq.bits.groupCounter === 0.U && (!doubleExecutionInQueue || !recordQueue.deq.bits.executeIndex),
       0.U(parameter.datapathWidth.W),
       reduceResult.get.asUInt
     )
@@ -528,7 +528,11 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     // update `reduceResult`
     when(dataResponse.valid && recordQueue.deq.bits.decodeResult(Decoder.red)) {
       reduceResult.get := cutUIntBySize(
-        Mux(recordQueue.deq.bits.sSendResponse.get, updateReduceResult.get, 0.U),
+        Mux(
+          recordQueue.deq.bits.sSendResponse.get || (doubleExecutionInQueue && !recordQueue.deq.bits.executeIndex),
+          updateReduceResult.get,
+          0.U
+        ),
         parameter.datapathWidth / parameter.eLen
       )
     }
