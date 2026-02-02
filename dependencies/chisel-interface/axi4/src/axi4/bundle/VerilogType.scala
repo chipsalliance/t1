@@ -43,7 +43,7 @@ trait AWChannel extends AXI4VerilogBundle {
   /** Size, the number of bytes in each data transfer in a write transaction.
     * See IHI0022H A3.4.1
     */
-  val AWSIZE: UInt = UInt(3.W)
+  val AWSIZE: UInt = UInt(4.W)
 
   /** Burst type, indicates how address changes between each transfer in a write
     * transaction.
@@ -147,7 +147,7 @@ trait ARChannel extends AXI4VerilogBundle {
   val ARLEN: UInt = UInt(8.W)
 
   /** Size, the number of bytes in each data transfer in a read transaction. */
-  val ARSIZE: UInt = UInt(3.W)
+  val ARSIZE: UInt = UInt(4.W)
 
   /** Burst type, indicates how address changes between each transfer in a read
     * transaction.
