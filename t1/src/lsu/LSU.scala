@@ -519,7 +519,7 @@ class LSU(param: LSUParameter) extends Module {
   sourceQueue.deq.ready := axi4Port.r.fire
 
   // store unit <> axi
-  val dataQueue: QueueIO[MemWrite] = Queue.io(chiselTypeOf(storeUnit.memRequest.bits), 2)
+  val dataQueue: QueueIO[MemWrite] = splitQueue(chiselTypeOf(storeUnit.memRequest.bits), 2)
   axi4Port.aw.valid          := storeUnit.memRequest.valid && dataQueue.enq.ready
   axi4Port.aw.bits <> DontCare
   axi4Port.aw.bits.len       := 0.U
