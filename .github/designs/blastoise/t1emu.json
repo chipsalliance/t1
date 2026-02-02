@@ -2,7 +2,7 @@
   "pytorch.demo": 87,
   "pytorch.matmul": 14698,
   "mlir.rvv_vp_intrinsic_add": 543,
-  "mlir.rvv_vp_intrinsic_add_scalable": 887,
+  "mlir.rvv_vp_intrinsic_add_scalable": 889,
   "mlir.hello": 159,
   "mlir.stripmining": 17563,
   "asm.mmm": 58104,

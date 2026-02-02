@@ -5,6 +5,5 @@
   "eval.ntt_512": 39878,
   "eval.ntt_1024": 39743,
   "eval.ntt_4096": 41322,
-  "eval.softmax": -1
+  "eval.softmax": 85836
 }
-
