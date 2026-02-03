@@ -132,8 +132,8 @@ unsafe extern "C" fn axi_push_W(
   reset: u8,
   channel_id: u64,
   data_width: u64,
-  wdata: InBV<'_, 1024>,
-  wstrb: InBV<'_, 128>,
+  wdata: InBV<'_, 4096>,
+  wstrb: InBV<'_, 512>,
   wlast: u8,
 
   mut ready: Out<'_, bool>,
@@ -236,7 +236,7 @@ struct RetAxiPopR {
   rlast: u8,
   rid: u16,
   ruser: u32,
-  rdata: [u8; 1024 / 8],
+  rdata: [u8; 4096 / 8],
 }
 
 #[unsafe(no_mangle)]

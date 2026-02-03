@@ -151,8 +151,8 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
         io.reset.asTypeOf(UInt(8.W)),
         io.channelId,
         parameter.axiParameter.dataWidth.U(64.W),
-        widen(wqueue.io.deq.bits.data, 1024),
-        widen(wqueue.io.deq.bits.strb, 128),
+        widen(wqueue.io.deq.bits.data, 4096),
+        widen(wqueue.io.deq.bits.strb, 512),
         wqueue.io.deq.bits.last.asTypeOf(UInt(8.W))
       )
       wqueue.io.deq.ready := wRet
@@ -204,9 +204,9 @@ class AXI4SlaveAgent(parameter: AXI4SlaveAgentParameter)
       )
       arqueue.io.deq.ready := arRet
 
-      require(parameter.axiParameter.dataWidth <= 1024)
+      require(parameter.axiParameter.dataWidth <= 4096) // Quick fix for DLEN 4096
       class RBundle extends Bundle {
-        val data  = UInt(1024.W)
+        val data  = UInt(4096.W)
         val user  = UInt(32.W)
         val id    = UInt(16.W)
         val last  = UInt(8.W)

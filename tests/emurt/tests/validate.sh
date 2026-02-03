@@ -35,8 +35,7 @@ fi
 passWith "mmio-result file found ($mmioResultFile)"
 
 # Test 2: Test output is expected String
-mmioOutput=$(jq -r 'select(.event == "uart-write") | .value' "$mmioResultFile" \
-  | awk '{ printf "%c", $1}')
+mmioOutput=$(cd "$(dirname $0)" && python3 ../encode_mmio.py "$mmioResultFile")
 expectResult="Hello, World"
 if [[ "$mmioOutput" != "$expectResult" ]]; then
   failWith "Expect '$expectResult', got '$mmioOutput'"

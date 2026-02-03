@@ -774,7 +774,7 @@ class MaskUnit(val parameter: T1Parameter)
     readVS1Req.dataOffset := gatherDatOffset
   }
 
-  val compressUnitResultQueue: QueueIO[CompressOutput] = Queue.io(new CompressOutput(compressParam), 4, flow = true)
+  val compressUnitResultQueue: QueueIO[CompressOutput] = splitQueue(new CompressOutput(compressParam), 4, flow = true)
 
   val noSourceValid:       Bool = noSource && counterValid &&
     (instReg.vl.orR || (mvRd && !readVS1Reg.sendToExecution))

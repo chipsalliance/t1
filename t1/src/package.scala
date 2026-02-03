@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
-import org.chipsalliance.dwbb.stdlib.queue.Queue
+import org.chipsalliance.dwbb.stdlib.queue.{Queue, QueueIO}
 import org.chipsalliance.t1.rtl.decoder.{Decoder, TableGenerator}
 import org.chipsalliance.t1.rtl.lane.Distributor
 
@@ -524,5 +524,42 @@ package object rtl {
       counter := counter + counterChange
     }
     counter
+  }
+
+  def splitQueue[T <: Data](
+    gen:     T,
+    entries: Int,
+    pipe:    Boolean = false,
+    flow:    Boolean = false
+  ): QueueIO[T] = {
+    val maxEntriesSize = 2048
+    if (gen.getWidth > maxEntriesSize) {
+      val io:               QueueIO[T] = Wire(new QueueIO(gen, entries))
+      val largeQueueNumber: Int        = gen.getWidth / maxEntriesSize
+      val cornerQueueSize = gen.getWidth % maxEntriesSize
+      val largeQueueVec   = Seq.tabulate(largeQueueNumber) { _ =>
+        Queue.io(UInt(maxEntriesSize.W), entries, pipe, flow)
+      }
+      val cornerQueue     = Queue.io(UInt(cornerQueueSize.W), entries, pipe, flow)
+
+      largeQueueVec.zipWithIndex.foreach { case (lq, index) =>
+        lq.enq.valid := io.enq.valid
+        lq.enq.bits  := io.enq.bits.asUInt(maxEntriesSize * index + maxEntriesSize - 1, maxEntriesSize * index)
+        lq.deq.ready := io.deq.ready
+      }
+      cornerQueue.enq.valid := io.enq.valid
+      cornerQueue.deq.ready := io.deq.ready
+      io.deq.valid          := cornerQueue.deq.valid
+      io.enq.ready          := cornerQueue.enq.ready
+      cornerQueue.enq.bits  := io.enq.bits.asUInt(gen.getWidth - 1, maxEntriesSize * largeQueueNumber)
+      io.deq.bits           := (cornerQueue.deq.bits ## VecInit(largeQueueVec.map(_.deq.bits)).asUInt).asTypeOf(gen)
+      io.empty              := cornerQueue.empty
+      io.full               := cornerQueue.full
+      io.almostEmpty.foreach(_ := cornerQueue.almostEmpty.get)
+      io.almostFull.foreach(_ := cornerQueue.almostFull.get)
+      io
+    } else {
+      Queue.io(gen, entries, pipe, flow)
+    }
   }
 }
