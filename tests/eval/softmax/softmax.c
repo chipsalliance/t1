@@ -44,6 +44,7 @@ void softmax(const float *input, float *output, size_t size, float d_head) {
       __riscv_vfredmax_vs_f32m8_f32m1(v_max_acc, v_max_scalar, vlmax_e32m8);
   float max_val = __riscv_vfmv_f_s_f32m1_f32(v_max_scalar);
 
+#ifndef FAST_EXP
   // calculate exp(x - max)
   size_t vlmax_e32m2 = __riscv_vsetvlmax_e32m2();
   // pre-load constants for exp (Horner's Method)
@@ -129,8 +130,34 @@ void softmax(const float *input, float *output, size_t size, float d_head) {
   vfloat32m1_t v_sum_scalar = __riscv_vfmv_v_f_f32m1(0.0f, 1);
   v_sum_scalar =
       __riscv_vfredusum_vs_f32m2_f32m1(v_sum_acc, v_sum_scalar, vlmax_e32m2);
-  float sum_val = __riscv_vfmv_f_s_f32m1_f32(v_sum_scalar);
+#else // FAST_EXP
+  avl = size;
+  in_ptr = input;
+  float *out_ptr = output;
 
+  // Accumulator for Sum (Init to 0)
+  vfloat32m8_t v_sum_acc = __riscv_vfmv_v_f_f32m8(0.0f, vlmax_e32m8);
+
+  for (; avl > 0; avl -= vl) {
+    vl = __riscv_vsetvl_e32m8(avl);
+    vfloat32m8_t v_in = __riscv_vle32_v_f32m8(in_ptr, vl);
+    // subtract max value to have safe exp
+    vfloat32m8_t vx = __riscv_vfsub_vf_f32m8(v_in, max_val, vl);
+    // simulate a fast exp call
+    vx = __riscv_vfmul_vf_f32m8(vx, scale, vl);
+    v_sum_acc = __riscv_vfadd_vv_f32m8_tu(v_sum_acc, v_sum_acc, vx, vl);
+    __riscv_vse32_v_f32m8(out_ptr, vx, vl);
+
+    in_ptr += vl;
+    out_ptr += vl;
+  }
+
+  vfloat32m1_t v_sum_scalar = __riscv_vfmv_v_f_f32m1(0.0f, 1);
+  v_sum_scalar =
+      __riscv_vfredusum_vs_f32m8_f32m1(v_sum_acc, v_sum_scalar, vlmax_e32m8);
+#endif // FAST_EXP
+
+  float sum_val = __riscv_vfmv_f_s_f32m1_f32(v_sum_scalar);
   // return the softmax value
   float inv_sum = 1.0f / sum_val;
   avl = size;

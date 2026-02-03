@@ -124,7 +124,7 @@ if __name__ == "__main__":
     torch.manual_seed(42)
     d_head = 128
 
-    act = torch.randn(32, 256, dtype=torch.float32)
+    act = torch.randn(32, 4096, dtype=torch.float32)
 
     # Generate reference for differential test.
     reference_scaled = get_reference_implementation(act, d_head)

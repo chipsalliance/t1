@@ -32,6 +32,7 @@ builder {
   isFp = true;
 
   # env.DO_DIFF_TEST = 1;
+  # env.FAST_EXP = 1;
 
   buildPhase = ''
     runHook preBuild
@@ -40,6 +41,10 @@ builder {
 
     if [[ -n "$DO_DIFF_TEST" ]]; then
       NIX_CFLAGS_COMPILE="-DDO_DIFF_TEST $NIX_CFLAGS_COMPILE"
+    fi
+
+    if [[ -n "$FAST_EXP" ]]; then
+      NIX_CFLAGS_COMPILE="-DFAST_EXP $NIX_CFLAGS_COMPILE"
     fi
 
     $CC -T${linkerScript} \
