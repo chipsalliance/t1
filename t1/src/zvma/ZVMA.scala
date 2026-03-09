@@ -254,7 +254,7 @@ class ZVMA(val parameter: ZVMAParameter)
       val matrixPE: Instance[ZVMAProcessingElement] = Instantiate(new ZVMAProcessingElement(parameter))
 
       matrixPE.io.clock := implicitClock
-      matrixPE.io.reset := implicitReset
+      matrixPE.io.reset := implicitReset.asBool
 
       val reqToken = pipeToken(parameter.subArrayBufferDepth)(matrixPE.io.request.fire, matrixPE.io.release)
       aluReadyVec(colIndex)(rowIndex) := reqToken
