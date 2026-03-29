@@ -79,8 +79,7 @@ forEachConfig (
           t1Scope.firld-link {
             outputName = "${generator.fullClassName}.mlirbc";
             mlirbcs = [ chisel-mlirbc ] ++ zaozi-mlirbcs;
-            # baseCircuit = lib.last (lib.splitString "." generator.fullClassName);
-            baseCircuit = "TestBench";
+            baseCircuit = lib.last (lib.splitString "." generator.fullClassName);
           }
         else
           chisel-mlirbc;
@@ -158,6 +157,16 @@ forEachConfig (
           fileset = unions (toList ../../${topName}/vsrc);
         };
 
+      # Workaround: zaozi VerilogWrapper references external SRAM modules
+      # that don't have Verilog implementations yet. Hand-written .sv files
+      # under t1zaozi/vsrc/ provide temporary implementations.
+      clean-zaozi-vsrc =
+        with lib.fileset;
+        toSource {
+          root = ../../t1zaozi/vsrc;
+          fileset = unions (toList ../../t1zaozi/vsrc);
+        };
+
       verilator-dpi-lib = self.makeDifftest {
         outputName = "${topName}-verilator-dpi-lib";
         emuType = "verilator";
@@ -168,7 +177,11 @@ forEachConfig (
         mainProgram = "${topName}-verilated-simulator";
         topModule = "TestBench";
         rtl = self.rtl;
-        vsrc = lib.filesystem.listFilesRecursive self.clean-vsrc.outPath;
+        vsrc =
+          lib.filesystem.listFilesRecursive self.clean-vsrc.outPath
+          ++ lib.optionals (zaozi-modules != [ ]) (
+            lib.filesystem.listFilesRecursive self.clean-zaozi-vsrc.outPath
+          );
         dpiLibs = [ "${self.verilator-dpi-lib}/lib/libdpi_${topName}.a" ];
       };
       verilator-emu-trace = self.verilator-emu.override {
@@ -199,7 +212,11 @@ forEachConfig (
         mainProgram = "${topName}-vcs-simulator";
         topModule = "TestBench";
         rtl = self.rtl;
-        vsrc = lib.filesystem.listFilesRecursive self.clean-vsrc.outPath;
+        vsrc =
+          lib.filesystem.listFilesRecursive self.clean-vsrc.outPath
+          ++ lib.optionals (zaozi-modules != [ ]) (
+            lib.filesystem.listFilesRecursive self.clean-zaozi-vsrc.outPath
+          );
         rtLinkDpiLib = self.vcs-dpi-lib;
       };
       vcs-emu-cover = self.vcs-emu.override {
