@@ -45,6 +45,10 @@ case class ZVMAParameter(
   val executeWidth:  Int = 2 * elen + 2 * elen + 5 + indexWidth + 4 + 3
   val sramAddrWidth: Int = log2Ceil(ramDepth)
 
+  // 1+1+1+2+1+4+24 = 34
+  val decodeResultWidth: Int = 1 + 1 + 1 + 2 + 1 + 4 + 24
+  val csrWidth:          Int = 2 + 3 + 3 + tmWidth + tnWidth
+
 given upickle.default.ReadWriter[ZVMAParameter] = upickle.default.macroRW
 
 class ZVMAExecute(parameter: ZVMAParameter) extends HWBundle(parameter):

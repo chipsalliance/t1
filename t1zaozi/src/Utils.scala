@@ -36,3 +36,27 @@ def cutUInt(
     result(groupIndex) := data.asBits.bits(groupIndex * width + width - 1, groupIndex * width).asUInt
   }
   result
+
+def pipeToken(
+  size: Int
+)(enq:  Referable[Bool],
+  deq:  Referable[Bool]
+)(
+  using Arena,
+  Context,
+  Block,
+  sourcecode.File,
+  sourcecode.Line,
+  sourcecode.Name.Machine,
+  InstanceContext,
+  Ref[Clock],
+  Ref[Reset]
+): Node[Bool] =
+  require(Integer.bitCount(size) == 1)
+  val counterSize   = log2Ceil(size) + 1
+  val counter       = RegInit(0.U(counterSize.W))
+  val allOnes       = ((1 << counterSize) - 1).U(counterSize.W)
+  val counterChange = enq ? (1.U(counterSize.W), allOnes)
+  when(enq ^ deq):
+    counter := (counter + counterChange).asBits.bits(counterSize - 1, 0).asUInt
+  !counter.asBits.bit(log2Ceil(size))

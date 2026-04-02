@@ -305,7 +305,7 @@ class LSU(param: LSUParameter) extends Module {
     z.io.reset := reset
 
     zModule.io.clock := clock
-    zModule.io.reset := reset
+    zModule.io.reset := reset.asBool
 
     z.io.instRequest.valid                 := requestFire && interface.isZVMA
     z.io.instRequest.bits.inst             := interface.inst
