@@ -18,9 +18,9 @@ class SRAMIO(parameter: SRAMParameter) extends HWBundle(parameter):
   val clock:     BundleField[Clock] = Flipped(Clock())
   val enable:    BundleField[Bool]  = Flipped(Bool())
   val isWrite:   BundleField[Bool]  = Flipped(Bool())
-  val address:   BundleField[UInt]  = Flipped(UInt(log2Ceil(parameter.depth).W))
-  val writeData: BundleField[Bits]  = Flipped(Bits(parameter.width.W))
-  val readData:  BundleField[Bits]  = Aligned(Bits(parameter.width.W))
+  val address:   BundleField[UInt]  = Flipped(UInt(log2Ceil(parameter.depth)))
+  val writeData: BundleField[Bits]  = Flipped(Bits(parameter.width))
+  val readData:  BundleField[Bits]  = Aligned(Bits(parameter.width))
 
 class SRAMProbe(parameter: SRAMParameter) extends DVBundle[SRAMParameter, SRAMLayers](parameter)
 

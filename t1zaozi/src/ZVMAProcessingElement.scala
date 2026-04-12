@@ -13,56 +13,6 @@ import org.llvm.mlir.scalalib.capi.ir.{*, given}
 
 import java.lang.foreign.Arena
 
-case class ZVMAParameter(
-  vlen:             Int,
-  dlen:             Int,
-  elen:             Int,
-  TE:               Int,
-  matrixAluRowSize: Int,
-  matrixAluColSize: Int)
-    extends Parameter:
-  val tmWidth: Int = log2Ceil(TE + 1)
-  val tnWidth: Int = log2Ceil(vlen + 1)
-
-  // The minimum execution unit is a 2 * 2 square matrix
-  val aluRowSize: Int = matrixAluRowSize
-  val aluColSize: Int = matrixAluColSize
-
-  val dataIndexBit: Int = log2Ceil(vlen * 8 / dlen + 1)
-
-  // source buffer param calculate
-  val aluSizeVec: Seq[Int] = Seq(aluRowSize, aluColSize)
-
-  val subArrayBufferDepth: Int = 8
-  // Should be a constant
-  // If an instruction col index is fixed (such as mv), a higher bank may be required.
-  val subArrayRamBank:     Int = 2
-
-  // The minimum unit is 32 * 2 * 2, so ram width is 32 * 4
-  val ramDepth: Int = TE * TE * 32 * 4 / (32 * 4 * aluRowSize * aluColSize * subArrayRamBank)
-
-  val indexWidth:    Int = log2Ceil(TE / aluColSize / 2) + log2Ceil(TE / aluRowSize / 2)
-  val executeWidth:  Int = 2 * elen + 2 * elen + 5 + indexWidth + 4 + 3
-  val sramAddrWidth: Int = log2Ceil(ramDepth)
-
-  // 1+1+1+2+1+4+24 = 34
-  val decodeResultWidth: Int = 1 + 1 + 1 + 2 + 1 + 4 + 24
-  val csrWidth:          Int = 2 + 3 + 3 + tmWidth + tnWidth
-
-given upickle.default.ReadWriter[ZVMAParameter] = upickle.default.macroRW
-
-class ZVMAExecute(parameter: ZVMAParameter) extends HWBundle(parameter):
-  val colData:     BundleField[Vec[UInt]] = Aligned(Vec(2, UInt(parameter.elen.W)))
-  val rowData:     BundleField[Vec[UInt]] = Aligned(Vec(2, UInt(parameter.elen.W)))
-  val execute:     BundleField[Bool]      = Aligned(Bool())
-  val writeTile:   BundleField[Bool]      = Aligned(Bool())
-  val readTile:    BundleField[Bool]      = Aligned(Bool())
-  val accessIndex: BundleField[Bool]      = Aligned(Bool())
-  val col:         BundleField[Bool]      = Aligned(Bool())
-  val index:       BundleField[UInt]      = Aligned(UInt(parameter.indexWidth.W))
-  val accessTile:  BundleField[UInt]      = Aligned(UInt(4.W))
-  val tk:          BundleField[UInt]      = Aligned(UInt(3.W))
-
 class ZVMAProcessingElementLayers(parameter: ZVMAParameter) extends LayerInterface(parameter):
   def layers = Seq.empty
 
@@ -70,7 +20,7 @@ class ProcessInterface(parameter: ZVMAParameter) extends HWBundle(parameter):
   val clock:    BundleField[Clock]                = Flipped(Clock())
   val reset:    BundleField[Reset]                = Flipped(Reset())
   val request:  BundleField[ValidIO[ZVMAExecute]] = Flipped(Valid(new ZVMAExecute(parameter)))
-  val response: BundleField[DecoupledIO[UInt]]    = Aligned(Decoupled(UInt((parameter.elen * 2).W)))
+  val response: BundleField[DecoupledIO[UInt]]    = Aligned(Decoupled(UInt(2 * parameter.elen)))
   val release:  BundleField[Bool]                 = Aligned(Bool())
 
 class ZVMAProcessingElementProbe(parameter: ZVMAParameter)
@@ -87,8 +37,9 @@ object ZVMAProcessingElement
   override def moduleName(parameter: ZVMAParameter): String = "ZVMAProcessingElement"
 
   def architecture(parameter: ZVMAParameter) =
-    val p  = parameter
-    val io = summon[Interface[ProcessInterface]]
+    val p           = parameter
+    val io          = summon[Interface[ProcessInterface]]
+    val executeType = new ZVMAExecute(p)
 
     given Ref[Clock] = io.clock
     given Ref[Reset] = io.reset
@@ -116,7 +67,7 @@ object ZVMAProcessingElement
 
     // pipe reg
     // execute stage 0
-    val dataPipe0 = RegInit(0.U(p.executeWidth.W).asBits.asType(new ZVMAExecute(p)))
+    val dataPipe0 = RegInit(0.B(executeType.width).asType(executeType))
     when(reqQueue.deq.fire):
       dataPipe0 := reqQueue.deq.bits
 
@@ -124,26 +75,26 @@ object ZVMAProcessingElement
     pipeValid0 := reqQueue.deq.fire
 
     // execute stage 1
-    val dataPipe1 = RegInit(0.U(p.executeWidth.W).asBits.asType(new ZVMAExecute(p)))
+    val dataPipe1 = RegInit(0.B(executeType.width).asType(executeType))
 
     val pipeValid1 = RegInit(false.B)
     pipeValid1 := pipeValid0
 
-    val readData = RegInit(0.U((4 * p.elen).W))
+    val readData = RegInit(0.U(4 * p.elen))
 
     // execute stage 2
     val pipeValid2 = RegInit(false.B)
     pipeValid2 := pipeValid1
 
-    val index2      = RegInit(0.U(p.indexWidth.W))
-    val result      = RegInit(0.U((4 * p.elen).W))
-    val resultR2    = RegInit(0.U((2 * p.elen).W))
-    val accessTile  = RegInit(0.U(4.W))
+    val index2      = RegInit(0.U(dataPipe0.index.width))
+    val result      = RegInit(0.U(4 * p.elen))
+    val resultR2    = RegInit(0.U(2 * p.elen))
+    val accessTile  = RegInit(0.U(4))
     val writeState2 = RegInit(false.B)
 
     // alu
     val readDataVec = cutUInt(readData, p.elen)
-    val aluResult   = Wire(Vec(4, UInt(p.elen.W)))
+    val aluResult   = Wire(Vec(4, UInt(p.elen)))
     dataPipe1.rowData.toSeq.zipWithIndex.foreach { case (rd, ri) =>
       dataPipe1.colData.toSeq.zipWithIndex.foreach { case (cd, ci) =>
         val di: Int = (ri << 1) + ci
@@ -204,13 +155,13 @@ object ZVMAProcessingElement
         reqQueue.deq.valid & (reqQueue.deq.bits.index.asBits.bit(0) === (if idx == 0 then false.B else true.B))
       ram.io.enable    := write | tryToRead
       ram.io.address   := ((accessTile.asBits ## (write ? (index2, reqQueue.deq.bits.index)).asBits).asUInt >> 1).asBits
-        .bits(p.sramAddrWidth - 1, 0)
+        .bits(log2Ceil(p.ramDepth) - 1, 0)
         .asUInt
       ram.io.isWrite   := write
       ram.io.writeData := result.asBits
     }
 
-    val deqQueue = Queue(QueueParameter(UInt((p.elen * 2).W), 8))
+    val deqQueue = Queue(QueueParameter(UInt(2 * p.elen), 8))
     deqQueue.clock := io.clock
     deqQueue.reset := io.reset
 
