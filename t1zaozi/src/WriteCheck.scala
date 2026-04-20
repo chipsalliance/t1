@@ -47,7 +47,7 @@ object WriteCheck extends Generator[VRFParam, WriteCheckLayers, WriteCheckInterf
     // Let's calculate the absolute position.
     val vdShift     =
       (io.record.bits.vd.bits.asBits.bits(2, 0) ## 0.U(chiselLog2Ceil(elementSizeForOneRegister)).asBits).asUInt
-    val maskBase    = (Fill(paddingSize, true.B) ## io.record.bits.elementMask.asBits ## Fill(paddingSize, true.B)).asUInt
+    val maskBase    = (fill(paddingSize, true.B) ## io.record.bits.elementMask.asBits ## fill(paddingSize, true.B)).asUInt
     val maskShifter = (((maskBase << vdShift) >> paddingSize).asBits.bits(2 * paddingSize - 1, 0)).asUInt
     // mask for vd's group
     val maskForVD   = cutUIntBySize(maskShifter, 2)(0)
@@ -65,7 +65,7 @@ object WriteCheck extends Generator[VRFParam, WriteCheckLayers, WriteCheckInterf
     // calculate the absolute position for vs1
     val vs1Shift  =
       (io.record.bits.vs1.bits.asBits.bits(2, 0) ## 0.U(chiselLog2Ceil(elementSizeForOneRegister)).asBits).asUInt
-    val vs1Base   = (io.record.bits.elementMask.asBits ## Fill(paddingSize, true.B)).asUInt
+    val vs1Base   = (io.record.bits.elementMask.asBits ## fill(paddingSize, true.B)).asUInt
     val vs1Mask   = (((vs1Base << vs1Shift) >> paddingSize).asBits).asUInt
     // Gather16 will read and write lengths mismatch
     val notHitVs1 = ((checkOH.asBits & vs1Mask.asBits).asUInt === 0.U(checkOH.width)) | io.record.bits.unalignedReadVs1
@@ -74,12 +74,12 @@ object WriteCheck extends Generator[VRFParam, WriteCheckLayers, WriteCheckInterf
     // calculate the absolute position for vs2
     val vs2Shift          =
       (io.record.bits.vs2.asBits.bits(2, 0) ## 0.U(chiselLog2Ceil(elementSizeForOneRegister)).asBits).asUInt
-    val vs2Base           = (Fill(paddingSize, true.B) ## io.record.bits.elementMask.asBits ## Fill(paddingSize, true.B)).asUInt
+    val vs2Base           = (fill(paddingSize, true.B) ## io.record.bits.elementMask.asBits ## fill(paddingSize, true.B)).asUInt
     val maskShifterForVs2 = (((vs2Base << vs2Shift) >> paddingSize).asBits.bits(2 * paddingSize - 1, 0)).asUInt
 
     // check WAR, record.bits.gather -> Gather reads are not ordered
     val maskForVs2  =
-      (cutUIntBySize(maskShifterForVs2, 2)(0).asBits & Fill(parameter.elementSize, !io.record.bits.onlyRead)).asUInt
+      (cutUIntBySize(maskShifterForVs2, 2)(0).asBits & fill(parameter.elementSize, !io.record.bits.onlyRead)).asUInt
     val maskForVs21 = cutUIntBySize(maskShifterForVs2, 2)(1)
     val vs2Group    = io.record.bits.vs2.asBits.bits(4, 3).asUInt
     val vs21Group   = ((vs2Group + 1.U(vs2Group.width)).asBits.bits(vs2Group.width - 1, 0)).asUInt

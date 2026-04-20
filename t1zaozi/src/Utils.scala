@@ -72,7 +72,7 @@ def UIntToOH(
   val width = 1 << data.width
   ((1.U(width) << data).asBits.bits(width - 1, 0)).asUInt
 
-def Fill(
+def fill(
   size:  Int,
   value: Referable[Bool]
 )(
@@ -118,6 +118,26 @@ def instIndexLE(
   require(a.width == b.width)
   ((a === b).asBits | instIndexL(a, b).asBits).asBool
 
+def scanLeftOr(
+  input: Referable[UInt]
+)(
+  using Arena,
+  Context,
+  Block,
+  sourcecode.File,
+  sourcecode.Line,
+  sourcecode.Name.Machine,
+  InstanceContext
+): Referable[UInt] =
+  val width = input.width
+  Iterator
+    .iterate(1)(_ * 2)
+    .takeWhile(_ < width)
+    .foldLeft(input.asBits: Referable[Bits]) { (result, shift) =>
+      result | (result.bits(width - 1 - shift, 0) ## 0.U(shift).asBits)
+    }
+    .asUInt
+
 def ffo(
   input: Referable[UInt]
 )(
@@ -129,7 +149,10 @@ def ffo(
   sourcecode.Name.Machine,
   InstanceContext
 ): Referable[UInt] =
-  ((input.asBits & (~(input - 1.U(input.width)).asBits)).asUInt).asBits.bits(input.width - 1, 0).asUInt
+  val width   = input.width
+  val scanned = scanLeftOr(input).asBits
+  val shifted = if width > 1 then scanned.bits(width - 2, 0) ## 0.U(1).asBits else 0.U(1).asBits
+  (~shifted & input.asBits).asUInt.asBits.bits(width - 1, 0).asUInt
 
 def maskAnd(
   mask: Referable[Bool],
@@ -206,6 +229,46 @@ def ohCheck(
   InstanceContext
 ): Referable[Bool] =
   (indexToOH(index, chainingSize).asBits & lastReport.asBits).orR
+
+def pipeUInt(
+  input: Referable[UInt],
+  n:     Int
+)(
+  using Arena,
+  Context,
+  Block,
+  sourcecode.File,
+  sourcecode.Line,
+  sourcecode.Name.Machine,
+  InstanceContext,
+  Ref[Clock],
+  Ref[Reset]
+): Referable[UInt] =
+  (0 until n).foldLeft(input) { (prev, _) =>
+    val reg = RegInit(0.U(input.width))
+    reg := prev
+    reg
+  }
+
+def pipeBool(
+  input: Referable[Bool],
+  n:     Int
+)(
+  using Arena,
+  Context,
+  Block,
+  sourcecode.File,
+  sourcecode.Line,
+  sourcecode.Name.Machine,
+  InstanceContext,
+  Ref[Clock],
+  Ref[Reset]
+): Referable[Bool] =
+  (0 until n).foldLeft(input) { (prev, _) =>
+    val reg = RegInit(false.B)
+    reg := prev
+    reg
+  }
 
 def pipeToken(
   size: Int

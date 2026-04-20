@@ -414,21 +414,19 @@ object VRF extends Generator[VRFParam, VRFLayers, VRFInterface, VRFProbeInterfac
       )
     }
 
-    val checkSize = readRequests.size
-    var firstOccupied:  Referable[UInt] = 0.U(parameter.rfBankNum)
-    var secondOccupied: Referable[UInt] = 0.U(parameter.rfBankNum)
-    readRequests.zipWithIndex.foreach { case (v, i) =>
-      val o                 = firstOccupied
-      val t                 = secondOccupied
-      val recordSelect      = if i < (checkSize / 2) then chainingRecord else chainingRecordCopy
+    val checkSize                       = readRequests.size
+    val (firstOccupied, secondOccupied) = readRequests.zipWithIndex.foldLeft(
+      (0.U(parameter.rfBankNum): Referable[UInt], 0.U(parameter.rfBankNum): Referable[UInt])
+    ) { case ((o, t), (v, i)) =>
+      val recordSelect        = if i < (checkSize / 2) then chainingRecord else chainingRecordCopy
       // 先找到自的record
-      val readRecord        = mux1H(
+      val readRecord          = mux1H(
         recordSelect.map(_.bits.instIndex === v.bits.instructionIndex),
         recordSelect.map(_.bits.asBits.asUInt)
       ).asBits.asType(recordSelect.head.bits.getType)
       // @todo @Clo91eaf read&write in the same cycle.
-      val portConflictCheck = Wire(Bool())
-      val checkResult       = Option.when(i == (readRequests.size - 1)) {
+      val portConflictCheck   = Wire(Bool())
+      val checkResult         = Option.when(i == (readRequests.size - 1)) {
         andReduce(
           recordSelect
             .zip(recordValidVec)
@@ -443,17 +441,13 @@ object VRF extends Generator[VRFParam, VRFLayers, VRFInterface, VRFProbeInterfac
             }
         ) & portConflictCheck
       }
-      val validCorrect      = if i == (readRequests.size - 1) then v.valid & checkResult.get else v.valid
-      val address           = (v.bits.vs.asBits ## v.bits.offset.asBits).asUInt
+      val validCorrect        = if i == (readRequests.size - 1) then v.valid & checkResult.get else v.valid
+      val address             = (v.bits.vs.asBits ## v.bits.offset.asBits).asUInt
       // select bank
-      val bank              =
+      val bank                =
         if parameter.rfBankNum == 1 then 1.U(1)
         else UIntToOH(address.asBits.bits(rfBankNumLog2 - 1, 0).asUInt)
-      val pipeBank0         = RegInit(0.U(bank.width))
-      pipeBank0 := bank
-      val pipeBank1 = RegInit(0.U(bank.width))
-      pipeBank1 := pipeBank0
-      val pipeBank            = pipeBank1
+      val pipeBank            = pipeUInt(bank, parameter.vrfReadLatency)
       val bankCorrect         = validCorrect ? (bank, 0.U(parameter.rfBankNum))
       val readPortCheckSelect = parameter.ramType match
         case RamType.p0rw     => o
@@ -476,22 +470,13 @@ object VRF extends Generator[VRFParam, VRFLayers, VRFInterface, VRFProbeInterfac
       val firstUsed = (bank.asBits & o.asBits).orR
       bankReadF(i) := (bankCorrect.asBits & (~o.asBits)).asUInt
       bankReadS(i) := ((bankCorrect.asBits & (~t.asBits)) & o.asBits).asUInt
-      val firstUsed0 = RegInit(false.B)
-      firstUsed0 := firstUsed
-      val firstUsed1 = RegInit(false.B)
-      firstUsed1 := firstUsed0
-      val pipeFirstUsed = firstUsed1
-      val fire0         = RegInit(false.B)
-      fire0 := v.fire
-      val fire1 = RegInit(false.B)
-      fire1 := fire0
-      val pipeFire = fire1
+      val pipeFirstUsed = pipeBool(firstUsed, parameter.vrfReadLatency)
+      val pipeFire      = pipeBool(v.fire, parameter.vrfReadLatency)
       readResults(i) := mux1H(
         Seq(!pipeFirstUsed & pipeFire, pipeFirstUsed & pipeFire),
         Seq(mux1H(pipeBank, readResultF.toSeq), mux1H(pipeBank, readResultS.toSeq))
       )
-      firstOccupied = (o.asBits | bankCorrect.asBits).asUInt
-      secondOccupied = ((bankCorrect.asBits & o.asBits) | t.asBits).asUInt
+      ((o.asBits | bankCorrect.asBits).asUInt, ((bankCorrect.asBits & o.asBits) | t.asBits).asUInt)
     }
     // @todo @Clo91eaf check write port is ready.
     io.write.ready := sramReady & (parameter.ramType match

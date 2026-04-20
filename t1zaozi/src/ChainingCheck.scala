@@ -53,7 +53,7 @@ object ChainingCheck extends Generator[VRFParam, ChainingCheckLayers, ChainingCh
     // Let's calculate the absolute position.
     val maskShift   =
       (io.record.bits.vd.bits.asBits.bits(2, 0) ## 0.U(chiselLog2Ceil(elementSizeForOneRegister)).asBits).asUInt
-    val maskBase    = (Fill(paddingSize, true.B) ## io.record.bits.elementMask.asBits ## Fill(paddingSize, true.B)).asUInt
+    val maskBase    = (fill(paddingSize, true.B) ## io.record.bits.elementMask.asBits ## fill(paddingSize, true.B)).asUInt
     val maskShifter = (((maskBase << maskShift) >> paddingSize).asBits.bits(2 * paddingSize - 1, 0)).asUInt
     // mask for vd's group
     val maskForVD   = cutUIntBySize(maskShifter, 2)(0)
