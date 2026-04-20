@@ -42,6 +42,7 @@ object TestBench extends SerializableModuleElaborator {
     @arg(name = "chainingSize") chainingSize:                       Int,
     @arg(name = "vrfBankSize") vrfBankSize:                         Int,
     @arg(name = "vrfRamType") vrfRamType:                           RamType,
+    @arg(name = "vrfWritePort") vrfWritePort:                       Int,
     @arg(name = "vfuInstantiateParameter") vfuInstantiateParameter: String,
     @arg(name = "matrixAluRowSize") matrixAluRowSize:               Option[Int],
     @arg(name = "matrixAluColSize") matrixAluColSize: Option[Int]) {
@@ -59,6 +60,7 @@ object TestBench extends SerializableModuleElaborator {
         chainingSize,
         vrfBankSize,
         vrfRamType,
+        vrfWritePort,
         VFUInstantiateParameter.parse(
           vLen = vLen,
           dLen = dLen,

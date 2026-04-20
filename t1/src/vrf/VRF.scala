@@ -70,6 +70,7 @@ case class VRFParam(
   datapathWidth: Int,
   chainingSize:  Int,
   portFactor:    Int,
+  vrfWritePort:  Int,
   ramType:       RamType)
     extends SerializableModuleParameter {
 
@@ -187,14 +188,17 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     * less than 2. TODO: rename to `vrfWriteRequests`
     */
   @public
-  val write: DecoupledIO[VRFWriteRequest] = IO(
-    Flipped(
-      Decoupled(
-        new VRFWriteRequest(
-          parameter.regNumBits,
-          parameter.vrfOffsetBits,
-          parameter.instructionIndexBits,
-          parameter.datapathWidth
+  val write: Vec[DecoupledIO[VRFWriteRequest]] = IO(
+    Vec(
+      parameter.vrfWritePort,
+      Flipped(
+        Decoupled(
+          new VRFWriteRequest(
+            parameter.regNumBits,
+            parameter.vrfOffsetBits,
+            parameter.instructionIndexBits,
+            parameter.datapathWidth
+          )
         )
       )
     )
@@ -238,6 +242,9 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val dataInLane: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
 
   @public
+  val gatherBlock: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
+
+  @public
   val writeReadyForLsu: Bool = IO(Output(Bool()))
   @public
   val vrfReadyToStore:  Bool = IO(Output(Bool()))
@@ -247,7 +254,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val loadDataInLSUWriteQueue: UInt = IO(Input(UInt(parameter.chaining1HBits.W)))
 
   @public
-  val vrfProbe = IO(Output(Probe(new VRFProbe(parameter), layers.Verification)))
+  val vrfProbe = IO(Output(Vec(parameter.vrfWritePort, Probe(new VRFProbe(parameter), layers.Verification))))
 
   val omInstance: Instance[VRFOM]     = Instantiate(new VRFOM(parameter))
   val omType:     ClassType           = omInstance.toDefinition.getClassType
@@ -267,12 +274,8 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
 
   // todo: delete
   dontTouch(write)
-  val portFireCount: UInt = PopCount(VecInit(readRequests.map(_.fire) :+ write.fire))
+  val portFireCount: UInt = PopCount(VecInit(readRequests.map(_.fire) ++ write.map(_.fire)))
   dontTouch(portFireCount)
-
-  val writeIndex: UInt = write.bits.vd ## write.bits.offset
-  val writeBank:  UInt =
-    if (parameter.rfBankNum == 1) true.B else UIntToOH(writeIndex(log2Ceil(parameter.rfBankNum) - 1, 0))
 
   // Add one more record slot to prevent there is no free slot when the instruction comes in
   // (the slot will die a few cycles later than the instruction)
@@ -297,16 +300,49 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   val readResultF: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
   val readResultS: Vec[UInt] = Wire(Vec(parameter.rfBankNum, UInt(parameter.ramWidth.W)))
 
-  val firstReadPipe:  Seq[ValidIO[VRFReadPipe]] = Seq.tabulate(parameter.rfBankNum) { _ =>
+  val firstReadPipe:  Seq[ValidIO[VRFReadPipe]]   = Seq.tabulate(parameter.rfBankNum) { _ =>
     RegInit(0.U.asTypeOf(Valid(new VRFReadPipe(parameter.rfDepth))))
   }
-  val secondReadPipe: Seq[ValidIO[VRFReadPipe]] = Seq.tabulate(parameter.rfBankNum) { _ =>
+  val secondReadPipe: Seq[ValidIO[VRFReadPipe]]   = Seq.tabulate(parameter.rfBankNum) { _ =>
     RegInit(0.U.asTypeOf(Valid(new VRFReadPipe(parameter.rfDepth))))
   }
-  val writePipe:      ValidIO[VRFWriteRequest]  = RegInit(0.U.asTypeOf(Valid(chiselTypeOf(write.bits))))
-  writePipe.valid := write.fire
-  when(write.fire) { writePipe.bits := write.bits }
-  val writeBankPipe: UInt = RegNext(writeBank)
+  val writePipe:      Seq[Valid[VRFWriteRequest]] = Seq.tabulate(parameter.vrfWritePort) { index =>
+    val res       = RegInit(0.U.asTypeOf(Valid(chiselTypeOf(write.head.bits))))
+    val writeFire = res.valid
+    when(write(index).fire ^ writeFire) {
+      res.valid := write(index).fire
+    }
+    when(write(index).fire) {
+      res.bits := write(index).bits
+    }
+    res
+  }
+
+  val writeBankPipe = writePipe.map { res =>
+    val writeIndex: UInt = res.bits.vd ## res.bits.offset
+    if (parameter.rfBankNum == 1) true.B else UIntToOH(writeIndex(log2Ceil(parameter.rfBankNum) - 1, 0))
+  }
+
+  val writePipeFireBank: Seq[UInt] = writePipe.zip(writeBankPipe).map { case (f, b) =>
+    maskAnd(f.valid, b).asUInt
+  }
+
+  val writeBank: Seq[UInt] = write.map { res =>
+    val writeIndex: UInt = res.bits.vd ## res.bits.offset
+    if (parameter.rfBankNum == 1) true.B else UIntToOH(writeIndex(log2Ceil(parameter.rfBankNum) - 1, 0))
+  }
+  // Does not attempt to grab multiple ports when writing
+  writeBank.zipWithIndex.foldLeft(0.U.asTypeOf(writeBank.head)) { case (pre, (current, index)) =>
+    write(index).ready := !(pre & current).orR && sramReady
+    pre | maskAnd(write(index).valid, current).asUInt
+  }
+
+  val writeFireBank: Seq[UInt] = write.zip(writeBank).map { case (f, b) =>
+    maskAnd(f.fire, b).asUInt
+  }
+
+  val writeFirstOccupied:     UInt = writeFireBank.reduce(_ | _)
+  val writeBankFirstOccupied: UInt = writePipeFireBank.reduce(_ | _)
 
   // lane chaining check
   readCheck.zip(readCheckResult).foreach { case (req, res) =>
@@ -330,7 +366,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   }
 
   val checkSize: Int = readRequests.size
-  val (firstOccupied, secondOccupied) = readRequests.zipWithIndex.foldLeft(
+  readRequests.zipWithIndex.foldLeft(
     (0.U(parameter.rfBankNum.W), 0.U(parameter.rfBankNum.W))
   ) {
     // o: 第一个read port是否被占用
@@ -366,15 +402,17 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val pipeBank            = Pipe(true.B, bank, parameter.vrfReadLatency).bits
       val bankCorrect         = Mux(validCorrect, bank, 0.U(parameter.rfBankNum.W))
       val readPortCheckSelect = parameter.ramType match {
-        case RamType.p0rw     => o
+        case RamType.p0rw     => o | writeFirstOccupied
         case RamType.p0rp1w   => o
-        case RamType.p0rwp1rw => t
+        case RamType.p0rwp1rw => t | (o & writeFirstOccupied)
       }
+      // The behavior of simultaneously reading and writing to the same address is undefined.
       portConflictCheck := (parameter.ramType match {
         case RamType.p0rw => true.B
         case _            =>
-          !((write.valid && bank === writeBank && write.bits.vd === v.bits.vs && write.bits.offset === v.bits.offset) ||
-            (writePipe.valid && bank === writeBankPipe && writePipe.bits.vd === v.bits.vs && writePipe.bits.offset === v.bits.offset))
+          !writePipe.map { write =>
+            write.valid && write.bits.vd === v.bits.vs && write.bits.offset === v.bits.offset
+          }.reduce(_ || _)
       })
       val portReady: Bool = if (i == (readRequests.size - 1)) {
         (bank & (~readPortCheckSelect)).orR && checkResult.get
@@ -397,23 +435,10 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       )
       (o | bankCorrect, (bankCorrect & o) | t)
   }
-  // @todo @Clo91eaf check write port is ready.
-  write.ready := sramReady && (parameter.ramType match {
-    case RamType.p0rw     => (writeBank & (~firstOccupied)).orR
-    case RamType.p0rp1w   => true.B
-    case RamType.p0rwp1rw => (writeBank & (~secondOccupied)).orR
-  })
 
-  val writeData:    UInt                     = Mux(resetValid, 0.U(parameter.datapathWidth.W), writePipe.bits.data)
-  val writeAddress: UInt                     =
-    Mux(
-      resetValid,
-      sramResetCount,
-      ((writePipe.bits.vd ## writePipe.bits.offset) >> log2Ceil(parameter.rfBankNum)).asUInt
-    )
   // @todo @Clo91eaf VRF write&read singal should be captured here.
   // @todo           in the future, we need to maintain a layer to trace the original requester to each read&write.
-  val vrfSRAM:      Seq[SRAMInterface[UInt]] = Seq.fill(parameter.rfBankNum)(
+  val vrfSRAM: Seq[SRAMInterface[UInt]] = Seq.fill(parameter.rfBankNum)(
     SRAM(
       size = parameter.rfDepth,
       tpe = UInt(parameter.memoryWidth.W),
@@ -435,8 +460,26 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     )
   )
   vrfSRAM.zipWithIndex.foreach { case (rf, bank) =>
-    val writeValid:    Bool = writePipe.valid && writeBankPipe(bank)
+    val writeValid:    Bool = writeBankFirstOccupied(bank)
     val ramWriteValid: Bool = writeValid || resetValid
+    val writePort = writePipeFireBank.map(_(bank))
+    val writeData:    UInt = Mux(
+      resetValid,
+      0.U(parameter.datapathWidth.W),
+      Mux1H(
+        writePort,
+        writePipe.map(_.bits.data)
+      )
+    )
+    val writeAddress: UInt =
+      Mux(
+        resetValid,
+        sramResetCount,
+        Mux1H(
+          writePort,
+          writePipe.map(w => ((w.bits.vd ## w.bits.offset) >> log2Ceil(parameter.rfBankNum)).asUInt)
+        )
+      )
     parameter.ramType match {
       case RamType.p0rw     =>
         firstReadPipe(bank).bits.address :=
@@ -521,7 +564,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
     0.U((parameter.chainingSize + 1).W)
   )
 
-  val writePort:         Seq[ValidIO[VRFWriteRequest]]    = Seq(writePipe)
+  val writePort:         Seq[ValidIO[VRFWriteRequest]]    = writePipe
   val loadUnitReadPorts: Seq[DecoupledIO[VRFReadRequest]] = Seq(readRequests.last)
   Seq(chainingRecord, chainingRecordCopy).foreach { recordVec =>
     recordVec.zipWithIndex.foreach { case (record, i) =>
@@ -545,6 +588,7 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       val elementUpdateValid: Bool      = (writeUpdateValidVec ++ loadUpdateValidVec).reduce(_ || _)
       val elementUpdate1H:    UInt      = (writeUpdate1HVec ++ loadUpdate1HVec).reduce(_ | _)
       val dataInLaneCheck = ohCheck(dataInLane, record.bits.instIndex, parameter.chainingSize)
+      val blockByGather   = ohCheck(gatherBlock, record.bits.instIndex, parameter.chainingSize)
       val laneLastReport  = ohCheck(instructionLastReport, record.bits.instIndex, parameter.chainingSize)
       val topLastReport   = ohCheck(lsuLastReport, record.bits.instIndex, parameter.chainingSize)
       // only wait lane clear
@@ -572,10 +616,18 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
       }
 
       when(stateClear) {
-        record.valid := false.B
+        when(blockByGather) {
+          record.bits.wGatherRelease := true.B
+        }.otherwise {
+          record.valid := false.B
+        }
         when(record.valid) {
           recordRelease(i) := indexToOH(record.bits.instIndex, parameter.chainingSize)
         }
+      }
+
+      when(record.bits.wGatherRelease && !blockByGather) {
+        record.valid := false.B
       }
 
       when(recordEnq(i)) {
@@ -647,14 +699,17 @@ class VRF(val parameter: VRFParam) extends Module with SerializableModule[VRFPar
   }
 
   layer.block(layers.Verification) {
-    val probeWire = Wire(new VRFProbe(parameter))
-    define(vrfProbe, ProbeValue(probeWire))
+    val probeWire = Wire(Vec(parameter.vrfWritePort, new VRFProbe(parameter)))
 
-    probeWire.valid              := writePipe.valid
-    probeWire.requestVd          := writePipe.bits.vd
-    probeWire.requestOffset      := writePipe.bits.offset
-    probeWire.requestMask        := writePipe.bits.mask
-    probeWire.requestData        := writePipe.bits.data
-    probeWire.requestInstruction := writePipe.bits.instructionIndex
+    probeWire.zip(writePipe).zipWithIndex.foreach { case ((probe, write), index) =>
+      define(vrfProbe(index), ProbeValue(probe))
+      probe.valid              := write.valid
+      probe.requestVd          := write.bits.vd
+      probe.requestOffset      := write.bits.offset
+      probe.requestMask        := write.bits.mask
+      probe.requestData        := write.bits.data
+      probe.requestInstruction := write.bits.instructionIndex
+    }
+
   }
 }

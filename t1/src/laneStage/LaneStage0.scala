@@ -131,6 +131,9 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
   @public
   val lsuLastReport: Option[UInt] = Option.when(isLastSlot)(IO(Input(UInt(parameter.chaining1HBits.W))))
 
+  @public
+  val gatherBlock: Option[UInt] = Option.when(isLastSlot)(IO(Output(UInt(parameter.chaining1HBits.W))))
+
   val sourceSew1HSelect = Mux(enqueue.bits.decodeResult(Decoder.gather16), 2.U(3.W), enqueue.bits.vSew1H(2, 0))
 
   val slideBase:           UInt              = Option
@@ -382,6 +385,7 @@ class LaneStage0(parameter: LaneParameter, isLastSlot: Boolean)
       stateGather := gatherEnq
       gatherIndex := enqueue.bits.instructionIndex
     }
+    gatherBlock.get := maskAnd(stateGather, indexToOH(gatherIndex, parameter.chainingSize))
     stageEnqAllocate := enqueue.bits.instructionIndex === gatherIndex || !stateGather
     stageDeqAllocate := (!bypassDeqValid && pipeDeqTokenAllocate)
   }
