@@ -564,11 +564,11 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
 
   val maskPipeReady: Bool =
     enqueue.bits.secondPipe.map(s => Mux(s, secondReqQueue.enq.ready, maskReqQueue.enq.ready)).getOrElse(true.B)
-  dequeue.valid              := (enqueue.valid && enqSendToDeq) || crossWriteDeqRequest.valid
+  dequeue.valid              := (enqueue.valid && enqSendToDeq && stateIdle) || crossWriteDeqRequest.valid
   dequeue.bits               := Mux(crossWriteDeqRequest.valid, crossWriteDeqRequest.bits, enqueue.bits)
   enqueue.ready              := Mux(
     enqSendToDeq,
-    dequeue.ready && !crossWriteDeqRequest.valid,
+    dequeue.ready && !crossWriteDeqRequest.valid && stateIdle,
     Mux(enqSendMaskPipe, maskPipeReady, maskReq.ready)
   )
   crossWriteDeqRequest.ready := dequeue.ready

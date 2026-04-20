@@ -426,7 +426,6 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
   val maskFormatResultUpdate: Option[UInt] = Option.when(isLastSlot)(Wire(UInt(parameter.datapathWidth.W)))
 
   val updateReduceResult: Option[UInt] = Option.when(isLastSlot)(Wire(UInt(parameter.datapathWidth.W)))
-  val updateMaskResult:   Option[Bool] = Option.when(isLastSlot)(Wire(Bool()))
   val reduceLastResponse = WireDefault(false.B)
   // update mask result
   if (isLastSlot) {
@@ -442,34 +441,46 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     val maxMaskResultSize = parameter.datapathWidth / 8
     val maxMaskResultBits = log2Ceil(maxMaskResultSize)
 
-    /** update value for [[maskFormatResultUpdate]], it comes from ALU.
-      */
-    val elementMaskFormatResult = Mux1H(
-      recordQueue.deq.bits.vSew1H(2, 0),
-      Seq(
-        // 32bit, 4 bit per data group, it will had 8 data groups -> executeIndex1H << 4 * groupCounter(2, 0)
-        maskResult << (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits - 1, 0) ## 0.U(
-          maxMaskResultBits.W
-        )),
-        // 2 bit per data group, it will had 16 data groups -> executeIndex1H << 2 * groupCounter(3, 0)
-        maskResult <<
-          (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits, 0) ## 0.U(
-            (maxMaskResultBits - 1).W
-          )),
-        // 1 bit per data group, it will had 32 data groups -> executeIndex1H << 1 * groupCounter(4, 0)
-        maskResult << (recordQueue.deq.bits.groupCounter(
-          (parameter.datapathWidthBits - maxMaskResultBits + 1).min(parameter.groupNumberBits - 1),
-          0
-        ) ## 0.U((maxMaskResultBits - 2).W))
+    maskFormatResultForGroup.foreach { dataReg =>
+      /** update value for [[maskFormatResultUpdate]], it comes from ALU.
+        */
+      val elementMaskFormatResult = Mux1H(
+        recordQueue.deq.bits.vSew1H(2, 0),
+        Seq(
+          // 32bit, 4 bit per data group, it will had 8 data groups -> executeIndex1H << 4 * groupCounter(2, 0)
+          maskResult << (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits - 1, 0) ## 0
+            .U(
+              maxMaskResultBits.W
+            )),
+          // 2 bit per data group, it will had 16 data groups -> executeIndex1H << 2 * groupCounter(3, 0)
+          maskResult <<
+            (recordQueue.deq.bits.groupCounter(parameter.datapathWidthBits - maxMaskResultBits, 0) ## 0.U(
+              (maxMaskResultBits - 1).W
+            )),
+          // 1 bit per data group, it will had 32 data groups -> executeIndex1H << 1 * groupCounter(4, 0)
+          maskResult << (recordQueue.deq.bits.groupCounter(
+            (parameter.datapathWidthBits - maxMaskResultBits + 1).min(parameter.groupNumberBits - 1),
+            0
+          ) ## 0.U((maxMaskResultBits - 2).W))
+        )
+      ).asUInt
+
+      val isFirstUpdateForMaskFormat = RegInit(true.B)
+      val baseMaskResultSelect       = Mux(
+        isFirstUpdateForMaskFormat,
+        0.U(parameter.datapathWidth.W),
+        maskFormatResultForGroup.get
       )
-    ).asUInt
 
-    maskFormatResultUpdate.get := maskFormatResultForGroup.get | elementMaskFormatResult
+      maskFormatResultUpdate.get := baseMaskResultSelect | elementMaskFormatResult
 
-    // update `maskFormatResultForGroup`
-    when(dataResponse.valid || updateMaskResult.get) {
-      maskFormatResultForGroup.foreach(_ := Mux(updateMaskResult.get, 0.U, maskFormatResultUpdate.get))
+      // update `maskFormatResultForGroup`
+      when(dataResponse.valid && recordQueue.deq.bits.decodeResult(Decoder.maskDestination)) {
+        maskFormatResultForGroup.foreach(_ := maskFormatResultUpdate.get)
+        isFirstUpdateForMaskFormat := !recordQueue.deq.bits.sSendResponse.get
+      }
     }
+
     val normalReduceMask = Mux1H(
       recordQueue.deq.bits.vSew1H,
       Seq(
@@ -502,15 +513,26 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
     // masked element don't update 'reduceResult'
     val reduceUpdateByteMask: UInt =
       Mux(recordQueue.deq.bits.decodeResult(Decoder.widenReduce), widenReduceMask, normalReduceMask)
+
+    val baseReduceResultSelect = Mux(
+      recordQueue.deq.bits.groupCounter === 0.U && (!doubleExecutionInQueue || !recordQueue.deq.bits.executeIndex),
+      0.U(parameter.datapathWidth.W),
+      reduceResult.get.asUInt
+    )
+
     updateReduceResult.get := {
       val dataVec   = cutUInt(dataDequeue, 8)
-      val ResultVec = cutUInt(reduceResult.get.asUInt, 8)
+      val ResultVec = cutUInt(baseReduceResultSelect, 8)
       VecInit(dataVec.zipWithIndex.map { case (d, i) => Mux(reduceUpdateByteMask(i), d, ResultVec(i)) }).asUInt
     }
     // update `reduceResult`
-    when((dataResponse.valid && recordQueue.deq.bits.decodeResult(Decoder.red)) || updateMaskResult.get) {
+    when(dataResponse.valid && recordQueue.deq.bits.decodeResult(Decoder.red)) {
       reduceResult.get := cutUIntBySize(
-        Mux(updateMaskResult.get, 0.U, updateReduceResult.get),
+        Mux(
+          recordQueue.deq.bits.sSendResponse.get || (doubleExecutionInQueue && !recordQueue.deq.bits.executeIndex),
+          updateReduceResult.get,
+          0.U
+        ),
         parameter.datapathWidth / parameter.eLen
       )
     }
@@ -593,13 +615,8 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
         recordNotExecute)) || reduceLastResponse
   AssertProperty(BoolSequence(!queue.enq.valid || queue.enq.ready))
   dequeue <> queue.deq
-  updateMaskResult.foreach(
-    _ :=
-      (!recordQueue.deq.bits.sSendResponse.get && queue.enq.fire) ||
-        (enqueue.fire && enqueue.bits.groupCounter === 0.U)
-  )
   val executionTypeInRecord: UInt = getExecuteUnitTag(parameter)(executionRecord.decodeResult)
-  val enqType:   UInt = getExecuteUnitTag(parameter)(enqueue.bits.decodeResult)
-  val typeCheck: Bool = (executionTypeInRecord === enqType) || !(executionRecordValid || recordQueue.deq.valid)
+  val enqType:               UInt = getExecuteUnitTag(parameter)(enqueue.bits.decodeResult)
+  val typeCheck:             Bool = (executionTypeInRecord === enqType) || !(executionRecordValid || recordQueue.deq.valid)
   enqueue.ready := (!executionRecordValid || recordDequeueReady) && typeCheck
 }

@@ -375,7 +375,7 @@ class VRFWriteReport(param: VRFParam) extends Bundle {
   val instIndex:        UInt          = UInt(param.instructionIndexBits.W)
   val ls:               Bool          = Bool()
   val st:               Bool          = Bool()
-  val gather:           Bool          = Bool()
+  val unalignedReadVs2: Bool          = Bool()
   // unaligned read vs1: compress read vs1 as 1bit, gather16 read vs1 as 16bit
   val unalignedReadVs1: Bool          = Bool()
   // instruction will cross write
