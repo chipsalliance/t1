@@ -5,6 +5,7 @@ package org.chipsalliance.t1
 
 import chisel3._
 import chisel3.experimental.hierarchy.{Instance, Instantiate}
+import chisel3.properties.{ClassType, Path, Property}
 import chisel3.util._
 import chisel3.util.experimental.decode.DecodeBundle
 import org.chipsalliance.dwbb.stdlib.queue.Queue
