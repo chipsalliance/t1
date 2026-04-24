@@ -125,6 +125,12 @@ lib.makeScope newScope (
     sv-to-vcs-simulator = lib.makeOverridable (
       t1Scope.callPackage ./conversion/sv-to-vcs-simulator.nix { }
     );
+
+    # lec-run :: { refRtl, implRtl, fmScript } -> { ref-verilog, impl-verilog, lec-run }
+    #
+    # Layered LEC infrastructure for zaozi migration verification.
+    # Returns: { ref-verilog, impl-verilog, lec-run.{LaneShifter, MaskedLogic, LanePopCount, LaneFFO} }
+    lec-run = t1Scope.callPackage ./lec { };
   }
   # Nix specification for t1 (with spike only) emulator
   # We don't expect extra scope for t1 stuff, so here we merge the t1 at t1Scope level.

@@ -43,9 +43,18 @@ forEachConfig (
         )
       ) strippedGeneratorData;
   in
-  forEachTop (
+    forEachTop (
     topName: generator: self: rec {
       inherit configName topName;
+
+      laneLogicDatapathWidth =
+        let
+          matches = builtins.match ".* zve([0-9]+)[xfd].*" generator.cmdopt;
+        in
+        if matches == null then
+          throw "unable to infer LaneLogic datapath width from cmdopt: ${generator.cmdopt}"
+        else
+          builtins.fromJSON (builtins.elemAt matches 0);
 
       cases = self.callPackage ../../tests { };
 
@@ -55,19 +64,76 @@ forEachConfig (
         elaboratorArgs = "config ${generator.cmdopt}";
       };
 
+      laneLogic-mlirbc = t1Scope.chisel-to-mlirbc {
+        outputName = "org.chipsalliance.t1.elaborator.t1.LaneLogic.mlirbc";
+        generatorClassName = "org.chipsalliance.t1.elaborator.t1.LaneLogic";
+        elaboratorArgs = "config --datapathWidth ${toString laneLogicDatapathWidth}";
+      };
+
+      # Smoke target: MaskReduceHarness wraps MaskReduce with concrete Bool reset,
+      # enabling standalone elaboration. The harness instantiates MaskReduce which
+      # instantiates LaneLogic (FixedIOExtModule). The zaozi LaneLogic MLIRBC is
+      # firld-linked to replace the ExtModule declaration, then the design is lowered.
+      maskReduce-harness-mlirbc = t1Scope.chisel-to-mlirbc {
+        outputName = "org.chipsalliance.t1.elaborator.t1.MaskReduceHarness.mlirbc";
+        generatorClassName = "org.chipsalliance.t1.elaborator.t1.MaskReduceHarnessElaborator";
+        elaboratorArgs = "config --eLen ${toString laneLogicDatapathWidth} --datapathWidth ${toString laneLogicDatapathWidth} --laneNumber 8 --fpuEnable false --laneScale 1";
+      };
+
+      maskReduce-smoke = let
+        laneLogic-zaozi = t1Scope.zaozi-to-mlirbc {
+          outputName = "LaneLogic.mlirbc";
+          generatorClassName = "org.chipsalliance.t1.rtl.zvma.LaneLogic";
+          parameterJson = "${self.maskReduce-harness-mlirbc}/zaozi-params/LaneLogic.json";
+        };
+        linked = t1Scope.firld-link {
+          outputName = "MaskReduceHarness-smoke.mlirbc";
+          mlirbcs = [ self.maskReduce-harness-mlirbc laneLogic-zaozi ];
+          baseCircuit = "MaskReduceHarness";
+        };
+      in t1Scope.finalize-mlirbc {
+        outputName = "lowered-MaskReduceHarness-smoke.mlirbc";
+        mlirbc = linked;
+      };
+
       # List of zaozi modules to elaborate and link.
-      # Each entry: { className, paramJsonName }
-      # paramJsonName matches the filename dumped by the ExtModule constructor into zaozi-params/
+      # Each entry: { className, paramJsonName ? "Module.json", parameterJson ? /path/to/Module.json }
       zaozi-modules = [
         {
           className = "org.chipsalliance.t1.rtl.vrf.VRF";
           paramJsonName = "VRF.json";
+        }
+        {
+          className = "org.chipsalliance.t1.rtl.zvma.LaneLogic";
+          parameterJson = "${self.maskReduce-harness-mlirbc}/zaozi-params/LaneLogic.json";
+        }
+        {
+          className = "org.chipsalliance.t1.rtl.zvma.LanePopCount";
+          paramJsonName = "LanePopCount.json";
+        }
+        {
+          className = "org.chipsalliance.t1.rtl.zvma.LaneFFO";
+          paramJsonName = "LaneFFO.json";
+        }
+        {
+          className = "org.chipsalliance.t1.rtl.zvma.LaneShifter";
+          paramJsonName = "LaneShifter.json";
+        }
+        {
+          className = "org.chipsalliance.t1.rtl.zvma.MaskedLogic";
+          paramJsonName = "MaskedLogic.json";
         }
       ]
       ++ lib.optionals (lib.hasInfix "rv_xsfmm" generator.cmdopt) [
         {
           className = "org.chipsalliance.t1.rtl.zvma.ZVMA";
           paramJsonName = "ZVMA.json";
+        }
+      ]
+      ++ lib.optionals (lib.hasInfix "zvbb" generator.cmdopt) [
+        {
+          className = "org.chipsalliance.t1.rtl.zvma.LaneZvbb";
+          paramJsonName = "LaneZvbb.json";
         }
       ];
 
@@ -76,7 +142,7 @@ forEachConfig (
         t1Scope.zaozi-to-mlirbc {
           outputName = "${lib.last (lib.splitString "." mod.className)}.mlirbc";
           generatorClassName = mod.className;
-          parameterJson = "${chisel-mlirbc}/zaozi-params/${mod.paramJsonName}";
+          parameterJson = mod.parameterJson or "${chisel-mlirbc}/zaozi-params/${mod.paramJsonName}";
         }
       ) zaozi-modules;
 
@@ -114,6 +180,23 @@ forEachConfig (
           "verification.assume"
           "verification.cover"
         ];
+      };
+
+      # LEC: compare pre-migration (ref) vs post-migration (impl) RTL.
+      # ref-verilog: built from the pinned pre-migration commit
+      # impl-verilog: built from the current migration branch
+      # lec-run.<module>: Formality comparison per module
+      lec = let
+        # Pre-migration reference: evaluate the flake at the pinned base commit
+        # builtins.getFlake resolves all flake inputs (nixpkgs, etc.) automatically
+        preMigrationRev = "dee4f3eed738e18cca08e7bc877484446451e264";
+        repoUrl = builtins.unsafeDiscardStringContext (toString ../..);
+        refFlake = builtins.getFlake "git+file://${repoUrl}?rev=${preMigrationRev}";
+        refRtl = refFlake.legacyPackages.x86_64-linux.t1.${configName}.${topName}.rtl;
+      in t1Scope.lec-run {
+        inherit refRtl;
+        implRtl = self.rtl;
+        fmScript = ../../lec/scripts/t1_fm.tcl;
       };
 
       omreader =

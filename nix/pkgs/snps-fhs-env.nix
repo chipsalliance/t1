@@ -19,10 +19,12 @@ let
   # The vcs we have only support x86-64_linux
   lockedPkgs = import nixpkgsSrcs { system = "x86_64-linux"; };
 
-  # Using VCS need to set VC_STATIC_HOME and SNPSLMD_LICENSE_FILE to impure env, and add sandbox dir to VC_STATIC_HOME
+  # Using VCS/Formality need to set these env vars and pass --impure to nix
   vcStaticHome = getEnv' "VC_STATIC_HOME";
   snpslmdLicenseFile = getEnv' "SNPSLMD_LICENSE_FILE";
   dwbb = getEnv' "DWBB_DIR";
+  # FM_HOME is optional — only needed for Formality LEC, not for VCS/Verdi
+  fmHome = builtins.getEnv "FM_HOME";
 in
 lockedPkgs.buildFHSEnv {
   name = "snps-fhs-env";
@@ -46,8 +48,10 @@ lockedPkgs.buildFHSEnv {
     export SNPS_VERDI_CBUG_LCA=1
     export SNPSLMD_LICENSE_FILE=${snpslmdLicenseFile}
     export DWBB_DIR=${dwbb}
+    ${if fmHome != "" then "export FM_HOME=${fmHome}" else "# FM_HOME not set — Formality LEC unavailable"}
 
     export PATH=$VC_STATIC_HOME/bin:$PATH
+    ${if fmHome != "" then "export PATH=$FM_HOME/bin:$PATH" else ""}
     export PATH=$VC_STATIC_HOME/verdi/bin:$PATH
     export PATH=$VC_STATIC_HOME/vcs-mx/bin:$PATH
     export PATH=$VC_STATIC_HOME/SG_COMPAT/SPYGLASS_HOME/bin:$PATH
@@ -108,6 +112,12 @@ lockedPkgs.buildFHSEnv {
       libxml2
       gcc
       gnumake
+      tcsh
+      # Formality's snps_platform uses #!/bin/csh shebang
+      (ps.runCommand "csh-link" {} ''
+        mkdir -p $out/bin
+        ln -s ${ps.tcsh}/bin/tcsh $out/bin/csh
+      '')
       xorg.libX11
       xorg.libXft
       xorg.libXScrnSaver
@@ -119,6 +129,16 @@ lockedPkgs.buildFHSEnv {
       xorg.libXi
       xorg.libXt
       xorg.libXmu
+      xorg.libXrandr
+      xorg.libXcursor
+      xorg.libXfixes
+      xorg.libXdamage
+      xorg.libSM
+      xorg.libICE
+      libjpeg
+      libpng
+      libtiff
+      freetype
       zlib
     ]
   );
