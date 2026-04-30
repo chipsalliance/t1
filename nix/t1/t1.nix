@@ -63,19 +63,19 @@ forEachConfig (
           paramJsonName = "VRF.json";
         }
         {
-          className = "org.chipsalliance.t1.rtl.zvma.LanePopCount";
+          className = "org.chipsalliance.t1.rtl.LanePopCount";
           paramJsonName = "LanePopCount.json";
         }
         {
-          className = "org.chipsalliance.t1.rtl.zvma.LaneFFO";
+          className = "org.chipsalliance.t1.rtl.LaneFFO";
           paramJsonName = "LaneFFO.json";
         }
         {
-          className = "org.chipsalliance.t1.rtl.zvma.LaneShifter";
+          className = "org.chipsalliance.t1.rtl.LaneShifter";
           paramJsonName = "LaneShifter.json";
         }
         {
-          className = "org.chipsalliance.t1.rtl.zvma.MaskedLogic";
+          className = "org.chipsalliance.t1.rtl.MaskedLogic";
           paramJsonName = "MaskedLogic.json";
         }
       ]
@@ -87,7 +87,7 @@ forEachConfig (
       ]
       ++ lib.optionals (lib.hasInfix "zvbb" generator.cmdopt) [
         {
-          className = "org.chipsalliance.t1.rtl.zvma.LaneZvbb";
+          className = "org.chipsalliance.t1.rtl.LaneZvbb";
           paramJsonName = "LaneZvbb.json";
         }
       ];

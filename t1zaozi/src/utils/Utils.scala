@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2026 Jiuyang Liu <liu@jiuyang.me>
-package org.chipsalliance.t1.rtl.zvma
+package org.chipsalliance.t1.rtl
 
 import scala.math.{ceil, log}
 

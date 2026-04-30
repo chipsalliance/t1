@@ -9,7 +9,7 @@ import me.jiuyang.zaozi.reftpe.*
 import me.jiuyang.zaozi.valuetpe.*
 import me.jiuyang.stdlib.*
 import me.jiuyang.stdlib.default.{*, given}
-import org.chipsalliance.t1.rtl.zvma.*
+import org.chipsalliance.t1.rtl.*
 import org.llvm.mlir.scalalib.capi.ir.{*, given}
 
 import java.lang.foreign.Arena
