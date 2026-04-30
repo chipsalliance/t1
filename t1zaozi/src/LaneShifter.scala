@@ -73,7 +73,7 @@ object LaneShifter extends Generator[LaneShifterParameter, LaneShifterLayers, La
     val extend        = fill(p.datapathWidth, signBit).asUInt
     val extendData    = (extend.asBits ## shifterSource.asBits).asUInt
 
-    val roundTail = (1.U << requestReg.shifterSize).asBits.bits(p.datapathWidth, 0).asUInt
+    val roundTail = (1.U << requestReg.shifterSize).asBits.bits(p.datapathWidth - 1, 0).asUInt
     val lostMSB   = (roundTail >> 1).asBits.bits(p.datapathWidth - 1, 0).asUInt
     val roundMask = (roundTail - 1.U).asBits.bits(p.datapathWidth - 1, 0).asUInt
 

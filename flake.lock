@@ -458,11 +458,11 @@
         "nixpkgs": "nixpkgs_5"
       },
       "locked": {
-        "lastModified": 1775479977,
-        "narHash": "sha256-GUPfd47GypRSccwUV8ll3e5TkoLIe9soyi//RE3ZyXw=",
+        "lastModified": 1777501159,
+        "narHash": "sha256-9jJ1niQ+wNakC4khuY56Dq5euHx6W/ufTpSmOO138Ms=",
         "owner": "xinpian-tech",
         "repo": "zaozi",
-        "rev": "59b561ff347ef459c22c43c7bde0108112fccc31",
+        "rev": "403397d8c3edd4e05bb4b3297075231c973a5ed8",
         "type": "github"
       },
       "original": {
