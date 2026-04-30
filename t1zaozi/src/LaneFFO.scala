@@ -82,12 +82,12 @@ object LaneFFO extends Generator[LaneFFOParam, LaneFFOLayers, LaneFFOInterface, 
         !io.complete & !notZero & io.resultSelect.asBits.bit(0)
       ),
       Seq(
-        0.U(p.datapathWidth),
+        0.U,
         index,
         ro,
         oh,
         inc.asBits.bits(p.datapathWidth - 1, 0).asUInt,
-        1.U(p.datapathWidth)
+        1.U
       )
     )
 

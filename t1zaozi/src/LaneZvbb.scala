@@ -106,41 +106,41 @@ object LaneZvbb extends Generator[LaneZvbbParam, LaneZvbbLayers, LaneZvbbInterfa
     val zvbbRs8c  = zvbbRs.asBits.bits(p.datapathWidth - 17, p.datapathWidth - 24).asUInt
     val zvbbRs8d  = zvbbRs.asBits.bits(p.datapathWidth - 25, p.datapathWidth - 32).asUInt
 
-    val zero32 = 0.U(32)
-    val zero16 = 0.U(16)
-    val zero10 = 0.U(11)
-    val zero8  = 0.U(8)
-    val zero3  = 0.U(4)
+    val zero32 = 0.B(32)
+    val zero16 = 0.B(16)
+    val zero10 = 0.B(11)
+    val zero8  = 0.B(8)
+    val zero3  = 0.B(4)
 
     // CLZ (count leading zeros)
-    val zvbbCLZ32 = (32.U(7) - popCount(scanRightOr(zvbbSrc))).asBits.bits(5, 0).asUInt
+    val zvbbCLZ32 = (32.U - popCount(scanRightOr(zvbbSrc))).asBits.bits(5, 0).asUInt
     val zvbbCLZ16 =
-      val clz16a = (16.U(6) - popCount(scanRightOr(zvbbSrc16a))).asBits.bits(4, 0).asUInt
-      val clz16b = (16.U(6) - popCount(scanRightOr(zvbbSrc16b))).asBits.bits(4, 0).asUInt
-      (zero10.asBits ## clz16a.asBits ## zero10.asBits ## clz16b.asBits).asUInt
+      val clz16a = (16.U - popCount(scanRightOr(zvbbSrc16a))).asBits.bits(4, 0).asUInt
+      val clz16b = (16.U - popCount(scanRightOr(zvbbSrc16b))).asBits.bits(4, 0).asUInt
+      (zero10 ## clz16a.asBits ## zero10 ## clz16b.asBits).asUInt
     val zvbbCLZ8  =
-      val clz8a = (8.U(5) - popCount(scanRightOr(zvbbSrc8a))).asBits.bits(3, 0).asUInt
-      val clz8b = (8.U(5) - popCount(scanRightOr(zvbbSrc8b))).asBits.bits(3, 0).asUInt
-      val clz8c = (8.U(5) - popCount(scanRightOr(zvbbSrc8c))).asBits.bits(3, 0).asUInt
-      val clz8d = (8.U(5) - popCount(scanRightOr(zvbbSrc8d))).asBits.bits(3, 0).asUInt
-      (zero3.asBits ## clz8a.asBits ## zero3.asBits ## clz8b.asBits ## zero3.asBits ## clz8c.asBits ## zero3.asBits ## clz8d.asBits).asUInt
+      val clz8a = (8.U - popCount(scanRightOr(zvbbSrc8a))).asBits.bits(3, 0).asUInt
+      val clz8b = (8.U - popCount(scanRightOr(zvbbSrc8b))).asBits.bits(3, 0).asUInt
+      val clz8c = (8.U - popCount(scanRightOr(zvbbSrc8c))).asBits.bits(3, 0).asUInt
+      val clz8d = (8.U - popCount(scanRightOr(zvbbSrc8d))).asBits.bits(3, 0).asUInt
+      (zero3 ## clz8a.asBits ## zero3 ## clz8b.asBits ## zero3 ## clz8c.asBits ## zero3 ## clz8d.asBits).asUInt
     val zvbbCLZ   = mux1H(
       vSew,
       Seq(zvbbCLZ8, zvbbCLZ16, zvbbCLZ32)
     )
 
     // CTZ (count trailing zeros)
-    val zvbbCTZ32 = (32.U(7) - popCount(scanLeftOr(zvbbSrc))).asBits.bits(5, 0).asUInt
+    val zvbbCTZ32 = (32.U - popCount(scanLeftOr(zvbbSrc))).asBits.bits(5, 0).asUInt
     val zvbbCTZ16 =
-      val ctz16a = (16.U(6) - popCount(scanLeftOr(zvbbSrc16a))).asBits.bits(4, 0).asUInt
-      val ctz16b = (16.U(6) - popCount(scanLeftOr(zvbbSrc16b))).asBits.bits(4, 0).asUInt
-      (zero10.asBits ## ctz16a.asBits ## zero10.asBits ## ctz16b.asBits).asUInt
+      val ctz16a = (16.U - popCount(scanLeftOr(zvbbSrc16a))).asBits.bits(4, 0).asUInt
+      val ctz16b = (16.U - popCount(scanLeftOr(zvbbSrc16b))).asBits.bits(4, 0).asUInt
+      (zero10 ## ctz16a.asBits ## zero10 ## ctz16b.asBits).asUInt
     val zvbbCTZ8  =
-      val ctz8a = (8.U(5) - popCount(scanLeftOr(zvbbSrc8a))).asBits.bits(3, 0).asUInt
-      val ctz8b = (8.U(5) - popCount(scanLeftOr(zvbbSrc8b))).asBits.bits(3, 0).asUInt
-      val ctz8c = (8.U(5) - popCount(scanLeftOr(zvbbSrc8c))).asBits.bits(3, 0).asUInt
-      val ctz8d = (8.U(5) - popCount(scanLeftOr(zvbbSrc8d))).asBits.bits(3, 0).asUInt
-      (zero3.asBits ## ctz8a.asBits ## zero3.asBits ## ctz8b.asBits ## zero3.asBits ## ctz8c.asBits ## zero3.asBits ## ctz8d.asBits).asUInt
+      val ctz8a = (8.U - popCount(scanLeftOr(zvbbSrc8a))).asBits.bits(3, 0).asUInt
+      val ctz8b = (8.U - popCount(scanLeftOr(zvbbSrc8b))).asBits.bits(3, 0).asUInt
+      val ctz8c = (8.U - popCount(scanLeftOr(zvbbSrc8c))).asBits.bits(3, 0).asUInt
+      val ctz8d = (8.U - popCount(scanLeftOr(zvbbSrc8d))).asBits.bits(3, 0).asUInt
+      (zero3 ## ctz8a.asBits ## zero3 ## ctz8b.asBits ## zero3 ## ctz8c.asBits ## zero3 ## ctz8d.asBits).asUInt
     val zvbbCTZ   = mux1H(
       vSew,
       Seq(zvbbCTZ8, zvbbCTZ16, zvbbCTZ32)
@@ -182,22 +182,22 @@ object LaneZvbb extends Generator[LaneZvbbParam, LaneZvbbLayers, LaneZvbbInterfa
 
     // SLL64
     val zvbbSLL64_32 =
-      ((zero32.asBits ## zvbbSrc.asBits).asUInt << zvbbRs.asBits.bits(4, 0).asUInt).asBits.bits(31, 0).asUInt
+      ((zero32 ## zvbbSrc.asBits).asUInt << zvbbRs.asBits.bits(4, 0).asUInt).asBits.bits(31, 0).asUInt
     val zvbbSLL64_16 =
       val sll64_16a =
-        ((zero16.asBits ## zvbbSrc16a.asBits).asUInt << zvbbRs16a.asBits.bits(3, 0).asUInt).asBits.bits(15, 0).asUInt
+        ((zero16 ## zvbbSrc16a.asBits).asUInt << zvbbRs16a.asBits.bits(3, 0).asUInt).asBits.bits(15, 0).asUInt
       val sll64_16b =
-        ((zero16.asBits ## zvbbSrc16b.asBits).asUInt << zvbbRs16b.asBits.bits(3, 0).asUInt).asBits.bits(15, 0).asUInt
+        ((zero16 ## zvbbSrc16b.asBits).asUInt << zvbbRs16b.asBits.bits(3, 0).asUInt).asBits.bits(15, 0).asUInt
       (sll64_16a.asBits ## sll64_16b.asBits).asUInt
     val zvbbSLL64_8  =
       val sll64_8a =
-        ((zero8.asBits ## zvbbSrc8a.asBits).asUInt << zvbbRs8a.asBits.bits(2, 0).asUInt).asBits.bits(7, 0).asUInt
+        ((zero8 ## zvbbSrc8a.asBits).asUInt << zvbbRs8a.asBits.bits(2, 0).asUInt).asBits.bits(7, 0).asUInt
       val sll64_8b =
-        ((zero8.asBits ## zvbbSrc8b.asBits).asUInt << zvbbRs8b.asBits.bits(2, 0).asUInt).asBits.bits(7, 0).asUInt
+        ((zero8 ## zvbbSrc8b.asBits).asUInt << zvbbRs8b.asBits.bits(2, 0).asUInt).asBits.bits(7, 0).asUInt
       val sll64_8c =
-        ((zero8.asBits ## zvbbSrc8c.asBits).asUInt << zvbbRs8c.asBits.bits(2, 0).asUInt).asBits.bits(7, 0).asUInt
+        ((zero8 ## zvbbSrc8c.asBits).asUInt << zvbbRs8c.asBits.bits(2, 0).asUInt).asBits.bits(7, 0).asUInt
       val sll64_8d =
-        ((zero8.asBits ## zvbbSrc8d.asBits).asUInt << zvbbRs8d.asBits.bits(2, 0).asUInt).asBits.bits(7, 0).asUInt
+        ((zero8 ## zvbbSrc8d.asBits).asUInt << zvbbRs8d.asBits.bits(2, 0).asUInt).asBits.bits(7, 0).asUInt
       (sll64_8a.asBits ## sll64_8b.asBits ## sll64_8c.asBits ## sll64_8d.asBits).asUInt
     val zvbbSLL64    = mux1H(
       vSew,
@@ -210,17 +210,17 @@ object LaneZvbb extends Generator[LaneZvbbParam, LaneZvbbLayers, LaneZvbbInterfa
 
     // POPCOUNT
     val zvbbPOP =
-      val zvbbPOP8a = (0.U(4).asBits ## popCount(zvbbSrc8a).asBits.bits(3, 0)).asUInt
-      val zvbbPOP8b = (0.U(4).asBits ## popCount(zvbbSrc8b).asBits.bits(3, 0)).asUInt
-      val zvbbPOP8c = (0.U(4).asBits ## popCount(zvbbSrc8c).asBits.bits(3, 0)).asUInt
-      val zvbbPOP8d = (0.U(4).asBits ## popCount(zvbbSrc8d).asBits.bits(3, 0)).asUInt
+      val zvbbPOP8a = (0.B(4) ## popCount(zvbbSrc8a).asBits.bits(3, 0)).asUInt
+      val zvbbPOP8b = (0.B(4) ## popCount(zvbbSrc8b).asBits.bits(3, 0)).asUInt
+      val zvbbPOP8c = (0.B(4) ## popCount(zvbbSrc8c).asBits.bits(3, 0)).asUInt
+      val zvbbPOP8d = (0.B(4) ## popCount(zvbbSrc8d).asBits.bits(3, 0)).asUInt
       mux1H(
         vSew,
         Seq(
           (zvbbPOP8a.asBits ## zvbbPOP8b.asBits ## zvbbPOP8c.asBits ## zvbbPOP8d.asBits).asUInt,
-          (0.U(8).asBits ## (zvbbPOP8a + zvbbPOP8b).asBits.bits(7, 0) ## 0.U(8).asBits ## (zvbbPOP8c + zvbbPOP8d).asBits
+          (0.B(8) ## (zvbbPOP8a + zvbbPOP8b).asBits.bits(7, 0) ## 0.B(8) ## (zvbbPOP8c + zvbbPOP8d).asBits
             .bits(7, 0)).asUInt,
-          (0.U(24).asBits ## (zvbbPOP8a + zvbbPOP8b + zvbbPOP8c + zvbbPOP8d).asBits.bits(7, 0)).asUInt
+          (0.B(24) ## (zvbbPOP8a + zvbbPOP8b + zvbbPOP8c + zvbbPOP8d).asBits.bits(7, 0)).asUInt
         )
       )
 

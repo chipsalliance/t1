@@ -350,7 +350,7 @@ object VRF extends Generator[VRFParam, VRFLayers, VRFInterface, VRFProbeInterfac
     val sramResetCount = RegInit(0.U(chiselLog2Ceil(parameter.rfDepth)))
     val resetValid     = !sramReady
     when(resetValid):
-      sramResetCount := ((sramResetCount + 1.U(sramResetCount.width)).asBits.bits(sramResetCount.width - 1, 0)).asUInt
+      sramResetCount := ((sramResetCount + 1.U).asBits.bits(sramResetCount.width - 1, 0)).asUInt
       when(sramResetCount.asBits.andR):
         sramReady := true.B
     // TODO: add Chaining Check Probe
@@ -514,7 +514,7 @@ object VRF extends Generator[VRFParam, VRFLayers, VRFInterface, VRFProbeInterfac
             .asUInt
           rf.io.enable                     := ramWriteValid | firstReadPipe(bank).valid
           rf.io.isWrite                    := ramWriteValid
-          rf.io.writeData                  := (0.U(parameter.memoryWidth - parameter.datapathWidth).asBits ## writeData.asBits)
+          rf.io.writeData                  := (0.B(parameter.memoryWidth - parameter.datapathWidth) ## writeData.asBits)
           readResultF(bank)                := rf.io.readData.bits(parameter.ramWidth - 1, 0).asUInt
           readResultS(bank).dontCare()
         }
@@ -536,7 +536,7 @@ object VRF extends Generator[VRFParam, VRFLayers, VRFInterface, VRFProbeInterfac
 
           rf.io.writeEnable  := ramWriteValid
           rf.io.writeAddress := writeAddress
-          rf.io.writeData    := (0.U(parameter.memoryWidth - parameter.datapathWidth).asBits ## writeData.asBits)
+          rf.io.writeData    := (0.B(parameter.memoryWidth - parameter.datapathWidth) ## writeData.asBits)
         }
       case RamType.p0rwp1rw =>
         Seq.tabulate(parameter.rfBankNum) { bank =>
@@ -569,7 +569,7 @@ object VRF extends Generator[VRFParam, VRFLayers, VRFInterface, VRFProbeInterfac
             .asUInt
           rf.io.enable1                     := ramWriteValid | secondReadPipe(bank).valid
           rf.io.isWrite1                    := ramWriteValid
-          rf.io.writeData1                  := (0.U(parameter.memoryWidth - parameter.datapathWidth).asBits ## writeData.asBits)
+          rf.io.writeData1                  := (0.B(parameter.memoryWidth - parameter.datapathWidth) ## writeData.asBits)
         }
 
     val initRecord = Wire(validRecordType)

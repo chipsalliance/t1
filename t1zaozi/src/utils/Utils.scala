@@ -171,7 +171,7 @@ def ffo(
 ): Referable[UInt] =
   val width   = input.width
   val scanned = scanLeftOr(input).asBits
-  val shifted = if width > 1 then scanned.bits(width - 2, 0) ## 0.U(1).asBits else 0.U(1).asBits
+  val shifted = if width > 1 then scanned.bits(width - 2, 0) ## 0.B(1) else 0.B(1)
   (~shifted & input.asBits).asUInt.asBits.bits(width - 1, 0).asUInt
 
 def popCount(

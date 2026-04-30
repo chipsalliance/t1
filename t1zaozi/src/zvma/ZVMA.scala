@@ -210,8 +210,8 @@ object ZVMA extends Generator[ZVMAParameter, ZVMALayers, ZVMAInterface, ZVMAProb
     val aluReadyVec = Wire(Vec(p.aluColSize, Vec(p.aluRowSize, Bool())))
     val aluReady    = aluReadyVec.asBits.andR
 
-    val nextColIndex = ((0.U(1).asBits ## colExecuteIndex.asBits).asUInt + 1.U)
-    val nextRowIndex = ((0.U(1).asBits ## rowExecuteIndex.asBits).asUInt + 1.U)
+    val nextColIndex = ((0.B(1) ## colExecuteIndex.asBits).asUInt + 1.U)
+    val nextRowIndex = ((0.B(1) ## rowExecuteIndex.asBits).asUInt + 1.U)
 
     // Fixed Row index if always access same col
     val fixedCol = !contorlReg.aluType & !contorlReg.col

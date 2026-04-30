@@ -56,7 +56,7 @@ object WriteCheck extends Generator[VRFParam, WriteCheckLayers, WriteCheckInterf
     val maskForVD1  = cutUIntBySize(maskShifter, 2)(1)
 
     val vdGroup  = io.record.bits.vd.bits.asBits.bits(4, 3).asUInt
-    val vdGroup1 = ((vdGroup + 1.U(vdGroup.width)).asBits.bits(vdGroup.width - 1, 0)).asUInt
+    val vdGroup1 = ((vdGroup + 1.U).asBits.bits(vdGroup.width - 1, 0)).asUInt
     val checkVd  = io.check.vd.asBits.bits(4, 3).asUInt
     val hitVd    = ((checkOH.asBits & maskForVD.asBits).asUInt === 0.U(checkOH.width)) & (checkVd === vdGroup)
     val hitVd1   = ((checkOH.asBits & maskForVD1.asBits).asUInt === 0.U(checkOH.width)) & (checkVd === vdGroup1)
@@ -82,7 +82,7 @@ object WriteCheck extends Generator[VRFParam, WriteCheckLayers, WriteCheckInterf
       (cutUIntBySize(maskShifterForVs2, 2)(0).asBits & fill(parameter.elementSize, !io.record.bits.onlyRead)).asUInt
     val maskForVs21 = cutUIntBySize(maskShifterForVs2, 2)(1)
     val vs2Group    = io.record.bits.vs2.asBits.bits(4, 3).asUInt
-    val vs21Group   = ((vs2Group + 1.U(vs2Group.width)).asBits.bits(vs2Group.width - 1, 0)).asUInt
+    val vs21Group   = ((vs2Group + 1.U).asBits.bits(vs2Group.width - 1, 0)).asUInt
     val hitVs2      = (((checkOH.asBits & maskForVs2.asBits).asUInt === 0.U(
       checkOH.width
     )) | io.record.bits.gather) & (checkVd === vs2Group)

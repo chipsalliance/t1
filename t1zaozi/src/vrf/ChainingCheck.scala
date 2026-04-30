@@ -62,7 +62,7 @@ object ChainingCheck extends Generator[VRFParam, ChainingCheckLayers, ChainingCh
     val maskForVD1  = cutUIntBySize(maskShifter, 2)(1)
 
     val vdGroup  = io.record.bits.vd.bits.asBits.bits(4, 3).asUInt
-    val vdGroup1 = ((vdGroup + 1.U(vdGroup.width)).asBits.bits(vdGroup.width - 1, 0)).asUInt
+    val vdGroup1 = ((vdGroup + 1.U).asBits.bits(vdGroup.width - 1, 0)).asUInt
     val vsGroup  = io.read.vs.asBits.bits(4, 3).asUInt
     val hitVd    = ((readOH.asBits & maskForVD.asBits).asUInt === 0.U(readOH.width)) & (vsGroup === vdGroup)
     val hitVd1   = ((readOH.asBits & maskForVD1.asBits).asUInt === 0.U(readOH.width)) & (vsGroup === vdGroup1)
