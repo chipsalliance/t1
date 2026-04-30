@@ -138,6 +138,26 @@ def scanLeftOr(
     }
     .asUInt
 
+def scanRightOr(
+  input: Referable[UInt]
+)(
+  using Arena,
+  Context,
+  Block,
+  sourcecode.File,
+  sourcecode.Line,
+  sourcecode.Name.Machine,
+  InstanceContext
+): Referable[UInt] =
+  val width = input.width
+  Iterator
+    .iterate(1)(_ * 2)
+    .takeWhile(_ < width)
+    .foldLeft(input.asBits: Referable[Bits]) { (result, shift) =>
+      result | (0.U(shift).asBits ## result.bits(width - 1, shift))
+    }
+    .asUInt
+
 def ffo(
   input: Referable[UInt]
 )(
@@ -153,6 +173,85 @@ def ffo(
   val scanned = scanLeftOr(input).asBits
   val shifted = if width > 1 then scanned.bits(width - 2, 0) ## 0.U(1).asBits else 0.U(1).asBits
   (~shifted & input.asBits).asUInt.asBits.bits(width - 1, 0).asUInt
+
+def popCount(
+  input: Referable[UInt]
+)(
+  using Arena,
+  Context,
+  Block,
+  sourcecode.File,
+  sourcecode.Line,
+  sourcecode.Name.Machine,
+  InstanceContext
+): Referable[UInt] =
+  def treeReduce(level: Seq[Referable[UInt]]): Referable[UInt] =
+    if level.size <= 1 then level.head
+    else
+      treeReduce(level.grouped(2).toSeq.map {
+        case Seq(a, b) =>
+          val w = a.width.max(b.width) + 1
+          (0.U(w - a.width).asBits ## a.asBits).asUInt + (0.U(w - b.width).asBits ## b.asBits).asUInt
+        case Seq(a)    => a
+      })
+  val width = input.width
+  if width == 1 then input
+  else treeReduce(Seq.tabulate(width)(i => input.asBits.bit(i).asBits.asUInt))
+
+def OHToUInt(
+  input: Referable[UInt]
+)(
+  using Arena,
+  Context,
+  Block,
+  sourcecode.File,
+  sourcecode.Line,
+  sourcecode.Name.Machine,
+  InstanceContext
+): Referable[UInt] =
+  val width    = input.width
+  val outWidth = log2Ceil(width)
+  if width <= 1 then 0.U(1)
+  else
+    val outBits: Seq[Referable[Bits]] = Seq.tabulate(outWidth) { i =>
+      val bits: Seq[Referable[Bits]] = Seq.tabulate(width) { j =>
+        if ((j >> i) & 1) == 1 then input.asBits.bit(j).asBits else false.B.asBits
+      }
+      bits.reduce(_ | _)
+    }
+    outBits.reverse.reduce(_ ## _).asUInt
+
+def rotateLeft(
+  data:   Referable[UInt],
+  amount: Referable[UInt],
+  width:  Int
+)(
+  using Arena,
+  Context,
+  Block,
+  sourcecode.File,
+  sourcecode.Line,
+  sourcecode.Name.Machine,
+  InstanceContext
+): Referable[UInt] =
+  val doubled = (data.asBits ## data.asBits).asUInt
+  (doubled << amount).asBits.bits(2 * width - 1, width).asUInt
+
+def rotateRight(
+  data:   Referable[UInt],
+  amount: Referable[UInt],
+  width:  Int
+)(
+  using Arena,
+  Context,
+  Block,
+  sourcecode.File,
+  sourcecode.Line,
+  sourcecode.Name.Machine,
+  InstanceContext
+): Referable[UInt] =
+  val doubled = (data.asBits ## data.asBits).asUInt
+  (doubled >> amount).asBits.bits(width - 1, 0).asUInt
 
 def maskAnd(
   mask: Referable[Bool],
@@ -268,6 +367,33 @@ def pipeBool(
     val reg = RegInit(false.B)
     reg := prev
     reg
+  }
+
+// Pipe valid+data together matching Chisel Pipe semantics:
+// valid: RegNext(valid, false.B) — always updates, reset to false
+// data:  RegEnable(data, valid)  — only updates when valid, no functional reset
+def pipeValidData(
+  valid: Referable[Bool],
+  data:  Referable[UInt],
+  n:     Int
+)(
+  using Arena,
+  Context,
+  Block,
+  sourcecode.File,
+  sourcecode.Line,
+  sourcecode.Name.Machine,
+  InstanceContext,
+  Ref[Clock],
+  Ref[Reset]
+): (Referable[Bool], Referable[UInt]) =
+  (0 until n).foldLeft((valid, data)) { case ((prevValid, prevData), _) =>
+    val vReg = RegInit(false.B)
+    vReg := prevValid
+    val dReg = Reg(UInt(data.width))
+    when(prevValid):
+      dReg := prevData
+    (vReg, dReg)
   }
 
 def pipeToken(
