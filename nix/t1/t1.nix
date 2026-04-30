@@ -56,18 +56,39 @@ forEachConfig (
       };
 
       # List of zaozi modules to elaborate and link.
-      # Each entry: { className, paramJsonName }
-      # paramJsonName matches the filename dumped by the ExtModule constructor into zaozi-params/
+      # Each entry: { className, paramJsonName ? "Module.json", parameterJson ? /path/to/Module.json }
       zaozi-modules = [
         {
           className = "org.chipsalliance.t1.rtl.vrf.VRF";
           paramJsonName = "VRF.json";
+        }
+        {
+          className = "org.chipsalliance.t1.rtl.zvma.LanePopCount";
+          paramJsonName = "LanePopCount.json";
+        }
+        {
+          className = "org.chipsalliance.t1.rtl.zvma.LaneFFO";
+          paramJsonName = "LaneFFO.json";
+        }
+        {
+          className = "org.chipsalliance.t1.rtl.zvma.LaneShifter";
+          paramJsonName = "LaneShifter.json";
+        }
+        {
+          className = "org.chipsalliance.t1.rtl.zvma.MaskedLogic";
+          paramJsonName = "MaskedLogic.json";
         }
       ]
       ++ lib.optionals (lib.hasInfix "rv_xsfmm" generator.cmdopt) [
         {
           className = "org.chipsalliance.t1.rtl.zvma.ZVMA";
           paramJsonName = "ZVMA.json";
+        }
+      ]
+      ++ lib.optionals (lib.hasInfix "zvbb" generator.cmdopt) [
+        {
+          className = "org.chipsalliance.t1.rtl.zvma.LaneZvbb";
+          paramJsonName = "LaneZvbb.json";
         }
       ];
 
@@ -76,7 +97,7 @@ forEachConfig (
         t1Scope.zaozi-to-mlirbc {
           outputName = "${lib.last (lib.splitString "." mod.className)}.mlirbc";
           generatorClassName = mod.className;
-          parameterJson = "${chisel-mlirbc}/zaozi-params/${mod.paramJsonName}";
+          parameterJson = mod.parameterJson or "${chisel-mlirbc}/zaozi-params/${mod.paramJsonName}";
         }
       ) zaozi-modules;
 
