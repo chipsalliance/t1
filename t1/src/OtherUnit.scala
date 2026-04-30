@@ -66,19 +66,23 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule with Serializab
   val response: OtherUnitResp = Wire(new OtherUnitResp(parameter.datapathWidth))
   val request:  OtherUnitReq  = connectIO(response).asTypeOf(parameter.inputBundle)
 
-  val ffo:              Instance[LaneFFO]      = Instantiate(new LaneFFO(parameter.datapathWidth))
-  val popCount:         Instance[LanePopCount] = Instantiate(new LanePopCount(parameter.datapathWidth))
+  val ffo:              Instance[LaneFFO]      = Instantiate(new LaneFFO(LaneFFOParam(parameter.datapathWidth)))
+  val popCount:         Instance[LanePopCount] = Instantiate(new LanePopCount(LanePopCountParam(parameter.datapathWidth)))
   val vSewOH:           UInt                   = (UIntToOH(request.vSew) >> request.narrow).asUInt(2, 0)
   // ["", "", "", "", "rgather", "merge", "clip", "mv", "pop", "id"]
   val opcodeOH:         UInt                   = UIntToOH(request.opcode)(9, 0)
   val isffo:            Bool                   = opcodeOH(3, 0).orR
   val originalOpcodeOH: UInt                   = opcodeOH(9, 4)
 
-  ffo.src          := request.src
-  ffo.resultSelect := request.opcode
-  ffo.complete     := request.complete
-  ffo.maskType     := request.maskType
-  popCount.src     :=
+  ffo.io.clock        := clock
+  ffo.io.reset        := reset.asBool
+  ffo.io.src          := request.src
+  ffo.io.resultSelect := request.opcode
+  ffo.io.complete     := request.complete
+  ffo.io.maskType     := request.maskType
+  popCount.io.clock   := clock
+  popCount.io.reset   := reset.asBool
+  popCount.io.src     :=
     request.src(1) & Mux(request.maskType, request.src.head, -1.S(parameter.datapathWidth.W).asUInt) & request.src(3)
 
   val signValue:  Bool = request.src(1)(parameter.datapathWidth - 1) && request.sign
@@ -143,12 +147,12 @@ class OtherUnit(val parameter: OtherUnitParam) extends VFUModule with Serializab
       selectSource2
     )
   ).asUInt
-  val popCountResult: UInt = popCount.resp + request.popInit
+  val popCountResult: UInt = popCount.io.resp + request.popInit
   val result:         UInt = Mux1H(
     resultSelect,
-    Seq(ffo.resp.bits, popCountResult, indexRes, clipResult, request.src.head, request.src(1))
+    Seq(ffo.io.resp.bits, popCountResult, indexRes, clipResult, request.src.head, request.src(1))
   )
   response.data       := result
-  response.ffoSuccess := ffo.resp.valid && isffo
+  response.ffoSuccess := ffo.io.resp.valid && isffo
   response.clipFail   := roundResultOverlap || differentSign
 }
