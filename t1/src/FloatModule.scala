@@ -167,7 +167,7 @@ class Rec7Fn(val parameter: Rec7FnParameter)
   val inIsPositiveInf        = in.classifyIn(7)
   val inIsNegativeInf        = in.classifyIn(0)
   val inIsNegativeZero       = in.classifyIn(3)
-  val inIsPositveZero        = in.classifyIn(4)
+  val inIsPositiveZero       = in.classifyIn(4)
   val inIsSNaN               = in.classifyIn(8)
   val inIsQNaN               = in.classifyIn(9)
   val inIsSub                = in.classifyIn(2) || in.classifyIn(5)
@@ -241,7 +241,7 @@ class Rec7Fn(val parameter: Rec7FnParameter)
         inIsNegativeZero || roundAbnormalToNegaInf,
         "xff800000".U,
         Mux(
-          inIsPositveZero || roundAbnormalToPosInf,
+          inIsPositiveZero || roundAbnormalToPosInf,
           "x7f800000".U,
           Mux(
             inIsQNaN || inIsSNaN,
@@ -252,7 +252,11 @@ class Rec7Fn(val parameter: Rec7FnParameter)
       )
     )
   )
-  out.exceptionFlags := Mux(inIsSNaN, 16.U, Mux(inIsPositveZero || inIsNegativeZero, 8.U, Mux(roundAbnormal, 5.U, 0.U)))
+  out.exceptionFlags := Mux(
+    inIsSNaN,
+    16.U,
+    Mux(inIsPositiveZero || inIsNegativeZero, 8.U, Mux(roundAbnormal, 5.U, 0.U))
+  )
 }
 
 object Rsqrt7FnParameter {
