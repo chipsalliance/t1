@@ -327,6 +327,18 @@ class Rsqrt7Fn(val parameter: Rsqrt7FnParameter)
   )
   expOut := Mux(inIsSub, 380.U + normDist, 380.U(10.W) - expIn) >> 1
 
-  out.data           := Mux(outNaN, "x7FC00000".U, Mux(outInf, Cat(sign, "x7f800000".U(31.W)), Cat(sign, expOut, sigOut)))
+  // rsqrt7(+inf) = +0. Rec7Fn special-cases the +inf input (see its
+  // inIsPositiveInf -> 0.U), but Rsqrt7Fn originally omitted it: +inf is not in
+  // outNaN (classify bits 0,1,2,8,9) nor outInf (bits 3,4), so it fell through
+  // to the normal 7-bit approximation path and produced a finite value
+  // (expIn=0xff -> expOut=(380-255)>>1=62, table[64]=127 -> 0x1f7f0000) instead
+  // of +0. Add the missing case, matching the RVV v1.0 vfrsqrt7 table
+  // (+inf -> +0, no exception flag).
+  val inIsPositiveInf = in.classifyIn(7)
+  out.data           := Mux(
+    outNaN,
+    "x7FC00000".U,
+    Mux(inIsPositiveInf, 0.U(32.W), Mux(outInf, Cat(sign, "x7f800000".U(31.W)), Cat(sign, expOut, sigOut)))
+  )
   out.exceptionFlags := Mux(outNaN, 16.U, Mux(outInf, 8.U, 0.U))
 }
