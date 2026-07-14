@@ -1342,8 +1342,19 @@ class Rocket(val parameter: RocketParameter)
         Option.when(usingVector)(exRegDecodeOutput(parameter.decoderParameter.vector)).getOrElse(false.B)
     val dataHazardEx:   Bool         =
       exRegDecodeOutput(parameter.decoderParameter.wxd) && checkHazards(hazardTargets, _ === exWaddr)
+    // A vector `.vf` instruction reads its scalar operand from the F register file
+    // (decoded as vectorReadFRs1). Exactly like a scalar FP consumer it must interlock
+    // against an in-flight FP-register producer (fmv.w.x, flw, ...) that is still in
+    // EX/MEM/WB; otherwise it issues to the vector unit with a stale frs1. The
+    // scoreboard-based idStallFpu below already covers vectorReadFRs1, but these
+    // EX/MEM/WB checks did not, leaving a 1-2 cycle window of stale scalar reads.
+    val idReadFRs1:     Bool         =
+      idDecodeOutput(parameter.decoderParameter.fp) ||
+        Option
+          .when(usingVector)(idDecodeOutput(parameter.decoderParameter.vectorReadFRs1))
+          .getOrElse(false.B)
     val fpDataHazardEx: Option[Bool] = fpHazardTargets.map(fpHazardTargets =>
-      idDecodeOutput(parameter.decoderParameter.fp) && exRegDecodeOutput(
+      idReadFRs1 && exRegDecodeOutput(
         parameter.decoderParameter.wfd
       ) && checkHazards(fpHazardTargets, _ === exWaddr)
     )
@@ -1366,7 +1377,7 @@ class Rocket(val parameter: RocketParameter)
     val dataHazardMem:   Bool         =
       memRegDecodeOutput(parameter.decoderParameter.wxd) && checkHazards(hazardTargets, _ === memWaddr)
     val fpDataHazardMem: Option[Bool] = fpHazardTargets.map(fpHazardTargets =>
-      idDecodeOutput(parameter.decoderParameter.fp) &&
+      idReadFRs1 &&
         memRegDecodeOutput(parameter.decoderParameter.wfd) &&
         checkHazards(fpHazardTargets, _ === memWaddr)
     )
@@ -1377,7 +1388,7 @@ class Rocket(val parameter: RocketParameter)
       wbRegDecodeOutput(parameter.decoderParameter.wxd) && checkHazards(hazardTargets, _ === wbWaddr)
     val fpDataHazardWb: Bool = fpHazardTargets
       .map(fpHazardTargets =>
-        idDecodeOutput(parameter.decoderParameter.fp) &&
+        idReadFRs1 &&
           wbRegDecodeOutput(parameter.decoderParameter.wfd) &&
           checkHazards(fpHazardTargets, _ === wbWaddr)
       )
