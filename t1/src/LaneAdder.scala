@@ -253,16 +253,29 @@ class LaneAdder(val parameter: LaneAdderParam) extends VFUModule with Serializab
         Seq(
           Mux(
             subRequest.sign,
-            // data(6) && anyNegativeVec(index) -> 任意操作数是负的,需要做符号位扩展, 否则占据data(6)的是+的上溢出
-            // eg： 7f + 7 = 86 -average-> 43(不符号扩展)
-            //      f8 + 0 = f8 -average-> fc(符号扩展)
-            // !isSub || !data(7)
-            //      7f - 0 = 7f + ff + 1 + 1 = 180 -average-> c0(需要去掉最高位) -> 40
-            // allNegativeVec(index) && data(7):
-            // 包含特殊的下溢出： average(0xfff8 - 0x7fff) = 0x10ffd >> 1
+            // The averaging halve is a logical >>1, so the element's top bit is dropped at
+            // the element boundary and has to be rebuilt here.
+            //
+            // Write the value being halved as V = P + Q + inc, where P and Q are the two
+            // adder operands (already complemented for a subtract) and inc is the subtract
+            // carry plus the rounding bit. Reading P and Q as signed gives
+            //   V_signed = V - 2^SEW * (P_sign + Q_sign)
+            // so the signed average is
+            //   V_signed >> 1 = (V >> 1) - 2^(SEW-1) * (P_sign + Q_sign).
+            // Modulo the element, -2^(SEW-1) and +2^(SEW-1) are the same, so the result is
+            // just the halved sum with its top bit flipped exactly when one of the two
+            // operands is negative and the other is not.
+            //
+            // eg: 7f + 07 -average-> 43 (both non-negative, top bit kept)
+            //     f8 + 00 -average-> fc (one negative, top bit flipped, sign extended)
+            //     7f - 00  = 7f + ff + 1 + 1 = 180 -average-> c0, flipped -> 40
+            //     7f - 80  = 7f + 7f + 1 + 1 = 100 -average-> 80, kept    -> 80
+            // The last case is the one the previous form got wrong: it forced the top bit to
+            // zero whenever both operands were non-negative, which drops the 2^(SEW-1) that
+            // vasub produces at the largest positive minus the most negative element.
             Mux(
               subRequest.average && isFirstBlock(index),
-              (allNegativeVec(index) && data(7)) || (data(6) && anyNegativeVec(index) && (!isSub || !data(7))),
+              data(7) ^ (anyNegativeVec(index) && !allNegativeVec(index)),
               data(7)
             ),
             (subRequest.average && isFirstBlock(index) && isSub) ^ data(7)
