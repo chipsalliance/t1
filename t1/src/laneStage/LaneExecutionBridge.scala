@@ -515,16 +515,90 @@ class LaneExecutionBridge(parameter: LaneParameter, isLastSlot: Boolean, slotInd
       )
     }
     firstRequestFire.foreach { fr =>
+      // Seed non-element-0 lanes with the op identity, +inf/-inf for fp min/max (0, the fp-add
+      // identity, is wrong for min/max: min(x, 0) collapses the fold to 0)
+      val redFpUop:                           UInt = enqueue.bits.decodeResult(Decoder.uop)
+      // fpExecutionType b10 = Compare (min/max); vfredusum/vfredosum share uop 1000 but are add, gate on Compare
+      val redFpCompare:                       Bool = enqueue.bits.decodeResult(Decoder.fpExecutionType) === "b10".U
+      val redFpMin:                           Bool = enqueue.bits.decodeResult(Decoder.float) && redFpCompare && (redFpUop === "b1000".U)
+      val redFpMax:                           Bool = enqueue.bits.decodeResult(Decoder.float) && redFpCompare && (redFpUop === "b1100".U)
+      def redFpRep(e16: String, e32: String): UInt = Mux1H(
+        enqueue.bits.vSew1H,
+        Seq(0.U(parameter.eLen.W), Fill(parameter.eLen / 16, e16.U(16.W)), Fill(parameter.eLen / 32, e32.U(32.W)))
+      )
+      val redFpIdElem:                        UInt =
+        Mux(
+          redFpMin,
+          redFpRep("h7c00", "h7f800000"),
+          Mux(redFpMax, redFpRep("hfc00", "hff800000"), 0.U(parameter.eLen.W))
+        )
       fr.zipWithIndex.foreach { case (f, i) =>
         when(enqueue.fire && f && enqueue.bits.decodeResult(Decoder.float)) {
           reduceResult.foreach { red =>
-            red(i) := cutUInt(
-              Mux(enqueue.bits.decodeResult(Decoder.fpExecutionType).orR, enqueue.bits.src(1), 0.U),
-              parameter.eLen
-            )(i)
+            // Override only the non-element-0 lanes for fp min/max; keep the original seed otherwise
+            val redFpSeed: UInt = cutUInt(enqueue.bits.src(1), parameter.eLen)(i)
+            red(i) := Mux(
+              enqueue.bits.decodeResult(Decoder.fpExecutionType).orR,
+              if (i == 0) redFpSeed else Mux(redFpMin || redFpMax, redFpIdElem, redFpSeed),
+              0.U
+            )
           }
         }
       }
+    }
+
+    val redAccInitialized: Bool = RegInit(false.B)
+    // Seed the integer reduction accumulator with the op identity, not 0: all-ones for
+    // unsigned-min/and, max-signed for signed-min, min-signed for signed-max (0 only suits add/or/xor/umax)
+    reduceResult.foreach { red =>
+      val redUop:      UInt = enqueue.bits.decodeResult(Decoder.uop)
+      val redSign:     Bool = !enqueue.bits.decodeResult(Decoder.unsigned1)
+      val redIsLogic:  Bool = enqueue.bits.decodeResult(Decoder.logic)
+      val redIsMin:    Bool = !redIsLogic && (redUop === 7.U)
+      val redIsMax:    Bool = !redIsLogic && (redUop === 6.U)
+      val redIsAnd:    Bool = redIsLogic && (redUop === 0.U)
+      val redAllOnes:  UInt = (-1.S(parameter.eLen.W)).asUInt
+      val redSMax:     UInt = Mux1H(
+        enqueue.bits.vSew1H,
+        Seq(
+          Fill(parameter.eLen / 8, "h7f".U(8.W)),
+          Fill(parameter.eLen / 16, "h7fff".U(16.W)),
+          Fill(parameter.eLen / 32, "h7fffffff".U(32.W))
+        )
+      )
+      val redSMin:     UInt = Mux1H(
+        enqueue.bits.vSew1H,
+        Seq(
+          Fill(parameter.eLen / 8, "h80".U(8.W)),
+          Fill(parameter.eLen / 16, "h8000".U(16.W)),
+          Fill(parameter.eLen / 32, "h80000000".U(32.W))
+        )
+      )
+      val redIdentity: UInt = Mux(
+        redIsMin,
+        Mux(redSign, redSMax, redAllOnes),
+        Mux(redIsMax, Mux(redSign, redSMin, 0.U), Mux(redIsAnd, redAllOnes, 0.U))
+      )
+      // Seed once at the start: every group-0 chunk has groupCounter === 0, so redAccInitialized
+      // latches after the first seed so later chunks keep accumulating
+      when(
+        enqueue.fire &&
+          enqueue.bits.decodeResult(Decoder.red) &&
+          !enqueue.bits.decodeResult(Decoder.float) &&
+          !redAccInitialized
+      ) {
+        red.foreach(_ := redIdentity)
+      }
+    }
+    when(
+      enqueue.fire &&
+        enqueue.bits.decodeResult(Decoder.red) &&
+        !enqueue.bits.decodeResult(Decoder.float) &&
+        !redAccInitialized
+    ) {
+      redAccInitialized := true.B
+    }.elsewhen(reduceLastResponse) {
+      redAccInitialized := false.B
     }
 
     // reduce state machine
