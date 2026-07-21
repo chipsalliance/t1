@@ -403,9 +403,44 @@ class MaskExchangeUnit(parameter: LaneParameter) extends Module {
     reduceResultSize    := log2Ceil(parameter.datapathWidth / 8).U
     when(maskPipeEnqReduce) {
       when(firstFroup && firstLane) {
+        // Fill non-element-0 lanes with the op identity: the old `source1 & enqBitMask` left them
+        // 0, which the horizontal fold collapses (min(x, 0) = 0)
+        val redUop:       UInt = maskPipeEnqReq.decodeResult(Decoder.uop)
+        val redSign:      Bool = !maskPipeEnqReq.decodeResult(Decoder.unsigned1)
+        val redLogic:     Bool = maskPipeEnqReq.decodeResult(Decoder.logic)
+        val redFloat:     Bool = maskPipeEnqReq.decodeResult(Decoder.float)
+        val redIsMin:     Bool = !redLogic && (redUop === 7.U)
+        val redIsMax:     Bool = !redLogic && (redUop === 6.U)
+        val redIsAnd:     Bool = redLogic && (redUop === 0.U)
+        // LaneFloat compare opcodes: 1000 = min, 1100 = max; fpExecutionType b10 = Compare (vfredusum/vfredosum are add)
+        val redFpCompare: Bool = maskPipeEnqReq.decodeResult(Decoder.fpExecutionType) === "b10".U
+        val redFpMin:     Bool = redFloat && redFpCompare && (redUop === "b1000".U)
+        val redFpMax:     Bool = redFloat && redFpCompare && (redUop === "b1100".U)
+        val dw = parameter.datapathWidth
+        def redIdElem(w: Int): UInt = {
+          val allOnes = ((BigInt(1) << w) - 1).U(w.W)
+          val sMax    = ((BigInt(1) << (w - 1)) - 1).U(w.W)
+          val sMin    = (BigInt(1) << (w - 1)).U(w.W)
+          val pInf    = (if (w == 32) BigInt("7f800000", 16) else if (w == 16) BigInt("7c00", 16) else BigInt(0)).U(w.W)
+          val nInf    = (if (w == 32) BigInt("ff800000", 16) else if (w == 16) BigInt("fc00", 16) else BigInt(0)).U(w.W)
+          Mux(
+            redFloat,
+            Mux(redFpMin, pInf, Mux(redFpMax, nInf, 0.U(w.W))),
+            Mux(
+              redIsMin,
+              Mux(redSign, sMax, allOnes),
+              Mux(redIsMax, Mux(redSign, sMin, 0.U(w.W)), Mux(redIsAnd, allOnes, 0.U(w.W)))
+            )
+          )
+        }
+        val redIdentityWord:   UInt = Mux1H(
+          enqSew,
+          Seq(Fill(dw / 8, redIdElem(8)), Fill(dw / 16, redIdElem(16)), Fill(dw / 32, redIdElem(32)))
+        )
+        val redElem0Mask:      UInt = enqBitMask.pad(dw)
         reduceResult := maskAnd(
           !enqIsPop,
-          maskReqQueue.deq.bits.maskPipe.source1 & enqBitMask
+          (maskReqQueue.deq.bits.maskPipe.source1 & redElem0Mask) | (redIdentityWord & (~redElem0Mask).asUInt)
         )
       }
       when(reduceStart) {
