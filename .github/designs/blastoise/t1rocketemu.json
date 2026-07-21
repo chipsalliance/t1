@@ -513,5 +513,6 @@
   "mlir.stripmining": 18655,
   "mlir.vectoradd": 15357,
   "pytorch.demo": 35250,
-  "pytorch.matmul": 75150
+  "pytorch.matmul": 75150,
+  "asm.reduce_identity": 1000
 }

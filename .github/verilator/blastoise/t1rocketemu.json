@@ -2,5 +2,6 @@
   "mlir.matmul": 58331,
   "intrinsic.conv2d_less_m2": 2961,
   "emurt-test.simple": 23001,
-  "disp.simple": 495535
+  "disp.simple": 495535,
+  "asm.reduce_identity": 1000
 }

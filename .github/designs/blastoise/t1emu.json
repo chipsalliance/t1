@@ -9,5 +9,6 @@
   "asm.smoke": 11045,
   "intrinsic.conv2d_less_m2": 3040,
   "intrinsic.linear_normalization": 4934,
-  "intrinsic.softmax": 9186
+  "intrinsic.softmax": 9186,
+  "asm.reduce_identity": 1000
 }
