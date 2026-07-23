@@ -304,7 +304,8 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   val sqrtMuxIn     = Wire(new IterMuxIO(expWidth, sigWidth, fpWidth, ohWidth, iterWidth))
   val divMuxIn      = Wire(new IterMuxIO(expWidth, sigWidth, fpWidth, ohWidth, iterWidth))
   val divSqrtMuxOut = Wire(new IterMuxIO(expWidth, sigWidth, fpWidth, ohWidth, iterWidth))
-  divSqrtMuxOut := Mux(opSqrtReg || (input.bits.opSqrt && input.fire), sqrtMuxIn, divMuxIn)
+  // The arriving request selects on a fire, opSqrtReg only holds the in-flight op
+  divSqrtMuxOut := Mux(Mux(input.fire, input.bits.opSqrt, opSqrtReg), sqrtMuxIn, divMuxIn)
 
   val divValid  = input.valid && !bypassInteger && !bypassFloat && !opSqrt
   val sqrtValid = input.valid && input.bits.opSqrt && normalCaseSqrt
@@ -332,7 +333,8 @@ class SRTFPWrapper(expWidth: Int, sigWidth: Int) extends Module {
   divIter.input.bits.partialSum   := partialSum
   divIter.input.bits.partialCarry := partialCarry
   divIter.input.bits.divider      := divDivisor
-  divIter.input.bits.counter      := Mux(opFloatReg || (opFloat && input.fire), 8.U, counter)
+  // Same stale flag, opFloatReg still holds the previous op until the next fire
+  divIter.input.bits.counter      := Mux(Mux(input.fire, opFloat, opFloatReg), 8.U, counter)
 
   sqrtIter.respOTF.quotient         := otf(0)
   sqrtIter.respOTF.quotientMinusOne := otf(1)
