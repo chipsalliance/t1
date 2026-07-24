@@ -191,7 +191,7 @@ class TestBench(val parameter: T1RocketTileParameter)
   // [[option]] rocket fpu reg write
   parameter.fpuParameter.zip(t1RocketProbe.fpuProbe).zip(rocketProbe.fpuScoreboard).map {
     case ((fpuParameter, fpu), fpuScoreboard) => {
-      val fpToIEEE           = Module(
+      def mkFpToIEEE() = Module(
         new FPToIEEE(
           FPToIEEEParameter(
             fpuParameter.useAsyncReset,
@@ -203,33 +203,49 @@ class TestBench(val parameter: T1RocketTileParameter)
       )
       val isVectorForLLWrite = RegNext(rocketProbe.vectorWriteFD, false.B)
 
-      fpToIEEE.io.clock           := clock
-      fpToIEEE.io.reset           := reset
-      fpToIEEE.io.in.valid        := fpu.pipeWrite.rfWen || (fpu.loadOrVectorWrite.rfWen && !isVectorForLLWrite)
-      fpToIEEE.io.in.bits.data    := Mux(fpu.pipeWrite.rfWen, fpu.pipeWrite.rfWdata, fpu.loadOrVectorWrite.rfWdata)
-      fpToIEEE.io.in.bits.typeTag := Mux(
-        fpu.pipeWrite.rfWen,
-        fpu.pipeWrite.rfWtypeTag,
-        fpu.loadOrVectorWrite.rfWtypeTag
-      )
+      // Emit a FregWrite per write port; both can retire in one cycle
+      val fpToIEEEpipe = mkFpToIEEE()
+      fpToIEEEpipe.io.clock           := clock
+      fpToIEEEpipe.io.reset           := reset
+      fpToIEEEpipe.io.in.valid        := fpu.pipeWrite.rfWen
+      fpToIEEEpipe.io.in.bits.data    := fpu.pipeWrite.rfWdata
+      fpToIEEEpipe.io.in.bits.typeTag := fpu.pipeWrite.rfWtypeTag
 
-      val rfWen   = fpToIEEE.io.out.valid
-      val rfWaddr = Mux(fpu.pipeWrite.rfWen, fpu.pipeWrite.rfWaddr, fpu.loadOrVectorWrite.rfWaddr)
-      val rfWdata = fpToIEEE.io.out.bits
-      when(rfWen) {
+      val fpToIEEEload = mkFpToIEEE()
+      fpToIEEEload.io.clock           := clock
+      fpToIEEEload.io.reset           := reset
+      fpToIEEEload.io.in.valid        := fpu.loadOrVectorWrite.rfWen && !isVectorForLLWrite
+      fpToIEEEload.io.in.bits.data    := fpu.loadOrVectorWrite.rfWdata
+      fpToIEEEload.io.in.bits.typeTag := fpu.loadOrVectorWrite.rfWtypeTag
+
+      val pipeWen  = fpToIEEEpipe.io.out.valid
+      val loadWen  = fpToIEEEload.io.out.valid
+      val pipeAddr = fpu.pipeWrite.rfWaddr
+      val loadAddr = fpu.loadOrVectorWrite.rfWaddr
+
+      // Suppress the wait only for a write to the set register itself
+      val setAddr       = fpuScoreboard.scoreBoardSetAddress
+      val writeToSetReg = (loadWen && loadAddr === setAddr) || (pipeWen && pipeAddr === setAddr)
+
+      // Writes before waits, load before pipe, to keep events in program order
+      when(loadWen) {
         log.printf(
-          cf"""{"event":"FregWrite","idx":$rfWaddr,"data":"$rfWdata%x","cycle":$simulationTime}\n"""
+          cf"""{"event":"FregWrite","idx":$loadAddr,"data":"${fpToIEEEload.io.out.bits}%x","cycle":$simulationTime}\n"""
         )
       }
-
-      when(fpuScoreboard.fpuSetScoreBoard && !rfWen) {
+      when(pipeWen) {
         log.printf(
-          cf"""{"event":"FregWriteWait","idx":${fpuScoreboard.scoreBoardSetAddress},"cycle":${simulationTime}}\n"""
+          cf"""{"event":"FregWrite","idx":$pipeAddr,"data":"${fpToIEEEpipe.io.out.bits}%x","cycle":$simulationTime}\n"""
         )
       }
-      when(fpuScoreboard.memSetScoreBoard && !rfWen) {
+      when(fpuScoreboard.fpuSetScoreBoard && !writeToSetReg) {
         log.printf(
-          cf"""{"event":"FregWriteWait","idx":${fpuScoreboard.scoreBoardSetAddress},"cycle":${simulationTime}}\n"""
+          cf"""{"event":"FregWriteWait","idx":$setAddr,"cycle":${simulationTime}}\n"""
+        )
+      }
+      when(fpuScoreboard.memSetScoreBoard && !writeToSetReg) {
+        log.printf(
+          cf"""{"event":"FregWriteWait","idx":$setAddr,"cycle":${simulationTime}}\n"""
         )
       }
     }
